@@ -283,10 +283,9 @@
                         <td>{{ pairing.home_team.captain or 'Not specified' }}</td>
                         <td>{{ pairing.visitor_team.captain or 'Not specified' }}</td>
                         <td>
-                            <a href="{{ url_for('add_match') }}?home_team_id={{ pairing.home_team.id }}&visitor_team_id={{ pairing.visitor_team.id }}&league_id={{ selected_league.id }}" 
-                               class="btn btn-sm btn-outline-success" title="Schedule this match">
-                                <i class="fas fa-calendar-plus"></i>
-                            </a>
+                            <span class="text-muted small">
+                                <i class="fas fa-info-circle"></i> Use "Create Matches" below
+                            </span>
                         </td>
                     </tr>
                     {% endfor %}
@@ -294,14 +293,23 @@
             </table>
         </div>
         
-        <!-- Export Options -->
+        <!-- Match Creation and Export Options -->
         <div class="mt-3">
+            <button class="btn btn-success me-2" onclick="createMatchesFromPairings()" id="createMatchesBtn">
+                <i class="fas fa-calendar-plus"></i> Create Matches from Pairings
+            </button>
             <button class="btn btn-outline-primary" onclick="downloadPairings()">
                 <i class="fas fa-download"></i> Download as JSON
             </button>
             <button class="btn btn-outline-success" onclick="printPairings()">
                 <i class="fas fa-print"></i> Print Pairings
             </button>
+        </div>
+        
+        <div class="alert alert-info mt-3">
+            <i class="fas fa-info-circle"></i>
+            <strong>Next Step:</strong> Click "Create Matches from Pairings" to generate unscheduled matches 
+            that you can then schedule with specific dates and times in the Matches section.
         </div>
     </div>
 </div>
@@ -506,6 +514,52 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Function to create matches from pairings
+function createMatchesFromPairings() {
+    {% if show_results and selected_league %}
+    if (!confirm('Create unscheduled matches from these pairings?\n\nThis will generate {{ pairings|length }} matches that you can schedule later.')) {
+        return;
+    }
+    
+    const button = document.getElementById('createMatchesBtn');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Matches...';
+    button.disabled = true;
+    
+    fetch(`/calculate-pairings/{{ selected_league.id }}/create-matches`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            start_match_id: 3000  // Starting ID for new matches
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Success! Created ${data.created_count} unscheduled matches.\n\nGo to the Matches page to schedule them with specific dates and times.`);
+            
+            // Offer to redirect to matches page
+            if (confirm('Would you like to go to the Matches page now to schedule these matches?')) {
+                window.location.href = '/matches';
+            }
+        } else {
+            alert('Error creating matches: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error creating matches: ' + error);
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+    {% else %}
+    alert('Please calculate pairings first before creating matches.');
+    {% endif %}
+}
 
 // Function to download pairings as JSON
 function downloadPairings() {

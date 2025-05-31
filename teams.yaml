@@ -83,6 +83,13 @@ teams:
     captain: "Harry Wilson"
     preferred_days: []  # No preference - can play any day
 
+  - id: 1020
+    name: "Ron - Tennis Center North"
+    league_id: 101
+    home_facility_id: 1
+    captain: "Ron Smith"
+    preferred_days: []
+
 # Notes:
 # - preferred_days is optional and defaults to an empty list
 # - Valid days are: "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"

@@ -440,18 +440,21 @@ def add_team():
 
 # ==================== MATCH ROUTES ====================
 
+# ==================== UPDATED MATCH ROUTES (NO MANUAL CREATION) ====================
+
 @app.route('/matches')
 def matches():
-    """View matches with optional league filter"""
+    """View matches with optional league filter and unscheduled match support"""
     db = get_db()
     if db is None:
         flash('No database connection', 'error')
         return redirect(url_for('index'))
     
     league_id = request.args.get('league_id', type=int)
+    show_unscheduled = request.args.get('show_unscheduled', 'true').lower() == 'true'
     
     try:
-        matches_list = db.list_matches(league_id=league_id)
+        matches_list = db.list_matches(league_id=league_id, include_unscheduled=show_unscheduled)
         leagues_list = db.list_leagues()  # For filter dropdown
         
         # Get selected league info if filtering
@@ -459,7 +462,7 @@ def matches():
         if league_id:
             selected_league = db.get_league(league_id)
         
-        # Enhance matches with team and facility names
+        # Enhance matches with team and facility names, plus status
         enhanced_matches = []
         for match in matches_list:
             enhanced_match = {
@@ -472,7 +475,11 @@ def matches():
                 'time': match.time,
                 'home_team_name': 'Unknown',
                 'visitor_team_name': 'Unknown',
-                'facility_name': 'Unknown'
+                'facility_name': 'Unknown',
+                'league_name': 'Unassigned',
+                'status': match.get_status(),
+                'is_scheduled': match.is_scheduled(),
+                'missing_fields': match.get_missing_fields()
             }
             
             try:
@@ -496,80 +503,233 @@ def matches():
             except Exception as e:
                 print(f"Warning: Could not get facility {match.facility_id}: {e}")
             
+            try:
+                if match.league_id:
+                    league = db.get_league(match.league_id)
+                    if league:
+                        enhanced_match['league_name'] = league.name
+            except Exception as e:
+                print(f"Warning: Could not get league {match.league_id}: {e}")
+            
             enhanced_matches.append(enhanced_match)
         
         return render_template('matches.html', 
                              matches=enhanced_matches, 
                              leagues=leagues_list,
-                             selected_league=selected_league)
+                             selected_league=selected_league,
+                             show_unscheduled=show_unscheduled)
     except Exception as e:
         flash(f'Error loading matches: {e}', 'error')
         return redirect(url_for('index'))
 
-@app.route('/matches/add', methods=['GET', 'POST'])
-def add_match():
-    """Add a new match"""
+# REMOVED: add_match route - matches are now only created through pairings
+
+@app.route('/matches/<int:match_id>/schedule', methods=['POST'])
+def schedule_match(match_id):
+    """Schedule an existing unscheduled match"""
     db = get_db()
     if db is None:
-        flash('No database connection', 'error')
-        return redirect(url_for('index'))
+        return jsonify({'error': 'No database connected'}), 500
     
-    if request.method == 'POST':
-        try:
-            match_id = int(request.form.get('id'))
-            league_id = int(request.form.get('league_id'))
-            home_team_id = int(request.form.get('home_team_id'))
-            visitor_team_id = int(request.form.get('visitor_team_id'))
-            facility_id = int(request.form.get('facility_id'))
-            date = request.form.get('date', '').strip()
-            time = request.form.get('time', '').strip()
-            
-            if not all([date, time]):
-                flash('Date and time are required', 'error')
-                return render_template('add_match.html', 
-                                     leagues=db.list_leagues(),
-                                     facilities=db.list_facilities())
-            
-            if home_team_id == visitor_team_id:
-                flash('Home team and visitor team cannot be the same', 'error')
-                return render_template('add_match.html', 
-                                     leagues=db.list_leagues(),
-                                     facilities=db.list_facilities())
-            
-            match = Match(
-                id=match_id,
-                league_id=league_id,
-                home_team_id=home_team_id,
-                visitor_team_id=visitor_team_id,
-                facility_id=facility_id,
-                date=date,
-                time=time
-            )
-            db.add_match(match)
-            
-            flash(f'Successfully added match: ID {match_id}', 'success')
-            return redirect(url_for('matches'))
-            
-        except ValueError as e:
-            if 'already exists' in str(e):
-                flash(f'Match with ID {match_id} already exists', 'error')
-            else:
-                flash(f'Invalid data: {e}', 'error')
-        except Exception as e:
-            flash(f'Error adding match: {e}', 'error')
-        
-        return render_template('add_match.html', 
-                             leagues=db.list_leagues(),
-                             facilities=db.list_facilities())
-    
-    # GET request - show the form
     try:
-        return render_template('add_match.html', 
-                             leagues=db.list_leagues(),
-                             facilities=db.list_facilities())
+        league_id = int(request.form.get('league_id'))
+        date = request.form.get('date', '').strip()
+        time = request.form.get('time', '').strip()
+        
+        if not all([league_id, date, time]):
+            return jsonify({'error': 'League, date, and time are required'}), 400
+        
+        db.schedule_match(match_id, league_id, date, time)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Match {match_id} scheduled for {date} at {time}'
+        })
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
-        flash(f'Error loading form data: {e}', 'error')
-        return redirect(url_for('matches'))
+        return jsonify({'error': f'Failed to schedule match: {e}'}), 500
+
+@app.route('/matches/<int:match_id>/unschedule', methods=['POST'])
+def unschedule_match(match_id):
+    """Remove scheduling from a match, making it unscheduled"""
+    db = get_db()
+    if db is None:
+        return jsonify({'error': 'No database connected'}), 500
+    
+    try:
+        db.unschedule_match(match_id)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Match {match_id} has been unscheduled'
+        })
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to unschedule match: {e}'}), 500
+
+@app.route('/api/matches/unscheduled')
+def api_unscheduled_matches():
+    """API endpoint to get all unscheduled matches"""
+    db = get_db()
+    if db is None:
+        return jsonify({'error': 'No database connected'}), 500
+    
+    try:
+        unscheduled_matches = db.list_unscheduled_matches()
+        matches_data = []
+        
+        for match in unscheduled_matches:
+            match_data = {
+                'id': match.id,
+                'home_team_id': match.home_team_id,
+                'visitor_team_id': match.visitor_team_id,
+                'facility_id': match.facility_id,
+                'league_id': match.league_id,
+                'date': match.date,
+                'time': match.time,
+                'status': match.get_status(),
+                'missing_fields': match.get_missing_fields()
+            }
+            
+            # Add team and facility names
+            try:
+                home_team = db.get_team(match.home_team_id)
+                if home_team:
+                    match_data['home_team_name'] = home_team.name
+                
+                visitor_team = db.get_team(match.visitor_team_id)
+                if visitor_team:
+                    match_data['visitor_team_name'] = visitor_team.name
+                
+                facility = db.get_facility(match.facility_id)
+                if facility:
+                    match_data['facility_name'] = facility.name
+                
+                if match.league_id:
+                    league = db.get_league(match.league_id)
+                    if league:
+                        match_data['league_name'] = league.name
+            except Exception as e:
+                print(f"Warning: Could not enhance match {match.id}: {e}")
+            
+            matches_data.append(match_data)
+        
+        return jsonify(matches_data)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Enhanced calculate pairings to create unscheduled matches
+@app.route('/calculate-pairings/<int:league_id>/create-matches', methods=['POST'])
+def create_matches_from_pairings(league_id):
+    """Create unscheduled matches from calculated pairings"""
+    db = get_db()
+    if db is None:
+        return jsonify({'error': 'No database connected'}), 500
+    
+    try:
+        # Get league and teams
+        league = db.get_league(league_id)
+        if not league:
+            return jsonify({'error': f'League with ID {league_id} not found'}), 404
+        
+        teams = db.list_teams(league_id=league_id)
+        if len(teams) < 2:
+            return jsonify({'error': f'Need at least 2 teams, found {len(teams)}'}), 400
+        
+        # Calculate pairings
+        pairings = league.calculate_pairings(teams)
+        
+        # Create unscheduled matches for each pairing
+        created_matches = []
+        failed_matches = []
+        start_match_id = request.json.get('start_match_id', 3000) if request.is_json else 3000
+        
+        for i, (home_team, visitor_team) in enumerate(pairings):
+            match_id = start_match_id + i
+            
+            # Check if match ID already exists, find next available ID
+            while db.get_match(match_id):
+                match_id += 1
+            
+            try:
+                match = Match(
+                    id=match_id,
+                    home_team_id=home_team.id,
+                    visitor_team_id=visitor_team.id,
+                    facility_id=home_team.home_facility_id,  # Use home team's facility
+                    league_id=None,  # Leave unscheduled initially
+                    date=None,
+                    time=None
+                )
+                
+                db.add_match(match)
+                created_matches.append({
+                    'match_id': match_id,
+                    'home_team': home_team.name,
+                    'visitor_team': visitor_team.name,
+                    'facility_id': home_team.home_facility_id
+                })
+                
+            except Exception as e:
+                print(f"Warning: Could not create match {match_id}: {e}")
+                failed_matches.append({
+                    'match_id': match_id,
+                    'home_team': home_team.name,
+                    'visitor_team': visitor_team.name,
+                    'error': str(e)
+                })
+                continue
+        
+        response_data = {
+            'success': True,
+            'created_count': len(created_matches),
+            'failed_count': len(failed_matches),
+            'matches': created_matches,
+            'message': f'Created {len(created_matches)} unscheduled matches from pairings'
+        }
+        
+        if failed_matches:
+            response_data['failures'] = failed_matches
+            response_data['message'] += f' ({len(failed_matches)} failed)'
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to create matches: {e}'}), 500
+
+@app.route('/matches/delete-all', methods=['POST'])
+def delete_all_matches():
+    """Delete all matches - useful for regenerating from pairings"""
+    db = get_db()
+    if db is None:
+        return jsonify({'error': 'No database connected'}), 500
+    
+    try:
+        # Get confirmation from request
+        confirm = request.form.get('confirm', '').lower() == 'true'
+        if not confirm:
+            return jsonify({'error': 'Confirmation required'}), 400
+        
+        # Count existing matches
+        existing_matches = db.list_matches()
+        match_count = len(existing_matches)
+        
+        # Delete all matches
+        db.cursor.execute("DELETE FROM matches")
+        
+        return jsonify({
+            'success': True,
+            'deleted_count': match_count,
+            'message': f'Deleted {match_count} matches'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to delete matches: {e}'}), 500
 
 # ==================== CALCULATE PAIRINGS ROUTES ====================
 

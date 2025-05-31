@@ -2,6 +2,18 @@
 
 A Flask-based web application for viewing and managing tennis league data.
 
+    TODO:
+    
+    Database Capability:
+     - generate a unique, deterministic match ID to avoid duplicate scheduling.
+     - create functions to schedule (assign matches to facilities) following
+       facility constraints, team preferences, then league preferences.
+    
+    Web App:
+      - Add edit capability for facilities, leagues, teams, matches
+      - Add unscheduled matches to the Matches page
+      - Add ability to try to schedule unscheduled matches
+
 ## Setup Instructions
 
 ### 1. Install Dependencies

@@ -1022,14 +1022,14 @@ class Team:
 
 @dataclass
 class Match:
-    """Represents a tennis match"""
+    """Represents a tennis match (scheduled or unscheduled)"""
     id: int
     league_id: int
     home_team_id: int
     visitor_team_id: int
-    facility_id: int
-    date: str  # YYYY-MM-DD format
-    time: str  # HH:MM format
+    facility_id: Optional[int] = None  # None for unscheduled matches
+    date: Optional[str] = None  # YYYY-MM-DD format, None for unscheduled
+    time: Optional[str] = None  # HH:MM format, None for unscheduled
     
     def __post_init__(self):
         """Validate match data"""
@@ -1048,31 +1048,91 @@ class Match:
         if self.home_team_id == self.visitor_team_id:
             raise ValueError("Home team and visitor team cannot be the same")
         
-        if not isinstance(self.facility_id, int) or self.facility_id <= 0:
-            raise ValueError(f"Facility ID must be a positive integer, got: {self.facility_id}")
+        # Validate facility_id if provided
+        if self.facility_id is not None:
+            if not isinstance(self.facility_id, int) or self.facility_id <= 0:
+                raise ValueError(f"Facility ID must be a positive integer or None, got: {self.facility_id}")
         
-        # Validate date format (YYYY-MM-DD)
-        if not isinstance(self.date, str):
-            raise ValueError("Date must be a string")
-        try:
-            parts = self.date.split('-')
-            if len(parts) != 3:
-                raise ValueError("Invalid date format")
-            year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
-            if not (1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31):
-                raise ValueError("Invalid date values")
-        except (ValueError, IndexError):
-            raise ValueError(f"Invalid date format: '{self.date}'. Expected YYYY-MM-DD format")
+        # Validate date format if provided
+        if self.date is not None:
+            if not isinstance(self.date, str):
+                raise ValueError("Date must be a string or None")
+            try:
+                parts = self.date.split('-')
+                if len(parts) != 3:
+                    raise ValueError("Invalid date format")
+                year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+                if not (1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31):
+                    raise ValueError("Invalid date values")
+            except (ValueError, IndexError):
+                raise ValueError(f"Invalid date format: '{self.date}'. Expected YYYY-MM-DD format")
         
-        # Validate time format (HH:MM)
-        if not isinstance(self.time, str):
-            raise ValueError("Time must be a string")
-        try:
-            parts = self.time.split(':')
-            if len(parts) != 2:
-                raise ValueError("Invalid time format")
-            hour, minute = int(parts[0]), int(parts[1])
-            if not (0 <= hour <= 23 and 0 <= minute <= 59):
-                raise ValueError("Invalid time values")
-        except (ValueError, IndexError):
-            raise ValueError(f"Invalid time format: '{self.time}'. Expected HH:MM format")
+        # Validate time format if provided
+        if self.time is not None:
+            if not isinstance(self.time, str):
+                raise ValueError("Time must be a string or None")
+            try:
+                parts = self.time.split(':')
+                if len(parts) != 2:
+                    raise ValueError("Invalid time format")
+                hour, minute = int(parts[0]), int(parts[1])
+                if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                    raise ValueError("Invalid time values")
+            except (ValueError, IndexError):
+                raise ValueError(f"Invalid time format: '{self.time}'. Expected HH:MM format")
+    
+    def is_scheduled(self) -> bool:
+        """Check if the match is scheduled (has date, time, and facility)"""
+        return all([self.facility_id is not None, self.date is not None, self.time is not None])
+    
+    def is_unscheduled(self) -> bool:
+        """Check if the match is unscheduled"""
+        return not self.is_scheduled()
+    
+    def get_status(self) -> str:
+        """Get the scheduling status of the match"""
+        return "scheduled" if self.is_scheduled() else "unscheduled"
+    
+    def schedule(self, facility_id: int, date: str, time: str) -> 'Match':
+        """Return a new Match instance with scheduling information"""
+        return Match(
+            id=self.id,
+            league_id=self.league_id,
+            home_team_id=self.home_team_id,
+            visitor_team_id=self.visitor_team_id,
+            facility_id=facility_id,
+            date=date,
+            time=time
+        )
+    
+    def unschedule(self) -> 'Match':
+        """Return a new Match instance without scheduling information"""
+        return Match(
+            id=self.id,
+            league_id=self.league_id,
+            home_team_id=self.home_team_id,
+            visitor_team_id=self.visitor_team_id,
+            facility_id=None,
+            date=None,
+            time=None
+        )
+
+    def get_missing_fields(self) -> List[str]:
+        """
+        Get a list of fields that are missing for this match to be fully scheduled
+        
+        Returns:
+            List of missing field names (e.g., ['facility', 'date', 'time'])
+        """
+        missing = []
+        
+        if self.facility_id is None:
+            missing.append('facility')
+        
+        if self.date is None:
+            missing.append('date')
+        
+        if self.time is None:
+            missing.append('time')
+        
+        return missing

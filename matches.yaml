@@ -1,8 +1,101 @@
 matches:
-    - id: 2001
-      league_id: 101
-      home_team_id: 1001
-      visitor_team_id: 1002
-      facility_id: 1
-      date: "2025-03-15"
-      time: "10:00"
+  # SCHEDULED MATCHES - These have date, time, and facility
+  - id: 2001
+    league_id: 101
+    home_team_id: 1001
+    visitor_team_id: 1002
+    facility_id: 1
+    date: "2025-03-15"
+    time: "10:00"
+
+  - id: 2002
+    league_id: 101
+    home_team_id: 1013
+    visitor_team_id: 1014
+    facility_id: 1
+    date: "2025-03-22"
+    time: "10:00"
+
+  # UNSCHEDULED MATCHES - These only have teams but no date/time/facility
+  # These represent matches that need to happen but haven't been scheduled yet
+  - id: 2003
+    league_id: 101
+    home_team_id: 1015
+    visitor_team_id: 1016
+    # No facility_id, date, or time - this is an unscheduled match
+
+  - id: 2004
+    league_id: 101
+    home_team_id: 1017
+    visitor_team_id: 1019
+    # No facility_id, date, or time - this is an unscheduled match
+
+  - id: 2005
+    league_id: 101
+    home_team_id: 1002
+    visitor_team_id: 1013
+    # No facility_id, date, or time - this is an unscheduled match
+
+  # PARTIALLY SCHEDULED MATCHES - These will be treated as unscheduled
+  # because they're missing required scheduling information
+  - id: 2006
+    league_id: 101
+    home_team_id: 1014
+    visitor_team_id: 1015
+    facility_id: 1
+    # Missing date and time - will be unscheduled
+
+  # MORE SCHEDULED MATCHES
+  - id: 2007
+    league_id: 101
+    home_team_id: 1016
+    visitor_team_id: 1017
+    facility_id: 2
+    date: "2025-04-26"
+    time: "14:00"
+
+  - id: 2008
+    league_id: 101
+    home_team_id: 1019
+    visitor_team_id: 1001
+    facility_id: 2
+    date: "2025-05-03"
+    time: "10:00"
+
+  # League 102 matches (if you have teams in league 102)
+  - id: 2009
+    league_id: 102
+    home_team_id: 1004
+    visitor_team_id: 1005
+    facility_id: 3
+    date: "2025-03-16"
+    time: "18:00"
+
+  - id: 2010
+    league_id: 102
+    home_team_id: 1005
+    visitor_team_id: 1004
+    # Unscheduled match in league 102
+
+# COMMAND LINE EXAMPLES:
+
+# Load matches (both scheduled and unscheduled):
+# python sqlite_tennis_db.py --db tennis.db load matches matches.yaml
+
+# List only scheduled matches:
+# python sqlite_tennis_db.py --db tennis.db list matches
+
+# List all matches including unscheduled:
+# python sqlite_tennis_db.py --db tennis.db list matches --include-unscheduled
+
+# Unschedule a match (removes date/time/facility but keeps the match):
+# python sqlite_tennis_db.py --db tennis.db unschedule-match --match-id 2001
+
+# Schedule an unscheduled match:
+# python sqlite_tennis_db.py --db tennis.db schedule-match --match-id 2003 --facility-id 1 --date "2025-04-05" --time "10:00"
+
+# NOTES:
+# - Unscheduled matches only require: id, league_id, home_team_id, visitor_team_id
+# - Scheduled matches require all fields including: facility_id, date, time
+# - Partially scheduled matches (missing any of facility/date/time) are treated as unscheduled
+# - The system will automatically determine status based on whether all scheduling fields are present
