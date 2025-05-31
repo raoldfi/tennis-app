@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}USTA Constants - Tennis Database{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1><i class="fas fa-list"></i> USTA Constants</h1>
+    <p class="text-muted">Official USTA values used for league organization and validation</p>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-map"></i> Sections 
+                <span class="badge bg-light text-dark ms-2">{{ constants.sections|length }}</span>
+            </div>
+            <div class="card-body">
+                <p class="card-text text-muted small mb-3">
+                    USTA is divided into 17 geographic sections across the United States and Caribbean.
+                </p>
+                <div class="row">
+                    {% for section in constants.sections %}
+                    <div class="col-12 mb-2">
+                        <span class="badge bg-primary me-1">{{ loop.index }}</span>
+                        {{ section }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-map-marker-alt"></i> Regions 
+                <span class="badge bg-light text-dark ms-2">{{ constants.regions|length }}</span>
+            </div>
+            <div class="card-body">
+                <p class="card-text text-muted small mb-3">
+                    Regional subdivisions within sections for more localized league organization.
+                </p>
+                <div class="row">
+                    {% for region in constants.regions %}
+                    <div class="col-12 mb-2">
+                        <span class="badge bg-info me-1">{{ loop.index }}</span>
+                        {{ region }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-users"></i> Age Groups 
+                <span class="badge bg-light text-dark ms-2">{{ constants.age_groups|length }}</span>
+            </div>
+            <div class="card-body">
+                <p class="card-text text-muted small mb-3">
+                    Age categories that determine league eligibility based on player age.
+                </p>
+                <div class="row">
+                    {% for age_group in constants.age_groups %}
+                    <div class="col-12 mb-3">
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-success me-2 fs-6">{{ age_group }}</span>
+                            <small class="text-muted">
+                                {% if age_group == "18 & Over" %}
+                                Open to all adult players
+                                {% elif age_group == "40 & Over" %}
+                                Players 40 years and older
+                                {% elif age_group == "55 & Over" %}
+                                Players 55 years and older
+                                {% elif age_group == "65 & Over" %}
+                                Players 65 years and older
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-trophy"></i> Divisions 
+                <span class="badge bg-light text-dark ms-2">{{ constants.divisions|length }}</span>
+            </div>
+            <div class="card-body">
+                <p class="card-text text-muted small mb-3">
+                    Skill-based divisions that determine competitive level and match formats.
+                </p>
+                
+                <!-- Women's Divisions -->
+                <h6 class="text-primary mb-2">
+                    <i class="fas fa-venus"></i> Women's Divisions
+                </h6>
+                <div class="row mb-3">
+                    {% for division in constants.divisions %}
+                        {% if "Women" in division %}
+                        <div class="col-6 mb-2">
+                            <span class="badge bg-warning text-dark">{{ division }}</span>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                
+                <!-- Men's Divisions -->
+                <h6 class="text-info mb-2">
+                    <i class="fas fa-mars"></i> Men's Divisions
+                </h6>
+                <div class="row mb-3">
+                    {% for division in constants.divisions %}
+                        {% if "Men" in division %}
+                        <div class="col-6 mb-2">
+                            <span class="badge bg-warning text-dark">{{ division }}</span>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                
+                <!-- Mixed Divisions -->
+                <h6 class="text-success mb-2">
+                    <i class="fas fa-venus-mars"></i> Mixed Divisions
+                </h6>
+                <div class="row">
+                    {% for division in constants.divisions %}
+                        {% if "Mixed" in division %}
+                        <div class="col-6 mb-2">
+                            <span class="badge bg-warning text-dark">{{ division }}</span>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Usage Information -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> Usage Information
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-check-circle text-success"></i> Data Validation</h6>
+                        <p class="small text-muted">
+                            These constants are used to validate league data when loading from YAML files. 
+                            All leagues must use valid section, region, age group, and division values.
+                        </p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-edit text-primary"></i> Creating Leagues</h6>
+                        <p class="small text-muted">
+                            When creating new leagues, ensure you use these exact values in your YAML files. 
+                            Case sensitivity and spelling must match exactly.
+                        </p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-lightbulb text-warning"></i> League Organization</h6>
+                        <p class="small text-muted">
+                            Leagues are organized hierarchically: Section → Region → Age Group → Division. 
+                            This structure helps organize tournaments and rankings.
+                        </p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <h6><i class="fas fa-code"></i> Example League YAML</h6>
+                <pre class="bg-light p-3 rounded"><code>leagues:
+  - id: 101
+    name: "2025 Adult 18+ 3.0 Women"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "3.0 Women"</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        <a href="{{ url_for('leagues') }}" class="btn btn-outline-primary">
+            <i class="fas fa-trophy"></i> View Leagues
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Add copy-to-clipboard functionality for the code example
+document.addEventListener('DOMContentLoaded', function() {
+    const codeBlock = document.querySelector('pre code');
+    if (codeBlock) {
+        codeBlock.style.cursor = 'pointer';
+        codeBlock.title = 'Click to copy';
+        
+        codeBlock.addEventListener('click', function() {
+            navigator.clipboard.writeText(this.textContent).then(function() {
+                // Show temporary success message
+                const originalText = codeBlock.textContent;
+                codeBlock.textContent = 'Copied to clipboard!';
+                codeBlock.style.color = '#28a745';
+                
+                setTimeout(function() {
+                    codeBlock.textContent = originalText;
+                    codeBlock.style.color = '';
+                }, 2000);
+            });
+        });
+    }
+});
+</script>
+{% endblock %}
+

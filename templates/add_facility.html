@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block title %}Add Facility - Tennis Database{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-building"></i> Add New Facility
+            </div>
+            <div class="card-body">
+                <form method="POST" id="facilityForm">
+                    <!-- Basic Info -->
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="id" class="form-label">
+                                <i class="fas fa-hashtag"></i> Facility ID *
+                            </label>
+                            <input type="number" class="form-control" id="id" name="id" 
+                                   min="1" required 
+                                   placeholder="e.g., 1">
+                            <div class="form-text">Unique identifier for the facility</div>
+                        </div>
+                        
+                        <div class="col-md-9 mb-3">
+                            <label for="name" class="form-label">
+                                <i class="fas fa-building"></i> Facility Name *
+                            </label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   required maxlength="255"
+                                   placeholder="e.g., Tennis Center North">
+                            <div class="form-text">Full name of the tennis facility</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="location" class="form-label">
+                            <i class="fas fa-map-marker-alt"></i> Location
+                        </label>
+                        <input type="text" class="form-control" id="location" name="location" 
+                               maxlength="500"
+                               placeholder="e.g., 123 Tennis Dr, Albuquerque, NM">
+                        <div class="form-text">Street address or general location description</div>
+                    </div>
+
+                    <!-- Weekly Schedule -->
+                    <h5><i class="fas fa-calendar-week"></i> Weekly Schedule</h5>
+                    <p class="text-muted small">Define available time slots for each day of the week. Leave empty for days with no availability.</p>
+                    
+                    <div class="row">
+                        {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card">
+                                <div class="card-header py-2">
+                                    <strong>{{ day }}</strong>
+                                    <button type="button" class="btn btn-sm btn-outline-primary float-end" 
+                                            onclick="addTimeSlot('{{ day.lower() }}')">
+                                        <i class="fas fa-plus"></i> Add Time
+                                    </button>
+                                </div>
+                                <div class="card-body py-2">
+                                    <div id="{{ day.lower() }}_slots">
+                                        <!-- Time slots will be added here dynamically -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% if loop.index % 2 == 0 %}</div><div class="row">{% endif %}
+                        {% endfor %}
+                    </div>
+
+                    <!-- Unavailable Dates -->
+                    <div class="mt-4">
+                        <h5><i class="fas fa-ban"></i> Unavailable Dates</h5>
+                        <p class="text-muted small">Enter dates when the facility is closed (maintenance, holidays, etc.). One date per line in YYYY-MM-DD format.</p>
+                        
+                        <div class="mb-3">
+                            <label for="unavailable_dates" class="form-label">Unavailable Dates</label>
+                            <textarea class="form-control" id="unavailable_dates" name="unavailable_dates" 
+                                      rows="6" placeholder="2025-07-04&#10;2025-12-25&#10;2025-01-01"></textarea>
+                            <div class="form-text">Format: YYYY-MM-DD (one date per line)</div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add Facility
+                        </button>
+                        <a href="{{ url_for('facilities') }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="button" class="btn btn-outline-info" onclick="addSampleSchedule()">
+                            <i class="fas fa-magic"></i> Add Sample Schedule
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Help Section -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> Facility Creation Guidelines
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-clock text-warning"></i> Time Slots</h6>
+                        <ul class="small">
+                            <li>Use 24-hour format (e.g., 18:00 for 6 PM)</li>
+                            <li>Each time slot needs available court count</li>
+                            <li>Courts must be positive numbers</li>
+                            <li>Leave days empty if no availability</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-calendar text-info"></i> Unavailable Dates</h6>
+                        <ul class="small">
+                            <li>Format: YYYY-MM-DD (e.g., 2025-07-04)</li>
+                            <li>One date per line</li>
+                            <li>Include holidays, maintenance days</li>
+                            <li>Can be empty if always available</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-lightbulb text-success"></i> Tips</h6>
+                        <ul class="small">
+                            <li>Use "Add Sample Schedule" for quick start</li>
+                            <li>Common times: 18:00 weekdays, 10:00 weekends</li>
+                            <li>Consider peak hours for court counts</li>
+                            <li>Plan for tournament blackout dates</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let timeSlotCounter = 0;
+
+function addTimeSlot(day, time = '', courts = '') {
+    timeSlotCounter++;
+    const container = document.getElementById(day + '_slots');
+    const slotId = `${day}_slot_${timeSlotCounter}`;
+    
+    const slotHtml = `
+        <div class="row mb-2" id="${slotId}">
+            <div class="col-5">
+                <input type="time" class="form-control form-control-sm" 
+                       name="${day}_times" placeholder="Time" value="${time}">
+            </div>
+            <div class="col-4">
+                <input type="number" class="form-control form-control-sm" 
+                       name="${day}_courts" placeholder="Courts" min="1" value="${courts}">
+            </div>
+            <div class="col-3">
+                <button type="button" class="btn btn-sm btn-outline-danger" 
+                        onclick="removeTimeSlot('${slotId}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', slotHtml);
+}
+
+function removeTimeSlot(slotId) {
+    document.getElementById(slotId).remove();
+}
+
+function addSampleSchedule() {
+    // Clear existing schedules
+    ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].forEach(day => {
+        document.getElementById(day + '_slots').innerHTML = '';
+    });
+    
+    // Add sample weekday schedule (Monday-Thursday)
+    ['monday', 'tuesday', 'wednesday', 'thursday'].forEach(day => {
+        addTimeSlot(day, '18:00', '12');
+    });
+    
+    // Friday - no slots (common to be closed)
+    
+    // Weekend schedule (Saturday-Sunday)
+    ['saturday', 'sunday'].forEach(day => {
+        addTimeSlot(day, '10:00', '8');
+        addTimeSlot(day, '14:00', '12');
+    });
+    
+    // Add sample unavailable dates
+    document.getElementById('unavailable_dates').value = '2025-07-04\n2025-12-25\n2025-01-01';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus on the first input
+    document.getElementById('id').focus();
+    
+    // Add initial time slot for each day to show the interface
+    ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].forEach(day => {
+        addTimeSlot(day);
+    });
+    
+    // Form validation
+    document.getElementById('facilityForm').addEventListener('submit', function(e) {
+        const id = document.getElementById('id').value;
+        const name = document.getElementById('name').value.trim();
+        
+        if (!id || id < 1) {
+            alert('Please enter a valid facility ID (must be a positive number)');
+            e.preventDefault();
+            return;
+        }
+        
+        if (!name) {
+            alert('Please enter a facility name');
+            e.preventDefault();
+            return;
+        }
+        
+        // Validate at least one schedule entry exists
+        let hasSchedule = false;
+        ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].forEach(day => {
+            const timeInputs = document.querySelectorAll(`input[name="${day}_times"]`);
+            const courtInputs = document.querySelectorAll(`input[name="${day}_courts"]`);
+            
+            for (let i = 0; i < timeInputs.length; i++) {
+                if (timeInputs[i].value.trim() && courtInputs[i].value.trim()) {
+                    hasSchedule = true;
+                    break;
+                }
+            }
+        });
+        
+        if (!hasSchedule) {
+            if (!confirm('No schedule entries found. Continue with empty schedule?')) {
+                e.preventDefault();
+                return;
+            }
+        }
+        
+        // Validate unavailable dates format
+        const unavailableDates = document.getElementById('unavailable_dates').value.trim();
+        if (unavailableDates) {
+            const dates = unavailableDates.split('\n');
+            for (let date of dates) {
+                date = date.trim();
+                if (date && !date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    alert(`Invalid date format: "${date}". Use YYYY-MM-DD format.`);
+                    e.preventDefault();
+                    return;
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

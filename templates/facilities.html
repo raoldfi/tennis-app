@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Facilities - Tennis Database{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-building"></i> Tennis Facilities</h1>
+    <div class="d-flex gap-2">
+        <span class="badge badge-facility fs-6">{{ facilities|length }} facilities</span>
+        <a href="{{ url_for('add_facility') }}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Add Facility
+        </a>
+    </div>
+</div>
+
+{% if facilities %}
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Location</th>
+                        <th>Schedule Summary</th>
+                        <th>Unavailable Dates</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for facility in facilities %}
+                    <tr>
+                        <td><span class="badge bg-secondary">{{ facility.id }}</span></td>
+                        <td>
+                            <strong>{{ facility.name }}</strong>
+                        </td>
+                        <td>
+                            <i class="fas fa-map-marker-alt text-muted"></i>
+                            {{ facility.location or 'Not specified' }}
+                        </td>
+                        <td>
+                            {% set total_slots = 0 %}
+                            {% set active_days = 0 %}
+                            {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                                {% set total_slots = total_slots + day_schedule.start_times|length %}
+                                {% if day_schedule.start_times %}
+                                    {% set active_days = active_days + 1 %}
+                                {% endif %}
+                            {% endfor %}
+                            
+                            <div class="d-flex gap-2">
+                                <span class="badge bg-primary">{{ total_slots }} slots</span>
+                                <span class="badge bg-info">{{ active_days }}/7 days</span>
+                            </div>
+                            
+                            <!-- Show peak times -->
+                            {% if total_slots > 0 %}
+                            <div class="mt-1">
+                                {% set common_times = {} %}
+                                {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                                    {% for time_slot in day_schedule.start_times %}
+                                        {% if common_times.update({time_slot.time: common_times.get(time_slot.time, 0) + 1}) %}{% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+                                
+                                {% for time, count in (common_times.items()|sort(attribute='1', reverse=True))[:2] %}
+                                <span class="badge bg-light text-dark small">{{ time }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if facility.unavailable_dates %}
+                                <span class="badge bg-warning text-dark">{{ facility.unavailable_dates|length }} dates</span>
+                                {% if facility.unavailable_dates|length <= 3 %}
+                                <div class="mt-1">
+                                    {% for date in facility.unavailable_dates|sort %}
+                                    <div class="small text-muted">{{ date }}</div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted small">Always available</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('view_facility', facility_id=facility.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                                <!-- Future: Edit button -->
+                                <button class="btn btn-sm btn-outline-secondary" disabled>
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Facilities Summary Cards (for mobile/better UX) -->
+<div class="d-block d-md-none mt-4">
+    <h5><i class="fas fa-list"></i> Facility Cards</h5>
+    {% for facility in facilities %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <h6 class="mb-0">{{ facility.name }}</h6>
+                <span class="badge bg-secondary">{{ facility.id }}</span>
+            </div>
+            
+            {% if facility.location %}
+            <p class="text-muted small mb-2">
+                <i class="fas fa-map-marker-alt"></i> {{ facility.location }}
+            </p>
+            {% endif %}
+            
+            <div class="row">
+                <div class="col-6">
+                    <small class="text-muted">Schedule</small>
+                    {% set total_slots = 0 %}
+                    {% set active_days = 0 %}
+                    {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                        {% set total_slots = total_slots + day_schedule.start_times|length %}
+                        {% if day_schedule.start_times %}
+                            {% set active_days = active_days + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                    <div>{{ total_slots }} slots, {{ active_days }} days</div>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted">Unavailable</small>
+                    <div>{{ facility.unavailable_dates|length }} dates</div>
+                </div>
+            </div>
+            
+            <div class="mt-2">
+                <a href="{{ url_for('view_facility', facility_id=facility.id) }}" 
+                   class="btn btn-sm btn-primary">
+                    <i class="fas fa-eye"></i> View Details
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center">
+        <i class="fas fa-building fa-4x text-muted mb-3"></i>
+        <h5>No Facilities Found</h5>
+        <p class="text-muted">No facilities are currently loaded in the database.</p>
+        
+        <div class="d-flex gap-2 justify-content-center">
+            <a href="{{ url_for('add_facility') }}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Add Your First Facility
+            </a>
+        </div>
+        
+        <div class="alert alert-info mt-3">
+            <i class="fas fa-info-circle"></i>
+            <strong>Alternative:</strong> Use the command line to load facilities from a YAML file:
+            <pre class="mt-2 mb-0"><code>python sqlite_tennis_db.py --db tennis.db load facilities --file facilities.yaml</code></pre>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="mt-4">
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        {% if facilities %}
+        <a href="{{ url_for('add_facility') }}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Add Another Facility
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Make table sortable
+document.querySelectorAll('th').forEach(header => {
+    if (header.textContent.trim() && !header.textContent.includes('Actions')) {
+        header.style.cursor = 'pointer';
+        header.addEventListener('click', () => {
+            const table = header.closest('table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.rows);
+            const index = Array.from(header.parentNode.children).indexOf(header);
+            
+            rows.sort((a, b) => {
+                const aText = a.cells[index].textContent.trim();
+                const bText = b.cells[index].textContent.trim();
+                return aText.localeCompare(bText, undefined, {numeric: true});
+            });
+            
+            rows.forEach(row => tbody.appendChild(row));
+        });
+    }
+});
+</script>
+{% endblock %}

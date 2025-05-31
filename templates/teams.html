@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+
+{% block title %}Teams - Tennis Database{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-users"></i> Teams
+        {% if selected_league %}
+        <small class="text-muted">in {{ selected_league.name }}</small>
+        {% endif %}
+    </h1>
+    <div class="d-flex gap-2">
+        <span class="badge badge-team fs-6">{{ teams|length }} teams</span>
+        <a href="{{ url_for('add_team') }}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Add Team
+        </a>
+    </div>
+</div>
+
+<!-- League Filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row align-items-end">
+            <div class="col-md-6">
+                <label for="league_filter" class="form-label">
+                    <i class="fas fa-filter"></i> Filter by League
+                </label>
+                <select class="form-select" id="league_filter" name="league_id" onchange="this.form.submit()">
+                    <option value="">All Leagues</option>
+                    {% for league in leagues %}
+                    <option value="{{ league.id }}" {% if selected_league and selected_league.id == league.id %}selected{% endif %}>
+                        {{ league.name }} ({{ league.year }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                {% if selected_league %}
+                <a href="{{ url_for('teams') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Clear Filter
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if teams %}
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Team Name</th>
+                        <th>Captain</th>
+                        <th>League</th>
+                        <th>Home Facility</th>
+                        <th>Preferred Days</th>
+                        <th>Scheduling Compatibility</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for team in teams %}
+                    <tr>
+                        <td><span class="badge bg-secondary">{{ team.id }}</span></td>
+                        <td><strong>{{ team.name }}</strong></td>
+                        <td>
+                            <i class="fas fa-user text-primary"></i>
+                            {{ team.captain or 'Not specified' }}
+                        </td>
+                        <td>
+                            <div class="small">
+                                <strong>{{ team.league.name }}</strong><br>
+                                <span class="badge bg-info">{{ team.league.division }}</span>
+                                <span class="badge bg-primary">{{ team.league.year }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-warning text-dark">{{ team.home_facility_id }}</span>
+                        </td>
+                        <td>
+                            {% if team.preferred_days %}
+                                {% for day in team.preferred_days %}
+                                <span class="badge bg-success">{{ day[:3] }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted small">No preference</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if team.preferred_days %}
+                                {% set compatible_days = team.get_compatible_days() %}
+                                {% set conflicts = team.conflicts_with_league_days() %}
+                                
+                                {% if compatible_days %}
+                                <div class="mb-1">
+                                    <small class="text-success">
+                                        <i class="fas fa-check"></i> Compatible:
+                                    </small>
+                                    {% for day in compatible_days %}
+                                    <span class="badge bg-success">{{ day[:3] }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                
+                                {% if conflicts %}
+                                <div>
+                                    <small class="text-warning">
+                                        <i class="fas fa-exclamation-triangle"></i> Conflicts:
+                                    </small>
+                                    {% for day in conflicts %}
+                                    <span class="badge bg-warning text-dark">{{ day[:3] }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                
+                                {% if not compatible_days and not conflicts %}
+                                <span class="text-muted small">All days compatible</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-info small">
+                                    <i class="fas fa-calendar"></i> Available any day
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Team Summary Cards for Mobile -->
+<div class="d-block d-md-none mt-4">
+    <h5><i class="fas fa-list"></i> Team Cards</h5>
+    {% for team in teams %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <h6 class="mb-0">{{ team.name }}</h6>
+                <span class="badge bg-secondary">{{ team.id }}</span>
+            </div>
+            
+            <div class="row mb-2">
+                <div class="col-6">
+                    <small class="text-muted">Captain</small>
+                    <div>{{ team.captain or 'Not specified' }}</div>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted">Home Facility</small>
+                    <div>ID: {{ team.home_facility_id }}</div>
+                </div>
+            </div>
+            
+            <div class="row mb-2">
+                <div class="col-12">
+                    <small class="text-muted">League</small>
+                    <div class="small">
+                        {{ team.league.name }}<br>
+                        <span class="badge bg-info">{{ team.league.division }}</span>
+                        <span class="badge bg-primary">{{ team.league.year }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-12">
+                    <small class="text-muted">Preferred Days</small>
+                    <div>
+                        {% if team.preferred_days %}
+                            {% for day in team.preferred_days %}
+                            <span class="badge bg-success">{{ day }}</span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="text-muted small">No preference (any day)</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            {% if team.preferred_days %}
+            <div class="row mt-2">
+                <div class="col-12">
+                    <small class="text-muted">Scheduling</small>
+                    {% set compatible_days = team.get_compatible_days() %}
+                    {% set conflicts = team.conflicts_with_league_days() %}
+                    
+                    {% if compatible_days %}
+                    <div class="mb-1">
+                        <small class="text-success">Compatible with league:</small>
+                        {% for day in compatible_days %}
+                        <span class="badge bg-success">{{ day[:3] }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if conflicts %}
+                    <div>
+                        <small class="text-warning">Conflicts with league:</small>
+                        {% for day in conflicts %}
+                        <span class="badge bg-warning text-dark">{{ day[:3] }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center">
+        <i class="fas fa-users fa-4x text-muted mb-3"></i>
+        <h5>No Teams Found</h5>
+        {% if selected_league %}
+        <p class="text-muted">No teams found in the selected league: <strong>{{ selected_league.name }}</strong></p>
+        <div class="d-flex gap-2 justify-content-center">
+            <a href="{{ url_for('add_team') }}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Add Team to This League
+            </a>
+        </div>
+        {% else %}
+        <p class="text-muted">No teams are currently registered in the database.</p>
+        <div class="d-flex gap-2 justify-content-center">
+            <a href="{{ url_for('add_team') }}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Add Your First Team
+            </a>
+        </div>
+        {% endif %}
+        
+        <div class="alert alert-info mt-3">
+            <i class="fas fa-info-circle"></i>
+            <strong>Note:</strong> Teams require existing leagues and facilities.
+            
+            <div class="mt-2">
+                <strong>Alternative:</strong> Use the command line to load teams from a YAML file:
+                <pre class="mt-2 mb-0"><code>python sqlite_tennis_db.py tennis.db load teams teams.yaml</code></pre>
+            </div>
+        </div>
+        
+        {% if selected_league %}
+        <div class="mt-3">
+            <a href="{{ url_for('teams') }}" class="btn btn-primary">
+                <i class="fas fa-list"></i> View All Teams
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="mt-4">
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        {% if teams %}
+        <a href="{{ url_for('add_team') }}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Add Another Team
+        </a>
+        <a href="{{ url_for('leagues') }}" class="btn btn-outline-primary">
+            <i class="fas fa-trophy"></i> View Leagues
+        </a>
+        <a href="{{ url_for('facilities') }}" class="btn btn-outline-info">
+            <i class="fas fa-building"></i> View Facilities
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Team Scheduling Analysis -->
+{% if teams and selected_league %}
+<div class="card mt-4">
+    <div class="card-header">
+        <i class="fas fa-calendar-alt"></i> Scheduling Analysis for {{ selected_league.name }}
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <h6><i class="fas fa-chart-pie text-primary"></i> Day Preferences</h6>
+                {% set day_counts = {} %}
+                {% for team in teams %}
+                    {% for day in team.preferred_days %}
+                        {% if day_counts.update({day: day_counts.get(day, 0) + 1}) %}{% endif %}
+                    {% endfor %}
+                {% endfor %}
+                
+                {% if day_counts %}
+                    {% for day, count in day_counts.items()|sort(attribute='1', reverse=True) %}
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="badge bg-success">{{ day }}</span>
+                        <span class="small">{{ count }} team{{ 's' if count != 1 else '' }}</span>
+                        <div class="progress flex-grow-1 mx-2" style="height: 6px;">
+                            <div class="progress-bar" style="width: {{ (count / teams|length * 100)|round }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted small">No team preferences recorded</p>
+                {% endif %}
+            </div>
+            
+            <div class="col-md-4">
+                <h6><i class="fas fa-check-circle text-success"></i> League Compatibility</h6>
+                {% set compatible_teams = 0 %}
+                {% set conflict_teams = 0 %}
+                {% set flexible_teams = 0 %}
+                
+                {% for team in teams %}
+                    {% if not team.preferred_days %}
+                        {% set flexible_teams = flexible_teams + 1 %}
+                    {% elif team.get_compatible_days() %}
+                        {% set compatible_teams = compatible_teams + 1 %}
+                    {% else %}
+                        {% set conflict_teams = conflict_teams + 1 %}
+                    {% endif %}
+                {% endfor %}
+                
+                <div class="mb-2">
+                    <span class="badge bg-success">{{ compatible_teams }}</span>
+                    <span class="small">teams with compatible preferences</span>
+                </div>
+                <div class="mb-2">
+                    <span class="badge bg-info">{{ flexible_teams }}</span>
+                    <span class="small">teams with no preference (flexible)</span>
+                </div>
+                <div class="mb-2">
+                    <span class="badge bg-warning text-dark">{{ conflict_teams }}</span>
+                    <span class="small">teams with scheduling conflicts</span>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <h6><i class="fas fa-star text-warning"></i> Optimal Scheduling Days</h6>
+                {% if selected_league.preferred_days %}
+                <div class="mb-2">
+                    <small>League Preferred:</small><br>
+                    {% for day in selected_league.preferred_days %}
+                    <span class="badge bg-primary">{{ day[:3] }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                {% if selected_league.backup_days %}
+                <div class="mb-2">
+                    <small>League Backup:</small><br>
+                    {% for day in selected_league.backup_days %}
+                    <span class="badge bg-secondary">{{ day[:3] }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                {% if day_counts %}
+                <div>
+                    <small>Most Popular with Teams:</small><br>
+                    {% set top_day = day_counts.items()|sort(attribute='1', reverse=True)|first %}
+                    <span class="badge bg-success">{{ top_day[0][:3] }}</span>
+                    <span class="small">({{ top_day[1] }} teams)</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Make table sortable
+document.querySelectorAll('th').forEach(header => {
+    header.style.cursor = 'pointer';
+    header.addEventListener('click', () => {
+        const table = header.closest('table');
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.rows);
+        const index = Array.from(header.parentNode.children).indexOf(header);
+        
+        rows.sort((a, b) => {
+            const aText = a.cells[index].textContent.trim();
+            const bText = b.cells[index].textContent.trim();
+            return aText.localeCompare(bText, undefined, {numeric: true});
+        });
+        
+        rows.forEach(row => tbody.appendChild(row));
+    });
+});
+</script>
+{% endblock %}

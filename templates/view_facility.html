@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+
+{% block title %}{{ facility.name }} - Tennis Database{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1><i class="fas fa-building"></i> {{ facility.name }}</h1>
+    <p class="text-muted">
+        <i class="fas fa-hashtag"></i> ID: {{ facility.id }}
+        {% if facility.location %}
+        • <i class="fas fa-map-marker-alt"></i> {{ facility.location }}
+        {% endif %}
+    </p>
+</div>
+
+<div class="row">
+    <!-- Basic Information -->
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> Facility Information
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>ID:</strong></td>
+                        <td>{{ facility.id }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Name:</strong></td>
+                        <td>{{ facility.name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Location:</strong></td>
+                        <td>{{ facility.location or 'Not specified' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Total Time Slots:</strong></td>
+                        <td>
+                            {% set total_slots = 0 %}
+                            {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                                {% set total_slots = total_slots + day_schedule.start_times|length %}
+                            {% endfor %}
+                            {{ total_slots }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Unavailable Dates:</strong></td>
+                        <td>{{ facility.unavailable_dates|length }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weekly Schedule -->
+    <div class="col-md-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-calendar-week"></i> Weekly Schedule
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header py-2">
+                                <strong>{{ day_name }}</strong>
+                                <span class="badge bg-light text-dark ms-2">
+                                    {{ day_schedule.start_times|length }} slots
+                                </span>
+                            </div>
+                            <div class="card-body py-2">
+                                {% if day_schedule.start_times %}
+                                    {% for time_slot in day_schedule.start_times %}
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="badge bg-primary">{{ time_slot.time }}</span>
+                                        <span class="small">{{ time_slot.available_courts }} courts</span>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted small">No availability</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% if loop.index % 2 == 0 %}</div><div class="row">{% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Schedule Summary -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-chart-bar"></i> Schedule Summary
+            </div>
+            <div class="card-body">
+                <canvas id="scheduleChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-clock"></i> Peak Times
+            </div>
+            <div class="card-body">
+                {% set time_counts = {} %}
+                {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                    {% for time_slot in day_schedule.start_times %}
+                        {% if time_counts.update({time_slot.time: time_counts.get(time_slot.time, 0) + 1}) %}{% endif %}
+                    {% endfor %}
+                {% endfor %}
+                
+                {% if time_counts %}
+                    {% for time, count in time_counts.items()|sort(attribute='1', reverse=True) %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-info">{{ time }}</span>
+                        <span class="small">{{ count }} day{{ 's' if count != 1 else '' }}</span>
+                        <div class="progress flex-grow-1 mx-2" style="height: 6px;">
+                            <div class="progress-bar" style="width: {{ (count / 7 * 100)|round }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No time slots defined</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Unavailable Dates -->
+{% if facility.unavailable_dates %}
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-ban"></i> Unavailable Dates
+        <span class="badge bg-light text-dark ms-2">{{ facility.unavailable_dates|length }} dates</span>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for date in facility.unavailable_dates|sort %}
+            <div class="col-md-3 mb-2">
+                <span class="badge bg-warning text-dark">{{ date }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if facility.unavailable_dates|length > 12 %}
+        <div class="mt-3">
+            <button class="btn btn-sm btn-outline-secondary" onclick="toggleAllDates()">
+                <span id="toggleText">Show All Dates</span>
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Facility Statistics -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-chart-pie"></i> Facility Statistics
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h4 class="text-primary">
+                        {% set total_courts = 0 %}
+                        {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                            {% for time_slot in day_schedule.start_times %}
+                                {% set total_courts = total_courts + time_slot.available_courts %}
+                            {% endfor %}
+                        {% endfor %}
+                        {{ total_courts }}
+                    </h4>
+                    <small class="text-muted">Total Court Hours/Week</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h4 class="text-success">
+                        {% set active_days = 0 %}
+                        {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                            {% if day_schedule.start_times %}
+                                {% set active_days = active_days + 1 %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ active_days }}
+                    </h4>
+                    <small class="text-muted">Active Days/Week</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h4 class="text-info">
+                        {% set max_courts = 0 %}
+                        {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                            {% for time_slot in day_schedule.start_times %}
+                                {% if time_slot.available_courts > max_courts %}
+                                    {% set max_courts = time_slot.available_courts %}
+                                {% endif %}
+                            {% endfor %}
+                        {% endfor %}
+                        {{ max_courts }}
+                    </h4>
+                    <small class="text-muted">Peak Capacity</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h4 class="text-warning">
+                        {{ facility.unavailable_dates|length }}
+                    </h4>
+                    <small class="text-muted">Blackout Days</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="mt-4">
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('facilities') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Facilities
+        </a>
+        <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+            <i class="fas fa-home"></i> Dashboard
+        </a>
+        <!-- Future: Edit facility button -->
+        <button class="btn btn-outline-warning" disabled>
+            <i class="fas fa-edit"></i> Edit Facility (Coming Soon)
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Create schedule chart
+    const ctx = document.getElementById('scheduleChart').getContext('2d');
+    
+    const scheduleData = {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [{
+            label: 'Time Slots',
+            data: [
+                {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                {{ day_schedule.start_times|length }}{{ ',' if not loop.last else '' }}
+                {% endfor %}
+            ],
+            backgroundColor: [
+                '#0d6efd', '#6610f2', '#6f42c1', '#d63384', 
+                '#dc3545', '#fd7e14', '#ffc107'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    };
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: scheduleData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+});
+
+function toggleAllDates() {
+    // This would expand/collapse the unavailable dates list
+    // Implementation depends on how many dates you want to show initially
+    const button = document.getElementById('toggleText');
+    if (button.textContent === 'Show All Dates') {
+        button.textContent = 'Show Fewer Dates';
+        // Show all dates logic here
+    } else {
+        button.textContent = 'Show All Dates';
+        // Hide some dates logic here
+    }
+}
+</script>
+{% endblock %}

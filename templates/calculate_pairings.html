@@ -1,0 +1,595 @@
+{% extends "base.html" %}
+
+{% block title %}Calculate Pairings - Tennis Database{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1><i class="fas fa-calculator"></i> Calculate Team Pairings</h1>
+    {% if show_results and selected_league %}
+    <p class="text-muted">
+        Generated match schedule for <strong>{{ selected_league.name }}</strong>
+        <span class="badge bg-secondary ms-2">{{ selected_league.year }}</span>
+    </p>
+    {% else %}
+    <p class="text-muted">Generate balanced match schedules for teams in a league</p>
+    {% endif %}
+</div>
+
+<!-- League Selection Form -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-trophy"></i> Select League
+    </div>
+    <div class="card-body">
+        {% if leagues %}
+        <form method="POST" id="pairingsForm">
+            <div class="row align-items-end">
+                <div class="col-md-8">
+                    <label for="league_id" class="form-label">
+                        <i class="fas fa-trophy"></i> League *
+                    </label>
+                    <select class="form-select" id="league_id" name="league_id" required>
+                        <option value="">Select a league to calculate pairings...</option>
+                        {% for league in leagues %}
+                        <option value="{{ league.id }}" 
+                                {% if selected_league and selected_league.id == league.id %}selected{% endif %}
+                                data-teams-count="0"
+                                data-matches="{{ league.num_matches }}"
+                                data-lines="{{ league.num_lines_per_match }}">
+                            {{ league.name }} ({{ league.year }}) - {{ league.division }}
+                            ({{ league.num_matches }} matches per team)
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">
+                        Select the league for which you want to calculate team pairings
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-calculator"></i> Calculate Pairings
+                    </button>
+                </div>
+            </div>
+        </form>
+        
+        <!-- League Info Preview -->
+        <div id="leagueInfo" class="alert alert-info mt-3" style="display: none;">
+            <h6><i class="fas fa-info-circle"></i> League Information</h6>
+            <div id="leagueDetails"></div>
+            <div class="mt-2">
+                <small class="text-muted">
+                    <i class="fas fa-lightbulb"></i> 
+                    The algorithm will generate <span id="expectedMatches">0</span> matches per team 
+                    using <span id="expectedLines">0</span> lines per match.
+                </small>
+            </div>
+        </div>
+        
+        {% else %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>No leagues available.</strong> You need to create leagues before calculating pairings.
+            <div class="mt-2">
+                <a href="{{ url_for('add_league') }}" class="btn btn-sm btn-warning">
+                    <i class="fas fa-plus"></i> Add League
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if show_results and selected_league %}
+<!-- Results Section -->
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <i class="fas fa-check-circle"></i> Pairings Generated Successfully
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6><i class="fas fa-info-circle"></i> League Information</h6>
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>League:</strong></td>
+                        <td>{{ selected_league.name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Division:</strong></td>
+                        <td><span class="badge bg-info">{{ selected_league.division }}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Teams:</strong></td>
+                        <td>{{ teams|length }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Lines per Match:</strong></td>
+                        <td>{{ selected_league.num_lines_per_match }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Matches per Team:</strong></td>
+                        <td>{{ selected_league.num_matches }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6><i class="fas fa-chart-bar"></i> Generation Summary</h6>
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>Total Matches:</strong></td>
+                        <td><span class="badge bg-primary">{{ balance_analysis.total_matches }}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Expected per Team:</strong></td>
+                        <td><span class="badge bg-info">{{ balance_analysis.expected_per_team }}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Balance Status:</strong></td>
+                        <td>
+                            {% if balance_analysis.teams_with_wrong_count|length == 0 and balance_analysis.imbalanced_teams|length == 0 %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check"></i> Well Balanced
+                            </span>
+                            {% else %}
+                            <span class="badge bg-warning">
+                                <i class="fas fa-exclamation-triangle"></i> Some Imbalances
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Balance Analysis -->
+{% if balance_analysis.teams_with_wrong_count|length > 0 or balance_analysis.imbalanced_teams|length > 0 %}
+<div class="card mb-4">
+    <div class="card-header bg-warning text-dark">
+        <i class="fas fa-exclamation-triangle"></i> Balance Analysis
+    </div>
+    <div class="card-body">
+        {% if balance_analysis.teams_with_wrong_count|length > 0 %}
+        <div class="alert alert-warning">
+            <h6><i class="fas fa-exclamation-triangle"></i> Teams with Incorrect Match Count</h6>
+            <p class="mb-2">The following teams don't have the expected number of matches:</p>
+            <ul class="mb-0">
+                {% for item in balance_analysis.teams_with_wrong_count %}
+                <li>
+                    <strong>{{ item.team.name }}</strong>: {{ item.actual }} matches 
+                    (expected {{ item.expected }})
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        {% if balance_analysis.imbalanced_teams|length > 0 %}
+        <div class="alert alert-info">
+            <h6><i class="fas fa-balance-scale"></i> Home/Away Imbalances</h6>
+            <p class="mb-2">The following teams have notable home/away imbalances:</p>
+            <ul class="mb-0">
+                {% for item in balance_analysis.imbalanced_teams %}
+                <li>
+                    <strong>{{ item.team.name }}</strong>: {{ item.home_matches }} home, {{ item.away_matches }} away 
+                    (difference: {{ item.imbalance }})
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Team Statistics -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-users"></i> Team Statistics
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Team</th>
+                        <th>Captain</th>
+                        <th class="text-center">Total Matches</th>
+                        <th class="text-center">Home Matches</th>
+                        <th class="text-center">Away Matches</th>
+                        <th class="text-center">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stats in team_stats %}
+                    <tr>
+                        <td>
+                            <strong>{{ stats.team.name }}</strong>
+                            <div class="small text-muted">ID: {{ stats.team.id }}</div>
+                        </td>
+                        <td>{{ stats.team.captain or 'Not specified' }}</td>
+                        <td class="text-center">
+                            {% if stats.total_matches == selected_league.num_matches %}
+                            <span class="badge bg-success">{{ stats.total_matches }}</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">{{ stats.total_matches }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-info">{{ stats.home_matches }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-secondary">{{ stats.away_matches }}</span>
+                        </td>
+                        <td class="text-center">
+                            {% set imbalance = (stats.home_matches - stats.away_matches)|abs %}
+                            {% if imbalance <= 1 %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check"></i> Good
+                            </span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="fas fa-exclamation-triangle"></i> ±{{ imbalance }}
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Pairings -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-list"></i> Generated Pairings
+        <span class="badge bg-light text-dark ms-2">{{ pairings|length }} matches</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th style="width: 80px;">#</th>
+                        <th>Home Team</th>
+                        <th class="text-center" style="width: 60px;">vs</th>
+                        <th>Away Team</th>
+                        <th>Home Captain</th>
+                        <th>Away Captain</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pairing in pairings %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-secondary">{{ pairing.match_number }}</span>
+                        </td>
+                        <td>
+                            <strong class="text-success">{{ pairing.home_team.name }}</strong>
+                            <div class="small text-muted">ID: {{ pairing.home_team.id }}</div>
+                        </td>
+                        <td class="text-center">
+                            <i class="fas fa-vs text-muted"></i>
+                        </td>
+                        <td>
+                            <strong class="text-primary">{{ pairing.visitor_team.name }}</strong>
+                            <div class="small text-muted">ID: {{ pairing.visitor_team.id }}</div>
+                        </td>
+                        <td>{{ pairing.home_team.captain or 'Not specified' }}</td>
+                        <td>{{ pairing.visitor_team.captain or 'Not specified' }}</td>
+                        <td>
+                            <a href="{{ url_for('add_match') }}?home_team_id={{ pairing.home_team.id }}&visitor_team_id={{ pairing.visitor_team.id }}&league_id={{ selected_league.id }}" 
+                               class="btn btn-sm btn-outline-success" title="Schedule this match">
+                                <i class="fas fa-calendar-plus"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Export Options -->
+        <div class="mt-3">
+            <button class="btn btn-outline-primary" onclick="downloadPairings()">
+                <i class="fas fa-download"></i> Download as JSON
+            </button>
+            <button class="btn btn-outline-success" onclick="printPairings()">
+                <i class="fas fa-print"></i> Print Pairings
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Action Buttons -->
+<div class="mt-4">
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        
+        {% if show_results %}
+        <a href="{{ url_for('calculate_pairings') }}" class="btn btn-outline-primary">
+            <i class="fas fa-calculator"></i> Calculate for Another League
+        </a>
+        {% endif %}
+        
+        <a href="{{ url_for('leagues') }}" class="btn btn-outline-success">
+            <i class="fas fa-trophy"></i> View Leagues
+        </a>
+        
+        <a href="{{ url_for('teams') }}" class="btn btn-outline-info">
+            <i class="fas fa-users"></i> View Teams
+        </a>
+        
+        {% if show_results %}
+        <a href="{{ url_for('matches') }}" class="btn btn-outline-warning">
+            <i class="fas fa-calendar-alt"></i> View Existing Matches
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- How It Works Section -->
+<div class="card mt-4">
+    <div class="card-header">
+        <i class="fas fa-question-circle"></i> How Pairing Calculation Works
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <h6><i class="fas fa-balance-scale text-success"></i> Fair Distribution</h6>
+                <ul class="small">
+                    <li>Each team plays exactly the specified number of matches</li>
+                    <li>Home and away games are balanced as evenly as possible</li>
+                    <li>No team plays another team excessively</li>
+                    <li>Optimal opponent distribution across all teams</li>
+                </ul>
+            </div>
+            
+            <div class="col-md-4">
+                <h6><i class="fas fa-cogs text-info"></i> Algorithm Features</h6>
+                <ul class="small">
+                    <li>Considers league settings (matches per team, lines per match)</li>
+                    <li>Validates mathematical feasibility</li>
+                    <li>Prioritizes teams with fewer scheduled matches</li>
+                    <li>Balances home/away game distribution</li>
+                </ul>
+            </div>
+            
+            <div class="col-md-4">
+                <h6><i class="fas fa-chart-line text-warning"></i> Results Analysis</h6>
+                <ul class="small">
+                    <li>Team statistics showing match distribution</li>
+                    <li>Home/away balance analysis</li>
+                    <li>Complete list of generated pairings</li>
+                    <li>Balance warnings and recommendations</li>
+                </ul>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <div class="alert alert-warning mb-0">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Requirements:</strong> Each league must have at least 2 teams to generate pairings. 
+            The number of requested matches must be mathematically possible given the number of teams.
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const leagueSelect = document.getElementById('league_id');
+    const leagueInfo = document.getElementById('leagueInfo');
+    const leagueDetails = document.getElementById('leagueDetails');
+    const expectedMatches = document.getElementById('expectedMatches');
+    const expectedLines = document.getElementById('expectedLines');
+    const form = document.getElementById('pairingsForm');
+    
+    // Load team counts for each league
+    const teamCounts = {};
+    
+    // Update league info when selection changes
+    if (leagueSelect) {
+        leagueSelect.addEventListener('change', async function() {
+            const leagueId = this.value;
+            
+            if (!leagueId) {
+                leagueInfo.style.display = 'none';
+                return;
+            }
+            
+            const selectedOption = this.options[this.selectedIndex];
+            const matches = selectedOption.dataset.matches;
+            const lines = selectedOption.dataset.lines;
+            
+            expectedMatches.textContent = matches;
+            expectedLines.textContent = lines;
+            
+            // Try to get team count for this league
+            try {
+                const response = await fetch(`/api/teams/${leagueId}`);
+                if (response.ok) {
+                    const teams = await response.json();
+                    teamCounts[leagueId] = teams.length;
+                    
+                    leagueDetails.innerHTML = `
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <strong>League:</strong> ${selectedOption.text}
+                            </div>
+                            <div class="col-sm-6">
+                                <strong>Teams:</strong> ${teams.length} teams
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-sm-6">
+                                <strong>Matches per Team:</strong> ${matches}
+                            </div>
+                            <div class="col-sm-6">
+                                <strong>Lines per Match:</strong> ${lines}
+                            </div>
+                        </div>
+                    `;
+                    
+                    if (teams.length < 2) {
+                        leagueDetails.innerHTML += `
+                            <div class="mt-2">
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-exclamation-triangle"></i> 
+                                    Need at least 2 teams (found ${teams.length})
+                                </span>
+                            </div>
+                        `;
+                    } else {
+                        const totalMatches = teams.length * parseInt(matches);
+                        leagueDetails.innerHTML += `
+                            <div class="mt-2">
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check"></i> 
+                                    Ready for pairing calculation
+                                </span>
+                                <span class="badge bg-info ms-2">
+                                    ~${totalMatches} total matches
+                                </span>
+                            </div>
+                        `;
+                    }
+                } else {
+                    leagueDetails.innerHTML = `
+                        <div class="text-warning">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            Could not load team information for this league
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading teams:', error);
+                leagueDetails.innerHTML = `
+                    <div class="text-warning">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        Error loading team information
+                    </div>
+                `;
+            }
+            
+            leagueInfo.style.display = 'block';
+        });
+    }
+    
+    // Form submission handler
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const leagueId = leagueSelect.value;
+            
+            if (!leagueId) {
+                e.preventDefault();
+                alert('Please select a league');
+                return;
+            }
+            
+            // Check if we know this league has insufficient teams
+            if (teamCounts[leagueId] && teamCounts[leagueId] < 2) {
+                e.preventDefault();
+                alert(`League has only ${teamCounts[leagueId]} team(s). Need at least 2 teams to calculate pairings.`);
+                return;
+            }
+        });
+    }
+});
+
+// Function to download pairings as JSON
+function downloadPairings() {
+    {% if show_results and pairings %}
+    const pairings = {{ pairings|tojson }};
+    const leagueInfo = {
+        league_id: {{ selected_league.id }},
+        league_name: "{{ selected_league.name }}",
+        year: {{ selected_league.year }},
+        division: "{{ selected_league.division }}",
+        matches_per_team: {{ selected_league.num_matches }},
+        lines_per_match: {{ selected_league.num_lines_per_match }}
+    };
+    
+    const data = {
+        league: leagueInfo,
+        pairings: pairings,
+        generated_at: new Date().toISOString(),
+        total_matches: pairings.length
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pairings_league_${leagueInfo.league_id}_${leagueInfo.year}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    {% else %}
+    alert('No pairings to download. Please calculate pairings first.');
+    {% endif %}
+}
+
+// Function to print pairings
+function printPairings() {
+    {% if show_results %}
+    window.print();
+    {% else %}
+    alert('No pairings to print. Please calculate pairings first.');
+    {% endif %}
+}
+
+// Auto-scroll to results when they're shown
+{% if show_results %}
+document.addEventListener('DOMContentLoaded', function() {
+    // Scroll to results section
+    const resultsSection = document.querySelector('.card.mb-4:nth-of-type(2)');
+    if (resultsSection) {
+        resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+});
+{% endif %}
+</script>
+
+<style>
+@media print {
+    .btn, .card-header, .alert, .form-label, .form-select, .form-text {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .card-body {
+        padding: 0 !important;
+    }
+    
+    .table {
+        font-size: 12px;
+    }
+    
+    h1, h6 {
+        color: black !important;
+    }
+    
+    .badge {
+        color: black !important;
+        background-color: white !important;
+        border: 1px solid black !important;
+    }
+}
+</style>
+{% endblock %}

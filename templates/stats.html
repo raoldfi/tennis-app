@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+
+{% block title %}Statistics - Tennis Database{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1><i class="fas fa-chart-bar"></i> Database Statistics</h1>
+    <p class="text-muted">
+        Overview and insights for your tennis database
+        <span class="badge bg-secondary ms-2">{{ stats.db_path.split('/')[-1] }}</span>
+    </p>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card text-center border-primary">
+            <div class="card-body">
+                <i class="fas fa-building fa-3x text-primary mb-2"></i>
+                <h2 class="text-primary mb-1">{{ stats.facilities_count }}</h2>
+                <p class="card-text mb-2">Facilities</p>
+                <small class="text-muted">Tennis venues</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <i class="fas fa-trophy fa-3x text-success mb-2"></i>
+                <h2 class="text-success mb-1">{{ stats.leagues_count }}</h2>
+                <p class="card-text mb-2">Leagues</p>
+                <small class="text-muted">Active competitions</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center border-info">
+            <div class="card-body">
+                <i class="fas fa-users fa-3x text-info mb-2"></i>
+                <h2 class="text-info mb-1">{{ stats.teams_count }}</h2>
+                <p class="card-text mb-2">Teams</p>
+                <small class="text-muted">Registered teams</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center border-warning">
+            <div class="card-body">
+                <i class="fas fa-calendar-alt fa-3x text-warning mb-2"></i>
+                <h2 class="text-warning mb-1">{{ stats.matches_count }}</h2>
+                <p class="card-text mb-2">Matches</p>
+                <small class="text-muted">Scheduled games</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Database Health Indicators -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <i class="fas fa-heartbeat"></i> Database Health
+            </div>
+            <div class="card-body">
+                {% set total_entities = stats.facilities_count + stats.leagues_count + stats.teams_count + stats.matches_count %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Total Records:</span>
+                        <strong>{{ total_entities }}</strong>
+                    </div>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">Data Completeness</small>
+                    <div class="progress mb-1" style="height: 8px;">
+                        {% set completeness = 100 if total_entities > 0 else 0 %}
+                        <div class="progress-bar bg-success" style="width: {{ completeness }}%"></div>
+                    </div>
+                    <small>{{ completeness }}% complete</small>
+                </div>
+                
+                <div class="mt-3">
+                    {% if stats.facilities_count > 0 and stats.leagues_count > 0 and stats.teams_count > 0 %}
+                    <span class="badge bg-success">
+                        <i class="fas fa-check"></i> Ready for matches
+                    </span>
+                    {% else %}
+                    <span class="badge bg-warning">
+                        <i class="fas fa-exclamation-triangle"></i> Missing data
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <i class="fas fa-calculator"></i> Quick Ratios
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span>Teams per League:</span>
+                        <strong>
+                            {% if stats.leagues_count > 0 %}
+                            {{ "%.1f"|format(stats.teams_count / stats.leagues_count) }}
+                            {% else %}
+                            0
+                            {% endif %}
+                        </strong>
+                    </div>
+                </div>
+                
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span>Matches per Team:</span>
+                        <strong>
+                            {% if stats.teams_count > 0 %}
+                            {{ "%.1f"|format(stats.matches_count / stats.teams_count) }}
+                            {% else %}
+                            0
+                            {% endif %}
+                        </strong>
+                    </div>
+                </div>
+                
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span>Teams per Facility:</span>
+                        <strong>
+                            {% if stats.facilities_count > 0 %}
+                            {{ "%.1f"|format(stats.teams_count / stats.facilities_count) }}
+                            {% else %}
+                            0
+                            {% endif %}
+                        </strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-chart-pie"></i> Distribution
+            </div>
+            <div class="card-body">
+                <canvas id="distributionChart" width="200" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- League Breakdown Table -->
+{% if stats.league_breakdown %}
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-trophy"></i> League Breakdown
+        <span class="badge bg-light text-dark ms-2">{{ stats.league_breakdown|length }} leagues</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>League</th>
+                        <th>Year</th>
+                        <th>Section</th>
+                        <th>Division</th>
+                        <th class="text-center">Teams</th>
+                        <th class="text-center">Matches</th>
+                        <th class="text-center">Completion</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in stats.league_breakdown %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.league.name }}</strong>
+                            <div class="small text-muted">{{ item.league.region }}</div>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">{{ item.league.year }}</span>
+                        </td>
+                        <td>{{ item.league.section }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ item.league.division }}</span>
+                            <div class="small text-muted">{{ item.league.age_group }}</div>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-success">{{ item.teams_count }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-warning text-dark">{{ item.matches_count }}</span>
+                        </td>
+                        <td class="text-center">
+                            {% set completion = (item.matches_count / (item.teams_count * (item.teams_count - 1) / 2) * 100) if item.teams_count > 1 else 0 %}
+                            {% if completion <= 25 %}
+                            <span class="badge bg-danger">{{ "%.0f"|format(completion) }}%</span>
+                            {% elif completion <= 75 %}
+                            <span class="badge bg-warning text-dark">{{ "%.0f"|format(completion) }}%</span>
+                            {% else %}
+                            <span class="badge bg-success">{{ "%.0f"|format(completion) }}%</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center">
+        <i class="fas fa-chart-bar fa-4x text-muted mb-3"></i>
+        <h5>No League Data Available</h5>
+        <p class="text-muted">Load some leagues to see detailed statistics.</p>
+        <a href="{{ url_for('leagues') }}" class="btn btn-primary">
+            <i class="fas fa-trophy"></i> View Leagues
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Action Buttons -->
+<div class="mt-4">
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        
+        {% if stats.facilities_count > 0 %}
+        <a href="{{ url_for('facilities') }}" class="btn btn-outline-primary">
+            <i class="fas fa-building"></i> View Facilities
+        </a>
+        {% endif %}
+        
+        {% if stats.leagues_count > 0 %}
+        <a href="{{ url_for('leagues') }}" class="btn btn-outline-success">
+            <i class="fas fa-trophy"></i> View Leagues
+        </a>
+        {% endif %}
+        
+        {% if stats.teams_count > 0 %}
+        <a href="{{ url_for('teams') }}" class="btn btn-outline-info">
+            <i class="fas fa-users"></i> View Teams
+        </a>
+        {% endif %}
+        
+        {% if stats.matches_count > 0 %}
+        <a href="{{ url_for('matches') }}" class="btn btn-outline-warning">
+            <i class="fas fa-calendar-alt"></i> View Matches
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Database Info -->
+<div class="mt-4">
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-database"></i> Database Information
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>Database File:</strong></td>
+                            <td><code>{{ stats.db_path }}</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Last Updated:</strong></td>
+                            <td id="lastUpdated">Just now</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total Records:</strong></td>
+                            <td>{{ stats.facilities_count + stats.leagues_count + stats.teams_count + stats.matches_count }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <div class="small text-muted">
+                        <p><strong>Tips for better performance:</strong></p>
+                        <ul class="mb-0">
+                            <li>Keep your database file in a fast storage location</li>
+                            <li>Regular backups recommended</li>
+                            <li>Use filters when viewing large datasets</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+// Create distribution pie chart
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('distributionChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Facilities', 'Leagues', 'Teams', 'Matches'],
+            datasets: [{
+                data: [
+                    {{ stats.facilities_count }},
+                    {{ stats.leagues_count }},
+                    {{ stats.teams_count }},
+                    {{ stats.matches_count }}
+                ],
+                backgroundColor: [
+                    '#0d6efd',  // Blue
+                    '#198754',  // Green
+                    '#0dcaf0',  // Cyan
+                    '#ffc107'   // Yellow
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 12,
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Update last updated time
+    document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
+});
+
+// Add auto-refresh option (commented out by default)
+// setInterval(() => {
+//     if (!document.hidden) {
+//         window.location.reload();
+//     }
+// }, 300000); // Refresh every 5 minutes
+
+// Make table sortable
+document.querySelectorAll('th').forEach(header => {
+    if (header.textContent.trim() && !header.textContent.includes('League')) {
+        header.style.cursor = 'pointer';
+        header.addEventListener('click', () => {
+            const table = header.closest('table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.rows);
+            const index = Array.from(header.parentNode.children).indexOf(header);
+            
+            rows.sort((a, b) => {
+                const aText = a.cells[index].textContent.trim();
+                const bText = b.cells[index].textContent.trim();
+                return aText.localeCompare(bText, undefined, {numeric: true});
+            });
+            
+            rows.forEach(row => tbody.appendChild(row));
+        });
+    }
+});
+</script>
+{% endblock %}
+

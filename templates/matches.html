@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block title %}Matches - Tennis Database{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-calendar-alt"></i> Matches
+        {% if selected_league %}
+        <small class="text-muted">in {{ selected_league.name }}</small>
+        {% endif %}
+    </h1>
+    <div class="d-flex gap-2">
+        <span class="badge badge-match fs-6">{{ matches|length }} matches</span>
+        <a href="{{ url_for('add_match') }}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Add Match
+        </a>
+    </div>
+</div>
+
+<!-- League Filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row align-items-end">
+            <div class="col-md-6">
+                <label for="league_filter" class="form-label">
+                    <i class="fas fa-filter"></i> Filter by League
+                </label>
+                <select class="form-select" id="league_filter" name="league_id" onchange="this.form.submit()">
+                    <option value="">All Leagues</option>
+                    {% for league in leagues %}
+                    <option value="{{ league.id }}" {% if selected_league and selected_league.id == league.id %}selected{% endif %}>
+                        {{ league.name }} ({{ league.year }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                {% if selected_league %}
+                <a href="{{ url_for('matches') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Clear Filter
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if matches %}
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Home Team</th>
+                        <th>Visitor Team</th>
+                        <th>Facility</th>
+                        <th>League</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for match in matches %}
+                    <tr>
+                        <td><span class="badge bg-secondary">{{ match.id }}</span></td>
+                        <td>
+                            <i class="fas fa-calendar text-primary"></i>
+                            <strong>{{ match.date }}</strong>
+                        </td>
+                        <td>
+                            <i class="fas fa-clock text-info"></i>
+                            {{ match.time }}
+                        </td>
+                        <td>
+                            <div class="fw-bold text-success">{{ match.home_team_name }}</div>
+                            <small class="text-muted">ID: {{ match.home_team_id }}</small>
+                        </td>
+                        <td>
+                            <div class="fw-bold text-primary">{{ match.visitor_team_name }}</div>
+                            <small class="text-muted">ID: {{ match.visitor_team_id }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-warning text-dark">{{ match.facility_name }}</span>
+                            <div class="small text-muted">ID: {{ match.facility_id }}</div>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">League {{ match.league_id }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Match Summary Cards (for mobile/better UX) -->
+<div class="d-block d-md-none mt-4">
+    <h5><i class="fas fa-list"></i> Match Cards</h5>
+    {% for match in matches %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="badge bg-secondary">Match {{ match.id }}</span>
+                <span class="badge bg-info">League {{ match.league_id }}</span>
+            </div>
+            
+            <div class="row">
+                <div class="col-6">
+                    <h6 class="text-success mb-1">
+                        <i class="fas fa-home"></i> Home
+                    </h6>
+                    <div class="fw-bold">{{ match.home_team_name }}</div>
+                </div>
+                <div class="col-6">
+                    <h6 class="text-primary mb-1">
+                        <i class="fas fa-plane"></i> Visitor
+                    </h6>
+                    <div class="fw-bold">{{ match.visitor_team_name }}</div>
+                </div>
+            </div>
+            
+            <hr>
+            
+            <div class="row">
+                <div class="col-4">
+                    <small class="text-muted">Date</small>
+                    <div>{{ match.date }}</div>
+                </div>
+                <div class="col-4">
+                    <small class="text-muted">Time</small>
+                    <div>{{ match.time }}</div>
+                </div>
+                <div class="col-4">
+                    <small class="text-muted">Facility</small>
+                    <div>{{ match.facility_name }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center">
+        <i class="fas fa-calendar-alt fa-4x text-muted mb-3"></i>
+        <h5>No Matches Found</h5>
+        {% if selected_league %}
+        <p class="text-muted">No matches found in the selected league: <strong>{{ selected_league.name }}</strong></p>
+        <div class="d-flex gap-2 justify-content-center">
+            <a href="{{ url_for('add_match') }}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Schedule Match in This League
+            </a>
+        </div>
+        {% else %}
+        <p class="text-muted">No matches are currently scheduled in the database.</p>
+        <div class="d-flex gap-2 justify-content-center">
+            <a href="{{ url_for('add_match') }}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Schedule Your First Match
+            </a>
+        </div>
+        {% endif %}
+        
+        <div class="alert alert-info mt-3">
+            <i class="fas fa-info-circle"></i>
+            <strong>Note:</strong> Matches require existing leagues, teams, and facilities.
+            
+            <div class="mt-2">
+                <strong>Alternative:</strong> Use the command line to load matches from a YAML file:
+                <pre class="mt-2 mb-0"><code>python sqlite_tennis_db.py tennis.db load matches matches.yaml</code></pre>
+            </div>
+        </div>
+        
+        {% if selected_league %}
+        <div class="mt-3">
+            <a href="{{ url_for('matches') }}" class="btn btn-primary">
+                <i class="fas fa-list"></i> View All Matches
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="mt-4">
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        {% if matches %}
+        <a href="{{ url_for('add_match') }}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Schedule Another Match
+        </a>
+        <a href="{{ url_for('teams') }}" class="btn btn-outline-primary">
+            <i class="fas fa-users"></i> View Teams
+        </a>
+        <a href="{{ url_for('facilities') }}" class="btn btn-outline-info">
+            <i class="fas fa-building"></i> View Facilities
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Make table sortable
+document.querySelectorAll('th').forEach(header => {
+    header.style.cursor = 'pointer';
+    header.addEventListener('click', () => {
+        const table = header.closest('table');
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.rows);
+        const index = Array.from(header.parentNode.children).indexOf(header);
+        
+        // Sort rows
+        rows.sort((a, b) => {
+            const aText = a.cells[index].textContent.trim();
+            const bText = b.cells[index].textContent.trim();
+            
+            // Handle date sorting
+            if (index === 1) { // Date column
+                return new Date(aText.split('\n')[1]) - new Date(bText.split('\n')[1]);
+            }
+            
+            // Handle time sorting
+            if (index === 2) { // Time column
+                const aTime = aText.split('\n')[1];
+                const bTime = bText.split('\n')[1];
+                return aTime.localeCompare(bTime);
+            }
+            
+            // Default sorting
+            return aText.localeCompare(bText, undefined, {numeric: true});
+        });
+        
+        rows.forEach(row => tbody.appendChild(row));
+        
+        // Add sort indicator
+        document.querySelectorAll('th').forEach(th => th.classList.remove('sorted'));
+        header.classList.add('sorted');
+    });
+});
+
+// Add CSS for sort indicator
+const style = document.createElement('style');
+style.textContent = `
+    th.sorted::after {
+        content: ' ↕';
+        color: #007bff;
+        font-weight: bold;
+    }
+    th:hover {
+        background-color: #e9ecef;
+    }
+`;
+document.head.appendChild(style);
+
+// Auto-refresh every 5 minutes (optional)
+// setInterval(() => {
+//     if (!document.hidden) {
+//         window.location.reload();
+//     }
+// }, 300000);
+</script>
+{% endblock %}

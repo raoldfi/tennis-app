@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+
+{% block title %}Add Match - Tennis Database{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-calendar-alt"></i> Add New Match
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="id" class="form-label">
+                                <i class="fas fa-hashtag"></i> Match ID *
+                            </label>
+                            <input type="number" class="form-control" id="id" name="id" 
+                                   min="1" required 
+                                   placeholder="e.g., 2001">
+                            <div class="form-text">Unique identifier</div>
+                        </div>
+                        
+                        <div class="col-md-9 mb-3">
+                            <label for="league_id" class="form-label">
+                                <i class="fas fa-trophy"></i> League *
+                            </label>
+                            <select class="form-select" id="league_id" name="league_id" required onchange="loadTeamsForLeague()">
+                                <option value="">Select a league...</option>
+                                {% for league in leagues %}
+                                <option value="{{ league.id }}">
+                                    {{ league.name }} ({{ league.year }}) - {{ league.division }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Both teams must be in this league</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="home_team_id" class="form-label">
+                                <i class="fas fa-home"></i> Home Team *
+                            </label>
+                            <select class="form-select" id="home_team_id" name="home_team_id" required>
+                                <option value="">Select league first...</option>
+                            </select>
+                            <div class="form-text">Team playing at their home facility</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="visitor_team_id" class="form-label">
+                                <i class="fas fa-plane"></i> Visitor Team *
+                            </label>
+                            <select class="form-select" id="visitor_team_id" name="visitor_team_id" required>
+                                <option value="">Select league first...</option>
+                            </select>
+                            <div class="form-text">Team playing away from home</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="facility_id" class="form-label">
+                                <i class="fas fa-building"></i> Facility *
+                            </label>
+                            <select class="form-select" id="facility_id" name="facility_id" required>
+                                <option value="">Select a facility...</option>
+                                {% for facility in facilities %}
+                                <option value="{{ facility.id }}">
+                                    {{ facility.name }}
+                                    {% if facility.location %}
+                                    <small class="text-muted"> - {{ facility.location }}</small>
+                                    {% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Where the match will be played</div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label for="date" class="form-label">
+                                <i class="fas fa-calendar"></i> Match Date *
+                            </label>
+                            <input type="date" class="form-control" id="date" name="date" required>
+                            <div class="form-text">YYYY-MM-DD format</div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label for="time" class="form-label">
+                                <i class="fas fa-clock"></i> Match Time *
+                            </label>
+                            <input type="time" class="form-control" id="time" name="time" required>
+                            <div class="form-text">24-hour format (HH:MM)</div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add Match
+                        </button>
+                        <a href="{{ url_for('matches') }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="button" class="btn btn-outline-info" onclick="useHomeTeamFacility()">
+                            <i class="fas fa-magic"></i> Use Home Team's Facility
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Match Preview -->
+        <div class="card mt-4" id="matchPreview" style="display: none;">
+            <div class="card-header">
+                <i class="fas fa-eye"></i> Match Preview
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h6 class="text-success">Home Team</h6>
+                        <span id="previewHome" class="badge bg-success">-</span>
+                    </div>
+                    <div class="col-4">
+                        <h6>vs</h6>
+                        <div id="previewDate">-</div>
+                        <div id="previewTime">-</div>
+                    </div>
+                    <div class="col-4">
+                        <h6 class="text-primary">Visitor Team</h6>
+                        <span id="previewVisitor" class="badge bg-primary">-</span>
+                    </div>
+                </div>
+                <div class="text-center mt-2">
+                    <small class="text-muted">at <span id="previewFacility">-</span></small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Help Section -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> Match Scheduling Guidelines
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-lightbulb text-warning"></i> Team Selection</h6>
+                        <ul class="small">
+                            <li>Both teams must be in the same league</li>
+                            <li>Home and visitor teams cannot be the same</li>
+                            <li>Home team typically plays at their home facility</li>
+                            <li>Select league first to see available teams</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-clock text-info"></i> Scheduling Tips</h6>
+                        <ul class="small">
+                            <li>Consider facility availability</li>
+                            <li>Standard match times are often morning or afternoon</li>
+                            <li>Allow time between matches at the same facility</li>
+                            <li>Check for league-specific scheduling rules</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-building text-success"></i> Facility Notes</h6>
+                        <ul class="small">
+                            <li>Usually matches are at the home team's facility</li>
+                            <li>Ensure facility has available courts</li>
+                            <li>Consider location convenience for both teams</li>
+                            <li>Verify facility contact information</li>
+                        </ul>
+                        <div class="mt-2">
+                            <a href="{{ url_for('facilities') }}" class="btn btn-sm btn-outline-success">
+                                <i class="fas fa-building"></i> View Facilities
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus on the first input
+    document.getElementById('id').focus();
+    
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('date').value = today;
+    
+    // Set default time to 10:00 AM
+    document.getElementById('time').value = '10:00';
+    
+    // Add event listeners for preview
+    ['league_id', 'home_team_id', 'visitor_team_id', 'facility_id', 'date', 'time'].forEach(fieldId => {
+        document.getElementById(fieldId).addEventListener('change', updatePreview);
+    });
+});
+
+async function loadTeamsForLeague() {
+    const leagueId = document.getElementById('league_id').value;
+    const homeSelect = document.getElementById('home_team_id');
+    const visitorSelect = document.getElementById('visitor_team_id');
+    
+    // Clear existing options
+    homeSelect.innerHTML = '<option value="">Loading teams...</option>';
+    visitorSelect.innerHTML = '<option value="">Loading teams...</option>';
+    
+    if (!leagueId) {
+        homeSelect.innerHTML = '<option value="">Select league first...</option>';
+        visitorSelect.innerHTML = '<option value="">Select league first...</option>';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/teams/${leagueId}`);
+        if (!response.ok) {
+            throw new Error('Failed to load teams');
+        }
+        
+        const teams = await response.json();
+        
+        // Clear loading message
+        homeSelect.innerHTML = '<option value="">Select home team...</option>';
+        visitorSelect.innerHTML = '<option value="">Select visitor team...</option>';
+        
+        // Add team options
+        teams.forEach(team => {
+            const option1 = new Option(team.name, team.id);
+            const option2 = new Option(team.name, team.id);
+            homeSelect.add(option1);
+            visitorSelect.add(option2);
+        });
+        
+        if (teams.length === 0) {
+            homeSelect.innerHTML = '<option value="">No teams in this league</option>';
+            visitorSelect.innerHTML = '<option value="">No teams in this league</option>';
+        }
+        
+    } catch (error) {
+        console.error('Error loading teams:', error);
+        homeSelect.innerHTML = '<option value="">Error loading teams</option>';
+        visitorSelect.innerHTML = '<option value="">Error loading teams</option>';
+    }
+    
+    updatePreview();
+}
+
+function useHomeTeamFacility() {
+    const homeTeamId = document.getElementById('home_team_id').value;
+    if (!homeTeamId) {
+        alert('Please select a home team first');
+        return;
+    }
+    
+    // This is a simple implementation - in a more advanced version,
+    // you'd fetch the home team's facility from the API
+    alert('Home team facility auto-selection would require additional API endpoint. Please select manually for now.');
+}
+
+function updatePreview() {
+    const homeSelect = document.getElementById('home_team_id');
+    const visitorSelect = document.getElementById('visitor_team_id');
+    const facilitySelect = document.getElementById('facility_id');
+    const date = document.getElementById('date').value;
+    const time = document.getElementById('time').value;
+    
+    const preview = document.getElementById('matchPreview');
+    
+    // Show preview if we have some data
+    if (homeSelect.value || visitorSelect.value || date || time) {
+        preview.style.display = 'block';
+        
+        document.getElementById('previewHome').textContent = 
+            homeSelect.options[homeSelect.selectedIndex]?.text || 'Select home team';
+        document.getElementById('previewVisitor').textContent = 
+            visitorSelect.options[visitorSelect.selectedIndex]?.text || 'Select visitor team';
+        document.getElementById('previewFacility').textContent = 
+            facilitySelect.options[facilitySelect.selectedIndex]?.text || 'Select facility';
+        document.getElementById('previewDate').textContent = date || 'Select date';
+        document.getElementById('previewTime').textContent = time || 'Select time';
+    } else {
+        preview.style.display = 'none';
+    }
+}
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const id = document.getElementById('id').value;
+    const leagueId = document.getElementById('league_id').value;
+    const homeTeamId = document.getElementById('home_team_id').value;
+    const visitorTeamId = document.getElementById('visitor_team_id').value;
+    const facilityId = document.getElementById('facility_id').value;
+    const date = document.getElementById('date').value;
+    const time = document.getElementById('time').value;
+    
+    if (!id || id < 1) {
+        alert('Please enter a valid match ID (must be a positive number)');
+        e.preventDefault();
+        return;
+    }
+    
+    if (!leagueId) {
+        alert('Please select a league');
+        e.preventDefault();
+        return;
+    }
+    
+    if (!homeTeamId) {
+        alert('Please select a home team');
+        e.preventDefault();
+        return;
+    }
+    
+    if (!visitorTeamId) {
+        alert('Please select a visitor team');
+        e.preventDefault();
+        return;
+    }
+    
+    if (homeTeamId === visitorTeamId) {
+        alert('Home team and visitor team cannot be the same');
+        e.preventDefault();
+        return;
+    }
+    
+    if (!facilityId) {
+        alert('Please select a facility');
+        e.preventDefault();
+        return;
+    }
+    
+    if (!date) {
+        alert('Please select a match date');
+        e.preventDefault();
+        return;
+    }
+    
+    if (!time) {
+        alert('Please select a match time');
+        e.preventDefault();
+        return;
+    }
+    
+    // Check if date is in the future (optional warning)
+    const selectedDate = new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (selectedDate < today) {
+        if (!confirm('The selected date is in the past. Are you sure you want to schedule this match?')) {
+            e.preventDefault();
+            return;
+        }
+    }
+});
+</script>
+{% endblock %>

@@ -1,0 +1,430 @@
+{% extends "base.html" %}
+
+{% block title %}Add League - Tennis Database{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-trophy"></i> Add New League
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="id" class="form-label">
+                                <i class="fas fa-hashtag"></i> League ID *
+                            </label>
+                            <input type="number" class="form-control" id="id" name="id" 
+                                   min="1" required 
+                                   placeholder="e.g., 101">
+                            <div class="form-text">Unique identifier</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="name" class="form-label">
+                                <i class="fas fa-trophy"></i> League Name *
+                            </label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   required maxlength="255"
+                                   placeholder="e.g., 2025 Adult 18+ 3.0 Women">
+                            <div class="form-text">Descriptive league name</div>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <label for="year" class="form-label">
+                                <i class="fas fa-calendar"></i> Year *
+                            </label>
+                            <input type="number" class="form-control" id="year" name="year" 
+                                   min="2020" max="2030" required 
+                                   value="{{ current_year if current_year else 2025 }}">
+                            <div class="form-text">League year</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="section" class="form-label">
+                                <i class="fas fa-map"></i> Section *
+                            </label>
+                            <select class="form-select" id="section" name="section" required>
+                                <option value="">Select a section...</option>
+                                {% for section in sections %}
+                                <option value="{{ section }}">{{ section }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">USTA geographic section</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="region" class="form-label">
+                                <i class="fas fa-map-marker-alt"></i> Region *
+                            </label>
+                            <select class="form-select" id="region" name="region" required>
+                                <option value="">Select a region...</option>
+                                {% for region in regions %}
+                                <option value="{{ region }}">{{ region }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Regional subdivision</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="age_group" class="form-label">
+                                <i class="fas fa-users"></i> Age Group *
+                            </label>
+                            <select class="form-select" id="age_group" name="age_group" required>
+                                <option value="">Select an age group...</option>
+                                {% for age_group in age_groups %}
+                                <option value="{{ age_group }}">{{ age_group }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Player age category</div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label for="division" class="form-label">
+                                <i class="fas fa-award"></i> Division *
+                            </label>
+                            <select class="form-select" id="division" name="division" required>
+                                <option value="">Select a division...</option>
+                                {% for division in divisions %}
+                                <option value="{{ division }}">{{ division }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Skill level and format</div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label for="num_lines_per_match" class="form-label">
+                                <i class="fas fa-list-ol"></i> Lines per Match *
+                            </label>
+                            <select class="form-select" id="num_lines_per_match" name="num_lines_per_match" required>
+                                <option value="1">1 Line (Singles)</option>
+                                <option value="2">2 Lines (Doubles)</option>
+                                <option value="3" selected>3 Lines (Standard Team)</option>
+                                <option value="4">4 Lines (Extended Team)</option>
+                                <option value="5">5 Lines (Full Team)</option>
+                            </select>
+                            <div class="form-text">Courts needed per match</div>
+                        </div>
+                    </div>
+                    
+                    <!-- New Fields Section -->
+                    <hr>
+                    <h5><i class="fas fa-cogs"></i> League Settings</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="num_matches" class="form-label">
+                                <i class="fas fa-calendar-check"></i> Matches per Team *
+                            </label>
+                            <input type="number" class="form-control" id="num_matches" name="num_matches" 
+                                   min="1" max="50" required value="10">
+                            <div class="form-text">Number of matches each team plays</div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label for="allow_split_lines" class="form-label">
+                                <i class="fas fa-cut"></i> Allow Split Lines
+                            </label>
+                            <select class="form-select" id="allow_split_lines" name="allow_split_lines">
+                                <option value="0" selected>No - All lines start together</option>
+                                <option value="1">Yes - Lines can be split across time slots</option>
+                            </select>
+                            <div class="form-text">Whether lines can start at different times</div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <div class="form-text mb-2">
+                                <i class="fas fa-info-circle"></i> Split lines allow more flexible scheduling but require coordination
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="start_date" class="form-label">
+                                <i class="fas fa-play"></i> Season Start Date
+                            </label>
+                            <input type="date" class="form-control" id="start_date" name="start_date">
+                            <div class="form-text">When the league season begins (optional)</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="end_date" class="form-label">
+                                <i class="fas fa-stop"></i> Season End Date
+                            </label>
+                            <input type="date" class="form-control" id="end_date" name="end_date">
+                            <div class="form-text">When the league season ends (optional)</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="preferred_days" class="form-label">
+                                <i class="fas fa-star"></i> Preferred Days
+                            </label>
+                            <div class="form-check-container">
+                                {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" 
+                                           id="preferred_{{ day.lower() }}" 
+                                           name="preferred_days" 
+                                           value="{{ day }}"
+                                           {% if day in ['Saturday', 'Sunday'] %}checked{% endif %}>
+                                    <label class="form-check-label" for="preferred_{{ day.lower() }}">
+                                        {{ day[:3] }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="form-text">Primary days for scheduling matches</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="backup_days" class="form-label">
+                                <i class="fas fa-calendar-plus"></i> Backup Days
+                            </label>
+                            <div class="form-check-container">
+                                {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" 
+                                           id="backup_{{ day.lower() }}" 
+                                           name="backup_days" 
+                                           value="{{ day }}">
+                                    <label class="form-check-label" for="backup_{{ day.lower() }}">
+                                        {{ day[:3] }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="form-text">Alternative days when preferred days aren't available</div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add League
+                        </button>
+                        <a href="{{ url_for('leagues') }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="button" class="btn btn-outline-info" onclick="generateName()">
+                            <i class="fas fa-magic"></i> Auto-Generate Name
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Help Section -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> League Creation Guidelines
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-lightbulb text-warning"></i> Naming Convention</h6>
+                        <p class="small">League names typically follow the pattern:</p>
+                        <code class="small">YEAR Type AgeGroup SkillLevel Gender</code>
+                        <div class="mt-2 small">
+                            <strong>Example:</strong> "2025 Adult 18+ 3.0 Women"
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-check-circle text-success"></i> New Settings</h6>
+                        <ul class="small">
+                            <li><strong>Matches per Team:</strong> Usually 8-12 matches per season</li>
+                            <li><strong>Split Lines:</strong> Most leagues don't allow splitting</li>
+                            <li><strong>Preferred Days:</strong> When teams prefer to play</li>
+                            <li><strong>Backup Days:</strong> For makeup matches or overflow</li>
+                            <li><strong>Season Dates:</strong> Optional start and end dates</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-calendar text-info"></i> Date Benefits</h6>
+                        <p class="small">
+                            Setting season dates helps with:
+                        </p>
+                        <ul class="small">
+                            <li>Automatic season status tracking</li>
+                            <li>Match scheduling validation</li>
+                            <li>Season duration calculations</li>
+                            <li>Registration period management</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus on the first input
+    document.getElementById('id').focus();
+    
+    // Set current year as default
+    const yearInput = document.getElementById('year');
+    if (!yearInput.value) {
+        yearInput.value = new Date().getFullYear();
+    }
+    
+    // Add event listeners for day validation
+    const preferredCheckboxes = document.querySelectorAll('input[name="preferred_days"]');
+    const backupCheckboxes = document.querySelectorAll('input[name="backup_days"]');
+    
+    // Add date validation
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
+    
+    function validateDates() {
+        const startDate = startDateInput.value;
+        const endDate = endDateInput.value;
+        
+        if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            if (end <= start) {
+                endDateInput.setCustomValidity('End date must be after start date');
+            } else {
+                endDateInput.setCustomValidity('');
+            }
+        } else {
+            endDateInput.setCustomValidity('');
+        }
+    }
+    
+    startDateInput.addEventListener('change', validateDates);
+    endDateInput.addEventListener('change', validateDates);
+    
+    // Prevent overlap between preferred and backup days
+    function validateDaySelection() {
+        const preferred = Array.from(preferredCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+        const backup = Array.from(backupCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+        
+        // Disable backup days that are selected as preferred
+        backupCheckboxes.forEach(cb => {
+            if (preferred.includes(cb.value)) {
+                cb.disabled = true;
+                cb.checked = false;
+            } else {
+                cb.disabled = false;
+            }
+        });
+        
+        // Disable preferred days that are selected as backup
+        preferredCheckboxes.forEach(cb => {
+            if (backup.includes(cb.value)) {
+                cb.disabled = true;
+                cb.checked = false;
+            } else {
+                cb.disabled = false;
+            }
+        });
+    }
+    
+    // Add event listeners
+    preferredCheckboxes.forEach(cb => {
+        cb.addEventListener('change', validateDaySelection);
+    });
+    
+    backupCheckboxes.forEach(cb => {
+        cb.addEventListener('change', validateDaySelection);
+    });
+    
+    // Initial validation
+    validateDaySelection();
+});
+
+function generateName() {
+    const year = document.getElementById('year').value;
+    const ageGroup = document.getElementById('age_group').value;
+    const division = document.getElementById('division').value;
+    
+    if (year && ageGroup && division) {
+        const name = `${year} Adult ${ageGroup} ${division}`;
+        document.getElementById('name').value = name;
+    } else {
+        alert('Please select Year, Age Group, and Division first to auto-generate the name.');
+    }
+}
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const id = document.getElementById('id').value;
+    const name = document.getElementById('name').value.trim();
+    const year = document.getElementById('year').value;
+    const section = document.getElementById('section').value;
+    const region = document.getElementById('region').value;
+    const ageGroup = document.getElementById('age_group').value;
+    const division = document.getElementById('division').value;
+    const numMatches = document.getElementById('num_matches').value;
+    const startDate = document.getElementById('start_date').value;
+    const endDate = document.getElementById('end_date').value;
+    
+    if (!id || id < 1) {
+        alert('Please enter a valid league ID (must be a positive number)');
+        e.preventDefault();
+        return;
+    }
+    
+    if (!name) {
+        alert('Please enter a league name');
+        e.preventDefault();
+        return;
+    }
+    
+    if (!year || year < 2020 || year > 2030) {
+        alert('Please enter a valid year between 2020 and 2030');
+        e.preventDefault();
+        return;
+    }
+    
+    if (!section || !region || !ageGroup || !division) {
+        alert('Please select all required dropdown values');
+        e.preventDefault();
+        return;
+    }
+    
+    if (!numMatches || numMatches < 1 || numMatches > 50) {
+        alert('Please enter a valid number of matches between 1 and 50');
+        e.preventDefault();
+        return;
+    }
+    
+    // Validate dates if both are provided
+    if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        if (end <= start) {
+            alert('End date must be after start date');
+            e.preventDefault();
+            return;
+        }
+    }
+    
+    // Check if at least one preferred or backup day is selected
+    const preferredDays = Array.from(document.querySelectorAll('input[name="preferred_days"]:checked'));
+    const backupDays = Array.from(document.querySelectorAll('input[name="backup_days"]:checked'));
+    
+    if (preferredDays.length === 0 && backupDays.length === 0) {
+        if (!confirm('No scheduling days selected. This may make scheduling difficult. Continue anyway?')) {
+            e.preventDefault();
+            return;
+        }
+    }
+});
+</script>
+{% endblock %}

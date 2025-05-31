@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Connect to Database - Tennis Database{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-database"></i> Connect to Tennis Database
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('connect_db') }}">
+                    <div class="mb-3">
+                        <label for="db_path" class="form-label">Database Path</label>
+                        <input type="text" class="form-control" id="db_path" name="db_path" 
+                               placeholder="e.g., tennis.db" required>
+                        <div class="form-text">
+                            Enter the path to your SQLite database file. If the file doesn't exist, it will be created.
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plug"></i> Connect
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> Getting Started
+            </div>
+            <div class="card-body">
+                <h6>First time setup:</h6>
+                <ol>
+                    <li>Connect to a database file (e.g., <code>tennis.db</code>)</li>
+                    <li>Load your data using the command line:
+                        <pre class="bg-light p-2 rounded mt-2"><code>python sqlite_tennis_db.py tennis.db load facilities facilities.yaml
+python sqlite_tennis_db.py tennis.db load leagues leagues.yaml
+python sqlite_tennis_db.py tennis.db load teams teams.yaml
+python sqlite_tennis_db.py tennis.db load matches matches.yaml</code></pre>
+                    </li>
+                    <li>Refresh this page and explore your data!</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
