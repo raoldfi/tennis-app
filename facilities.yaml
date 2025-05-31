@@ -1,0 +1,404 @@
+facilities:
+  # Tennis Center North - Full service facility with extensive schedule
+  - id: 1
+    name: "Tennis Center North"
+    location: "123 Tennis Dr, Albuquerque, NM 87110"
+    schedule:
+      Monday:
+        start_times:
+          - time: "09:00"
+            available_courts: 8
+          - time: "18:00"
+            available_courts: 12
+          - time: "19:30"
+            available_courts: 10
+      Tuesday:
+        start_times:
+          - time: "09:00"
+            available_courts: 8
+          - time: "18:00"
+            available_courts: 12
+          - time: "19:30"
+            available_courts: 10
+      Wednesday:
+        start_times:
+          - time: "09:00"
+            available_courts: 8
+          - time: "18:00"
+            available_courts: 12
+          - time: "19:30"
+            available_courts: 10
+      Thursday:
+        start_times:
+          - time: "09:00"
+            available_courts: 8
+          - time: "18:00"
+            available_courts: 12
+          - time: "19:30"
+            available_courts: 10
+      Friday:
+        start_times: []  # No league play on Fridays
+      Saturday:
+        start_times:
+          - time: "08:00"
+            available_courts: 6
+          - time: "10:00"
+            available_courts: 8
+          - time: "12:00"
+            available_courts: 12
+          - time: "14:00"
+            available_courts: 12
+          - time: "16:00"
+            available_courts: 8
+      Sunday:
+        start_times:
+          - time: "08:00"
+            available_courts: 6
+          - time: "10:00"
+            available_courts: 8
+          - time: "12:00"
+            available_courts: 12
+          - time: "14:00"
+            available_courts: 12
+          - time: "16:00"
+            available_courts: 8
+    unavailable_dates:
+      - "2025-03-01"  # Facility maintenance
+      - "2025-03-02"  # Facility maintenance
+      - "2025-03-07"  # Private tournament
+      - "2025-03-08"  # Private tournament
+      - "2025-03-09"  # Private tournament
+      - "2025-07-04"  # Independence Day
+      - "2025-11-28"  # Thanksgiving
+      - "2025-12-25"  # Christmas Day
+      - "2025-12-31"  # New Year's Eve
+
+  # Westside Racquet Club - Smaller facility with limited schedule
+  - id: 2
+    name: "Westside Racquet Club"
+    location: "456 Court Ave, Rio Rancho, NM 87124"
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:00"
+            available_courts: 6
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 6
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 6
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 6
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "09:00"
+            available_courts: 4
+          - time: "13:00"
+            available_courts: 6
+      Sunday:
+        start_times:
+          - time: "09:00"
+            available_courts: 4
+          - time: "13:00"
+            available_courts: 6
+    unavailable_dates:
+      - "2025-06-15"  # Annual member tournament
+      - "2025-06-16"  # Annual member tournament
+      - "2025-08-20"  # Court resurfacing
+      - "2025-08-21"  # Court resurfacing
+      - "2025-08-22"  # Court resurfacing
+
+  # Eastside Tennis Complex - Large facility with flexible scheduling
+  - id: 3
+    name: "Eastside Tennis Complex"
+    location: "789 Racquet Rd, Albuquerque, NM 87111"
+    schedule:
+      Monday:
+        start_times:
+          - time: "08:00"
+            available_courts: 10
+          - time: "10:00"
+            available_courts: 15
+          - time: "18:00"
+            available_courts: 20
+          - time: "19:30"
+            available_courts: 18
+      Tuesday:
+        start_times:
+          - time: "08:00"
+            available_courts: 10
+          - time: "10:00"
+            available_courts: 15
+          - time: "18:00"
+            available_courts: 20
+          - time: "19:30"
+            available_courts: 18
+      Wednesday:
+        start_times:
+          - time: "08:00"
+            available_courts: 10
+          - time: "10:00"
+            available_courts: 15
+          - time: "18:00"
+            available_courts: 20
+          - time: "19:30"
+            available_courts: 18
+      Thursday:
+        start_times:
+          - time: "08:00"
+            available_courts: 10
+          - time: "10:00"
+            available_courts: 15
+          - time: "18:00"
+            available_courts: 20
+          - time: "19:30"
+            available_courts: 18
+      Friday:
+        start_times:
+          - time: "08:00"
+            available_courts: 8
+          - time: "10:00"
+            available_courts: 12
+      Saturday:
+        start_times:
+          - time: "07:00"
+            available_courts: 8
+          - time: "09:00"
+            available_courts: 12
+          - time: "11:00"
+            available_courts: 16
+          - time: "13:00"
+            available_courts: 20
+          - time: "15:00"
+            available_courts: 18
+          - time: "17:00"
+            available_courts: 15
+      Sunday:
+        start_times:
+          - time: "07:00"
+            available_courts: 8
+          - time: "09:00"
+            available_courts: 12
+          - time: "11:00"
+            available_courts: 16
+          - time: "13:00"
+            available_courts: 20
+          - time: "15:00"
+            available_courts: 18
+          - time: "17:00"
+            available_courts: 15
+    unavailable_dates:
+      - "2025-04-10"  # Spring tournament
+      - "2025-04-11"  # Spring tournament
+      - "2025-04-12"  # Spring tournament
+      - "2025-04-13"  # Spring tournament
+      - "2025-09-05"  # Fall championship
+      - "2025-09-06"  # Fall championship
+      - "2025-09-07"  # Fall championship
+
+  # Community Recreation Center - Basic facility with minimal schedule
+  - id: 4
+    name: "Community Recreation Center"
+    location: "321 Community Blvd, Albuquerque, NM 87108"
+    schedule:
+      Monday:
+        start_times:
+          - time: "19:00"
+            available_courts: 4
+      Tuesday:
+        start_times:
+          - time: "19:00"
+            available_courts: 4
+      Wednesday:
+        start_times:
+          - time: "19:00"
+            available_courts: 4
+      Thursday:
+        start_times:
+          - time: "19:00"
+            available_courts: 4
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "10:00"
+            available_courts: 3
+          - time: "14:00"
+            available_courts: 4
+      Sunday:
+        start_times:
+          - time: "14:00"
+            available_courts: 4
+    unavailable_dates:
+      - "2025-05-25"  # Memorial Day weekend
+      - "2025-05-26"  # Memorial Day weekend
+      - "2025-09-01"  # Labor Day weekend
+      - "2025-09-02"  # Labor Day weekend
+
+  # Country Club Tennis - Exclusive facility with limited public access
+  - id: 5
+    name: "Sandia Country Club Tennis"
+    location: "987 Country Club Dr, Albuquerque, NM 87122"
+    schedule:
+      Monday:
+        start_times: []  # Members only
+      Tuesday:
+        start_times:
+          - time: "18:30"
+            available_courts: 3
+      Wednesday:
+        start_times: []  # Members only
+      Thursday:
+        start_times:
+          - time: "18:30"
+            available_courts: 3
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "16:00"
+            available_courts: 2
+      Sunday:
+        start_times:
+          - time: "16:00"
+            available_courts: 2
+    unavailable_dates:
+      - "2025-06-01"  # Member-guest tournament
+      - "2025-06-02"  # Member-guest tournament
+      - "2025-08-15"  # Club championship
+      - "2025-08-16"  # Club championship
+      - "2025-08-17"  # Club championship
+      - "2025-10-10"  # Annual gala preparation
+      - "2025-10-11"  # Annual gala
+
+  # Indoor Tennis Academy - Year-round facility with consistent schedule
+  - id: 6
+    name: "Indoor Tennis Academy"
+    location: "555 Climate Controlled Way, Albuquerque, NM 87109"
+    schedule:
+      Monday:
+        start_times:
+          - time: "09:00"
+            available_courts: 6
+          - time: "11:00"
+            available_courts: 8
+          - time: "18:00"
+            available_courts: 10
+          - time: "20:00"
+            available_courts: 8
+      Tuesday:
+        start_times:
+          - time: "09:00"
+            available_courts: 6
+          - time: "11:00"
+            available_courts: 8
+          - time: "18:00"
+            available_courts: 10
+          - time: "20:00"
+            available_courts: 8
+      Wednesday:
+        start_times:
+          - time: "09:00"
+            available_courts: 6
+          - time: "11:00"
+            available_courts: 8
+          - time: "18:00"
+            available_courts: 10
+          - time: "20:00"
+            available_courts: 8
+      Thursday:
+        start_times:
+          - time: "09:00"
+            available_courts: 6
+          - time: "11:00"
+            available_courts: 8
+          - time: "18:00"
+            available_courts: 10
+          - time: "20:00"
+            available_courts: 8
+      Friday:
+        start_times:
+          - time: "18:00"
+            available_courts: 8
+          - time: "20:00"
+            available_courts: 6
+      Saturday:
+        start_times:
+          - time: "08:00"
+            available_courts: 4
+          - time: "10:00"
+            available_courts: 8
+          - time: "12:00"
+            available_courts: 10
+          - time: "14:00"
+            available_courts: 10
+          - time: "16:00"
+            available_courts: 8
+          - time: "18:00"
+            available_courts: 6
+      Sunday:
+        start_times:
+          - time: "08:00"
+            available_courts: 4
+          - time: "10:00"
+            available_courts: 8
+          - time: "12:00"
+            available_courts: 10
+          - time: "14:00"
+            available_courts: 10
+          - time: "16:00"
+            available_courts: 8
+          - time: "18:00"
+            available_courts: 6
+    unavailable_dates: []  # Indoor facility - no weather-related closures
+
+  # Public Parks Department Courts - Simple outdoor facility
+  - id: 7
+    name: "Foothills Public Tennis Courts"
+    location: "800 Foothills Dr, Albuquerque, NM 87123"
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:00"
+            available_courts: 4
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 4
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 4
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 4
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "09:00"
+            available_courts: 3
+          - time: "15:00"
+            available_courts: 4
+      Sunday:
+        start_times:
+          - time: "15:00"
+            available_courts: 4
+    unavailable_dates:
+      - "2025-01-15"  # Winter maintenance
+      - "2025-01-16"  # Winter maintenance
+      - "2025-01-17"  # Winter maintenance
+      - "2025-07-15"  # Summer resurfacing
+      - "2025-07-16"  # Summer resurfacing
+      - "2025-07-17"  # Summer resurfacing
+      - "2025-07-18"  # Summer resurfacing
+      - "2025-07-19"  # Summer resurfacing
+

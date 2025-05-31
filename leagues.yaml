@@ -1,0 +1,91 @@
+leagues:
+  - id: 101
+    name: "2025 Adult 18+ 3.0 Women"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "3.0 Women"
+    num_lines_per_match: 3
+    num_matches: 6
+    allow_split_lines: false
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+    backup_days:
+      - "Friday"
+    start_date: "2025-03-01"
+    end_date: "2025-06-30"
+      
+  - id: 102
+    name: "2025 Adult 18+ 4.0 Mixed"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "8.0 Mixed"
+    num_lines_per_match: 3
+    num_matches: 6
+    allow_split_lines: true
+    preferred_days:
+      - "Saturday"
+    backup_days:
+      - "Sunday"
+      - "Friday"
+    start_date: "2025-04-15"
+    end_date: "2025-07-15"
+      
+  - id: 103
+    name: "2025 Adult 40+ 3.5 Men"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "40 & Over"
+    division: "3.5 Men"
+    num_lines_per_match: 4
+    num_matches: 6
+    allow_split_lines: false
+    preferred_days:
+      - "Sunday"
+    backup_days:
+      - "Saturday"
+      - "Thursday"
+    start_date: "2025-02-01"
+    end_date: "2025-05-31"
+      
+  - id: 104
+    name: "2025 Adult 55+ 4.0 Women"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "55 & Over"
+    division: "4.0 Women"
+    num_lines_per_match: 2
+    num_matches: 6
+    allow_split_lines: true
+    preferred_days:
+      - "Tuesday"
+      - "Thursday"
+    backup_days:
+      - "Monday"
+      - "Wednesday"
+    start_date: "2025-01-15"
+    end_date: "2025-04-15"
+      
+  - id: 105
+    name: "2025 Adult 18+ 5.0 Men"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "5.0 Men"
+    num_lines_per_match: 3
+    num_matches: 6
+    allow_split_lines: false
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+    backup_days:
+      - "Friday"
+      - "Thursday"
+    # No specific dates - season runs throughout the year

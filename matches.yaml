@@ -1,0 +1,8 @@
+matches:
+    - id: 2001
+      league_id: 101
+      home_team_id: 1001
+      visitor_team_id: 1002
+      facility_id: 1
+      date: "2025-03-15"
+      time: "10:00"

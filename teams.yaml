@@ -1,0 +1,91 @@
+# teams.yaml - Example with preferred_days field
+teams:
+  - id: 1001
+    name: "Smith - Tennis Center North"
+    league_id: 101
+    home_facility_id: 1
+    captain: "Jane Smith"
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+  
+  - id: 1002
+    name: "Johnson - Westside Club"
+    league_id: 101
+    home_facility_id: 2
+    captain: "Mary Johnson"
+    preferred_days:
+      - "Saturday"
+  
+  - id: 1003
+    name: "Wilson - Tennis Center North"
+    league_id: 101
+    home_facility_id: 1
+    captain: "Bob Wilson"
+    preferred_days: []  # No preference - can play any day
+  
+  - id: 1004
+    name: "Garcia - Downtown Courts"
+    league_id: 102
+    home_facility_id: 3
+    captain: "Maria Garcia"
+    preferred_days:
+      - "Friday"
+      - "Saturday"
+      - "Sunday"
+  
+  - id: 1005
+    name: "Lee Team"
+    league_id: 102
+    home_facility_id: 4
+    captain: "David Lee"
+    # preferred_days field can be omitted (defaults to empty list)
+
+  - id: 1013
+    name: "Wilson - Tennis Center North"
+    league_id: 101
+    home_facility_id: 1
+    captain: "Bob Wilson"
+    preferred_days: []  # No preference - can play any day
+
+  - id: 1014
+    name: "Bob - Tennis Center North"
+    league_id: 101
+    home_facility_id: 1
+    captain: "Bob Wilson"
+    preferred_days: []  # No preference - can play any day
+
+  - id: 1015
+    name: "Dan - Tennis Center North"
+    league_id: 101
+    home_facility_id: 1
+    captain: "Bob Wilson"
+    preferred_days: []  # No preference - can play any day
+
+  - id: 1016
+    name: "Tom - Tennis Center North"
+    league_id: 101
+    home_facility_id: 1
+    captain: "Bob Wilson"
+    preferred_days: []  # No preference - can play any day
+
+  - id: 1017
+    name: "Dick - Tennis Center North"
+    league_id: 101
+    home_facility_id: 1
+    captain: "Bob Wilson"
+    preferred_days: []  # No preference - can play any day
+
+  - id: 1019
+    name: "Harry - Tennis Center North"
+    league_id: 101
+    home_facility_id: 1
+    captain: "Harry Wilson"
+    preferred_days: []  # No preference - can play any day
+
+# Notes:
+# - preferred_days is optional and defaults to an empty list
+# - Valid days are: "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+# - Empty preferred_days means the team can play on any day
+# - Teams with specific preferred days will be prioritized for scheduling on those days
+# - The system will try to match team preferences with league scheduling preferences
