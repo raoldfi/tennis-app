@@ -186,6 +186,80 @@ def add_facility():
     # GET request - show the form
     return render_template('add_facility.html')
 
+@app.route('/facilities/<int:facility_id>/edit', methods=['GET', 'POST'])
+def edit_facility(facility_id):
+    """Edit an existing facility"""
+    db = get_db()
+    if db is None:
+        flash('No database connection', 'error')
+        return redirect(url_for('index'))
+    
+    try:
+        facility = db.get_facility(facility_id)
+        if not facility:
+            flash(f'Facility with ID {facility_id} not found', 'error')
+            return redirect(url_for('facilities'))
+    except Exception as e:
+        flash(f'Error loading facility: {e}', 'error')
+        return redirect(url_for('facilities'))
+    
+    if request.method == 'POST':
+        try:
+            name = request.form.get('name', '').strip()
+            location = request.form.get('location', '').strip()
+            
+            if not name:
+                flash('Facility name is required', 'error')
+                return render_template('edit_facility.html', facility=facility)
+            
+            # Update facility with basic info
+            facility.name = name
+            facility.location = location
+            
+            # Process schedule data from form
+            facility.schedule = WeeklySchedule()  # Reset schedule
+            for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']:
+                day_schedule = DaySchedule()
+                
+                # Get time slots for this day
+                time_inputs = request.form.getlist(f'{day.lower()}_times')
+                court_inputs = request.form.getlist(f'{day.lower()}_courts')
+                
+                for time_str, courts_str in zip(time_inputs, court_inputs):
+                    if time_str.strip() and courts_str.strip():
+                        try:
+                            courts = int(courts_str)
+                            if courts > 0:
+                                time_slot = TimeSlot(time=time_str.strip(), available_courts=courts)
+                                day_schedule.start_times.append(time_slot)
+                        except ValueError:
+                            continue  # Skip invalid entries
+                
+                facility.schedule.set_day_schedule(day, day_schedule)
+            
+            # Process unavailable dates
+            unavailable_dates_str = request.form.get('unavailable_dates', '').strip()
+            if unavailable_dates_str:
+                dates = [date.strip() for date in unavailable_dates_str.split('\n') if date.strip()]
+                facility.unavailable_dates = dates
+            else:
+                facility.unavailable_dates = []
+            
+            db.update_facility(facility)
+            
+            flash(f'Successfully updated facility: {name}', 'success')
+            return redirect(url_for('facilities'))
+            
+        except ValueError as e:
+            flash(f'Invalid data: {e}', 'error')
+        except Exception as e:
+            flash(f'Error updating facility: {e}', 'error')
+        
+        return render_template('edit_facility.html', facility=facility)
+    
+    # GET request - show the form with existing data
+    return render_template('edit_facility.html', facility=facility)
+
 # ==================== LEAGUE ROUTES ====================
 
 @app.route('/leagues')
@@ -342,6 +416,156 @@ def add_league():
         flash(f'Error loading form data: {e}', 'error')
         return redirect(url_for('leagues'))
 
+@app.route('/leagues/<int:league_id>/edit', methods=['GET', 'POST'])
+def edit_league(league_id):
+    """Edit an existing league"""
+    db = get_db()
+    if db is None:
+        flash('No database connection', 'error')
+        return redirect(url_for('index'))
+    
+    try:
+        league = db.get_league(league_id)
+        if not league:
+            flash(f'League with ID {league_id} not found', 'error')
+            return redirect(url_for('leagues'))
+    except Exception as e:
+        flash(f'Error loading league: {e}', 'error')
+        return redirect(url_for('leagues'))
+    
+    if request.method == 'POST':
+        try:
+            name = request.form.get('name', '').strip()
+            year = int(request.form.get('year'))
+            section = request.form.get('section', '').strip()
+            region = request.form.get('region', '').strip()
+            age_group = request.form.get('age_group', '').strip()
+            division = request.form.get('division', '').strip()
+            num_lines_per_match = int(request.form.get('num_lines_per_match', 3))
+            
+            # New fields
+            num_matches = int(request.form.get('num_matches', 10))
+            allow_split_lines = bool(int(request.form.get('allow_split_lines', 0)))
+            
+            # Get selected days (may be empty lists)
+            preferred_days = request.form.getlist('preferred_days')
+            backup_days = request.form.getlist('backup_days')
+            
+            # Get optional date fields
+            start_date = request.form.get('start_date', '').strip() or None
+            end_date = request.form.get('end_date', '').strip() or None
+            
+            if not all([name, section, region, age_group, division]):
+                flash('All required fields must be filled', 'error')
+                return render_template('edit_league.html', 
+                                     league=league,
+                                     sections=db.list_sections(),
+                                     regions=db.list_regions(),
+                                     age_groups=db.list_age_groups(),
+                                     divisions=db.list_divisions())
+            
+            # Validate number of matches
+            if num_matches < 1 or num_matches > 50:
+                flash('Number of matches must be between 1 and 50', 'error')
+                return render_template('edit_league.html', 
+                                     league=league,
+                                     sections=db.list_sections(),
+                                     regions=db.list_regions(),
+                                     age_groups=db.list_age_groups(),
+                                     divisions=db.list_divisions())
+            
+            # Validate day selections (no overlap)
+            overlapping_days = set(preferred_days) & set(backup_days)
+            if overlapping_days:
+                flash(f'Days cannot be both preferred and backup: {", ".join(sorted(overlapping_days))}', 'error')
+                return render_template('edit_league.html', 
+                                     league=league,
+                                     sections=db.list_sections(),
+                                     regions=db.list_regions(),
+                                     age_groups=db.list_age_groups(),
+                                     divisions=db.list_divisions())
+            
+            # Validate dates if both are provided
+            if start_date and end_date:
+                from datetime import datetime
+                try:
+                    start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                    end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+                    if end_dt <= start_dt:
+                        flash('End date must be after start date', 'error')
+                        return render_template('edit_league.html', 
+                                             league=league,
+                                             sections=db.list_sections(),
+                                             regions=db.list_regions(),
+                                             age_groups=db.list_age_groups(),
+                                             divisions=db.list_divisions())
+                except ValueError:
+                    flash('Invalid date format. Please use the date picker.', 'error')
+                    return render_template('edit_league.html', 
+                                         league=league,
+                                         sections=db.list_sections(),
+                                         regions=db.list_regions(),
+                                         age_groups=db.list_age_groups(),
+                                         divisions=db.list_divisions())
+            
+            # Update the league object
+            league.name = name
+            league.year = year
+            league.section = section
+            league.region = region
+            league.age_group = age_group
+            league.division = division
+            league.num_lines_per_match = num_lines_per_match
+            league.num_matches = num_matches
+            league.allow_split_lines = allow_split_lines
+            league.preferred_days = preferred_days
+            league.backup_days = backup_days
+            league.start_date = start_date
+            league.end_date = end_date
+            
+            db.update_league(league)
+            
+            # Create descriptive success message
+            split_text = "Lines can be split" if allow_split_lines else "All lines start together"
+            days_text = ""
+            if preferred_days:
+                days_text += f"Preferred days: {', '.join(preferred_days)}"
+            if backup_days:
+                if days_text:
+                    days_text += f"; Backup days: {', '.join(backup_days)}"
+                else:
+                    days_text += f"Backup days: {', '.join(backup_days)}"
+            
+            flash(f'Successfully updated league: {name} ({num_matches} matches per team, {num_lines_per_match} lines per match, {split_text})', 'success')
+            if days_text:
+                flash(f'Scheduling: {days_text}', 'info')
+            
+            return redirect(url_for('leagues'))
+            
+        except ValueError as e:
+            flash(f'Invalid data: {e}', 'error')
+        except Exception as e:
+            flash(f'Error updating league: {e}', 'error')
+        
+        return render_template('edit_league.html', 
+                             league=league,
+                             sections=db.list_sections(),
+                             regions=db.list_regions(),
+                             age_groups=db.list_age_groups(),
+                             divisions=db.list_divisions())
+    
+    # GET request - show the form with existing data
+    try:
+        return render_template('edit_league.html', 
+                             league=league,
+                             sections=db.list_sections(),
+                             regions=db.list_regions(),
+                             age_groups=db.list_age_groups(),
+                             divisions=db.list_divisions())
+    except Exception as e:
+        flash(f'Error loading form data: {e}', 'error')
+        return redirect(url_for('leagues'))
+
 # ==================== TEAM ROUTES ====================
 
 @app.route('/teams')
@@ -437,6 +661,94 @@ def add_team():
     except Exception as e:
         flash(f'Error loading form data: {e}', 'error')
         return redirect(url_for('teams'))
+
+@app.route('/teams/<int:team_id>/edit', methods=['GET', 'POST'])
+def edit_team(team_id):
+    """Edit an existing team"""
+    db = get_db()
+    if db is None:
+        flash('No database connection', 'error')
+        return redirect(url_for('index'))
+    
+    try:
+        team = db.get_team(team_id)
+        if not team:
+            flash(f'Team with ID {team_id} not found', 'error')
+            return redirect(url_for('teams'))
+    except Exception as e:
+        flash(f'Error loading team: {e}', 'error')
+        return redirect(url_for('teams'))
+    
+    if request.method == 'POST':
+        try:
+            name = request.form.get('name', '').strip()
+            league_id = int(request.form.get('league_id'))
+            home_facility_id = int(request.form.get('home_facility_id'))
+            captain = request.form.get('captain', '').strip()
+            
+            # Get preferred days
+            preferred_days = request.form.getlist('preferred_days')
+            
+            if not all([name, captain]):
+                flash('Team name and captain are required', 'error')
+                return render_template('edit_team.html', 
+                                     team=team,
+                                     leagues=db.list_leagues(),
+                                     facilities=db.list_facilities())
+            
+            # Get the league object
+            league = db.get_league(league_id)
+            if not league:
+                flash(f'League with ID {league_id} not found', 'error')
+                return render_template('edit_team.html', 
+                                     team=team,
+                                     leagues=db.list_leagues(),
+                                     facilities=db.list_facilities())
+            
+            # Update the team object
+            team.name = name
+            team.league = league
+            team.home_facility_id = home_facility_id
+            team.captain = captain
+            team.preferred_days = preferred_days
+            
+            db.update_team(team)
+            
+            flash(f'Successfully updated team: {name}', 'success')
+            return redirect(url_for('teams'))
+            
+        except ValueError as e:
+            flash(f'Invalid data: {e}', 'error')
+        except Exception as e:
+            flash(f'Error updating team: {e}', 'error')
+        
+        return render_template('edit_team.html', 
+                             team=team,
+                             leagues=db.list_leagues(),
+                             facilities=db.list_facilities())
+    
+    # GET request - show the form with existing data
+    try:
+        return render_template('edit_team.html', 
+                             team=team,
+                             leagues=db.list_leagues(),
+                             facilities=db.list_facilities())
+    except Exception as e:
+        flash(f'Error loading form data: {e}', 'error')
+        return redirect(url_for('teams'))
+
+
+@app.route('/teams/<int:team_id>/delete', methods=['DELETE'])
+def delete_team_api(team_id):
+    db = get_db()
+    if db is None:
+        return jsonify({'error': 'No database connected'}), 500
+    
+    try:
+        db.delete_team(team_id)
+        return jsonify({'success': True, 'message': f'Team {team_id} deleted successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # ==================== MATCH ROUTES ====================
 

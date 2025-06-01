@@ -188,6 +188,9 @@
 <div class="card mb-4">
     <div class="card-header">
         <i class="fas fa-users"></i> Team Statistics
+        <small class="text-muted ms-3">
+            <i class="fas fa-sort"></i> Click column headers to sort
+        </small>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -248,6 +251,9 @@
     <div class="card-header">
         <i class="fas fa-list"></i> Generated Pairings
         <span class="badge bg-light text-dark ms-2">{{ pairings|length }} matches</span>
+        <small class="text-muted ms-3">
+            <i class="fas fa-sort"></i> Click column headers to sort
+        </small>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -515,6 +521,128 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// Make tables sortable
+function initializeSortableTables() {
+    document.querySelectorAll('table').forEach(table => {
+        const headers = table.querySelectorAll('th');
+        
+        headers.forEach((header, index) => {
+            const headerText = header.textContent.trim();
+            
+            // Skip columns that shouldn't be sortable
+            if (headerText.includes('vs') || headerText.includes('Actions') || headerText === '') {
+                return;
+            }
+            
+            header.style.cursor = 'pointer';
+            header.title = 'Click to sort';
+            header.dataset.sortDirection = 'none'; // Track sort direction
+            
+            header.addEventListener('click', () => {
+                const tbody = table.querySelector('tbody');
+                if (!tbody) return;
+                
+                const rows = Array.from(tbody.rows);
+                const isTeamStatsTable = table.querySelector('th')?.textContent.includes('Total Matches');
+                const isPairingsTable = table.querySelector('th')?.textContent.includes('Home Team');
+                
+                // Determine sort direction
+                const currentDirection = header.dataset.sortDirection;
+                const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+                
+                rows.sort((a, b) => {
+                    const aCell = a.cells[index];
+                    const bCell = b.cells[index];
+                    
+                    if (!aCell || !bCell) return 0;
+                    
+                    let aText = aCell.textContent.trim();
+                    let bText = bCell.textContent.trim();
+                    let result = 0;
+                    
+                    // Handle special cases for Team Statistics table
+                    if (isTeamStatsTable) {
+                        if (index === 2 || index === 3 || index === 4) { // Total/Home/Away Matches columns
+                            // Extract numeric value from badge
+                            const aBadge = aCell.querySelector('.badge');
+                            const bBadge = bCell.querySelector('.badge');
+                            aText = aBadge ? aBadge.textContent.trim() : aText;
+                            bText = bBadge ? bBadge.textContent.trim() : bText;
+                            result = parseInt(aText) - parseInt(bText);
+                        }
+                        else if (index === 5) { // Balance column
+                            // Handle "Good" vs numeric values like "±2"
+                            if (aText.includes('Good')) aText = '0';
+                            if (bText.includes('Good')) bText = '0';
+                            
+                            const aNum = aText.includes('±') ? parseInt(aText.replace('±', '')) : 0;
+                            const bNum = bText.includes('±') ? parseInt(bText.replace('±', '')) : 0;
+                            result = aNum - bNum;
+                        }
+                        else {
+                            // Text sorting for Team and Captain columns
+                            const aStrong = aCell.querySelector('strong');
+                            const bStrong = bCell.querySelector('strong');
+                            if (aStrong) aText = aStrong.textContent.trim();
+                            if (bStrong) bText = bStrong.textContent.trim();
+                            result = aText.localeCompare(bText, undefined, {numeric: true, sensitivity: 'base'});
+                        }
+                    }
+                    // Handle special cases for Generated Pairings table
+                    else if (isPairingsTable) {
+                        if (index === 0) { // Match number column
+                            const aBadge = aCell.querySelector('.badge');
+                            const bBadge = bCell.querySelector('.badge');
+                            aText = aBadge ? aBadge.textContent.trim() : aText;
+                            bText = bBadge ? bBadge.textContent.trim() : bText;
+                            result = parseInt(aText) - parseInt(bText);
+                        }
+                        else if (index === 1 || index === 3) { // Home Team or Away Team columns
+                            // Extract team name from the strong tag
+                            const aStrong = aCell.querySelector('strong');
+                            const bStrong = bCell.querySelector('strong');
+                            aText = aStrong ? aStrong.textContent.trim() : aText;
+                            bText = bStrong ? bStrong.textContent.trim() : bText;
+                            result = aText.localeCompare(bText, undefined, {numeric: true, sensitivity: 'base'});
+                        }
+                        else {
+                            // Text sorting for Captain columns
+                            result = aText.localeCompare(bText, undefined, {numeric: true, sensitivity: 'base'});
+                        }
+                    }
+                    else {
+                        // Default sorting for other tables
+                        const aNum = parseFloat(aText);
+                        const bNum = parseFloat(bText);
+                        
+                        if (!isNaN(aNum) && !isNaN(bNum)) {
+                            result = aNum - bNum;
+                        } else {
+                            result = aText.localeCompare(bText, undefined, {numeric: true, sensitivity: 'base'});
+                        }
+                    }
+                    
+                    // Reverse for descending order
+                    return newDirection === 'desc' ? -result : result;
+                });
+                
+                // Reorder the rows
+                rows.forEach(row => tbody.appendChild(row));
+                
+                // Update sort indicators
+                table.querySelectorAll('th').forEach(th => {
+                    th.classList.remove('sorted-asc', 'sorted-desc', 'sorted');
+                    th.dataset.sortDirection = 'none';
+                });
+                
+                // Add sort indicator to current header
+                header.dataset.sortDirection = newDirection;
+                header.classList.add(newDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+            });
+        });
+    });
+}
+
 // Function to create matches from pairings
 function createMatchesFromPairings() {
     {% if show_results and selected_league %}
@@ -607,11 +735,19 @@ function printPairings() {
 // Auto-scroll to results when they're shown
 {% if show_results %}
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize sortable tables
+    initializeSortableTables();
+    
     // Scroll to results section
     const resultsSection = document.querySelector('.card.mb-4:nth-of-type(2)');
     if (resultsSection) {
         resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+});
+{% else %}
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize sortable tables even when no results are shown
+    initializeSortableTables();
 });
 {% endif %}
 </script>
@@ -644,6 +780,43 @@ document.addEventListener('DOMContentLoaded', function() {
         background-color: white !important;
         border: 1px solid black !important;
     }
+}
+
+/* Sortable table styles */
+th[style*="cursor: pointer"]:hover {
+    background-color: #e9ecef !important;
+    transition: background-color 0.2s ease;
+}
+
+th.sorted::after {
+    content: ' ↕';
+    color: #007bff;
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+th.sorted-asc::after {
+    content: ' ↑';
+    color: #28a745;
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+th.sorted-desc::after {
+    content: ' ↓';
+    color: #dc3545;
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+/* Improve table header appearance */
+.table th {
+    position: relative;
+    user-select: none;
+}
+
+.table th[style*="cursor: pointer"] {
+    border-bottom: 2px solid #2c5530;
 }
 </style>
 {% endblock %}

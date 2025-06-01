@@ -21,102 +21,85 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Name</th>
+                        <th>League Name</th>
                         <th>Year</th>
-                        <th>Section</th>
-                        <th>Region</th>
+                        <th>Section & Region</th>
                         <th>Age Group</th>
                         <th>Division</th>
-                        <th>Match Format</th>
-                        <th>Season Dates</th>
-                        <th>Scheduling</th>
+                        <th>Format</th>
+                        <th>Season</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for league in leagues %}
                     <tr>
                         <td><span class="badge bg-secondary">{{ league.id }}</span></td>
-                        <td><strong>{{ league.name }}</strong></td>
-                        <td><span class="badge bg-primary">{{ league.year }}</span></td>
-                        <td>{{ league.section }}</td>
-                        <td>{{ league.region }}</td>
-                        <td><span class="badge bg-info">{{ league.age_group }}</span></td>
-                        <td><span class="badge bg-success">{{ league.division }}</span></td>
+                        <td>
+                            <strong>{{ league.name }}</strong>
+                            {% if league.preferred_days %}
+                            <div class="small text-muted">
+                                <i class="fas fa-calendar-check"></i>
+                                Preferred: {{ league.preferred_days|join(', ') }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">{{ league.year }}</span>
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ league.section }}</div>
+                            <div class="small text-muted">{{ league.region }}</div>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ league.age_group }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-success">{{ league.division }}</span>
+                        </td>
                         <td>
                             <div class="small">
-                                <strong>{{ league.num_lines_per_match }} lines</strong><br>
-                                <span class="text-muted">{{ league.num_matches }} matches per team</span><br>
+                                <strong>{{ league.num_matches }}</strong> matches/team<br>
+                                <strong>{{ league.num_lines_per_match }}</strong> lines/match
                                 {% if league.allow_split_lines %}
-                                <span class="badge bg-warning text-dark">Split Lines OK</span>
-                                {% else %}
-                                <span class="badge bg-info">All Lines Together</span>
+                                <br><span class="badge bg-warning text-dark">Split OK</span>
                                 {% endif %}
                             </div>
                         </td>
                         <td>
+                            {% if league.start_date and league.end_date %}
                             <div class="small">
-                                {% if league.start_date and league.end_date %}
-                                <div class="mb-1">
-                                    <i class="fas fa-play text-success"></i> {{ league.start_date }}<br>
-                                    <i class="fas fa-stop text-danger"></i> {{ league.end_date }}
-                                </div>
-                                <div>
-                                    {% set days = league.get_season_duration_days() %}
-                                    {% if days %}
-                                    <span class="badge bg-info">{{ days }} days</span>
-                                    {% endif %}
-                                </div>
-                                {% elif league.start_date %}
-                                <div>
-                                    <i class="fas fa-play text-success"></i> Starts: {{ league.start_date }}
-                                </div>
-                                {% elif league.end_date %}
-                                <div>
-                                    <i class="fas fa-stop text-danger"></i> Ends: {{ league.end_date }}
-                                </div>
-                                {% else %}
-                                <span class="text-muted">No dates set</span>
-                                {% endif %}
-                                
-                                {% if league.start_date or league.end_date %}
-                                <div class="mt-1">
-                                    {% set status = league.get_season_status() %}
-                                    {% if status == "Active" %}
-                                    <span class="badge bg-success">{{ status }}</span>
-                                    {% elif status == "Not Started" %}
-                                    <span class="badge bg-warning text-dark">{{ status }}</span>
-                                    {% elif status == "Ended" %}
-                                    <span class="badge bg-secondary">{{ status }}</span>
-                                    {% else %}
-                                    <span class="badge bg-light text-dark">{{ status }}</span>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
+                                <i class="fas fa-calendar"></i>
+                                {{ league.start_date }} to {{ league.end_date }}
                             </div>
+                            {% elif league.start_date %}
+                            <div class="small">
+                                <i class="fas fa-play"></i>
+                                Starts: {{ league.start_date }}
+                            </div>
+                            {% elif league.end_date %}
+                            <div class="small">
+                                <i class="fas fa-stop"></i>
+                                Ends: {{ league.end_date }}
+                            </div>
+                            {% else %}
+                            <span class="text-muted small">No dates set</span>
+                            {% endif %}
                         </td>
                         <td>
-                            <div class="small">
-                                {% if league.preferred_days %}
-                                <div class="mb-1">
-                                    <strong>Preferred:</strong>
-                                    {% for day in league.preferred_days %}
-                                    <span class="badge bg-success">{{ day[:3] }}</span>
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
-                                
-                                {% if league.backup_days %}
-                                <div>
-                                    <strong>Backup:</strong>
-                                    {% for day in league.backup_days %}
-                                    <span class="badge bg-secondary">{{ day[:3] }}</span>
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
-                                
-                                {% if not league.preferred_days and not league.backup_days %}
-                                <span class="text-muted">No scheduling preferences</span>
-                                {% endif %}
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('teams', league_id=league.id) }}" 
+                                   class="btn btn-sm btn-outline-info" title="View teams">
+                                    <i class="fas fa-users"></i>
+                                </a>
+                                <a href="{{ url_for('edit_league', league_id=league.id) }}" 
+                                   class="btn btn-sm btn-outline-warning" title="Edit league">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{{ url_for('calculate_pairings_results', league_id=league.id) }}" 
+                                   class="btn btn-sm btn-outline-primary" title="Calculate pairings">
+                                    <i class="fas fa-calculator"></i>
+                                </a>
                             </div>
                         </td>
                     </tr>
@@ -127,7 +110,7 @@
     </div>
 </div>
 
-<!-- Enhanced League Cards for Mobile -->
+<!-- League Summary Cards for Mobile -->
 <div class="d-block d-md-none mt-4">
     <h5><i class="fas fa-list"></i> League Cards</h5>
     {% for league in leagues %}
@@ -154,84 +137,61 @@
             
             <div class="row mb-2">
                 <div class="col-6">
-                    <small class="text-muted">Location</small>
-                    <div class="small">{{ league.section }}</div>
-                    <div class="small text-muted">{{ league.region }}</div>
+                    <small class="text-muted">Section</small>
+                    <div>{{ league.section }}</div>
                 </div>
                 <div class="col-6">
-                    <small class="text-muted">Match Format</small>
-                    <div class="small">
-                        {{ league.num_lines_per_match }} lines, {{ league.num_matches }} matches
-                    </div>
-                    <div>
-                        {% if league.allow_split_lines %}
-                        <span class="badge bg-warning text-dark">Split Lines</span>
-                        {% else %}
-                        <span class="badge bg-info">Together</span>
-                        {% endif %}
-                    </div>
+                    <small class="text-muted">Region</small>
+                    <div>{{ league.region }}</div>
                 </div>
             </div>
             
-            {% if league.start_date or league.end_date %}
             <div class="row mb-2">
-                <div class="col-12">
-                    <small class="text-muted">Season Dates</small>
-                    <div class="small">
+                <div class="col-6">
+                    <small class="text-muted">Format</small>
+                    <div>{{ league.num_matches }} matches, {{ league.num_lines_per_match }} lines</div>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted">Season</small>
+                    <div>
                         {% if league.start_date and league.end_date %}
                         {{ league.start_date }} to {{ league.end_date }}
-                        {% set days = league.get_season_duration_days() %}
-                        {% if days %}
-                        <span class="badge bg-info ms-2">{{ days }} days</span>
-                        {% endif %}
                         {% elif league.start_date %}
                         Starts: {{ league.start_date }}
                         {% elif league.end_date %}
                         Ends: {{ league.end_date }}
-                        {% endif %}
-                    </div>
-                    {% if league.start_date or league.end_date %}
-                    <div class="mt-1">
-                        {% set status = league.get_season_status() %}
-                        {% if status == "Active" %}
-                        <span class="badge bg-success">{{ status }}</span>
-                        {% elif status == "Not Started" %}
-                        <span class="badge bg-warning text-dark">{{ status }}</span>
-                        {% elif status == "Ended" %}
-                        <span class="badge bg-secondary">{{ status }}</span>
                         {% else %}
-                        <span class="badge bg-light text-dark">{{ status }}</span>
+                        No dates set
                         {% endif %}
                     </div>
-                    {% endif %}
+                </div>
+            </div>
+            
+            {% if league.preferred_days %}
+            <div class="mb-2">
+                <small class="text-muted">Preferred Days</small>
+                <div>
+                    {% for day in league.preferred_days %}
+                    <span class="badge bg-success">{{ day[:3] }}</span>
+                    {% endfor %}
                 </div>
             </div>
             {% endif %}
             
-            {% if league.preferred_days or league.backup_days %}
-            <div class="mt-2">
-                <small class="text-muted">Scheduling</small>
-                <div>
-                    {% if league.preferred_days %}
-                    <div class="mb-1">
-                        <small>Preferred:</small>
-                        {% for day in league.preferred_days %}
-                        <span class="badge bg-success">{{ day[:3] }}</span>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                    
-                    {% if league.backup_days %}
-                    <div>
-                        <small>Backup:</small>
-                        {% for day in league.backup_days %}
-                        <span class="badge bg-secondary">{{ day[:3] }}</span>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('teams', league_id=league.id) }}" 
+                   class="btn btn-sm btn-info">
+                    <i class="fas fa-users"></i> Teams
+                </a>
+                <a href="{{ url_for('edit_league', league_id=league.id) }}" 
+                   class="btn btn-sm btn-warning">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                <a href="{{ url_for('calculate_pairings_results', league_id=league.id) }}" 
+                   class="btn btn-sm btn-primary">
+                    <i class="fas fa-calculator"></i> Pairings
+                </a>
             </div>
-            {% endif %}
         </div>
     </div>
     {% endfor %}
@@ -242,8 +202,7 @@
     <div class="card-body text-center">
         <i class="fas fa-trophy fa-4x text-muted mb-3"></i>
         <h5>No Leagues Found</h5>
-        <p class="text-muted">No leagues are currently loaded in the database.</p>
-        
+        <p class="text-muted">No leagues are currently registered in the database.</p>
         <div class="d-flex gap-2 justify-content-center">
             <a href="{{ url_for('add_league') }}" class="btn btn-success">
                 <i class="fas fa-plus"></i> Add Your First League
@@ -252,8 +211,12 @@
         
         <div class="alert alert-info mt-3">
             <i class="fas fa-info-circle"></i>
-            <strong>Alternative:</strong> Use the command line to load leagues from a YAML file:
-            <pre class="mt-2 mb-0"><code>python sqlite_tennis_db.py tennis.db load leagues leagues.yaml</code></pre>
+            <strong>Note:</strong> Leagues organize teams into competitive groups by skill level and format.
+            
+            <div class="mt-2">
+                <strong>Alternative:</strong> Use the command line to load leagues from a YAML file:
+                <pre class="mt-2 mb-0"><code>python sqlite_tennis_db.py tennis.db load leagues leagues.yaml</code></pre>
+            </div>
         </div>
     </div>
 </div>
@@ -269,71 +232,76 @@
             <i class="fas fa-plus"></i> Add Another League
         </a>
         {% endif %}
-        <a href="{{ url_for('constants') }}" class="btn btn-outline-info">
-            <i class="fas fa-list"></i> View USTA Constants
-        </a>
     </div>
 </div>
 
-<!-- Enhanced Statistics Card -->
+<!-- League Analysis Section -->
 {% if leagues %}
 <div class="card mt-4">
     <div class="card-header">
-        <i class="fas fa-chart-bar"></i> League Summary
+        <i class="fas fa-chart-pie"></i> League Analysis
     </div>
     <div class="card-body">
         <div class="row">
-            <div class="col-md-3">
-                <div class="text-center">
-                    <h4 class="text-primary">
-                        {% set total_lines = 0 %}
-                        {% for league in leagues %}
-                            {% set total_lines = total_lines + league.num_lines_per_match %}
-                        {% endfor %}
-                        {{ total_lines }}
-                    </h4>
-                    <small class="text-muted">Total Lines Across All Leagues</small>
+            <div class="col-md-4">
+                <h6><i class="fas fa-calendar text-primary"></i> By Year</h6>
+                {% set year_counts = {} %}
+                {% for league in leagues %}
+                    {% if year_counts.update({league.year: year_counts.get(league.year, 0) + 1}) %}{% endif %}
+                {% endfor %}
+                
+                {% for year, count in year_counts.items()|sort(reverse=True) %}
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="badge bg-primary">{{ year }}</span>
+                    <span class="small">{{ count }} league{{ 's' if count != 1 else '' }}</span>
+                    <div class="progress flex-grow-1 mx-2" style="height: 6px;">
+                        {% set total_leagues = leagues|length %}
+                        <div class="progress-bar" style="width: {{ ((count / total_leagues) * 100)|round }}%"></div>
+                    </div>
                 </div>
+                {% endfor %}
             </div>
-            <div class="col-md-3">
-                <div class="text-center">
-                    <h4 class="text-success">
-                        {% set total_matches = 0 %}
-                        {% for league in leagues %}
-                            {% set total_matches = total_matches + league.num_matches %}
-                        {% endfor %}
-                        {{ total_matches }}
-                    </h4>
-                    <small class="text-muted">Total Matches Per Team</small>
+            
+            <div class="col-md-4">
+                <h6><i class="fas fa-users text-success"></i> By Age Group</h6>
+                {% set age_counts = {} %}
+                {% for league in leagues %}
+                    {% if age_counts.update({league.age_group: age_counts.get(league.age_group, 0) + 1}) %}{% endif %}
+                {% endfor %}
+                
+                {% for age_group, count in age_counts.items()|sort(attribute='1', reverse=True) %}
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="badge bg-info">{{ age_group }}</span>
+                    <span class="small">{{ count }} league{{ 's' if count != 1 else '' }}</span>
+                    <div class="progress flex-grow-1 mx-2" style="height: 6px;">
+                        {% set total_leagues = leagues|length %}
+                        <div class="progress-bar" style="width: {{ ((count / total_leagues) * 100)|round }}%"></div>
+                    </div>
                 </div>
+                {% endfor %}
             </div>
-            <div class="col-md-3">
-                <div class="text-center">
-                    <h4 class="text-info">
-                        {% set split_leagues = 0 %}
-                        {% for league in leagues %}
-                            {% if league.allow_split_lines %}
-                                {% set split_leagues = split_leagues + 1 %}
-                            {% endif %}
-                        {% endfor %}
-                        {{ split_leagues }}
-                    </h4>
-                    <small class="text-muted">Leagues Allow Split Lines</small>
+            
+            <div class="col-md-4">
+                <h6><i class="fas fa-trophy text-warning"></i> By Division</h6>
+                {% set div_counts = {} %}
+                {% for league in leagues %}
+                    {% if div_counts.update({league.division: div_counts.get(league.division, 0) + 1}) %}{% endif %}
+                {% endfor %}
+                
+                {% set div_list = div_counts.items()|sort(attribute='1', reverse=True)|list %}
+                {% for division, count in div_list[:5] %}
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="badge bg-success">{{ division }}</span>
+                    <span class="small">{{ count }} league{{ 's' if count != 1 else '' }}</span>
+                    <div class="progress flex-grow-1 mx-2" style="height: 6px;">
+                        {% set total_leagues = leagues|length %}
+                        <div class="progress-bar" style="width: {{ ((count / total_leagues) * 100)|round }}%"></div>
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="text-center">
-                    <h4 class="text-warning">
-                        {% set scheduled_leagues = 0 %}
-                        {% for league in leagues %}
-                            {% if league.preferred_days or league.backup_days %}
-                                {% set scheduled_leagues = scheduled_leagues + 1 %}
-                            {% endif %}
-                        {% endfor %}
-                        {{ scheduled_leagues }}
-                    </h4>
-                    <small class="text-muted">Leagues with Scheduling Preferences</small>
-                </div>
+                {% endfor %}
+                {% if div_list|length > 5 %}
+                <div class="small text-muted">... and {{ div_list|length - 5 }} more</div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -345,21 +313,41 @@
 <script>
 // Make table sortable
 document.querySelectorAll('th').forEach(header => {
-    header.style.cursor = 'pointer';
-    header.addEventListener('click', () => {
-        const table = header.closest('table');
-        const tbody = table.querySelector('tbody');
-        const rows = Array.from(tbody.rows);
-        const index = Array.from(header.parentNode.children).indexOf(header);
-        
-        rows.sort((a, b) => {
-            const aText = a.cells[index].textContent.trim();
-            const bText = b.cells[index].textContent.trim();
-            return aText.localeCompare(bText, undefined, {numeric: true});
+    if (header.textContent.trim() && !header.textContent.includes('Actions')) {
+        header.style.cursor = 'pointer';
+        header.addEventListener('click', () => {
+            const table = header.closest('table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.rows);
+            const index = Array.from(header.parentNode.children).indexOf(header);
+            
+            rows.sort((a, b) => {
+                const aText = a.cells[index].textContent.trim();
+                const bText = b.cells[index].textContent.trim();
+                return aText.localeCompare(bText, undefined, {numeric: true});
+            });
+            
+            rows.forEach(row => tbody.appendChild(row));
+            
+            // Add sort indicator
+            document.querySelectorAll('th').forEach(th => th.classList.remove('sorted'));
+            header.classList.add('sorted');
         });
-        
-        rows.forEach(row => tbody.appendChild(row));
-    });
+    }
 });
+
+// Add CSS for sort indicator
+const style = document.createElement('style');
+style.textContent = `
+    th.sorted::after {
+        content: ' ↕';
+        color: #007bff;
+        font-weight: bold;
+    }
+    th:hover {
+        background-color: #e9ecef;
+    }
+`;
+document.head.appendChild(style);
 </script>
 {% endblock %}

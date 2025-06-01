@@ -741,13 +741,13 @@ class League:
     
     def calculate_pairings(self, teams: List['Team']) -> List[tuple]:
         """
-        Generate balanced pairings for teams in the league.
+        Calculate all permutations of pairings from the list of teams.
         
         This algorithm ensures:
-        - Each team plays exactly num_matches games
-        - Home/away games are balanced as much as possible
-        - Teams don't play each other too frequently
-        - Fair distribution of opponents
+        - Fair distribution of matches for each team
+        - Balanced home/away games
+        - Optimal pairing distribution
+        - Handles odd numbers of teams by adjusting match count
         
         Args:
             teams: List of Team objects in this league
@@ -756,8 +756,12 @@ class League:
             List of tuples (home_team, visitor_team) representing all matches
             
         Raises:
-            ValueError: If teams list is invalid or scheduling is impossible
+            ValueError: If teams list is invalid
         """
+        # Import itertools if not already available
+        import itertools
+        from collections import defaultdict
+        
         if len(teams) < 2:
             raise ValueError("Need at least 2 teams to generate pairings")
         
@@ -768,110 +772,80 @@ class League:
             if team.league.id != self.id:
                 raise ValueError(f"Team {team.name} (ID: {team.id}) is not in league {self.name} (ID: {self.id})")
         
-        n_teams = len(teams)
-        total_matches_needed = n_teams * self.num_matches
+        team_list = teams
+        num_matches = self.num_matches
         
-        # Check if the requested schedule is mathematically possible
-        max_possible_matches = n_teams * (n_teams - 1)  # Each team can play every other team twice (home/away)
+        # Generate all permutations of team pairs
+        permutations = list(itertools.permutations(team_list, 2))
+        total_usage_counts = defaultdict(int)  # Use team IDs as keys
+        first_usage_counts = defaultdict(int)  # Tracks home game counts (use team IDs)
+        selected_pairs = []
+        pair_counts = defaultdict(int)  # Use tuple of team IDs as keys
         
-        if total_matches_needed > max_possible_matches:
-            raise ValueError(
-                f"Cannot schedule {self.num_matches} matches per team with {n_teams} teams. "
-                f"Maximum possible is {max_possible_matches // n_teams} matches per team."
-            )
+        # If odd number of teams, adjust num_matches to be fair
+        if len(team_list) % 2 == 1:
+            n = len(team_list)
+            k = num_matches // (n - 1)
+            m = num_matches % (n - 1)
+            if m > 0:
+                num_matches = (k + 1) * (n - 1)
+            else:
+                num_matches = k * (n - 1)
         
-        # Initialize tracking structures
-        pairings = []
-        team_stats = {}
+        # Calculate total number of pairs needed
+        num_pairs = num_matches * len(team_list) // 2
         
-        # Initialize stats for each team
-        for team in teams:
-            team_stats[team.id] = {
-                'team': team,
-                'matches_played': 0,
-                'home_matches': 0,
-                'away_matches': 0,
-                'opponents': defaultdict(int),  # opponent_id -> number of times played
-            }
+        # Keep backup of all permutations
+        backup_permutations = permutations.copy()
         
-        # Generate all possible pairings (each team can play every other team)
-        all_possible_pairings = []
-        for home_team in teams:
-            for away_team in teams:
-                if home_team.id != away_team.id:
-                    all_possible_pairings.append((home_team, away_team))
-        
-        # Track how many times each pairing has been used
-        pairing_counts = defaultdict(int)
-        
-        # Generate matches
-        for match_num in range(total_matches_needed):
-            # Sort available pairings by priority
-            # Priority: teams with fewer matches, then balance home/away, then less frequent opponents
-            available_pairings = []
+        # Select pairs iteratively
+        for _ in range(num_pairs):
+            # Sort permutations by total usage (least used teams first), then by home game balance
+            # Use team IDs for dictionary lookups
+            permutations.sort(key=lambda pair: (
+                total_usage_counts[pair[0].id] + total_usage_counts[pair[1].id], 
+                first_usage_counts[pair[0].id]
+            ))
             
-            for home_team, away_team in all_possible_pairings:
-                home_stats = team_stats[home_team.id]
-                away_stats = team_stats[away_team.id]
+            # If we run out of permutations, reset to backup
+            if not permutations:
+                permutations = backup_permutations.copy()
+            
+            if permutations:
+                selected_pair = permutations.pop(0)
+                inverse_pair = (selected_pair[1], selected_pair[0])
                 
-                # Skip if either team has reached their match limit
-                if (home_stats['matches_played'] >= self.num_matches or 
-                    away_stats['matches_played'] >= self.num_matches):
-                    continue
+                # Choose home/away based on balance
+                # If first team has more home games than second team, swap them
+                if first_usage_counts[selected_pair[0].id] > first_usage_counts[selected_pair[1].id]:
+                    selected_pair = inverse_pair
                 
-                # Calculate priority score (lower is better)
-                total_matches = home_stats['matches_played'] + away_stats['matches_played']
-                home_imbalance = abs(home_stats['home_matches'] - home_stats['away_matches'])
-                away_imbalance = abs(away_stats['home_matches'] - away_stats['away_matches'])
+                # Create hashable keys for pair counting (using team IDs)
+                selected_pair_key = (selected_pair[0].id, selected_pair[1].id)
+                inverse_pair_key = (selected_pair[1].id, selected_pair[0].id)
                 
-                # Prefer to balance home/away for the team that would be playing at home
-                home_bias = home_stats['home_matches'] - home_stats['away_matches']
+                # If this exact pairing has been used more than its inverse, use the inverse
+                if pair_counts[selected_pair_key] > pair_counts[inverse_pair_key]:
+                    selected_pair = inverse_pair
+                    selected_pair_key = inverse_pair_key
                 
-                # Count how often these teams have played each other
-                opponent_frequency = home_stats['opponents'][away_team.id]
+                # Add the selected pair
+                selected_pairs.append(selected_pair)
                 
-                # Pairing frequency
-                pairing_key = (min(home_team.id, away_team.id), max(home_team.id, away_team.id))
-                pair_frequency = pairing_counts[pairing_key]
+                # Update usage counts using team IDs as keys
+                total_usage_counts[selected_pair[0].id] += 1  # Home team total matches
+                total_usage_counts[selected_pair[1].id] += 1  # Away team total matches
+                first_usage_counts[selected_pair[0].id] += 1  # Home team home matches
+                pair_counts[selected_pair_key] += 1             # This specific pairing count
                 
-                priority_score = (
-                    total_matches * 100 +  # Prioritize teams with fewer total matches
-                    home_bias * 10 +       # Prefer teams that need more home games
-                    opponent_frequency * 50 +  # Avoid teams that have played each other frequently
-                    pair_frequency * 25 +   # Avoid overused pairings
-                    home_imbalance + away_imbalance  # Balance home/away games
-                )
-                
-                available_pairings.append((priority_score, home_team, away_team))
-            
-            if not available_pairings:
-                # This shouldn't happen if our math is correct, but let's handle it gracefully
-                break
-            
-            # Sort by priority score and pick the best pairing
-            available_pairings.sort(key=lambda x: x[0])
-            _, selected_home, selected_away = available_pairings[0]
-            
-            # Add the match
-            pairings.append((selected_home, selected_away))
-            
-            # Update statistics
-            home_stats = team_stats[selected_home.id]
-            away_stats = team_stats[selected_away.id]
-            
-            home_stats['matches_played'] += 1
-            away_stats['matches_played'] += 1
-            home_stats['home_matches'] += 1
-            away_stats['away_matches'] += 1
-            
-            home_stats['opponents'][selected_away.id] += 1
-            away_stats['opponents'][selected_home.id] += 1
-            
-            # Update pairing counts
-            pairing_key = (min(selected_home.id, selected_away.id), max(selected_home.id, selected_away.id))
-            pairing_counts[pairing_key] += 1
+                # Remove the used pair and its inverse from available permutations
+                # Compare by team IDs to ensure proper matching
+                selected_ids = (selected_pair[0].id, selected_pair[1].id)
+                inverse_ids = (selected_pair[1].id, selected_pair[0].id)
+                permutations = [p for p in permutations 
+                              if (p[0].id, p[1].id) != selected_ids and (p[0].id, p[1].id) != inverse_ids]
         
-        return pairings
+        return selected_pairs
 
 
 @dataclass
