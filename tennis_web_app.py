@@ -1,24 +1,36 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, g
-from sqlite_tennis_db import SQLiteTennisDB
+from tennis_db_interface import TennisDBInterface
 from usta import League, Team, Match, Facility, WeeklySchedule, DaySchedule, TimeSlot
 import os
 import json
 from datetime import datetime
 import threading
+from typing import Optional, Type, Any, Dict
 
 app = Flask(__name__)
 app.secret_key = 'tennis_db_secret_key_change_in_production'
 
-# Global database path (not the connection itself)
-db_path = None
+# Global database configuration
+db_config = {
+    'backend_class': None,
+    'connection_params': {}
+}
 
-def get_db():
+def configure_database(backend_class: Type[TennisDBInterface], **connection_params):
+    """Configure the database backend and connection parameters"""
+    global db_config
+    db_config['backend_class'] = backend_class
+    db_config['connection_params'] = connection_params
+
+def get_db() -> Optional[TennisDBInterface]:
     """Get database connection for current thread"""
     if not hasattr(g, 'db') or g.db is None:
-        if db_path is None:
+        if db_config['backend_class'] is None:
             return None
         try:
-            g.db = SQLiteTennisDB(db_path)
+            # Updated to pass connection_params as config dictionary
+            g.db = db_config['backend_class'](db_config['connection_params'])
+            g.db.connect()
         except Exception as e:
             print(f"Error creating database connection: {e}")
             return None
@@ -29,25 +41,25 @@ def close_db(error):
     """Close database connection at end of request"""
     db = getattr(g, 'db', None)
     if db is not None:
-        # Close the connection if the database class has a close method
-        if hasattr(db, 'conn') and db.conn:
-            try:
-                db.conn.close()
-            except:
-                pass
+        try:
+            db.disconnect()
+        except:
+            pass
         g.db = None
 
-def init_db(path):
-    """Initialize database path (not connection)"""
-    global db_path
+def init_db(backend_class: Type[TennisDBInterface], **connection_params) -> bool:
+    """Initialize database with specified backend and parameters"""
     try:
-        # Test the connection first
-        test_db = SQLiteTennisDB(path)
-        if hasattr(test_db, 'conn') and test_db.conn:
-            test_db.conn.close()
-        
-        db_path = path
-        return True
+        # Test the connection first - updated to pass config dictionary
+        test_db = backend_class(connection_params)
+        test_db.connect()
+        if test_db.ping():
+            test_db.disconnect()
+            configure_database(backend_class, **connection_params)
+            return True
+        else:
+            test_db.disconnect()
+            return False
     except Exception as e:
         print(f"Error testing database: {e}")
         return False
@@ -55,32 +67,52 @@ def init_db(path):
 @app.route('/')
 def index():
     """Home page with database connection"""
-    if db_path is None:
+    if db_config['backend_class'] is None:
         return render_template('connect.html')
-    return render_template('dashboard.html', db_path=db_path)
+    
+    # Get connection info for display
+    connection_info = str(db_config['connection_params'])
+    return render_template('dashboard.html', db_path=connection_info)
 
 @app.route('/connect', methods=['POST'])
 def connect_db():
     """Connect to database"""
-    path = request.form.get('db_path', '').strip()
-    if not path:
+    db_path = request.form.get('db_path', '').strip()
+    backend_type = request.form.get('backend_type', 'sqlite').strip()
+    
+    if not db_path:
         flash('Please provide a database path', 'error')
         return redirect(url_for('index'))
     
-    if init_db(path):
-        flash(f'Successfully connected to {path}', 'success')
-    else:
-        flash(f'Failed to connect to {path}', 'error')
+    # Import the appropriate backend class
+    try:
+        if backend_type.lower() == 'sqlite':
+            from sqlite_tennis_db import SQLiteTennisDB
+            backend_class = SQLiteTennisDB
+            connection_params = {'db_path': db_path}
+        else:
+            flash(f'Unsupported backend type: {backend_type}', 'error')
+            return redirect(url_for('index'))
+        
+        if init_db(backend_class, **connection_params):
+            flash(f'Successfully connected to {db_path}', 'success')
+        else:
+            flash(f'Failed to connect to {db_path}', 'error')
+    
+    except ImportError as e:
+        flash(f'Database backend not available: {e}', 'error')
+    except Exception as e:
+        flash(f'Error connecting to database: {e}', 'error')
     
     return redirect(url_for('index'))
 
 @app.route('/disconnect')
 def disconnect():
     """Disconnect from database"""
-    global db_path
+    global db_config
     # Close any existing connection in current thread
     close_db(None)
-    db_path = None
+    db_config = {'backend_class': None, 'connection_params': {}}
     flash('Disconnected from database', 'info')
     return redirect(url_for('index'))
 
@@ -134,13 +166,19 @@ def add_facility():
             facility_id = int(request.form.get('id'))
             name = request.form.get('name', '').strip()
             location = request.form.get('location', '').strip()
+            total_courts = int(request.form.get('total_courts', 0))
             
             if not name:
                 flash('Facility name is required', 'error')
                 return render_template('add_facility.html')
             
             # Create facility with basic info
-            facility = Facility(id=facility_id, name=name, location=location)
+            facility = Facility(
+                id=facility_id, 
+                name=name, 
+                location=location,
+                total_courts=total_courts
+            )
             
             # Process schedule data from form
             for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']:
@@ -207,6 +245,7 @@ def edit_facility(facility_id):
         try:
             name = request.form.get('name', '').strip()
             location = request.form.get('location', '').strip()
+            total_courts = int(request.form.get('total_courts', 0))
             
             if not name:
                 flash('Facility name is required', 'error')
@@ -215,6 +254,7 @@ def edit_facility(facility_id):
             # Update facility with basic info
             facility.name = name
             facility.location = location
+            facility.total_courts = total_courts
             
             # Process schedule data from form
             facility.schedule = WeeklySchedule()  # Reset schedule
@@ -311,29 +351,29 @@ def add_league():
             if not all([name, section, region, age_group, division]):
                 flash('All required fields must be filled', 'error')
                 return render_template('add_league.html', 
-                                     sections=db.list_sections(),
-                                     regions=db.list_regions(),
-                                     age_groups=db.list_age_groups(),
-                                     divisions=db.list_divisions())
+                                     sections=get_usta_constants()['sections'],
+                                     regions=get_usta_constants()['regions'],
+                                     age_groups=get_usta_constants()['age_groups'],
+                                     divisions=get_usta_constants()['divisions'])
             
             # Validate number of matches
             if num_matches < 1 or num_matches > 50:
                 flash('Number of matches must be between 1 and 50', 'error')
                 return render_template('add_league.html', 
-                                     sections=db.list_sections(),
-                                     regions=db.list_regions(),
-                                     age_groups=db.list_age_groups(),
-                                     divisions=db.list_divisions())
+                                     sections=get_usta_constants()['sections'],
+                                     regions=get_usta_constants()['regions'],
+                                     age_groups=get_usta_constants()['age_groups'],
+                                     divisions=get_usta_constants()['divisions'])
             
             # Validate day selections (no overlap)
             overlapping_days = set(preferred_days) & set(backup_days)
             if overlapping_days:
                 flash(f'Days cannot be both preferred and backup: {", ".join(sorted(overlapping_days))}', 'error')
                 return render_template('add_league.html', 
-                                     sections=db.list_sections(),
-                                     regions=db.list_regions(),
-                                     age_groups=db.list_age_groups(),
-                                     divisions=db.list_divisions())
+                                     sections=get_usta_constants()['sections'],
+                                     regions=get_usta_constants()['regions'],
+                                     age_groups=get_usta_constants()['age_groups'],
+                                     divisions=get_usta_constants()['divisions'])
             
             # Validate dates if both are provided
             if start_date and end_date:
@@ -344,17 +384,17 @@ def add_league():
                     if end_dt <= start_dt:
                         flash('End date must be after start date', 'error')
                         return render_template('add_league.html', 
-                                             sections=db.list_sections(),
-                                             regions=db.list_regions(),
-                                             age_groups=db.list_age_groups(),
-                                             divisions=db.list_divisions())
+                                             sections=get_usta_constants()['sections'],
+                                             regions=get_usta_constants()['regions'],
+                                             age_groups=get_usta_constants()['age_groups'],
+                                             divisions=get_usta_constants()['divisions'])
                 except ValueError:
                     flash('Invalid date format. Please use the date picker.', 'error')
                     return render_template('add_league.html', 
-                                         sections=db.list_sections(),
-                                         regions=db.list_regions(),
-                                         age_groups=db.list_age_groups(),
-                                         divisions=db.list_divisions())
+                                         sections=get_usta_constants()['sections'],
+                                         regions=get_usta_constants()['regions'],
+                                         age_groups=get_usta_constants()['age_groups'],
+                                         divisions=get_usta_constants()['divisions'])
             
             league = League(
                 id=league_id,
@@ -400,18 +440,18 @@ def add_league():
             flash(f'Error adding league: {e}', 'error')
         
         return render_template('add_league.html', 
-                             sections=db.list_sections(),
-                             regions=db.list_regions(),
-                             age_groups=db.list_age_groups(),
-                             divisions=db.list_divisions())
+                             sections=get_usta_constants()['sections'],
+                             regions=get_usta_constants()['regions'],
+                             age_groups=get_usta_constants()['age_groups'],
+                             divisions=get_usta_constants()['divisions'])
     
     # GET request - show the form
     try:
         return render_template('add_league.html', 
-                             sections=db.list_sections(),
-                             regions=db.list_regions(),
-                             age_groups=db.list_age_groups(),
-                             divisions=db.list_divisions())
+                             sections=get_usta_constants()['sections'],
+                             regions=get_usta_constants()['regions'],
+                             age_groups=get_usta_constants()['age_groups'],
+                             divisions=get_usta_constants()['divisions'])
     except Exception as e:
         flash(f'Error loading form data: {e}', 'error')
         return redirect(url_for('leagues'))
@@ -459,20 +499,20 @@ def edit_league(league_id):
                 flash('All required fields must be filled', 'error')
                 return render_template('edit_league.html', 
                                      league=league,
-                                     sections=db.list_sections(),
-                                     regions=db.list_regions(),
-                                     age_groups=db.list_age_groups(),
-                                     divisions=db.list_divisions())
+                                     sections=get_usta_constants()['sections'],
+                                     regions=get_usta_constants()['regions'],
+                                     age_groups=get_usta_constants()['age_groups'],
+                                     divisions=get_usta_constants()['divisions'])
             
             # Validate number of matches
             if num_matches < 1 or num_matches > 50:
                 flash('Number of matches must be between 1 and 50', 'error')
                 return render_template('edit_league.html', 
                                      league=league,
-                                     sections=db.list_sections(),
-                                     regions=db.list_regions(),
-                                     age_groups=db.list_age_groups(),
-                                     divisions=db.list_divisions())
+                                     sections=get_usta_constants()['sections'],
+                                     regions=get_usta_constants()['regions'],
+                                     age_groups=get_usta_constants()['age_groups'],
+                                     divisions=get_usta_constants()['divisions'])
             
             # Validate day selections (no overlap)
             overlapping_days = set(preferred_days) & set(backup_days)
@@ -480,10 +520,10 @@ def edit_league(league_id):
                 flash(f'Days cannot be both preferred and backup: {", ".join(sorted(overlapping_days))}', 'error')
                 return render_template('edit_league.html', 
                                      league=league,
-                                     sections=db.list_sections(),
-                                     regions=db.list_regions(),
-                                     age_groups=db.list_age_groups(),
-                                     divisions=db.list_divisions())
+                                     sections=get_usta_constants()['sections'],
+                                     regions=get_usta_constants()['regions'],
+                                     age_groups=get_usta_constants()['age_groups'],
+                                     divisions=get_usta_constants()['divisions'])
             
             # Validate dates if both are provided
             if start_date and end_date:
@@ -495,18 +535,18 @@ def edit_league(league_id):
                         flash('End date must be after start date', 'error')
                         return render_template('edit_league.html', 
                                              league=league,
-                                             sections=db.list_sections(),
-                                             regions=db.list_regions(),
-                                             age_groups=db.list_age_groups(),
-                                             divisions=db.list_divisions())
+                                             sections=get_usta_constants()['sections'],
+                                             regions=get_usta_constants()['regions'],
+                                             age_groups=get_usta_constants()['age_groups'],
+                                             divisions=get_usta_constants()['divisions'])
                 except ValueError:
                     flash('Invalid date format. Please use the date picker.', 'error')
                     return render_template('edit_league.html', 
                                          league=league,
-                                         sections=db.list_sections(),
-                                         regions=db.list_regions(),
-                                         age_groups=db.list_age_groups(),
-                                         divisions=db.list_divisions())
+                                         sections=get_usta_constants()['sections'],
+                                         regions=get_usta_constants()['regions'],
+                                         age_groups=get_usta_constants()['age_groups'],
+                                         divisions=get_usta_constants()['divisions'])
             
             # Update the league object
             league.name = name
@@ -549,19 +589,19 @@ def edit_league(league_id):
         
         return render_template('edit_league.html', 
                              league=league,
-                             sections=db.list_sections(),
-                             regions=db.list_regions(),
-                             age_groups=db.list_age_groups(),
-                             divisions=db.list_divisions())
+                             sections=get_usta_constants()['sections'],
+                             regions=get_usta_constants()['regions'],
+                             age_groups=get_usta_constants()['age_groups'],
+                             divisions=get_usta_constants()['divisions'])
     
     # GET request - show the form with existing data
     try:
         return render_template('edit_league.html', 
                              league=league,
-                             sections=db.list_sections(),
-                             regions=db.list_regions(),
-                             age_groups=db.list_age_groups(),
-                             divisions=db.list_divisions())
+                             sections=get_usta_constants()['sections'],
+                             regions=get_usta_constants()['regions'],
+                             age_groups=get_usta_constants()['age_groups'],
+                             divisions=get_usta_constants()['divisions'])
     except Exception as e:
         flash(f'Error loading form data: {e}', 'error')
         return redirect(url_for('leagues'))
@@ -737,7 +777,6 @@ def edit_team(team_id):
         flash(f'Error loading form data: {e}', 'error')
         return redirect(url_for('teams'))
 
-
 @app.route('/teams/<int:team_id>/delete', methods=['DELETE'])
 def delete_team_api(team_id):
     db = get_db()
@@ -751,8 +790,6 @@ def delete_team_api(team_id):
         return jsonify({'error': str(e)}), 500
 
 # ==================== MATCH ROUTES ====================
-
-# ==================== UPDATED MATCH ROUTES (NO MANUAL CREATION) ====================
 
 @app.route('/matches')
 def matches():
@@ -768,6 +805,7 @@ def matches():
     try:
         matches_list = db.list_matches(league_id=league_id, include_unscheduled=show_unscheduled)
         leagues_list = db.list_leagues()  # For filter dropdown
+        facilities_list = db.list_facilities()  # For filter dropdown
         
         # Get selected league info if filtering
         selected_league = None
@@ -828,41 +866,103 @@ def matches():
         return render_template('matches.html', 
                              matches=enhanced_matches, 
                              leagues=leagues_list,
+                             facilities=facilities_list,
                              selected_league=selected_league,
                              show_unscheduled=show_unscheduled)
     except Exception as e:
         flash(f'Error loading matches: {e}', 'error')
         return redirect(url_for('index'))
 
-# REMOVED: add_match route - matches are now only created through pairings
-
 @app.route('/matches/<int:match_id>/schedule', methods=['POST'])
 def schedule_match(match_id):
-    """Schedule an existing unscheduled match"""
+    """Schedule an existing unscheduled match using auto-scheduling"""
     db = get_db()
     if db is None:
         return jsonify({'error': 'No database connected'}), 500
     
     try:
-        league_id = int(request.form.get('league_id'))
-        date = request.form.get('date', '').strip()
-        time = request.form.get('time', '').strip()
+        # Get the match object
+        match = db.get_match(match_id)
+        if not match:
+            return jsonify({'error': f'Match {match_id} not found'}), 404
         
-        if not all([league_id, date, time]):
-            return jsonify({'error': 'League, date, and time are required'}), 400
+        # Use the auto-scheduling method with a list containing the single match
+        result = db.auto_schedule_matches([match], dry_run=False)
         
-        db.schedule_match(match_id, league_id, date, time)
-        
-        return jsonify({
-            'success': True,
-            'message': f'Match {match_id} scheduled for {date} at {time}'
-        })
-        
+        # Check if the match is now scheduled by querying the database
+        updated_match = db.get_match(match_id)
+        if updated_match and updated_match.is_scheduled():
+            return jsonify({
+                'success': True,
+                'message': f'Match {match_id} has been automatically scheduled',
+                'details': result
+            })
+        else:
+            return jsonify({
+                'error': 'Could not find suitable scheduling option for this match',
+                'details': result
+            }), 400
+            
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        return jsonify({'error': f'Failed to schedule match: {e}'}), 500
+        return jsonify({'error': f'Failed to auto-schedule match: {e}'}), 500
 
+
+@app.route('/matches/schedule-all', methods=['POST'])
+def schedule_all_matches():
+    """Schedule all unscheduled matches, optionally filtered by league"""
+    db = get_db()
+    if db is None:
+        return jsonify({'error': 'No database connected'}), 500
+    
+    try:
+        league_id = request.form.get('league_id', type=int)
+        dry_run = request.form.get('dry_run', 'false').lower() == 'true'
+        
+        if league_id:
+            # Schedule all matches in the specific league
+            result = db.auto_schedule_league_matches(league_id, dry_run=dry_run)
+            scope = f"league {league_id}"
+        else:
+            # Schedule all unscheduled matches across all leagues
+            unscheduled_matches = db.get_unscheduled_matches()
+            if not unscheduled_matches:
+                return jsonify({
+                    'success': True,
+                    'message': 'No unscheduled matches found',
+                    'scheduled_count': 0
+                })
+            
+            result = db.auto_schedule_matches(unscheduled_matches, dry_run=dry_run)
+            scope = "all leagues"
+        
+        # Extract results
+        scheduled_count = result.get('scheduled_count', 0)
+        failed_count = result.get('failed_count', 0)
+        total_count = scheduled_count + failed_count
+        
+        if dry_run:
+            message = f"Dry run completed for {scope}: {scheduled_count} of {total_count} matches could be scheduled"
+        else:
+            message = f"Scheduled {scheduled_count} of {total_count} matches in {scope}"
+            
+        if failed_count > 0:
+            message += f" ({failed_count} failed)"
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'scheduled_count': scheduled_count,
+            'failed_count': failed_count,
+            'total_count': total_count,
+            'details': result
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to schedule matches: {e}'}), 500
+
+        
 @app.route('/matches/<int:match_id>/unschedule', methods=['POST'])
 def unschedule_match(match_id):
     """Remove scheduling from a match, making it unscheduled"""
@@ -883,137 +983,6 @@ def unschedule_match(match_id):
     except Exception as e:
         return jsonify({'error': f'Failed to unschedule match: {e}'}), 500
 
-@app.route('/api/matches/unscheduled')
-def api_unscheduled_matches():
-    """API endpoint to get all unscheduled matches"""
-    db = get_db()
-    if db is None:
-        return jsonify({'error': 'No database connected'}), 500
-    
-    try:
-        unscheduled_matches = db.list_unscheduled_matches()
-        matches_data = []
-        
-        for match in unscheduled_matches:
-            match_data = {
-                'id': match.id,
-                'home_team_id': match.home_team_id,
-                'visitor_team_id': match.visitor_team_id,
-                'facility_id': match.facility_id,
-                'league_id': match.league_id,
-                'date': match.date,
-                'time': match.time,
-                'status': match.get_status(),
-                'missing_fields': match.get_missing_fields()
-            }
-            
-            # Add team and facility names
-            try:
-                home_team = db.get_team(match.home_team_id)
-                if home_team:
-                    match_data['home_team_name'] = home_team.name
-                
-                visitor_team = db.get_team(match.visitor_team_id)
-                if visitor_team:
-                    match_data['visitor_team_name'] = visitor_team.name
-                
-                facility = db.get_facility(match.facility_id)
-                if facility:
-                    match_data['facility_name'] = facility.name
-                
-                if match.league_id:
-                    league = db.get_league(match.league_id)
-                    if league:
-                        match_data['league_name'] = league.name
-            except Exception as e:
-                print(f"Warning: Could not enhance match {match.id}: {e}")
-            
-            matches_data.append(match_data)
-        
-        return jsonify(matches_data)
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# Enhanced calculate pairings to create unscheduled matches
-@app.route('/calculate-pairings/<int:league_id>/create-matches', methods=['POST'])
-def create_matches_from_pairings(league_id):
-    """Create unscheduled matches from calculated pairings"""
-    db = get_db()
-    if db is None:
-        return jsonify({'error': 'No database connected'}), 500
-    
-    try:
-        # Get league and teams
-        league = db.get_league(league_id)
-        if not league:
-            return jsonify({'error': f'League with ID {league_id} not found'}), 404
-        
-        teams = db.list_teams(league_id=league_id)
-        if len(teams) < 2:
-            return jsonify({'error': f'Need at least 2 teams, found {len(teams)}'}), 400
-        
-        # Calculate pairings
-        pairings = league.calculate_pairings(teams)
-        
-        # Create unscheduled matches for each pairing
-        created_matches = []
-        failed_matches = []
-        start_match_id = request.json.get('start_match_id', 3000) if request.is_json else 3000
-        
-        for i, (home_team, visitor_team) in enumerate(pairings):
-            match_id = start_match_id + i
-            
-            # Check if match ID already exists, find next available ID
-            while db.get_match(match_id):
-                match_id += 1
-            
-            try:
-                match = Match(
-                    id=match_id,
-                    home_team_id=home_team.id,
-                    visitor_team_id=visitor_team.id,
-                    facility_id=home_team.home_facility_id,  # Use home team's facility
-                    league_id=None,  # Leave unscheduled initially
-                    date=None,
-                    time=None
-                )
-                
-                db.add_match(match)
-                created_matches.append({
-                    'match_id': match_id,
-                    'home_team': home_team.name,
-                    'visitor_team': visitor_team.name,
-                    'facility_id': home_team.home_facility_id
-                })
-                
-            except Exception as e:
-                print(f"Warning: Could not create match {match_id}: {e}")
-                failed_matches.append({
-                    'match_id': match_id,
-                    'home_team': home_team.name,
-                    'visitor_team': visitor_team.name,
-                    'error': str(e)
-                })
-                continue
-        
-        response_data = {
-            'success': True,
-            'created_count': len(created_matches),
-            'failed_count': len(failed_matches),
-            'matches': created_matches,
-            'message': f'Created {len(created_matches)} unscheduled matches from pairings'
-        }
-        
-        if failed_matches:
-            response_data['failures'] = failed_matches
-            response_data['message'] += f' ({len(failed_matches)} failed)'
-        
-        return jsonify(response_data)
-        
-    except Exception as e:
-        return jsonify({'error': f'Failed to create matches: {e}'}), 500
-
 @app.route('/matches/delete-all', methods=['POST'])
 def delete_all_matches():
     """Delete all matches - useful for regenerating from pairings"""
@@ -1032,7 +1001,8 @@ def delete_all_matches():
         match_count = len(existing_matches)
         
         # Delete all matches
-        db.cursor.execute("DELETE FROM matches")
+        for match in existing_matches:
+            db.delete_match(match.id)
         
         return jsonify({
             'success': True,
@@ -1043,12 +1013,12 @@ def delete_all_matches():
     except Exception as e:
         return jsonify({'error': f'Failed to delete matches: {e}'}), 500
 
-# ==================== CALCULATE PAIRINGS ROUTES ====================
+# ==================== GENERATE MATCHES ROUTES ====================
 
-
-@app.route('/calculate-pairings', methods=['GET', 'POST'])
-def calculate_pairings():
-    """Calculate pairings form and results handler"""
+@app.route('/generate-matches', methods=['GET', 'POST'])
+@app.route('/generate-matches/<int:league_id>', methods=['GET', 'POST'])
+def generate_matches(league_id=None):
+    """Generate matches form and processing - simplified interface"""
     db = get_db()
     if db is None:
         flash('No database connection', 'error')
@@ -1057,20 +1027,184 @@ def calculate_pairings():
     try:
         leagues_list = db.list_leagues()
         
-        if request.method == 'POST':
-            # Handle form submission
-            league_id = request.form.get('league_id', type=int)
-            if not league_id:
-                flash('Please select a league', 'error')
-                return render_template('calculate_pairings.html', 
+        # If league_id is provided in URL, pre-select it or process it
+        if league_id and request.method == 'GET':
+            # Validate league exists
+            league = db.get_league(league_id)
+            if not league:
+                flash(f'League with ID {league_id} not found', 'error')
+                return render_template('generate_matches.html', 
                                      leagues=leagues_list, 
                                      show_results=False)
             
-            # Redirect to GET route with league_id to avoid form resubmission
-            return redirect(url_for('calculate_pairings_results', league_id=league_id))
+            # If GET request with league_id, generate matches directly
+            teams = db.list_teams(league_id=league_id)
+            if len(teams) < 2:
+                flash(f'League "{league.name}" has only {len(teams)} team(s). Need at least 2 teams to generate matches.', 'error')
+                return redirect(url_for('teams', league_id=league_id))
+            
+            # Generate matches using League.generate_matches()
+            matches = league.generate_matches(teams)
+            
+            # Add/update matches in database
+            created_matches = []
+            updated_matches = []
+            failed_matches = []
+            
+            for match in matches:
+                try:
+                    # Check if match already exists
+                    existing_match = db.get_match(match.id)
+                    
+                    if existing_match:
+                        # Update existing match with new pairing data
+                        db.update_match(match)
+                        
+                        # Find team names for response
+                        home_team = next(team for team in teams if team.id == match.home_team_id)
+                        visitor_team = next(team for team in teams if team.id == match.visitor_team_id)
+                        
+                        updated_matches.append({
+                            'match_id': match.id,
+                            'home_team': home_team.name,
+                            'visitor_team': visitor_team.name,
+                            'facility_id': match.facility_id
+                        })
+                    else:
+                        # Create new match
+                        db.add_match(match)
+                        
+                        # Find team names for response
+                        home_team = next(team for team in teams if team.id == match.home_team_id)
+                        visitor_team = next(team for team in teams if team.id == match.visitor_team_id)
+                        
+                        created_matches.append({
+                            'match_id': match.id,
+                            'home_team': home_team.name,
+                            'visitor_team': visitor_team.name,
+                            'facility_id': match.facility_id
+                        })
+                        
+                except Exception as e:
+                    print(f"Warning: Could not create/update match {match.id}: {e}")
+                    failed_matches.append({
+                        'match_id': match.id,
+                        'error': str(e)
+                    })
+                    continue
+            
+            # Show results
+            total_processed = len(created_matches) + len(updated_matches)
+            if total_processed > 0:
+                if created_matches and updated_matches:
+                    flash(f'Successfully generated {len(created_matches)} new matches and updated {len(updated_matches)} existing matches for "{league.name}"!', 'success')
+                elif created_matches:
+                    flash(f'Successfully generated {len(created_matches)} matches for "{league.name}"!', 'success')
+                elif updated_matches:
+                    flash(f'Successfully updated {len(updated_matches)} existing matches for "{league.name}"!', 'success')
+                
+                if failed_matches:
+                    flash(f'Warning: {len(failed_matches)} matches could not be processed due to errors', 'warning')
+            else:
+                flash('No matches were processed. Please check for errors.', 'error')
+
+        if request.method == 'POST':
+            # Handle form submission to generate matches directly
+            form_league_id = request.form.get('league_id', type=int)
+            if not form_league_id:
+                flash('Please select a league', 'error')
+                return render_template('generate_matches.html', 
+                                     leagues=leagues_list, 
+                                     show_results=False)
+            
+            # Generate matches directly
+            try:
+                # Get league and teams
+                league = db.get_league(form_league_id)
+                if not league:
+                    flash(f'League with ID {form_league_id} not found', 'error')
+                    return render_template('generate_matches.html', 
+                                         leagues=leagues_list, 
+                                         show_results=False)
+                
+                teams = db.list_teams(league_id=form_league_id)
+                if len(teams) < 2:
+                    flash(f'League "{league.name}" has only {len(teams)} team(s). Need at least 2 teams to generate matches.', 'error')
+                    return redirect(url_for('teams', league_id=form_league_id))
+                
+                # Generate matches using League.generate_matches()
+                matches = league.generate_matches(teams)
+                
+                # Add/update matches in database
+                created_matches = []
+                updated_matches = []
+                failed_matches = []
+                
+                for match in matches:
+                    try:
+                        # Check if match already exists
+                        existing_match = db.get_match(match.id)
+                        
+                        if existing_match:
+                            # Update existing match with new pairing data
+                            db.update_match(match)
+                            
+                            # Find team names for response
+                            home_team = next(team for team in teams if team.id == match.home_team_id)
+                            visitor_team = next(team for team in teams if team.id == match.visitor_team_id)
+                            
+                            updated_matches.append({
+                                'match_id': match.id,
+                                'home_team': home_team.name,
+                                'visitor_team': visitor_team.name,
+                                'facility_id': match.facility_id
+                            })
+                        else:
+                            # Create new match
+                            db.add_match(match)
+                            
+                            # Find team names for response
+                            home_team = next(team for team in teams if team.id == match.home_team_id)
+                            visitor_team = next(team for team in teams if team.id == match.visitor_team_id)
+                            
+                            created_matches.append({
+                                'match_id': match.id,
+                                'home_team': home_team.name,
+                                'visitor_team': visitor_team.name,
+                                'facility_id': match.facility_id
+                            })
+                            
+                    except Exception as e:
+                        print(f"Warning: Could not create/update match {match.id}: {e}")
+                        failed_matches.append({
+                            'match_id': match.id,
+                            'error': str(e)
+                        })
+                        continue
+                
+                # Show results
+                total_processed = len(created_matches) + len(updated_matches)
+                if total_processed > 0:
+                    if created_matches and updated_matches:
+                        flash(f'Successfully generated {len(created_matches)} new matches and updated {len(updated_matches)} existing matches for "{league.name}"!', 'success')
+                    elif created_matches:
+                        flash(f'Successfully generated {len(created_matches)} matches for "{league.name}"!', 'success')
+                    elif updated_matches:
+                        flash(f'Successfully updated {len(updated_matches)} existing matches for "{league.name}"!', 'success')
+                    
+                    if failed_matches:
+                        flash(f'Warning: {len(failed_matches)} matches could not be processed due to errors', 'warning')
+                else:
+                    flash('No matches were processed. Please check for errors.', 'error')
+                
+            except Exception as e:
+                flash(f'Error generating matches: {e}', 'error')
+                return render_template('generate_matches.html', 
+                                     leagues=leagues_list, 
+                                     show_results=False)
         
         # GET request - show the form
-        return render_template('calculate_pairings.html', 
+        return render_template('generate_matches.html', 
                              leagues=leagues_list, 
                              show_results=False)
         
@@ -1078,200 +1212,7 @@ def calculate_pairings():
         flash(f'Error loading leagues: {e}', 'error')
         return redirect(url_for('index'))
 
-@app.route('/calculate-pairings-form')
-def calculate_pairings_form():
-    """Simple form-only version for navigation compatibility"""
-    return redirect(url_for('calculate_pairings'))
-
-@app.route('/calculate-pairings/<int:league_id>')
-def calculate_pairings_results(league_id):
-    """Calculate and display pairings for a specific league"""
-    db = get_db()
-    if db is None:
-        flash('No database connection', 'error')
-        return redirect(url_for('index'))
-    
-    try:
-        # Get league information
-        league = db.get_league(league_id)
-        if not league:
-            flash(f'League with ID {league_id} not found', 'error')
-            return redirect(url_for('calculate_pairings'))
-        
-        # Get teams in the league
-        teams = db.list_teams(league_id=league_id)
-        if len(teams) < 2:
-            flash(f'League "{league.name}" has only {len(teams)} team(s). Need at least 2 teams to generate pairings.', 'error')
-            return redirect(url_for('teams', league_id=league_id))
-        
-        # ✅ Use League's calculate_pairings method directly
-        pairings = league.calculate_pairings(teams)
-        
-        # Calculate statistics
-        match_count_by_team = {}
-        home_count_by_team = {}
-        away_count_by_team = {}
-        
-        # Initialize counters
-        for team in teams:
-            match_count_by_team[team.id] = 0
-            home_count_by_team[team.id] = 0
-            away_count_by_team[team.id] = 0
-        
-        # Count matches
-        for home_team, visitor_team in pairings:
-            match_count_by_team[home_team.id] += 1
-            match_count_by_team[visitor_team.id] += 1
-            home_count_by_team[home_team.id] += 1
-            away_count_by_team[visitor_team.id] += 1
-        
-        # Prepare team statistics
-        team_stats = []
-        for team in teams:
-            stats = {
-                'team': team,
-                'total_matches': match_count_by_team[team.id],
-                'home_matches': home_count_by_team[team.id],
-                'away_matches': away_count_by_team[team.id],
-                'matches_expected': league.num_matches
-            }
-            team_stats.append(stats)
-        
-        # Prepare pairing details with proper structure
-        pairing_details = []
-        for i, (home_team, visitor_team) in enumerate(pairings, 1):
-            pairing_details.append({
-                'match_number': i,
-                'home_team': home_team,
-                'visitor_team': visitor_team
-            })
-        
-        # Enhanced balance analysis
-        balance_analysis = {
-            'teams_with_wrong_count': [],
-            'imbalanced_teams': [],
-            'max_imbalance': 0,
-            'total_matches': len(pairings),
-            'expected_per_team': league.num_matches
-        }
-        
-        # Check for teams with wrong match count
-        for team in teams:
-            actual_count = match_count_by_team[team.id]
-            if actual_count != league.num_matches:
-                balance_analysis['teams_with_wrong_count'].append({
-                    'team': team,
-                    'actual': actual_count,
-                    'expected': league.num_matches
-                })
-        
-        # Check home/away balance
-        for team in teams:
-            home = home_count_by_team[team.id]
-            away = away_count_by_team[team.id]
-            imbalance = abs(home - away)
-            
-            if imbalance > balance_analysis['max_imbalance']:
-                balance_analysis['max_imbalance'] = imbalance
-            
-            if imbalance > 1:  # More than 1 match difference is noteworthy
-                balance_analysis['imbalanced_teams'].append({
-                    'team': team,
-                    'home_matches': home,
-                    'away_matches': away,
-                    'imbalance': imbalance
-                })
-        
-        # Get all leagues for the form dropdown
-        leagues_list = db.list_leagues()
-        
-        # Return unified template with results
-        return render_template('calculate_pairings.html',
-                             leagues=leagues_list,
-                             selected_league=league,
-                             teams=teams,
-                             pairings=pairing_details,
-                             team_stats=team_stats,
-                             balance_analysis=balance_analysis,
-                             show_results=True)
-        
-    except ValueError as e:
-        flash(f'Error calculating pairings: {e}', 'error')
-        return redirect(url_for('teams', league_id=league_id))
-    except Exception as e:
-        flash(f'Unexpected error: {e}', 'error')
-        return redirect(url_for('calculate_pairings'))
-
-@app.route('/api/calculate-pairings/<int:league_id>')
-def api_calculate_pairings(league_id):
-    """API endpoint to calculate pairings and return JSON"""
-    db = get_db()
-    if db is None:
-        return jsonify({'error': 'No database connected'}), 500
-    
-    try:
-        # Get league and teams
-        league = db.get_league(league_id)
-        if not league:
-            return jsonify({'error': f'League with ID {league_id} not found'}), 404
-        
-        teams = db.list_teams(league_id=league_id)
-        if len(teams) < 2:
-            return jsonify({'error': f'Need at least 2 teams, found {len(teams)}'}), 400
-        
-        # ✅ Use League's calculate_pairings method directly
-        pairings = league.calculate_pairings(teams)
-        
-        # Format results
-        results = {
-            'league': {
-                'id': league.id,
-                'name': league.name,
-                'num_matches': league.num_matches,
-                'num_lines_per_match': league.num_lines_per_match
-            },
-            'teams_count': len(teams),
-            'total_matches': len(pairings),
-            'pairings': [
-                {
-                    'match_number': i + 1,
-                    'home_team_id': home_team.id,
-                    'home_team_name': home_team.name,
-                    'visitor_team_id': visitor_team.id,
-                    'visitor_team_name': visitor_team.name
-                }
-                for i, (home_team, visitor_team) in enumerate(pairings)
-            ]
-        }
-        
-        return jsonify(results)
-        
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'error': f'Internal server error: {e}'}), 500
-
-# ==================== OTHER ROUTES ====================
-
-@app.route('/constants')
-def constants():
-    """View USTA constants"""
-    db = get_db()
-    if db is None:
-        flash('No database connection', 'error')
-        return redirect(url_for('index'))
-    
-    try:
-        constants_data = {
-            'sections': db.list_sections(),
-            'regions': db.list_regions(),
-            'age_groups': db.list_age_groups(),
-            'divisions': db.list_divisions()
-        }
-        return render_template('constants.html', constants=constants_data)
-    except Exception as e:
-        flash(f'Error loading constants: {e}', 'error')
-        return redirect(url_for('index'))
+# ==================== API ROUTES ====================
 
 @app.route('/api/teams/<int:league_id>')
 def api_teams_by_league(league_id):
@@ -1294,6 +1235,139 @@ def api_teams_by_league(league_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/generate-matches/<int:league_id>')
+def api_generate_matches(league_id):
+    """API endpoint to generate matches and return JSON with deterministic ID preservation"""
+    db = get_db()
+    if db is None:
+        return jsonify({'error': 'No database connected'}), 500
+    
+    try:
+        # Get league and teams
+        league = db.get_league(league_id)
+        if not league:
+            return jsonify({'error': f'League with ID {league_id} not found'}), 404
+        
+        teams = db.list_teams(league_id=league_id)
+        if len(teams) < 2:
+            return jsonify({'error': f'Need at least 2 teams, found {len(teams)}'}), 400
+        
+        # Generate matches using League.generate_matches()
+        matches = league.generate_matches(teams)
+        
+        # Process matches with deterministic ID preservation
+        created_matches = []
+        updated_matches = []
+        failed_matches = []
+        
+        for match in matches:
+            try:
+                # Check if match already exists with this deterministic ID
+                existing_match = db.get_match(match.id)
+                
+                if existing_match:
+                    # Update existing match - preserve deterministic ID
+                    db.update_match(match)
+                    updated_matches.append({
+                        'match_id': match.id,
+                        'home_team_id': match.home_team_id,
+                        'home_team_name': next(team.name for team in teams if team.id == match.home_team_id),
+                        'visitor_team_id': match.visitor_team_id,
+                        'visitor_team_name': next(team.name for team in teams if team.id == match.visitor_team_id),
+                        'facility_id': match.facility_id,
+                        'action': 'updated'
+                    })
+                else:
+                    # Create new match with deterministic ID
+                    db.add_match(match)
+                    created_matches.append({
+                        'match_id': match.id,
+                        'home_team_id': match.home_team_id,
+                        'home_team_name': next(team.name for team in teams if team.id == match.home_team_id),
+                        'visitor_team_id': match.visitor_team_id,
+                        'visitor_team_name': next(team.name for team in teams if team.id == match.visitor_team_id),
+                        'facility_id': match.facility_id,
+                        'action': 'created'
+                    })
+                    
+            except Exception as e:
+                failed_matches.append({
+                    'match_id': match.id,
+                    'error': str(e)
+                })
+        
+        # Format results
+        all_matches = created_matches + updated_matches
+        
+        results = {
+            'league': {
+                'id': league.id,
+                'name': league.name,
+                'num_matches': league.num_matches,
+                'num_lines_per_match': league.num_lines_per_match
+            },
+            'teams_count': len(teams),
+            'total_matches_processed': len(all_matches),
+            'created_count': len(created_matches),
+            'updated_count': len(updated_matches),
+            'failed_count': len(failed_matches),
+            'matches': [
+                {
+                    'match_id': match['match_id'],
+                    'match_number': i + 1,
+                    'home_team_id': match['home_team_id'],
+                    'home_team_name': match['home_team_name'],
+                    'visitor_team_id': match['visitor_team_id'],
+                    'visitor_team_name': match['visitor_team_name'],
+                    'facility_id': match['facility_id'],
+                    'action': match['action']
+                }
+                for i, match in enumerate(all_matches)
+            ],
+            'deterministic_ids': True,  # Indicate that IDs are deterministic
+            'message': f"Processed {len(all_matches)} matches: {len(created_matches)} created, {len(updated_matches)} updated"
+        }
+        
+        if failed_matches:
+            results['failed_matches'] = failed_matches
+            results['warning'] = f"{len(failed_matches)} matches failed to process"
+        
+        return jsonify(results)
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Internal server error: {e}'}), 500
+
+# ==================== HELPER FUNCTIONS ====================
+
+def get_usta_constants() -> Dict[str, list]:
+    """Get USTA constants from the usta module"""
+    from usta import USTA_SECTIONS, USTA_REGIONS, USTA_AGE_GROUPS, USTA_DIVISIONS
+    return {
+        'sections': USTA_SECTIONS,
+        'regions': USTA_REGIONS,
+        'age_groups': USTA_AGE_GROUPS,
+        'divisions': USTA_DIVISIONS
+    }
+
+# ==================== OTHER ROUTES ====================
+
+@app.route('/constants')
+def constants():
+    """View USTA constants"""
+    db = get_db()
+    if db is None:
+        flash('No database connection', 'error')
+        return redirect(url_for('index'))
+    
+    try:
+        constants_data = get_usta_constants()
+        return render_template('constants.html', constants=constants_data)
+    except Exception as e:
+        flash(f'Error loading constants: {e}', 'error')
+        return redirect(url_for('index'))
+
 @app.route('/stats')
 def stats():
     """Database statistics page"""
@@ -1308,7 +1382,7 @@ def stats():
             'leagues_count': len(db.list_leagues()),
             'teams_count': len(db.list_teams()),
             'matches_count': len(db.list_matches()),
-            'db_path': db_path
+            'db_path': str(db_config['connection_params'])
         }
         
         # League breakdown
@@ -1333,10 +1407,167 @@ def stats():
         flash(f'Error loading statistics: {e}', 'error')
         return redirect(url_for('index'))
 
+
+# Add this route to tennis_web_app.py after the matches routes
+
+@app.route('/schedule')
+def schedule():
+    """View matches organized by date in a schedule format"""
+    db = get_db()
+    if db is None:
+        flash('No database connection', 'error')
+        return redirect(url_for('index'))
+    
+    league_id = request.args.get('league_id', type=int)
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
+    
+    try:
+        # Get all scheduled matches (only those with dates)
+        all_matches = db.list_matches(league_id=league_id, include_unscheduled=False)
+        leagues_list = db.list_leagues()  # For filter dropdown
+        
+        # Filter matches that have dates
+        scheduled_matches = [match for match in all_matches if match.date]
+        
+        # Apply date range filter if provided
+        if start_date:
+            scheduled_matches = [match for match in scheduled_matches if match.date >= start_date]
+        if end_date:
+            scheduled_matches = [match for match in scheduled_matches if match.date <= end_date]
+        
+        # Get selected league info if filtering
+        selected_league = None
+        if league_id:
+            selected_league = db.get_league(league_id)
+        
+        # Enhance matches with team and facility names
+        enhanced_matches = []
+        for match in scheduled_matches:
+            enhanced_match = {
+                'id': match.id,
+                'league_id': match.league_id,
+                'home_team_id': match.home_team_id,
+                'visitor_team_id': match.visitor_team_id,
+                'facility_id': match.facility_id,
+                'date': match.date,
+                'time': match.time,
+                'home_team_name': 'Unknown',
+                'visitor_team_name': 'Unknown',
+                'facility_name': 'Unknown',
+                'league_name': 'Unknown',
+                'status': match.get_status()
+            }
+            
+            try:
+                home_team = db.get_team(match.home_team_id)
+                if home_team:
+                    enhanced_match['home_team_name'] = home_team.name
+            except Exception as e:
+                print(f"Warning: Could not get home team {match.home_team_id}: {e}")
+            
+            try:
+                visitor_team = db.get_team(match.visitor_team_id)
+                if visitor_team:
+                    enhanced_match['visitor_team_name'] = visitor_team.name
+            except Exception as e:
+                print(f"Warning: Could not get visitor team {match.visitor_team_id}: {e}")
+            
+            try:
+                facility = db.get_facility(match.facility_id)
+                if facility:
+                    enhanced_match['facility_name'] = facility.name
+            except Exception as e:
+                print(f"Warning: Could not get facility {match.facility_id}: {e}")
+            
+            try:
+                if match.league_id:
+                    league = db.get_league(match.league_id)
+                    if league:
+                        enhanced_match['league_name'] = league.name
+            except Exception as e:
+                print(f"Warning: Could not get league {match.league_id}: {e}")
+            
+            enhanced_matches.append(enhanced_match)
+        
+        # Group matches by date
+        from collections import defaultdict
+        from datetime import datetime
+        
+        matches_by_date = defaultdict(list)
+        for match in enhanced_matches:
+            matches_by_date[match['date']].append(match)
+        
+        # Sort matches within each date by time
+        for date_key in matches_by_date:
+            matches_by_date[date_key].sort(key=lambda x: x['time'] or '00:00')
+        
+        # Convert to sorted list of (date, day_name, matches) tuples
+        schedule_data = []
+        for date_str in sorted(matches_by_date.keys()):
+            try:
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                day_name = date_obj.strftime('%A')  # Full day name
+                formatted_date = date_obj.strftime('%B %d, %Y')  # "January 15, 2025"
+            except ValueError:
+                day_name = 'Unknown'
+                formatted_date = date_str
+            
+            schedule_data.append({
+                'date_str': date_str,
+                'day_name': day_name,
+                'formatted_date': formatted_date,
+                'matches': matches_by_date[date_str]
+            })
+        
+        return render_template('schedule.html', 
+                             schedule_data=schedule_data,
+                             leagues=leagues_list,
+                             selected_league=selected_league,
+                             start_date=start_date,
+                             end_date=end_date,
+                             total_matches=len(enhanced_matches))
+    
+    except Exception as e:
+        flash(f'Error loading schedule: {e}', 'error')
+        return redirect(url_for('index'))
+        
+
+# ==================== APPLICATION CONTEXT ====================
+
+@app.context_processor
+def inject_db_path():
+    """Inject database path into all templates"""
+    if db_config['backend_class'] is not None:
+        return {'db_path': str(db_config['connection_params'])}
+    return {'db_path': None}
+
+# ==================== STARTUP FUNCTIONS ====================
+
+def create_app_with_sqlite(db_path: str):
+    """Create Flask app configured with SQLite backend"""
+    from sqlite_tennis_db import SQLiteTennisDB
+    
+    if init_db(SQLiteTennisDB, db_path=db_path):
+        return app
+    else:
+        raise RuntimeError(f"Failed to initialize database at {db_path}")
+
+def create_app_with_backend(backend_class: Type[TennisDBInterface], **connection_params):
+    """Create Flask app configured with specified backend"""
+    if init_db(backend_class, **connection_params):
+        return app
+    else:
+        raise RuntimeError(f"Failed to initialize database with {backend_class.__name__}")
+
 if __name__ == '__main__':
     # Print all registered routes for debugging
     print("Registered routes:")
     for rule in app.url_map.iter_rules():
         print(f"  {rule.endpoint}: {rule.rule}")
+    
+    # Default to SQLite if no backend configured
+    if db_config['backend_class'] is None:
+        print("No database backend configured. Use connect route to configure database.")
     
     app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)

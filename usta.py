@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any
-from datetime import date
+from typing import List, Dict, Optional, Any, Tuple
+from datetime import date, datetime, timedelta
 import itertools
 from collections import defaultdict
 
@@ -122,6 +122,16 @@ class DaySchedule:
     def has_availability(self) -> bool:
         """Check if this day has any available time slots"""
         return len(self.start_times) > 0 and any(slot.available_courts > 0 for slot in self.start_times)
+    
+    def get_times_with_min_courts(self, min_courts: int) -> List[str]:
+        """Get all times that have at least the specified number of courts available"""
+        return [slot.time for slot in self.start_times if slot.available_courts >= min_courts]
+    
+    def get_max_courts_available(self) -> int:
+        """Get the maximum number of courts available at any time during this day"""
+        if not self.start_times:
+            return 0
+        return max(slot.available_courts for slot in self.start_times)
 
 @dataclass
 class WeeklySchedule:
@@ -185,6 +195,102 @@ class WeeklySchedule:
         }
 
 @dataclass
+class Line:
+    """Represents a single line (court assignment) within a match"""
+    id: int
+    match_id: int
+    line_number: int  # 1, 2, 3, etc. (line position within the match)
+    facility_id: Optional[int] = None  # None for unscheduled lines
+    date: Optional[str] = None  # YYYY-MM-DD format, None for unscheduled
+    time: Optional[str] = None  # HH:MM format, None for unscheduled
+    court_number: Optional[int] = None  # Specific court number if facility tracks them
+    
+    def __post_init__(self):
+        """Validate line data"""
+        if not isinstance(self.id, int) or self.id <= 0:
+            raise ValueError(f"Line ID must be a positive integer, got: {self.id}")
+        
+        if not isinstance(self.match_id, int) or self.match_id <= 0:
+            raise ValueError(f"Match ID must be a positive integer, got: {self.match_id}")
+        
+        if not isinstance(self.line_number, int) or self.line_number <= 0:
+            raise ValueError(f"Line number must be a positive integer, got: {self.line_number}")
+        
+        # Validate facility_id if provided
+        if self.facility_id is not None:
+            if not isinstance(self.facility_id, int) or self.facility_id <= 0:
+                raise ValueError(f"Facility ID must be a positive integer or None, got: {self.facility_id}")
+        
+        # Validate date format if provided
+        if self.date is not None:
+            if not isinstance(self.date, str):
+                raise ValueError("Date must be a string or None")
+            try:
+                parts = self.date.split('-')
+                if len(parts) != 3:
+                    raise ValueError("Invalid date format")
+                year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+                if not (1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31):
+                    raise ValueError("Invalid date values")
+            except (ValueError, IndexError):
+                raise ValueError(f"Invalid date format: '{self.date}'. Expected YYYY-MM-DD format")
+        
+        # Validate time format if provided
+        if self.time is not None:
+            if not isinstance(self.time, str):
+                raise ValueError("Time must be a string or None")
+            try:
+                parts = self.time.split(':')
+                if len(parts) != 2:
+                    raise ValueError("Invalid time format")
+                hour, minute = int(parts[0]), int(parts[1])
+                if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                    raise ValueError("Invalid time values")
+            except (ValueError, IndexError):
+                raise ValueError(f"Invalid time format: '{self.time}'. Expected HH:MM format")
+        
+        # Validate court_number if provided
+        if self.court_number is not None:
+            if not isinstance(self.court_number, int) or self.court_number <= 0:
+                raise ValueError(f"Court number must be a positive integer or None, got: {self.court_number}")
+    
+    def is_scheduled(self) -> bool:
+        """Check if the line is scheduled (has date, time, and facility)"""
+        return all([self.facility_id is not None, self.date is not None, self.time is not None])
+    
+    def is_unscheduled(self) -> bool:
+        """Check if the line is unscheduled"""
+        return not self.is_scheduled()
+    
+    def get_status(self) -> str:
+        """Get the scheduling status of the line"""
+        return "scheduled" if self.is_scheduled() else "unscheduled"
+    
+    def schedule(self, facility_id: int, date: str, time: str, court_number: Optional[int] = None) -> 'Line':
+        """Return a new Line instance with scheduling information"""
+        return Line(
+            id=self.id,
+            match_id=self.match_id,
+            line_number=self.line_number,
+            facility_id=facility_id,
+            date=date,
+            time=time,
+            court_number=court_number
+        )
+    
+    def unschedule(self) -> 'Line':
+        """Return a new Line instance without scheduling information"""
+        return Line(
+            id=self.id,
+            match_id=self.match_id,
+            line_number=self.line_number,
+            facility_id=None,
+            date=None,
+            time=None,
+            court_number=None
+        )
+
+@dataclass
 class Facility:
     """Represents a tennis facility with scheduling capabilities"""
     id: int
@@ -192,6 +298,7 @@ class Facility:
     location: Optional[str] = None
     schedule: WeeklySchedule = field(default_factory=WeeklySchedule)
     unavailable_dates: List[str] = field(default_factory=list)  # List of dates in "YYYY-MM-DD" format
+    total_courts: int = 0  # Total number of courts at the facility
     
     def __post_init__(self):
         """Validate facility data"""
@@ -209,6 +316,9 @@ class Facility:
         
         if not isinstance(self.unavailable_dates, list):
             raise ValueError("Unavailable dates must be a list")
+        
+        if not isinstance(self.total_courts, int) or self.total_courts < 0:
+            raise ValueError(f"Total courts must be a non-negative integer, got: {self.total_courts}")
         
         # Validate date formats in unavailable_dates
         for date_str in self.unavailable_dates:
@@ -266,6 +376,134 @@ class Facility:
         except ValueError:
             return False
     
+    def can_accommodate_lines(self, day: str, time: str, num_lines: int) -> bool:
+        """
+        Check if the facility can accommodate the required number of lines at a specific day/time
+        
+        Args:
+            day: Day of the week
+            time: Time in HH:MM format
+            num_lines: Number of lines (courts) needed
+            
+        Returns:
+            True if facility has enough courts available
+        """
+        available_courts = self.get_available_courts_on_day_time(day, time)
+        return available_courts is not None and available_courts >= num_lines
+    
+    def get_available_times_for_lines(self, day: str, num_lines: int) -> List[str]:
+        """
+        Get all available times on a day that can accommodate the required number of lines
+        
+        Args:
+            day: Day of the week
+            num_lines: Number of lines (courts) needed
+            
+        Returns:
+            List of time strings that have enough courts available
+        """
+        try:
+            day_schedule = self.schedule.get_day_schedule(day)
+            return day_schedule.get_times_with_min_courts(num_lines)
+        except ValueError:
+            return []
+    
+    def get_scheduling_options_for_match(self, league, date_str: str) -> Dict[str, List[str]]:
+        """
+        Get all scheduling options for a match on a specific date
+        
+        Args:
+            league: League object to get line requirements
+            date_str: Date in YYYY-MM-DD format
+            
+        Returns:
+            Dictionary mapping day of week to list of available times
+        """
+        if not self.is_available_on_date(date_str):
+            return {}
+        
+        # Get day of week from date
+        try:
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+            day_name = date_obj.strftime('%A')  # Full day name (Monday, Tuesday, etc.)
+        except ValueError:
+            return {}
+        
+        num_lines = league.get_total_courts_needed()
+        available_times = self.get_available_times_for_lines(day_name, num_lines)
+        
+        if available_times:
+            return {day_name: available_times}
+        else:
+            return {}
+    
+    def find_scheduling_slots_for_split_lines(self, day: str, num_lines: int, 
+                                            max_time_gap_minutes: int = 120) -> List[List[Tuple[str, int]]]:
+        """
+        Find scheduling slots when lines can be split across different times
+        
+        Args:
+            day: Day of the week
+            num_lines: Total number of lines needed
+            max_time_gap_minutes: Maximum time gap between line start times (default 2 hours)
+            
+        Returns:
+            List of scheduling options, where each option is a list of (time, courts_at_time) tuples
+        """
+        try:
+            day_schedule = self.schedule.get_day_schedule(day)
+        except ValueError:
+            return []
+        
+        if not day_schedule.start_times:
+            return []
+        
+        # Get all available time slots with court counts
+        time_slots = [(slot.time, slot.available_courts) for slot in day_schedule.start_times 
+                     if slot.available_courts > 0]
+        
+        if not time_slots:
+            return []
+        
+        # Convert times to minutes for gap calculation
+        def time_to_minutes(time_str):
+            parts = time_str.split(':')
+            return int(parts[0]) * 60 + int(parts[1])
+        
+        # Find combinations that sum to required lines
+        scheduling_options = []
+        
+        # Try single time slot first (preferred)
+        for time_str, courts in time_slots:
+            if courts >= num_lines:
+                scheduling_options.append([(time_str, num_lines)])
+        
+        # Try combinations of time slots if single slot isn't enough
+        if not scheduling_options:
+            for r in range(2, min(len(time_slots) + 1, num_lines + 1)):
+                for combination in itertools.combinations(time_slots, r):
+                    # Check if times are within max gap
+                    times_minutes = [time_to_minutes(time_str) for time_str, _ in combination]
+                    if max(times_minutes) - min(times_minutes) <= max_time_gap_minutes:
+                        # Check if total courts meet requirement
+                        total_available = sum(courts for _, courts in combination)
+                        if total_available >= num_lines:
+                            # Distribute lines across time slots
+                            lines_distribution = []
+                            remaining_lines = num_lines
+                            for time_str, courts in combination:
+                                lines_for_slot = min(courts, remaining_lines)
+                                if lines_for_slot > 0:
+                                    lines_distribution.append((time_str, lines_for_slot))
+                                    remaining_lines -= lines_for_slot
+                                if remaining_lines == 0:
+                                    break
+                            
+                            if remaining_lines == 0:
+                                scheduling_options.append(lines_distribution)
+        
+        return scheduling_options
+    
     @classmethod
     def from_yaml_dict(cls, data: Dict[str, Any]) -> 'Facility':
         """Create a Facility from a YAML dictionary structure"""
@@ -273,6 +511,7 @@ class Facility:
         facility_id = data.get('id')
         name = data.get('name')
         location = data.get('location')
+        total_courts = data.get('total_courts', 0)
         
         # Require schedule to be present
         if 'schedule' not in data:
@@ -283,7 +522,7 @@ class Facility:
             raise ValueError(f"Facility '{name}' (ID: {facility_id}) is missing required 'unavailable_dates' field")
         
         # Create the facility with basic info first
-        facility = cls(id=facility_id, name=name, location=location)
+        facility = cls(id=facility_id, name=name, location=location, total_courts=total_courts)
         
         # Process schedule - now required
         schedule_data = data['schedule']
@@ -351,6 +590,9 @@ class Facility:
         
         if self.location:
             result['location'] = self.location
+        
+        if self.total_courts > 0:
+            result['total_courts'] = self.total_courts
         
         # Add schedule if it has any time slots
         schedule_dict = {}
@@ -738,22 +980,27 @@ class League:
             return "Ended"
         else:
             return "Active"
-    
-    def calculate_pairings(self, teams: List['Team']) -> List[tuple]:
+
+    def generate_matches(self, teams: List['Team']) -> List['Match']:
         """
-        Calculate all permutations of pairings from the list of teams.
+        Generate a list of unscheduled Match objects from the list of teams.
         
         This algorithm ensures:
         - Fair distribution of matches for each team
         - Balanced home/away games
         - Optimal pairing distribution
         - Handles odd numbers of teams by adjusting match count
+        - Deterministic sequential match IDs that prevent duplicate scheduling
+        
+        Match IDs are generated deterministically: the same league always gets the same
+        starting match ID, then matches are numbered sequentially. This ensures that
+        regenerating matches for the same league produces the identical sequence of IDs.
         
         Args:
             teams: List of Team objects in this league
             
         Returns:
-            List of tuples (home_team, visitor_team) representing all matches
+            List of Match objects with deterministic sequential IDs (unscheduled)
             
         Raises:
             ValueError: If teams list is invalid
@@ -763,7 +1010,7 @@ class League:
         from collections import defaultdict
         
         if len(teams) < 2:
-            raise ValueError("Need at least 2 teams to generate pairings")
+            raise ValueError("Need at least 2 teams to generate matches")
         
         # Validate all teams are in this league
         for team in teams:
@@ -845,8 +1092,60 @@ class League:
                 permutations = [p for p in permutations 
                               if (p[0].id, p[1].id) != selected_ids and (p[0].id, p[1].id) != inverse_ids]
         
-        return selected_pairs
+        # Generate deterministic starting match ID for this league
+        base_match_id = self._generate_deterministic_start_id()
+        
+        # Convert team pairs to Match objects with sequential IDs from deterministic base
+        matches = []
+        for i, (home_team, visitor_team) in enumerate(selected_pairs):
+            match_id = base_match_id + i + 1  # Sequential: base+1, base+2, base+3, etc.
+            match = Match(
+                id=match_id,
+                league_id=self.id,
+                home_team_id=home_team.id,
+                visitor_team_id=visitor_team.id,
+                facility_id=home_team.home_facility_id,  # Use home team's facility
+                date=None,  # Unscheduled
+                time=None   # Unscheduled
+            )
+            matches.append(match)
+        
+        return matches
 
+    def _generate_deterministic_start_id(self) -> int:
+        """
+        Generate a deterministic starting match ID for this league.
+        
+        This creates a unique base ID that incorporates league characteristics,
+        ensuring the same league always gets the same starting match ID.
+        Matches are then numbered sequentially from this base.
+        
+        Returns:
+            Deterministic starting match ID for this league
+            
+        Example:
+            League "2025 Northern NM 18+ 3.0 Women" might get start ID: 202512340000
+            Then matches become: 202512340001, 202512340002, 202512340003, etc.
+            
+            Regenerating the same league produces the same sequence.
+        """
+        import hashlib
+        
+        # Create identifier string from all league characteristics
+        identifier = f"{self.year}_{self.region}_{self.age_group}_{self.division}_{self.id}"
+        
+        # Create MD5 hash of the identifier for deterministic number generation
+        hash_obj = hashlib.md5(identifier.encode())
+        hash_hex = hash_obj.hexdigest()
+        
+        # Take first 8 characters and convert to int, then mod to get reasonable size
+        hash_int = int(hash_hex[:8], 16) % 100000  # 0-99999 range
+        
+        # Create base ID: YYYY + 5-digit hash + 0000 (for sequential numbering)
+        # Format: YYYYHHHHH0000 (13 digits total, leaves room for ~9999 matches)
+        base_id = (self.year * 1000000000) + (hash_int * 10000)
+        
+        return base_id
 
 @dataclass
 class Team:
@@ -993,7 +1292,6 @@ class Team:
         
         return best_days + good_days
 
-
 @dataclass
 class Match:
     """Represents a tennis match (scheduled or unscheduled)"""
@@ -1004,6 +1302,7 @@ class Match:
     facility_id: Optional[int] = None  # None for unscheduled matches
     date: Optional[str] = None  # YYYY-MM-DD format, None for unscheduled
     time: Optional[str] = None  # HH:MM format, None for unscheduled
+    lines: List[Line] = field(default_factory=list)  # Individual line assignments
     
     def __post_init__(self):
         """Validate match data"""
@@ -1054,6 +1353,18 @@ class Match:
                     raise ValueError("Invalid time values")
             except (ValueError, IndexError):
                 raise ValueError(f"Invalid time format: '{self.time}'. Expected HH:MM format")
+        
+        # Validate lines
+        if not isinstance(self.lines, list):
+            raise ValueError("Lines must be a list")
+        
+        for i, line in enumerate(self.lines):
+            if not isinstance(line, Line):
+                raise ValueError(f"All lines must be Line objects, line {i} is {type(line)}")
+            if line.match_id != self.id:
+                raise ValueError(f"Line {i} match_id ({line.match_id}) doesn't match this match ID ({self.id})")
+    
+    # ========== Basic Status Methods ==========
     
     def is_scheduled(self) -> bool:
         """Check if the match is scheduled (has date, time, and facility)"""
@@ -1067,6 +1378,154 @@ class Match:
         """Get the scheduling status of the match"""
         return "scheduled" if self.is_scheduled() else "unscheduled"
     
+    def are_lines_scheduled(self) -> bool:
+        """Check if all lines are scheduled"""
+        return len(self.lines) > 0 and all(line.is_scheduled() for line in self.lines)
+    
+    def are_lines_unscheduled(self) -> bool:
+        """Check if all lines are unscheduled"""
+        return len(self.lines) == 0 or all(line.is_unscheduled() for line in self.lines)
+    
+    def get_line_scheduling_status(self) -> str:
+        """Get the detailed scheduling status including line information"""
+        if len(self.lines) == 0:
+            return "no lines created"
+        elif self.are_lines_scheduled():
+            return "fully scheduled (all lines)"
+        elif self.are_lines_unscheduled():
+            return "unscheduled (no lines)"
+        else:
+            scheduled_count = sum(1 for line in self.lines if line.is_scheduled())
+            return f"partially scheduled ({scheduled_count}/{len(self.lines)} lines)"
+    
+    # ========== Line Management Methods ==========
+    
+    def needs_lines_created(self) -> bool:
+        """Check if this match needs lines to be created"""
+        return len(self.lines) == 0
+    
+    def has_complete_lines(self, league: 'League') -> bool:
+        """Check if match has the correct number of lines for the league"""
+        return len(self.lines) == league.get_total_courts_needed()
+    
+    def create_lines(self, league: 'League') -> None:
+        """
+        Create unscheduled Line objects for this match based on league requirements
+        
+        Args:
+            league: League object to get number of lines needed
+        """
+        # Clear existing lines
+        self.lines.clear()
+        
+        # Create new lines
+        num_lines = league.get_total_courts_needed()
+        base_line_id = self._generate_line_id_base()
+        
+        for line_num in range(1, num_lines + 1):
+            line_id = base_line_id + line_num
+            line = Line(
+                id=line_id,
+                match_id=self.id,
+                line_number=line_num,
+                facility_id=None,
+                date=None,
+                time=None,
+                court_number=None
+            )
+            self.lines.append(line)
+    
+    def _generate_line_id_base(self) -> int:
+        """Generate base ID for lines (match_id * 100 to leave room for line numbers)"""
+        return self.id * 100
+    
+    # ========== Scheduling Methods ==========
+    
+    def schedule_all_lines_same_time(self, facility_id: int, date: str, time: str) -> bool:
+        """
+        Schedule all lines at the same facility, date, and time
+        
+        Args:
+            facility_id: Facility ID
+            date: Date in YYYY-MM-DD format
+            time: Time in HH:MM format
+            
+        Returns:
+            True if all lines were scheduled successfully
+        """
+        if not self.lines:
+            return False
+        
+        # Schedule all lines
+        for line in self.lines:
+            line.facility_id = facility_id
+            line.date = date
+            line.time = time
+        
+        # Also update match-level scheduling
+        self.facility_id = facility_id
+        self.date = date
+        self.time = time
+        
+        return True
+    
+    def schedule_lines_split_times(self, scheduling_plan: List[Tuple[str, int, int]]) -> bool:
+        """
+        Schedule lines across different times (when league allows split lines)
+        
+        Args:
+            scheduling_plan: List of (time, facility_id, num_lines_at_time) tuples
+            
+        Returns:
+            True if all lines were scheduled successfully
+        """
+        if not self.lines:
+            return False
+        
+        total_planned_lines = sum(num_lines for _, _, num_lines in scheduling_plan)
+        if total_planned_lines != len(self.lines):
+            raise ValueError(f"Scheduling plan covers {total_planned_lines} lines but match has {len(self.lines)} lines")
+        
+        # Assign lines to time slots
+        line_index = 0
+        facilities_used = set()
+        dates_used = set()
+        
+        for time, facility_id, num_lines_at_time in scheduling_plan:
+            for _ in range(num_lines_at_time):
+                if line_index >= len(self.lines):
+                    break
+                
+                line = self.lines[line_index]
+                line.facility_id = facility_id
+                line.date = self.date or date.today().strftime('%Y-%m-%d')  # Use match date or today
+                line.time = time
+                
+                facilities_used.add(facility_id)
+                dates_used.add(line.date)
+                line_index += 1
+        
+        # Update match-level info with primary facility/date/time
+        if scheduling_plan:
+            primary_time, primary_facility, _ = scheduling_plan[0]
+            self.facility_id = primary_facility
+            self.date = list(dates_used)[0] if dates_used else None
+            self.time = primary_time
+        
+        return line_index == len(self.lines)
+    
+    def unschedule_all_lines(self) -> None:
+        """Unschedule all lines and the match"""
+        for line in self.lines:
+            line.facility_id = None
+            line.date = None
+            line.time = None
+            line.court_number = None
+        
+        self.facility_id = None
+        self.date = None
+        self.time = None
+    
     def schedule(self, facility_id: int, date: str, time: str) -> 'Match':
         """Return a new Match instance with scheduling information"""
         return Match(
@@ -1076,11 +1535,15 @@ class Match:
             visitor_team_id=self.visitor_team_id,
             facility_id=facility_id,
             date=date,
-            time=time
+            time=time,
+            lines=self.lines.copy()  # Copy the lines
         )
     
     def unschedule(self) -> 'Match':
         """Return a new Match instance without scheduling information"""
+        # Create unscheduled lines
+        unscheduled_lines = [line.unschedule() for line in self.lines]
+        
         return Match(
             id=self.id,
             league_id=self.league_id,
@@ -1088,9 +1551,49 @@ class Match:
             visitor_team_id=self.visitor_team_id,
             facility_id=None,
             date=None,
-            time=None
+            time=None,
+            lines=unscheduled_lines
         )
-
+    
+    # ========== Analysis and Reporting Methods ==========
+    
+    def get_scheduled_lines(self) -> List[Line]:
+        """Get all scheduled lines"""
+        return [line for line in self.lines if line.is_scheduled()]
+    
+    def get_unscheduled_lines(self) -> List[Line]:
+        """Get all unscheduled lines"""
+        return [line for line in self.lines if line.is_unscheduled()]
+    
+    def get_lines_by_time(self) -> Dict[str, List[Line]]:
+        """Group lines by their scheduled time"""
+        lines_by_time = defaultdict(list)
+        for line in self.lines:
+            if line.time is not None:
+                lines_by_time[line.time].append(line)
+        return dict(lines_by_time)
+    
+    def get_lines_by_facility(self) -> Dict[int, List[Line]]:
+        """Group lines by their scheduled facility"""
+        lines_by_facility = defaultdict(list)
+        for line in self.lines:
+            if line.facility_id is not None:
+                lines_by_facility[line.facility_id].append(line)
+        return dict(lines_by_facility)
+    
+    def get_time_span(self) -> Optional[Tuple[str, str]]:
+        """
+        Get the time span of all scheduled lines
+        
+        Returns:
+            Tuple of (earliest_time, latest_time) or None if no lines scheduled
+        """
+        scheduled_times = [line.time for line in self.lines if line.time is not None]
+        if not scheduled_times:
+            return None
+        
+        return (min(scheduled_times), max(scheduled_times))
+    
     def get_missing_fields(self) -> List[str]:
         """
         Get a list of fields that are missing for this match to be fully scheduled
@@ -1110,3 +1613,20 @@ class Match:
             missing.append('time')
         
         return missing
+    
+    # ========== String Representation ==========
+    
+    def __str__(self) -> str:
+        """String representation of the match"""
+        status = self.get_line_scheduling_status()
+        if self.is_scheduled():
+            return f"Match {self.id}: Team {self.home_team_id} vs {self.visitor_team_id} - {self.date} {self.time} ({status})"
+        else:
+            return f"Match {self.id}: Team {self.home_team_id} vs {self.visitor_team_id} - Unscheduled ({status})"
+    
+    def __repr__(self) -> str:
+        """Detailed representation of the match"""
+        return (f"Match(id={self.id}, league_id={self.league_id}, "
+                f"home_team_id={self.home_team_id}, visitor_team_id={self.visitor_team_id}, "
+                f"facility_id={self.facility_id}, date='{self.date}', time='{self.time}', "
+                f"lines={len(self.lines)})")

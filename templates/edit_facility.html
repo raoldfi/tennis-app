@@ -61,25 +61,29 @@
                                 <div class="card-body py-2">
                                     <div id="{{ day.lower() }}_slots">
                                         <!-- Existing time slots will be loaded here -->
-                                        {% set day_schedule = facility.schedule.get_day_schedule(day) %}
-                                        {% for time_slot in day_schedule.start_times %}
-                                        <div class="row mb-2" id="{{ day.lower() }}_slot_{{ loop.index }}">
-                                            <div class="col-5">
-                                                <input type="time" class="form-control form-control-sm" 
-                                                       name="{{ day.lower() }}_times" value="{{ time_slot.time }}">
-                                            </div>
-                                            <div class="col-4">
-                                                <input type="number" class="form-control form-control-sm" 
-                                                       name="{{ day.lower() }}_courts" value="{{ time_slot.available_courts }}" min="1">
-                                            </div>
-                                            <div class="col-3">
-                                                <button type="button" class="btn btn-sm btn-outline-danger" 
-                                                        onclick="removeTimeSlot('{{ day.lower() }}_slot_{{ loop.index }}')">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        {% endfor %}
+                                        {% if facility.schedule %}
+                                            {% set day_schedule = facility.schedule.get_day_schedule(day) %}
+                                            {% if day_schedule and day_schedule.start_times %}
+                                                {% for time_slot in day_schedule.start_times %}
+                                                <div class="row mb-2" id="{{ day.lower() }}_slot_{{ loop.index }}">
+                                                    <div class="col-5">
+                                                        <input type="time" class="form-control form-control-sm" 
+                                                               name="{{ day.lower() }}_times" value="{{ time_slot.time }}">
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <input type="number" class="form-control form-control-sm" 
+                                                               name="{{ day.lower() }}_courts" value="{{ time_slot.available_courts }}" min="1">
+                                                    </div>
+                                                    <div class="col-3">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                                onclick="removeTimeSlot('{{ day.lower() }}_slot_{{ loop.index }}')">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -96,7 +100,7 @@
                         <div class="mb-3">
                             <label for="unavailable_dates" class="form-label">Unavailable Dates</label>
                             <textarea class="form-control" id="unavailable_dates" name="unavailable_dates" 
-                                      rows="6" placeholder="2025-07-04&#10;2025-12-25&#10;2025-01-01">{% for date in facility.unavailable_dates %}{{ date }}{% if not loop.last %}&#10;{% endif %}{% endfor %}</textarea>
+                                      rows="6" placeholder="2025-07-04&#10;2025-12-25&#10;2025-01-01">{% if facility.unavailable_dates %}{% for date in facility.unavailable_dates %}{{ date }}{% if not loop.last %}&#10;{% endif %}{% endfor %}{% endif %}</textarea>
                             <div class="form-text">Format: YYYY-MM-DD (one date per line)</div>
                         </div>
                     </div>
@@ -161,7 +165,16 @@
 
 {% block scripts %}
 <script>
-let timeSlotCounter = {{ facility.schedule.get_all_days().values()|map('attribute', 'start_times')|map('length')|sum + 100 }};
+// Calculate initial counter based on existing time slots
+let timeSlotCounter = 100;
+{% if facility.schedule %}
+    {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+        {% set day_schedule = facility.schedule.get_day_schedule(day) %}
+        {% if day_schedule and day_schedule.start_times %}
+            timeSlotCounter += {{ day_schedule.start_times|length }};
+        {% endif %}
+    {% endfor %}
+{% endif %}
 
 function addTimeSlot(day, time = '', courts = '') {
     timeSlotCounter++;

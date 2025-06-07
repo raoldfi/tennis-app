@@ -4,23 +4,75 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6">
+    <div class="col-md-8">
         <div class="card">
             <div class="card-header">
                 <i class="fas fa-database"></i> Connect to Tennis Database
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('connect_db') }}">
+                <form method="POST" action="{{ url_for('connect_db') }}" id="connectForm">
                     <div class="mb-3">
-                        <label for="db_path" class="form-label">Database Path</label>
-                        <input type="text" class="form-control" id="db_path" name="db_path" 
-                               placeholder="e.g., tennis.db" required>
+                        <label for="backend_type" class="form-label">Database Type</label>
+                        <select class="form-select" id="backend_type" name="backend_type" required onchange="updateConnectionForm()">
+                            <option value="sqlite" selected>SQLite (File-based database)</option>
+                            <!-- Future backends can be added here -->
+                            <option value="postgresql" disabled>PostgreSQL (Coming soon)</option>
+                            <option value="mysql" disabled>MySQL (Coming soon)</option>
+                        </select>
                         <div class="form-text">
-                            Enter the path to your SQLite database file. If the file doesn't exist, it will be created.
+                            Choose the type of database backend to use.
                         </div>
                     </div>
+                    
+                    <!-- SQLite Configuration -->
+                    <div id="sqlite_config">
+                        <div class="mb-3">
+                            <label for="db_path" class="form-label">Database File Path</label>
+                            <input type="text" class="form-control" id="db_path" name="db_path" 
+                                   placeholder="e.g., tennis.db" required>
+                            <div class="form-text">
+                                Enter the path to your SQLite database file. If the file doesn't exist, it will be created.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- PostgreSQL Configuration (Future) -->
+                    <div id="postgresql_config" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="pg_host" class="form-label">Host</label>
+                                <input type="text" class="form-control" id="pg_host" name="pg_host" 
+                                       placeholder="localhost" value="localhost">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="pg_port" class="form-label">Port</label>
+                                <input type="number" class="form-control" id="pg_port" name="pg_port" 
+                                       placeholder="5432" value="5432">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="pg_database" class="form-label">Database Name</label>
+                                <input type="text" class="form-control" id="pg_database" name="pg_database" 
+                                       placeholder="tennis_db">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="pg_username" class="form-label">Username</label>
+                                <input type="text" class="form-control" id="pg_username" name="pg_username" 
+                                       placeholder="tennis_user">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="pg_password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="pg_password" name="pg_password">
+                        </div>
+                    </div>
+                    
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-plug"></i> Connect
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary ms-2" onclick="testConnection()">
+                        <i class="fas fa-stethoscope"></i> Test Connection
                     </button>
                 </form>
             </div>
@@ -28,23 +80,148 @@
         
         <div class="card mt-4">
             <div class="card-header">
-                <i class="fas fa-info-circle"></i> Getting Started
+                <i class="fas fa-info-circle"></i> Database Backend Information
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-file-alt text-primary"></i> SQLite (Default)</h6>
+                        <ul class="small">
+                            <li>File-based database (no server required)</li>
+                            <li>Perfect for single-user applications</li>
+                            <li>Easy backup (just copy the file)</li>
+                            <li>No installation needed</li>
+                            <li>Ideal for desktop use</li>
+                        </ul>
+                        <div class="bg-light p-2 rounded small">
+                            <strong>Examples:</strong><br>
+                            • <code>tennis.db</code><br>
+                            • <code>/path/to/tennis.db</code><br>
+                            • <code>C:\tennis\database.db</code>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-server text-success"></i> Future Backends</h6>
+                        <ul class="small">
+                            <li><strong>PostgreSQL:</strong> Powerful, scalable database</li>
+                            <li><strong>MySQL:</strong> Popular web database</li>
+                            <li><strong>Remote APIs:</strong> Cloud-based solutions</li>
+                            <li><strong>Custom backends:</strong> Implement TennisDBInterface</li>
+                        </ul>
+                        <div class="alert alert-info p-2 small">
+                            <i class="fas fa-lightbulb"></i>
+                            The interface-based design allows easy addition of new database backends.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-rocket"></i> Getting Started
             </div>
             <div class="card-body">
                 <h6>First time setup:</h6>
                 <ol>
-                    <li>Connect to a database file (e.g., <code>tennis.db</code>)</li>
-                    <li>Load your data using the command line:
-                        <pre class="bg-light p-2 rounded mt-2"><code>python sqlite_tennis_db.py tennis.db load facilities facilities.yaml
+                    <li>Select <strong>SQLite</strong> as your database type</li>
+                    <li>Enter a database file path (e.g., <code>tennis.db</code>)</li>
+                    <li>Click <strong>Connect</strong> to create/open the database</li>
+                    <li>Load your data using the web interface or command line:
+                        <pre class="bg-light p-2 rounded mt-2"><code># Using command line (if available)
+python sqlite_tennis_db.py tennis.db load facilities facilities.yaml
 python sqlite_tennis_db.py tennis.db load leagues leagues.yaml
-python sqlite_tennis_db.py tennis.db load teams teams.yaml
-python sqlite_tennis_db.py tennis.db load matches matches.yaml</code></pre>
+python sqlite_tennis_db.py tennis.db load teams teams.yaml</code></pre>
                     </li>
-                    <li>Refresh this page and explore your data!</li>
+                    <li>Start adding facilities, leagues, and teams through the web interface!</li>
                 </ol>
+                
+                <h6 class="mt-3">Database Interface Benefits:</h6>
+                <ul>
+                    <li><strong>Backend Independence:</strong> Switch between SQLite, PostgreSQL, etc.</li>
+                    <li><strong>Consistent API:</strong> Same interface regardless of backend</li>
+                    <li><strong>Easy Testing:</strong> Use different backends for development vs production</li>
+                    <li><strong>Future-Proof:</strong> Add new backends without changing web app code</li>
+                </ul>
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
+{% block scripts %}
+<script>
+function updateConnectionForm() {
+    const backendType = document.getElementById('backend_type').value;
+    
+    // Hide all config sections
+    document.getElementById('sqlite_config').style.display = 'none';
+    document.getElementById('postgresql_config').style.display = 'none';
+    
+    // Show appropriate config section
+    if (backendType === 'sqlite') {
+        document.getElementById('sqlite_config').style.display = 'block';
+        // Make SQLite path required
+        document.getElementById('db_path').required = true;
+        document.getElementById('pg_database').required = false;
+        document.getElementById('pg_username').required = false;
+    } else if (backendType === 'postgresql') {
+        document.getElementById('postgresql_config').style.display = 'block';
+        // Make PostgreSQL fields required
+        document.getElementById('db_path').required = false;
+        document.getElementById('pg_database').required = true;
+        document.getElementById('pg_username').required = true;
+    }
+}
+
+function testConnection() {
+    const backendType = document.getElementById('backend_type').value;
+    
+    if (backendType === 'sqlite') {
+        const dbPath = document.getElementById('db_path').value.trim();
+        if (!dbPath) {
+            alert('Please enter a database file path first.');
+            return;
+        }
+        
+        // For SQLite, we can only really test by trying to connect
+        alert('SQLite test: Will attempt to create/open file when you click Connect.');
+    } else {
+        alert('Connection testing for this backend type is not yet implemented.');
+    }
+}
+
+// Form validation
+document.getElementById('connectForm').addEventListener('submit', function(e) {
+    const backendType = document.getElementById('backend_type').value;
+    
+    if (backendType === 'sqlite') {
+        const dbPath = document.getElementById('db_path').value.trim();
+        if (!dbPath) {
+            alert('Please enter a database file path.');
+            e.preventDefault();
+            return;
+        }
+    } else if (backendType === 'postgresql') {
+        const host = document.getElementById('pg_host').value.trim();
+        const database = document.getElementById('pg_database').value.trim();
+        const username = document.getElementById('pg_username').value.trim();
+        
+        if (!host || !database || !username) {
+            alert('Please fill in all required PostgreSQL connection fields.');
+            e.preventDefault();
+            return;
+        }
+    } else {
+        alert('This database backend is not yet supported.');
+        e.preventDefault();
+        return;
+    }
+});
+
+// Initialize form on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateConnectionForm();
+});
+</script>
+{% endblock %}

@@ -96,9 +96,9 @@
                                    class="btn btn-sm btn-outline-warning" title="Edit league">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <a href="{{ url_for('calculate_pairings_results', league_id=league.id) }}" 
-                                   class="btn btn-sm btn-outline-primary" title="Calculate pairings">
-                                    <i class="fas fa-calculator"></i>
+                                <a href="{{ url_for('generate_matches', league_id=league.id) }}" 
+                                   class="btn btn-sm btn-outline-primary" title="Generate matches">
+                                    <i class="fas fa-magic"></i>
                                 </a>
                             </div>
                         </td>
@@ -187,9 +187,9 @@
                    class="btn btn-sm btn-warning">
                     <i class="fas fa-edit"></i> Edit
                 </a>
-                <a href="{{ url_for('calculate_pairings_results', league_id=league.id) }}" 
+                <a href="{{ url_for('generate_matches', league_id=league.id) }}" 
                    class="btn btn-sm btn-primary">
-                    <i class="fas fa-calculator"></i> Pairings
+                    <i class="fas fa-magic"></i> Generate
                 </a>
             </div>
         </div>

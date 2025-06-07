@@ -75,8 +75,8 @@
                     <a href="{{ url_for('matches') }}" class="btn btn-warning">
                         <i class="fas fa-eye"></i> View
                     </a>
-                    <a href="{{ url_for('calculate_pairings') }}" class="btn btn-primary">
-                        <i class="fas fa-calculator"></i> Generate
+                    <a href="{{ url_for('generate_matches') }}" class="btn btn-primary">
+                        <i class="fas fa-magic"></i> Generate
                     </a>
                 </div>
             </div>
@@ -110,8 +110,8 @@
                         </a>
                     </div>
                     <div class="col-md-3 mb-2">
-                        <a href="{{ url_for('calculate_pairings') }}" class="btn btn-outline-warning w-100">
-                            <i class="fas fa-calculator"></i> Generate Matches
+                        <a href="{{ url_for('generate_matches') }}" class="btn btn-outline-warning w-100">
+                            <i class="fas fa-magic"></i> Generate Matches
                         </a>
                     </div>
                 </div>
@@ -120,46 +120,46 @@
     </div>
 </div>
 
-<!-- Calculate Pairings Section -->
+<!-- Generate Matches Section -->
 <div class="row mt-4">
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <i class="fas fa-calculator"></i> Match Generation
+                <i class="fas fa-magic"></i> Match Generation
             </div>
             <div class="card-body">
                 <p class="text-muted mb-3">Automatically generate fair and balanced match schedules for your leagues</p>
                 <div class="row">
                     <div class="col-md-4">
-                        <h6><i class="fas fa-balance-scale text-success"></i> What it does:</h6>
+                        <h6><i class="fas fa-magic text-success"></i> What it does:</h6>
                         <ul class="small mb-3">
                             <li>Creates fair match pairings for all teams in a league</li>
                             <li>Balances home and away games for each team</li>
                             <li>Ensures optimal opponent distribution</li>
-                            <li>Validates mathematical feasibility</li>
+                            <li>Generates unscheduled matches ready for date assignment</li>
                         </ul>
                     </div>
                     <div class="col-md-4">
                         <h6><i class="fas fa-chart-line text-info"></i> You get:</h6>
                         <ul class="small mb-3">
-                            <li>Complete list of team pairings</li>
-                            <li>Team statistics and balance analysis</li>
-                            <li>Unscheduled matches ready for date assignment</li>
-                            <li>Easy scheduling interface</li>
+                            <li>Complete set of matches automatically created</li>
+                            <li>Fair distribution of home and away games</li>
+                            <li>Unscheduled matches ready for scheduling</li>
+                            <li>Immediate integration with match scheduling</li>
                         </ul>
                     </div>
                     <div class="col-md-4">
-                        <h6><i class="fas fa-workflow text-warning"></i> Process:</h6>
+                        <h6><i class="fas fa-workflow text-warning"></i> Simple Process:</h6>
                         <ul class="small mb-3">
                             <li>Select a league with at least 2 teams</li>
-                            <li>Generate balanced pairings automatically</li>
-                            <li>Create unscheduled matches from pairings</li>
+                            <li>Click "Generate Matches" - done instantly!</li>
+                            <li>View generated matches in the Matches section</li>
                             <li>Schedule matches with specific dates and times</li>
                         </ul>
                     </div>
                 </div>
-                <a href="{{ url_for('calculate_pairings') }}" class="btn btn-primary">
-                    <i class="fas fa-calculator"></i> Generate Team Pairings & Matches
+                <a href="{{ url_for('generate_matches') }}" class="btn btn-primary">
+                    <i class="fas fa-magic"></i> Generate Matches Now
                 </a>
             </div>
         </div>
@@ -211,19 +211,19 @@
                             <li><strong>Facilities</strong> - Tennis venues</li>
                             <li><strong>Leagues</strong> - Competition categories</li>
                             <li><strong>Teams</strong> - Assign to leagues & facilities</li>
-                            <li><strong>Generate Matches</strong> - Create balanced pairings</li>
+                            <li><strong>Generate Matches</strong> - Create balanced matches instantly</li>
                             <li><strong>Schedule Matches</strong> - Set dates and times</li>
                         </ol>
                     </div>
                     <div class="col-md-4">
-                        <h6><i class="fas fa-magic text-success"></i> Match Generation</h6>
-                        <p class="small">Matches are automatically generated from team pairings to ensure fairness:</p>
+                        <h6><i class="fas fa-magic text-success"></i> Instant Match Generation</h6>
+                        <p class="small">Matches are automatically generated with optimal fairness:</p>
                         <ul class="small">
                             <li>No manual match entry needed</li>
-                            <li>Balanced home/away distribution</li>
+                            <li>Perfect home/away distribution</li>
                             <li>Optimal opponent variety</li>
-                            <li>Mathematical validation</li>
-                            <li>Easy scheduling workflow</li>
+                            <li>Mathematical validation built-in</li>
+                            <li>Ready for immediate scheduling</li>
                         </ul>
                     </div>
                     <div class="col-md-4">
@@ -242,7 +242,7 @@
                     <i class="fas fa-lightbulb"></i>
                     <strong>Pro Tip:</strong> Start by adding facilities and leagues, then create teams. 
                     Use the USTA Constants page to ensure valid league values.
-                    <strong>New:</strong> Use Generate Matches to create fair, balanced schedules automatically!
+                    <strong>New:</strong> Use Generate Matches to create fair, balanced schedules instantly!
                 </div>
             </div>
         </div>

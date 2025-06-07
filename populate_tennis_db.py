@@ -64,6 +64,29 @@ def check_file_exists(file_path: str) -> bool:
         return False
 
 
+def initialize_database(db_path: str) -> bool:
+    """
+    Initialize the database schema
+    
+    Args:
+        db_path: Path to the SQLite database file
+        
+    Returns:
+        bool: True if initialization succeeded, False otherwise
+    """
+    print(f"\n🔧 Initializing database schema...")
+    
+    command = [
+        sys.executable,  # Use the same Python interpreter
+        "tennis_cli.py",
+        "--backend", "sqlite",
+        "--db-path", db_path,
+        "init"
+    ]
+    
+    return run_command(command)
+
+
 def load_data_files(db_path: str) -> bool:
     """
     Load all data files into the database in the correct order
@@ -98,9 +121,14 @@ def load_data_files(db_path: str) -> bool:
         print("\nPlease create the missing YAML files before running this script.")
         return False
     
-    # Check if sqlite_tennis_db.py exists
-    if not check_file_exists("sqlite_tennis_db.py"):
-        print("\n❌ Cannot proceed. Missing sqlite_tennis_db.py")
+    # Check if tennis_cli.py exists
+    if not check_file_exists("tennis_cli.py"):
+        print("\n❌ Cannot proceed. Missing tennis_cli.py")
+        return False
+    
+    # Initialize database schema
+    if not initialize_database(db_path):
+        print("\n💥 Failed to initialize database. Stopping here.")
         return False
     
     print(f"\n🎾 Loading data into database: {db_path}")
@@ -114,8 +142,9 @@ def load_data_files(db_path: str) -> bool:
         
         command = [
             sys.executable,  # Use the same Python interpreter
-            "sqlite_tennis_db.py",
-            "--db", db_path,
+            "tennis_cli.py",
+            "--backend", "sqlite",
+            "--db-path", db_path,
             "load",
             table_name,
             "--file", file_name
@@ -137,10 +166,10 @@ def load_data_files(db_path: str) -> bool:
         # Show quick stats
         print("\n📊 Quick verification...")
         stats_commands = [
-            (["python", "sqlite_tennis_db.py", "--db", db_path, "list", "facilities"], "facilities"),
-            (["python", "sqlite_tennis_db.py", "--db", db_path, "list", "leagues"], "leagues"), 
-            (["python", "sqlite_tennis_db.py", "--db", db_path, "list", "teams"], "teams"),
-            (["python", "sqlite_tennis_db.py", "--db", db_path, "list", "matches"], "matches")
+            (["python", "tennis_cli.py", "--backend", "sqlite", "--db-path", db_path, "list", "facilities"], "facilities"),
+            (["python", "tennis_cli.py", "--backend", "sqlite", "--db-path", db_path, "list", "leagues"], "leagues"), 
+            (["python", "tennis_cli.py", "--backend", "sqlite", "--db-path", db_path, "list", "teams"], "teams"),
+            (["python", "tennis_cli.py", "--backend", "sqlite", "--db-path", db_path, "list", "matches"], "matches")
         ]
         
         for command, entity_type in stats_commands:
@@ -160,6 +189,29 @@ def load_data_files(db_path: str) -> bool:
         return False
 
 
+def test_database_connection(db_path: str) -> bool:
+    """
+    Test the database connection
+    
+    Args:
+        db_path: Path to the SQLite database file
+        
+    Returns:
+        bool: True if connection test succeeded, False otherwise
+    """
+    print(f"\n🔍 Testing database connection...")
+    
+    command = [
+        sys.executable,
+        "tennis_cli.py",
+        "--backend", "sqlite",
+        "--db-path", db_path,
+        "health"
+    ]
+    
+    return run_command(command)
+
+
 def create_sample_files():
     """Create sample YAML files if they don't exist"""
     
@@ -170,6 +222,7 @@ def create_sample_files():
   - id: 1
     name: "Tennis Center North"
     location: "123 Tennis Dr, Albuquerque, NM 87110"
+    total_courts: 12
     schedule:
       Monday:
         start_times:
@@ -208,6 +261,7 @@ def create_sample_files():
   - id: 2
     name: "Westside Racquet Club"
     location: "456 Court Ave, Rio Rancho, NM 87124"
+    total_courts: 6
     schedule:
       Monday:
         start_times:
@@ -252,6 +306,12 @@ def create_sample_files():
     age_group: "18 & Over"
     division: "3.0 Women"
     num_lines_per_match: 3
+    num_matches: 10
+    allow_split_lines: false
+    preferred_days: ["Saturday", "Sunday"]
+    backup_days: []
+    start_date: "2025-03-01"
+    end_date: "2025-06-30"
 
   - id: 102
     name: "2025 Adult 18+ 3.5 Women"
@@ -261,6 +321,12 @@ def create_sample_files():
     age_group: "18 & Over"
     division: "3.5 Women"
     num_lines_per_match: 3
+    num_matches: 10
+    allow_split_lines: false
+    preferred_days: ["Saturday", "Sunday"]
+    backup_days: []
+    start_date: "2025-03-01"
+    end_date: "2025-06-30"
 '''
     
     # Sample teams.yaml
@@ -270,43 +336,32 @@ def create_sample_files():
     league_id: 101
     home_facility_id: 1
     captain: "Jane Smith"
+    preferred_days: ["Saturday", "Sunday"]
 
   - id: 1002
     name: "Johnson - Westside Club"
     league_id: 101
     home_facility_id: 2
     captain: "Mary Johnson"
+    preferred_days: ["Saturday", "Sunday"]
 
   - id: 1003
     name: "Williams - Tennis Center North"
     league_id: 102
     home_facility_id: 1
     captain: "Sarah Williams"
+    preferred_days: ["Saturday", "Sunday"]
 
   - id: 1004
     name: "Brown - Westside Club"
     league_id: 102
     home_facility_id: 2
     captain: "Lisa Brown"
+    preferred_days: ["Saturday", "Sunday"]
 '''
     
-    # Sample matches.yaml
-    matches_yaml = '''matches:
-  - id: 2001
-    league_id: 101
-    home_team_id: 1001
-    visitor_team_id: 1002
-    facility_id: 1
-    date: "2025-03-15"
-    time: "10:00"
-
-  - id: 2002
-    league_id: 102
-    home_team_id: 1003
-    visitor_team_id: 1004
-    facility_id: 2
-    date: "2025-03-22"
-    time: "10:00"
+    # Sample matches.yaml (empty since we'll generate matches)
+    matches_yaml = '''matches: []
 '''
     
     files_to_create = [
@@ -333,6 +388,64 @@ def create_sample_files():
         print(f"\n📝 Created {len(created_files)} sample files. You can now run the population script!")
     
     return len(created_files) > 0
+
+
+def generate_matches_for_leagues(db_path: str) -> bool:
+    """
+    Generate matches for all leagues in the database
+    
+    Args:
+        db_path: Path to the SQLite database file
+        
+    Returns:
+        bool: True if matches were generated successfully, False otherwise
+    """
+    print(f"\n🎲 Generating matches for leagues...")
+    
+    # First, get list of leagues
+    try:
+        command = [
+            sys.executable,
+            "tennis_cli.py",
+            "--backend", "sqlite", 
+            "--db-path", db_path,
+            "list", "leagues"
+        ]
+        
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        import json
+        leagues = json.loads(result.stdout)
+        
+        if not leagues:
+            print("📝 No leagues found. Skipping match generation.")
+            return True
+        
+        # Generate matches for each league
+        for league in leagues:
+            league_id = league['id']
+            league_name = league['name']
+            
+            print(f"\n🏓 Generating matches for league: {league_name} (ID: {league_id})")
+            
+            command = [
+                sys.executable,
+                "tennis_cli.py",
+                "--backend", "sqlite",
+                "--db-path", db_path,
+                "create", "matches",
+                "--league-id", str(league_id)
+            ]
+            
+            if not run_command(command):
+                print(f"❌ Failed to generate matches for league {league_id}")
+                return False
+        
+        print(f"\n✅ Successfully generated matches for all leagues!")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error generating matches: {e}")
+        return False
 
 
 def main():
@@ -370,20 +483,33 @@ def main():
             print("👋 Exiting. Please create the required YAML files and run this script again.")
             sys.exit(1)
     
+    # Test database connection first
+    if not test_database_connection(db_path):
+        print("\n❌ Database connection test failed. Please check your setup.")
+        sys.exit(1)
+    
     # Load the data
     success = load_data_files(db_path)
     
     if success:
+        # Generate matches for the leagues
+        if generate_matches_for_leagues(db_path):
+            print(f"\n🎉 Database population completed successfully!")
+        else:
+            print(f"\n⚠️  Data loaded but match generation failed.")
+        
         print(f"\n🚀 Next steps:")
-        print(f"   1. Start the web app: python tennis_web_app.py")
-        print(f"   2. Connect to database: {db_path}")
-        print(f"   3. Explore your data!")
+        print(f"   1. View your data: python tennis_cli.py --db-path {db_path} list <table>")
+        print(f"   2. Check league stats: python tennis_cli.py --db-path {db_path} stats league --league-id <id>")
+        print(f"   3. Schedule matches: python tennis_cli.py --db-path {db_path} schedule --match-id <id> --facility-id <id> --date YYYY-MM-DD --time HH:MM")
+        print(f"   4. Start web app: python tennis_web_app.py")
         sys.exit(0)
     else:
         print(f"\n🔧 Troubleshooting:")
         print(f"   1. Check your YAML file formats")
         print(f"   2. Ensure all required fields are present")
         print(f"   3. Verify data dependencies (facilities → leagues → teams → matches)")
+        print(f"   4. Test database: python tennis_cli.py --db-path {db_path} health")
         sys.exit(1)
 
 

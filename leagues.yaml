@@ -1,6 +1,24 @@
 leagues:
   - id: 101
-    name: "2025 Adult 18+ 3.0 Women"
+    name: "2025 Adult 18+ 3.0 Women - 1"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "3.0 Women"
+    num_lines_per_match: 5
+    num_matches: 6
+    allow_split_lines: false
+    preferred_days:
+      - "Tuesday"
+      - "Saturday"
+    backup_days:
+      - "Sunday"
+    start_date: "2025-06-01"
+    end_date: "2025-08-30"
+
+  - id: 102
+    name: "2025 Adult 18+ 3.0 Women - 2"
     year: 2025
     section: "Southwest"
     region: "Northern New Mexico"
@@ -10,14 +28,14 @@ leagues:
     num_matches: 6
     allow_split_lines: false
     preferred_days:
+      - "Tuesday"
       - "Saturday"
-      - "Sunday"
     backup_days:
-      - "Friday"
-    start_date: "2025-03-01"
-    end_date: "2025-06-30"
-      
-  - id: 102
+      - "Sunday"
+    start_date: "2025-06-01"
+    end_date: "2025-08-30"
+
+  - id: 112
     name: "2025 Adult 18+ 4.0 Mixed"
     year: 2025
     section: "Southwest"
