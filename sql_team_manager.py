@@ -1,0 +1,341 @@
+"""
+Team Management Helper for SQLite Tennis Database
+
+Handles all team-related database operations including CRUD operations,
+team preferences, and team validation.
+"""
+
+import sqlite3
+from typing import List, Optional
+from usta import Team
+
+
+class SQLTeamManager:
+    """Helper class for managing team operations in SQLite database"""
+    
+    def __init__(self, cursor: sqlite3.Cursor, db_instance):
+        """
+        Initialize SQLTeamManager
+        
+        Args:
+            cursor: SQLite cursor for database operations
+            db_instance: Reference to main database instance for accessing other managers
+        """
+        self.cursor = cursor
+        self.db = db_instance
+    
+    def _dictify(self, row) -> dict:
+        """Convert sqlite Row object to dictionary"""
+        return dict(row) if row else {}
+    
+    def add_team(self, team: Team) -> None:
+        """Add a new team to the database"""
+        if not isinstance(team, Team):
+            raise TypeError(f"Expected Team object, got: {type(team)}")
+        
+        try:
+            # Check if team ID already exists
+            existing = self.get_team(team.id)
+            if existing:
+                raise ValueError(f"Team with ID {team.id} already exists")
+            
+            # Verify league exists
+            if not self.db.league_manager.get_league(team.league.id):
+                raise ValueError(f"League with ID {team.league.id} does not exist")
+            
+            # Verify facility exists
+            if not self.db.facility_manager.get_facility(team.home_facility_id):
+                raise ValueError(f"Facility with ID {team.home_facility_id} does not exist")
+            
+            # Convert preferred_days list to comma-separated string for storage
+            preferred_days_str = ','.join(team.preferred_days)
+            
+            self.cursor.execute("""
+                INSERT INTO teams (id, name, league_id, home_facility_id, captain, preferred_days)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                team.id,
+                team.name,
+                team.league.id,
+                team.home_facility_id,
+                team.captain,
+                preferred_days_str
+            ))
+        except sqlite3.IntegrityError as e:
+            raise ValueError(f"Database integrity error adding team: {e}")
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error adding team: {e}")
+    
+    def get_team(self, team_id: int) -> Optional[Team]:
+        """Get a team by ID"""
+        if not isinstance(team_id, int) or team_id <= 0:
+            raise ValueError(f"Team ID must be a positive integer, got: {team_id}")
+        
+        try:
+            self.cursor.execute("SELECT * FROM teams WHERE id = ?", (team_id,))
+            row = self.cursor.fetchone()
+            if not row:
+                return None
+            
+            team_data = self._dictify(row)
+            # Get the league object
+            league = self.db.league_manager.get_league(team_data['league_id'])
+            if not league:
+                raise RuntimeError(f"Data integrity error: League with ID {team_data['league_id']} not found for team {team_id}")
+            
+            # Convert comma-separated string back to list
+            preferred_days = []
+            if team_data.get('preferred_days'):
+                preferred_days = [day.strip() for day in team_data['preferred_days'].split(',') if day.strip()]
+            
+            # Remove league_id and preferred_days string, add league object and preferred_days list
+            team_data.pop('league_id')
+            team_data.pop('preferred_days', None)
+            team_data['league'] = league
+            team_data['preferred_days'] = preferred_days
+            
+            return Team(**team_data)
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error retrieving team {team_id}: {e}")
+    
+    def list_teams(self, league_id: Optional[int] = None) -> List[Team]:
+        """List all teams, optionally filtered by league"""
+        if league_id is not None and (not isinstance(league_id, int) or league_id <= 0):
+            raise ValueError(f"League ID must be a positive integer, got: {league_id}")
+        
+        try:
+            if league_id:
+                # Verify league exists
+                if not self.db.league_manager.get_league(league_id):
+                    raise ValueError(f"League with ID {league_id} does not exist")
+                self.cursor.execute("SELECT * FROM teams WHERE league_id = ? ORDER BY name", (league_id,))
+            else:
+                self.cursor.execute("SELECT * FROM teams ORDER BY name")
+            
+            teams = []
+            for row in self.cursor.fetchall():
+                team_data = self._dictify(row)
+                # Get the league object
+                league = self.db.league_manager.get_league(team_data['league_id'])
+                if not league:
+                    raise RuntimeError(f"Data integrity error: League with ID {team_data['league_id']} not found")
+                
+                # Convert comma-separated string back to list
+                preferred_days = []
+                if team_data.get('preferred_days'):
+                    preferred_days = [day.strip() for day in team_data['preferred_days'].split(',') if day.strip()]
+                
+                # Remove league_id and preferred_days string, add league object and preferred_days list
+                team_data.pop('league_id')
+                team_data.pop('preferred_days', None)
+                team_data['league'] = league
+                team_data['preferred_days'] = preferred_days
+                
+                teams.append(Team(**team_data))
+            return teams
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error listing teams: {e}")
+
+    def update_team(self, team: Team) -> None:
+        """Update an existing team in the database"""
+        if not isinstance(team, Team):
+            raise TypeError(f"Expected Team object, got: {type(team)}")
+        
+        try:
+            # Check if team exists
+            existing_team = self.get_team(team.id)
+            if not existing_team:
+                raise ValueError(f"Team with ID {team.id} does not exist")
+            
+            # Verify related entities exist
+            if not self.db.league_manager.get_league(team.league.id):
+                raise ValueError(f"League with ID {team.league.id} does not exist")
+            if not self.db.facility_manager.get_facility(team.home_facility_id):
+                raise ValueError(f"Facility with ID {team.home_facility_id} does not exist")
+            
+            # Convert preferred_days list to comma-separated string for storage
+            preferred_days_str = ','.join(team.preferred_days)
+            
+            self.cursor.execute("""
+                UPDATE teams 
+                SET name = ?, league_id = ?, home_facility_id = ?, captain = ?, preferred_days = ?
+                WHERE id = ?
+            """, (
+                team.name,
+                team.league.id,
+                team.home_facility_id,
+                team.captain,
+                preferred_days_str,
+                team.id
+            ))
+            
+            # Check if the update was successful
+            if self.cursor.rowcount == 0:
+                raise RuntimeError(f"Failed to update team {team.id}")
+                
+        except sqlite3.IntegrityError as e:
+            raise ValueError(f"Database integrity error updating team: {e}")
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error updating team: {e}")
+
+    def delete_team(self, team_id: int) -> None:
+        """Delete a team from the database"""
+        if not isinstance(team_id, int) or team_id <= 0:
+            raise ValueError(f"Team ID must be a positive integer, got: {team_id}")
+        
+        try:
+            # Check if team exists
+            existing_team = self.get_team(team_id)
+            if not existing_team:
+                raise ValueError(f"Team with ID {team_id} does not exist")
+            
+            # Check if team is referenced by matches
+            self.cursor.execute("""
+                SELECT COUNT(*) as count 
+                FROM matches 
+                WHERE home_team_id = ? OR visitor_team_id = ?
+            """, (team_id, team_id))
+            match_count = self.cursor.fetchone()['count']
+            if match_count > 0:
+                raise ValueError(f"Cannot delete team {team_id}: it is referenced by {match_count} match(es)")
+            
+            # Delete the team
+            self.cursor.execute("DELETE FROM teams WHERE id = ?", (team_id,))
+            
+            # Check if the deletion was successful
+            if self.cursor.rowcount == 0:
+                raise RuntimeError(f"Failed to delete team {team_id}")
+                
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error deleting team {team_id}: {e}")
+
+    def get_teams_by_facility(self, facility_id: int) -> List[Team]:
+        """Get all teams that use a specific facility as their home"""
+        if not isinstance(facility_id, int) or facility_id <= 0:
+            raise ValueError(f"Facility ID must be a positive integer, got: {facility_id}")
+        
+        try:
+            self.cursor.execute("SELECT * FROM teams WHERE home_facility_id = ? ORDER BY name", (facility_id,))
+            teams = []
+            for row in self.cursor.fetchall():
+                team_data = self._dictify(row)
+                league = self.db.league_manager.get_league(team_data['league_id'])
+                if league:
+                    # Convert preferred_days
+                    preferred_days = []
+                    if team_data.get('preferred_days'):
+                        preferred_days = [day.strip() for day in team_data['preferred_days'].split(',') if day.strip()]
+                    
+                    team_data.pop('league_id')
+                    team_data.pop('preferred_days', None)
+                    team_data['league'] = league
+                    team_data['preferred_days'] = preferred_days
+                    teams.append(Team(**team_data))
+            return teams
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error getting teams by facility: {e}")
+
+    def check_team_date_conflict(self, team_id: int, date: str, exclude_match_id: Optional[int] = None) -> bool:
+        """
+        Check if a team already has a match scheduled on the given date.
+        
+        Args:
+            team_id: Team to check
+            date: Date to check (YYYY-MM-DD format)
+            exclude_match_id: Optional match ID to exclude from the check (useful when rescheduling)
+            
+        Returns:
+            True if there's a conflict (team already scheduled on this date), False if no conflict
+        """
+        try:
+            query = """
+                SELECT COUNT(*) as count
+                FROM matches 
+                WHERE (home_team_id = ? OR visitor_team_id = ?)
+                AND date = ?
+                AND status = 'scheduled'
+            """
+            params = [team_id, team_id, date]
+            
+            if exclude_match_id is not None:
+                query += " AND id != ?"
+                params.append(exclude_match_id)
+                
+            self.cursor.execute(query, params)
+            count = self.cursor.fetchone()['count']
+            return count > 0
+            
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error checking team date conflict: {e}")
+
+    def get_team_date_conflicts(self, team_id: int, date: str, exclude_match_id: Optional[int] = None) -> List[dict]:
+        """
+        Get detailed information about team date conflicts.
+        
+        Args:
+            team_id: Team to check
+            date: Date to check (YYYY-MM-DD format)
+            exclude_match_id: Optional match ID to exclude from results
+            
+        Returns:
+            List of conflicting match details
+        """
+        try:
+            query = """
+                SELECT m.id, m.time, m.facility_id, f.name as facility_name,
+                       ht.name as home_team_name, vt.name as visitor_team_name,
+                       CASE WHEN m.home_team_id = ? THEN 'home' ELSE 'visitor' END as team_role
+                FROM matches m
+                JOIN facilities f ON m.facility_id = f.id
+                JOIN teams ht ON m.home_team_id = ht.id  
+                JOIN teams vt ON m.visitor_team_id = vt.id
+                WHERE (m.home_team_id = ? OR m.visitor_team_id = ?)
+                AND m.date = ?
+                AND m.status = 'scheduled'
+            """
+            params = [team_id, team_id, team_id, date]
+            
+            if exclude_match_id is not None:
+                query += " AND m.id != ?"
+                params.append(exclude_match_id)
+                
+            self.cursor.execute(query, params)
+            
+            conflicts = []
+            for row in self.cursor.fetchall():
+                conflict_data = self._dictify(row)
+                conflicts.append(conflict_data)
+            
+            return conflicts
+            
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error getting team date conflicts: {e}")
+
+    def check_team_facility_conflict(self, team_id: int, date: str, facility_id: int) -> bool:
+        """
+        Check if a team already has a match scheduled at a different facility on the given date.
+        
+        Args:
+            team_id: Team to check
+            date: Date to check (YYYY-MM-DD format)
+            facility_id: Facility being considered for scheduling
+            
+        Returns:
+            True if there's a conflict (team already scheduled elsewhere), False if no conflict
+        """
+        try:
+            self.cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM matches 
+                WHERE (home_team_id = ? OR visitor_team_id = ?)
+                AND date = ?
+                AND facility_id IS NOT NULL
+                AND facility_id != ?
+                AND status = 'scheduled'
+            """, (team_id, team_id, date, facility_id))
+            
+            count = self.cursor.fetchone()['count']
+            return count > 0
+            
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error checking team facility conflict: {e}")

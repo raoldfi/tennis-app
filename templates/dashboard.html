@@ -34,7 +34,7 @@
             <div class="card-body text-center">
                 <i class="fas fa-trophy fa-3x text-success mb-3"></i>
                 <h5 class="card-title">Leagues</h5>
-                <p class="card-text">Browse leagues organized by section, region, age group, and division.</p>
+                <p class="card-text">Browse leagues and generate matches directly from the leagues page.</p>
                 <div class="d-flex gap-2 justify-content-center">
                     <a href="{{ url_for('leagues') }}" class="btn btn-success">
                         <i class="fas fa-eye"></i> View
@@ -69,14 +69,14 @@
         <div class="card h-100">
             <div class="card-body text-center">
                 <i class="fas fa-calendar-alt fa-3x text-warning mb-3"></i>
-                <h5 class="card-title">Matches</h5>
-                <p class="card-text">View generated matches and schedule them with specific dates and times.</p>
-                <div class="d-flex gap-2 justify-content-center">
-                    <a href="{{ url_for('matches') }}" class="btn btn-warning">
-                        <i class="fas fa-eye"></i> View
+                <h5 class="card-title">Matches & Schedule</h5>
+                <p class="card-text">View generated matches, schedule them, and see the daily match schedule.</p>
+                <div class="d-flex gap-1 justify-content-center">
+                    <a href="{{ url_for('matches') }}" class="btn btn-sm btn-warning">
+                        <i class="fas fa-list"></i> List
                     </a>
-                    <a href="{{ url_for('generate_matches') }}" class="btn btn-primary">
-                        <i class="fas fa-magic"></i> Generate
+                    <a href="{{ url_for('schedule') }}" class="btn btn-sm btn-info">
+                        <i class="fas fa-calendar-week"></i> Schedule
                     </a>
                 </div>
             </div>
@@ -92,7 +92,7 @@
                 <i class="fas fa-plus-circle"></i> Quick Actions
             </div>
             <div class="card-body">
-                <p class="text-muted mb-3">Quickly add new entries or generate matches for your tennis database</p>
+                <p class="text-muted mb-3">Quickly add new entries or view your tennis database</p>
                 <div class="row">
                     <div class="col-md-3 mb-2">
                         <a href="{{ url_for('add_facility') }}" class="btn btn-outline-primary w-100">
@@ -110,8 +110,8 @@
                         </a>
                     </div>
                     <div class="col-md-3 mb-2">
-                        <a href="{{ url_for('generate_matches') }}" class="btn btn-outline-warning w-100">
-                            <i class="fas fa-magic"></i> Generate Matches
+                        <a href="{{ url_for('schedule') }}" class="btn btn-outline-info w-100">
+                            <i class="fas fa-calendar-week"></i> View Schedule
                         </a>
                     </div>
                 </div>
@@ -120,7 +120,7 @@
     </div>
 </div>
 
-<!-- Generate Matches Section -->
+<!-- Match Generation Section -->
 <div class="row mt-4">
     <div class="col-12">
         <div class="card">
@@ -128,7 +128,7 @@
                 <i class="fas fa-magic"></i> Match Generation
             </div>
             <div class="card-body">
-                <p class="text-muted mb-3">Automatically generate fair and balanced match schedules for your leagues</p>
+                <p class="text-muted mb-3">Automatically generate fair and balanced match schedules directly from the Leagues page</p>
                 <div class="row">
                     <div class="col-md-4">
                         <h6><i class="fas fa-magic text-success"></i> What it does:</h6>
@@ -151,15 +151,15 @@
                     <div class="col-md-4">
                         <h6><i class="fas fa-workflow text-warning"></i> Simple Process:</h6>
                         <ul class="small mb-3">
-                            <li>Select a league with at least 2 teams</li>
-                            <li>Click "Generate Matches" - done instantly!</li>
-                            <li>View generated matches in the Matches section</li>
-                            <li>Schedule matches with specific dates and times</li>
+                            <li>Go to the Leagues page</li>
+                            <li>Click the <i class="fas fa-magic"></i> button next to any league</li>
+                            <li>Matches are generated instantly!</li>
+                            <li>View and schedule matches in the Matches section</li>
                         </ul>
                     </div>
                 </div>
-                <a href="{{ url_for('generate_matches') }}" class="btn btn-primary">
-                    <i class="fas fa-magic"></i> Generate Matches Now
+                <a href="{{ url_for('leagues') }}" class="btn btn-primary">
+                    <i class="fas fa-trophy"></i> Go to Leagues to Generate Matches
                 </a>
             </div>
         </div>
@@ -211,7 +211,7 @@
                             <li><strong>Facilities</strong> - Tennis venues</li>
                             <li><strong>Leagues</strong> - Competition categories</li>
                             <li><strong>Teams</strong> - Assign to leagues & facilities</li>
-                            <li><strong>Generate Matches</strong> - Create balanced matches instantly</li>
+                            <li><strong>Generate Matches</strong> - Use the <i class="fas fa-magic"></i> button on Leagues page</li>
                             <li><strong>Schedule Matches</strong> - Set dates and times</li>
                         </ol>
                     </div>
@@ -242,7 +242,7 @@
                     <i class="fas fa-lightbulb"></i>
                     <strong>Pro Tip:</strong> Start by adding facilities and leagues, then create teams. 
                     Use the USTA Constants page to ensure valid league values.
-                    <strong>New:</strong> Use Generate Matches to create fair, balanced schedules instantly!
+                    <strong>New:</strong> Generate matches directly from the Leagues page using the <i class="fas fa-magic"></i> button!
                 </div>
             </div>
         </div>

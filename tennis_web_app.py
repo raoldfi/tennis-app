@@ -7,6 +7,8 @@ from datetime import datetime
 import threading
 from typing import Optional, Type, Any, Dict
 
+
+
 app = Flask(__name__)
 app.secret_key = 'tennis_db_secret_key_change_in_production'
 
@@ -302,20 +304,107 @@ def edit_facility(facility_id):
 
 # ==================== LEAGUE ROUTES ====================
 
-@app.route('/leagues')
+@app.route('/leagues', methods=['GET', 'POST'])
 def leagues():
-    """View all leagues"""
+    """View all leagues and handle match generation"""
     db = get_db()
     if db is None:
         flash('No database connection', 'error')
         return redirect(url_for('index'))
     
+    # Handle POST request for match generation
+    if request.method == 'POST':
+        league_id = request.form.get('league_id', type=int)
+        if not league_id:
+            flash('Please select a league', 'error')
+        else:
+            try:
+                # Get league and teams
+                league = db.get_league(league_id)
+                if not league:
+                    flash(f'League with ID {league_id} not found', 'error')
+                else:
+                    teams = db.list_teams(league_id=league_id)
+                    if len(teams) < 2:
+                        flash(f'League "{league.name}" has only {len(teams)} team(s). Need at least 2 teams to generate matches.', 'error')
+                        return redirect(url_for('teams', league_id=league_id))
+                    
+                    # Generate matches using League.generate_matches()
+                    matches = league.generate_matches(teams)
+                    
+                    # Add/update matches in database
+                    created_matches = []
+                    updated_matches = []
+                    failed_matches = []
+                    
+                    for match in matches:
+                        try:
+                            # Check if match already exists
+                            existing_match = db.get_match(match.id)
+                            
+                            if existing_match:
+                                # Update existing match with new pairing data
+                                db.update_match(match)
+                                
+                                # Find team names for response
+                                home_team = next(team for team in teams if team.id == match.home_team_id)
+                                visitor_team = next(team for team in teams if team.id == match.visitor_team_id)
+                                
+                                updated_matches.append({
+                                    'match_id': match.id,
+                                    'home_team': home_team.name,
+                                    'visitor_team': visitor_team.name,
+                                    'facility_id': match.facility_id
+                                })
+                            else:
+                                # Create new match
+                                db.add_match(match)
+                                
+                                # Find team names for response
+                                home_team = next(team for team in teams if team.id == match.home_team_id)
+                                visitor_team = next(team for team in teams if team.id == match.visitor_team_id)
+                                
+                                created_matches.append({
+                                    'match_id': match.id,
+                                    'home_team': home_team.name,
+                                    'visitor_team': visitor_team.name,
+                                    'facility_id': match.facility_id
+                                })
+                                
+                        except Exception as e:
+                            print(f"Warning: Could not create/update match {match.id}: {e}")
+                            failed_matches.append({
+                                'match_id': match.id,
+                                'error': str(e)
+                            })
+                            continue
+                    
+                    # Show results
+                    total_processed = len(created_matches) + len(updated_matches)
+                    if total_processed > 0:
+                        if created_matches and updated_matches:
+                            flash(f'Successfully generated {len(created_matches)} new matches and updated {len(updated_matches)} existing matches for "{league.name}"!', 'success')
+                        elif created_matches:
+                            flash(f'Successfully generated {len(created_matches)} matches for "{league.name}"!', 'success')
+                        elif updated_matches:
+                            flash(f'Successfully updated {len(updated_matches)} existing matches for "{league.name}"!', 'success')
+                        
+                        if failed_matches:
+                            flash(f'Warning: {len(failed_matches)} matches could not be processed due to errors', 'warning')
+                    else:
+                        flash('No matches were processed. Please check for errors.', 'error')
+                        
+            except Exception as e:
+                flash(f'Error generating matches: {e}', 'error')
+    
+    # Handle GET request - show leagues
     try:
         leagues_list = db.list_leagues()
         return render_template('leagues.html', leagues=leagues_list)
     except Exception as e:
         flash(f'Error loading leagues: {e}', 'error')
         return redirect(url_for('index'))
+        
 
 @app.route('/leagues/add', methods=['GET', 'POST'])
 def add_league():
@@ -627,8 +716,25 @@ def teams():
         if league_id:
             selected_league = db.get_league(league_id)
         
+        # Enhance teams with facility names
+        enhanced_teams = []
+        for team in teams_list:
+            enhanced_team = {
+                'team': team,
+                'facility_name': 'Unknown Facility'
+            }
+            
+            try:
+                facility = db.get_facility(team.home_facility_id)
+                if facility:
+                    enhanced_team['facility_name'] = facility.name
+            except Exception as e:
+                print(f"Warning: Could not get facility {team.home_facility_id} for team {team.id}: {e}")
+            
+            enhanced_teams.append(enhanced_team)
+        
         return render_template('teams.html', 
-                             teams=teams_list, 
+                             teams=enhanced_teams,  # Pass enhanced teams instead of raw teams
                              leagues=leagues_list,
                              selected_league=selected_league)
     except Exception as e:
@@ -909,6 +1015,8 @@ def schedule_match(match_id):
         return jsonify({'error': f'Failed to auto-schedule match: {e}'}), 500
 
 
+# Fix for tennis_web_app.py - Update the schedule-all route
+
 @app.route('/matches/schedule-all', methods=['POST'])
 def schedule_all_matches():
     """Schedule all unscheduled matches, optionally filtered by league"""
@@ -921,26 +1029,61 @@ def schedule_all_matches():
         dry_run = request.form.get('dry_run', 'false').lower() == 'true'
         
         if league_id:
-            # Schedule all matches in the specific league
-            result = db.auto_schedule_league_matches(league_id, dry_run=dry_run)
+            # Get all matches in the specific league
+            all_matches = db.list_matches(league_id=league_id, include_unscheduled=True)
+            unscheduled_matches = [match for match in all_matches if not match.is_scheduled()]
             scope = f"league {league_id}"
         else:
-            # Schedule all unscheduled matches across all leagues
-            unscheduled_matches = db.get_unscheduled_matches()
-            if not unscheduled_matches:
-                return jsonify({
-                    'success': True,
-                    'message': 'No unscheduled matches found',
-                    'scheduled_count': 0
-                })
-            
-            result = db.auto_schedule_matches(unscheduled_matches, dry_run=dry_run)
+            # Get all matches across all leagues
+            all_matches = db.list_matches(include_unscheduled=True)
+            unscheduled_matches = [match for match in all_matches if not match.is_scheduled()]
             scope = "all leagues"
         
-        # Extract results
-        scheduled_count = result.get('scheduled_count', 0)
-        failed_count = result.get('failed_count', 0)
-        total_count = scheduled_count + failed_count
+        if not unscheduled_matches:
+            return jsonify({
+                'success': True,
+                'message': f'No unscheduled matches found in {scope}',
+                'scheduled_count': 0,
+                'failed_count': 0,
+                'total_count': 0
+            })
+        
+        initial_unscheduled_count = len(unscheduled_matches)
+        
+        # Use auto-scheduling
+        try:
+            if league_id:
+                # Try league-specific scheduling if the method exists
+                result = db.auto_schedule_league_matches(league_id, dry_run=dry_run)
+            else:
+                # Use general match scheduling
+                result = db.auto_schedule_matches(unscheduled_matches, dry_run=dry_run)
+        except AttributeError:
+            # If auto-scheduling methods don't exist, we can't schedule
+            return jsonify({
+                'error': 'Auto-scheduling functionality not available in this database backend'
+            }), 500
+        
+        if not dry_run:
+            # Re-fetch matches to count how many are now scheduled
+            if league_id:
+                current_matches = db.list_matches(league_id=league_id, include_unscheduled=True)
+            else:
+                current_matches = db.list_matches(include_unscheduled=True)
+            
+            current_unscheduled = [match for match in current_matches if not match.is_scheduled()]
+            scheduled_count = initial_unscheduled_count - len(current_unscheduled)
+            failed_count = len(current_unscheduled)
+        else:
+            # For dry run, extract from result if possible
+            if isinstance(result, dict):
+                scheduled_count = result.get('scheduled_count', 0)
+                failed_count = result.get('failed_count', 0)
+            else:
+                scheduled_count = 0
+                failed_count = 0
+        
+        total_count = initial_unscheduled_count
         
         if dry_run:
             message = f"Dry run completed for {scope}: {scheduled_count} of {total_count} matches could be scheduled"
@@ -956,11 +1099,15 @@ def schedule_all_matches():
             'scheduled_count': scheduled_count,
             'failed_count': failed_count,
             'total_count': total_count,
-            'details': result
+            'details': result if isinstance(result, dict) else {}
         })
         
     except Exception as e:
+        import traceback
+        print(f"Error in schedule_all_matches: {e}")
+        print(traceback.format_exc())
         return jsonify({'error': f'Failed to schedule matches: {e}'}), 500
+
 
         
 @app.route('/matches/<int:match_id>/unschedule', methods=['POST'])
@@ -1013,204 +1160,7 @@ def delete_all_matches():
     except Exception as e:
         return jsonify({'error': f'Failed to delete matches: {e}'}), 500
 
-# ==================== GENERATE MATCHES ROUTES ====================
 
-@app.route('/generate-matches', methods=['GET', 'POST'])
-@app.route('/generate-matches/<int:league_id>', methods=['GET', 'POST'])
-def generate_matches(league_id=None):
-    """Generate matches form and processing - simplified interface"""
-    db = get_db()
-    if db is None:
-        flash('No database connection', 'error')
-        return redirect(url_for('index'))
-    
-    try:
-        leagues_list = db.list_leagues()
-        
-        # If league_id is provided in URL, pre-select it or process it
-        if league_id and request.method == 'GET':
-            # Validate league exists
-            league = db.get_league(league_id)
-            if not league:
-                flash(f'League with ID {league_id} not found', 'error')
-                return render_template('generate_matches.html', 
-                                     leagues=leagues_list, 
-                                     show_results=False)
-            
-            # If GET request with league_id, generate matches directly
-            teams = db.list_teams(league_id=league_id)
-            if len(teams) < 2:
-                flash(f'League "{league.name}" has only {len(teams)} team(s). Need at least 2 teams to generate matches.', 'error')
-                return redirect(url_for('teams', league_id=league_id))
-            
-            # Generate matches using League.generate_matches()
-            matches = league.generate_matches(teams)
-            
-            # Add/update matches in database
-            created_matches = []
-            updated_matches = []
-            failed_matches = []
-            
-            for match in matches:
-                try:
-                    # Check if match already exists
-                    existing_match = db.get_match(match.id)
-                    
-                    if existing_match:
-                        # Update existing match with new pairing data
-                        db.update_match(match)
-                        
-                        # Find team names for response
-                        home_team = next(team for team in teams if team.id == match.home_team_id)
-                        visitor_team = next(team for team in teams if team.id == match.visitor_team_id)
-                        
-                        updated_matches.append({
-                            'match_id': match.id,
-                            'home_team': home_team.name,
-                            'visitor_team': visitor_team.name,
-                            'facility_id': match.facility_id
-                        })
-                    else:
-                        # Create new match
-                        db.add_match(match)
-                        
-                        # Find team names for response
-                        home_team = next(team for team in teams if team.id == match.home_team_id)
-                        visitor_team = next(team for team in teams if team.id == match.visitor_team_id)
-                        
-                        created_matches.append({
-                            'match_id': match.id,
-                            'home_team': home_team.name,
-                            'visitor_team': visitor_team.name,
-                            'facility_id': match.facility_id
-                        })
-                        
-                except Exception as e:
-                    print(f"Warning: Could not create/update match {match.id}: {e}")
-                    failed_matches.append({
-                        'match_id': match.id,
-                        'error': str(e)
-                    })
-                    continue
-            
-            # Show results
-            total_processed = len(created_matches) + len(updated_matches)
-            if total_processed > 0:
-                if created_matches and updated_matches:
-                    flash(f'Successfully generated {len(created_matches)} new matches and updated {len(updated_matches)} existing matches for "{league.name}"!', 'success')
-                elif created_matches:
-                    flash(f'Successfully generated {len(created_matches)} matches for "{league.name}"!', 'success')
-                elif updated_matches:
-                    flash(f'Successfully updated {len(updated_matches)} existing matches for "{league.name}"!', 'success')
-                
-                if failed_matches:
-                    flash(f'Warning: {len(failed_matches)} matches could not be processed due to errors', 'warning')
-            else:
-                flash('No matches were processed. Please check for errors.', 'error')
-
-        if request.method == 'POST':
-            # Handle form submission to generate matches directly
-            form_league_id = request.form.get('league_id', type=int)
-            if not form_league_id:
-                flash('Please select a league', 'error')
-                return render_template('generate_matches.html', 
-                                     leagues=leagues_list, 
-                                     show_results=False)
-            
-            # Generate matches directly
-            try:
-                # Get league and teams
-                league = db.get_league(form_league_id)
-                if not league:
-                    flash(f'League with ID {form_league_id} not found', 'error')
-                    return render_template('generate_matches.html', 
-                                         leagues=leagues_list, 
-                                         show_results=False)
-                
-                teams = db.list_teams(league_id=form_league_id)
-                if len(teams) < 2:
-                    flash(f'League "{league.name}" has only {len(teams)} team(s). Need at least 2 teams to generate matches.', 'error')
-                    return redirect(url_for('teams', league_id=form_league_id))
-                
-                # Generate matches using League.generate_matches()
-                matches = league.generate_matches(teams)
-                
-                # Add/update matches in database
-                created_matches = []
-                updated_matches = []
-                failed_matches = []
-                
-                for match in matches:
-                    try:
-                        # Check if match already exists
-                        existing_match = db.get_match(match.id)
-                        
-                        if existing_match:
-                            # Update existing match with new pairing data
-                            db.update_match(match)
-                            
-                            # Find team names for response
-                            home_team = next(team for team in teams if team.id == match.home_team_id)
-                            visitor_team = next(team for team in teams if team.id == match.visitor_team_id)
-                            
-                            updated_matches.append({
-                                'match_id': match.id,
-                                'home_team': home_team.name,
-                                'visitor_team': visitor_team.name,
-                                'facility_id': match.facility_id
-                            })
-                        else:
-                            # Create new match
-                            db.add_match(match)
-                            
-                            # Find team names for response
-                            home_team = next(team for team in teams if team.id == match.home_team_id)
-                            visitor_team = next(team for team in teams if team.id == match.visitor_team_id)
-                            
-                            created_matches.append({
-                                'match_id': match.id,
-                                'home_team': home_team.name,
-                                'visitor_team': visitor_team.name,
-                                'facility_id': match.facility_id
-                            })
-                            
-                    except Exception as e:
-                        print(f"Warning: Could not create/update match {match.id}: {e}")
-                        failed_matches.append({
-                            'match_id': match.id,
-                            'error': str(e)
-                        })
-                        continue
-                
-                # Show results
-                total_processed = len(created_matches) + len(updated_matches)
-                if total_processed > 0:
-                    if created_matches and updated_matches:
-                        flash(f'Successfully generated {len(created_matches)} new matches and updated {len(updated_matches)} existing matches for "{league.name}"!', 'success')
-                    elif created_matches:
-                        flash(f'Successfully generated {len(created_matches)} matches for "{league.name}"!', 'success')
-                    elif updated_matches:
-                        flash(f'Successfully updated {len(updated_matches)} existing matches for "{league.name}"!', 'success')
-                    
-                    if failed_matches:
-                        flash(f'Warning: {len(failed_matches)} matches could not be processed due to errors', 'warning')
-                else:
-                    flash('No matches were processed. Please check for errors.', 'error')
-                
-            except Exception as e:
-                flash(f'Error generating matches: {e}', 'error')
-                return render_template('generate_matches.html', 
-                                     leagues=leagues_list, 
-                                     show_results=False)
-        
-        # GET request - show the form
-        return render_template('generate_matches.html', 
-                             leagues=leagues_list, 
-                             show_results=False)
-        
-    except Exception as e:
-        flash(f'Error loading leagues: {e}', 'error')
-        return redirect(url_for('index'))
 
 # ==================== API ROUTES ====================
 
@@ -1408,7 +1358,7 @@ def stats():
         return redirect(url_for('index'))
 
 
-# Add this route to tennis_web_app.py after the matches routes
+# Add this route to tennis_web_app.py after the existing matches route
 
 @app.route('/schedule')
 def schedule():

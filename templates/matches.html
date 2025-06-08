@@ -11,7 +11,7 @@
     </h1>
     <div class="d-flex gap-2">
         <span class="badge badge-match fs-6">{{ matches|length }} matches</span>
-        <a href="{{ url_for('generate_matches') }}" class="btn btn-success">
+        <a href="{{ url_for('leagues') }}" class="btn btn-success">
             <i class="fas fa-magic"></i> Generate Matches
         </a>
     </div>
@@ -285,16 +285,16 @@
         {% if selected_league %}
         <p class="text-muted">No matches found for league: <strong>{{ selected_league.name }}</strong></p>
         <div class="d-flex gap-2 justify-content-center">
-            <a href="{{ url_for('generate_matches', league_id=selected_league.id) }}" class="btn btn-success">
-                <i class="fas fa-magic"></i> Generate Matches for This League
+            <a href="{{ url_for('leagues') }}" class="btn btn-success">
+                <i class="fas fa-magic"></i> Go to Leagues to Generate Matches
             </a>
         </div>
         {% else %}
         <p class="text-muted">No matches found in the database.</p>
         <div class="d-flex gap-2 justify-content-center">
             {% if leagues %}
-                <a href="{{ url_for('generate_matches') }}" class="btn btn-success">
-                    <i class="fas fa-magic"></i> Generate Matches
+                <a href="{{ url_for('leagues') }}" class="btn btn-success">
+                    <i class="fas fa-magic"></i> Go to Leagues
                 </a>
             {% else %}
                 <a href="{{ url_for('add_league') }}" class="btn btn-primary">
@@ -309,7 +309,7 @@
             <strong>Note:</strong> Matches are automatically generated from team pairings.
             
             <div class="mt-2">
-                <strong>Process:</strong> Add leagues and teams, then generate fair match schedules instantly!
+                <strong>Process:</strong> Add leagues and teams, then use the Leagues page to generate fair match schedules instantly!
             </div>
         </div>
     </div>
@@ -324,8 +324,11 @@
         </a>
         
         {% if matches %}
-        <a href="{{ url_for('generate_matches') }}" class="btn btn-success">
+        <a href="{{ url_for('leagues') }}" class="btn btn-success">
             <i class="fas fa-magic"></i> Generate More Matches
+        </a>
+        <a href="{{ url_for('schedule') }}" class="btn btn-outline-info">
+            <i class="fas fa-calendar-week"></i> View Schedule
         </a>
         {% endif %}
         
@@ -551,24 +554,43 @@ function submitScheduleForm() {
 
     const formData = new FormData(document.getElementById('scheduleForm'));
     
+    // Show loading state in modal
+    const submitBtn = document.querySelector('#scheduleModal .btn-primary');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scheduling...';
+    submitBtn.disabled = true;
+    
     fetch(`/matches/${currentMatchId}/schedule`, {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('Individual schedule response:', data); // Debug logging
+        
         if (data.success) {
             alert(data.message);
+            // Close modal and reload page
+            bootstrap.Modal.getInstance(document.getElementById('scheduleModal')).hide();
             window.location.reload();
+            return; // Don't restore button state as page is reloading
         } else {
-            alert('Error: ' + data.error);
+            alert('Error: ' + (data.error || 'Unknown error occurred'));
         }
     })
     .catch(error => {
+        console.error('Individual schedule error:', error);
         alert('Error: ' + error.message);
     })
     .finally(() => {
-        bootstrap.Modal.getInstance(document.getElementById('scheduleModal')).hide();
+        // Restore button state if there was an error
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
     });
 }
 
@@ -638,9 +660,9 @@ function scheduleAllMatches(dryRun = false) {
     
     // Show loading state
     const button = event.target;
-    const originalText = button.textContent;
+    const originalText = button.innerHTML;
     button.disabled = true;
-    button.textContent = dryRun ? 'Running preview...' : 'Scheduling...';
+    button.innerHTML = dryRun ? '<i class="fas fa-spinner fa-spin"></i> Running preview...' : '<i class="fas fa-spinner fa-spin"></i> Scheduling...';
     
     // Prepare form data
     const formData = new FormData();
@@ -653,25 +675,38 @@ function scheduleAllMatches(dryRun = false) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('Schedule all response:', data); // Debug logging
+        
         if (data.success) {
             alert(data.message);
-            if (!dryRun && data.scheduled_count > 0) {
-                // Reload page to show updated match statuses
+            
+            // Always reload the page after successful scheduling (not dry run)
+            if (!dryRun) {
+                console.log('Reloading page after successful scheduling');
                 window.location.reload();
+                return; // Don't restore button state as page is reloading
             }
         } else {
-            alert('Error: ' + data.error);
+            alert('Error: ' + (data.error || 'Unknown error occurred'));
         }
     })
     .catch(error => {
+        console.error('Schedule all error:', error);
         alert('Error: ' + error.message);
     })
     .finally(() => {
-        // Restore button state
-        button.disabled = false;
-        button.textContent = originalText;
+        // Only restore button state if we're not reloading the page
+        if (dryRun) {
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
     });
 }
 

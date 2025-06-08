@@ -96,10 +96,11 @@
                                    class="btn btn-sm btn-outline-warning" title="Edit league">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <a href="{{ url_for('generate_matches', league_id=league.id) }}" 
-                                   class="btn btn-sm btn-outline-primary" title="Generate matches">
+                                <button class="btn btn-sm btn-outline-primary" 
+                                        onclick="generateMatches({{ league.id }}, '{{ league.name }}')"
+                                        title="Generate matches for this league">
                                     <i class="fas fa-magic"></i>
-                                </a>
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -187,10 +188,10 @@
                    class="btn btn-sm btn-warning">
                     <i class="fas fa-edit"></i> Edit
                 </a>
-                <a href="{{ url_for('generate_matches', league_id=league.id) }}" 
-                   class="btn btn-sm btn-primary">
+                <button class="btn btn-sm btn-primary" 
+                        onclick="generateMatches({{ league.id }}, '{{ league.name }}')">
                     <i class="fas fa-magic"></i> Generate
-                </a>
+                </button>
             </div>
         </div>
     </div>
@@ -306,7 +307,60 @@
         </div>
     </div>
 </div>
+
+<!-- Match Generation Section -->
+<div class="card mt-4">
+    <div class="card-header">
+        <i class="fas fa-magic"></i> Match Generation
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <h6><i class="fas fa-magic text-success"></i> Instant Generation</h6>
+                <ul class="small">
+                    <li>Click the <i class="fas fa-magic"></i> button next to any league</li>
+                    <li>Matches are created automatically and saved to database</li>
+                    <li>Fair pairing algorithm ensures balanced schedules</li>
+                    <li>All matches start as "unscheduled" for flexible planning</li>
+                </ul>
+            </div>
+            
+            <div class="col-md-4">
+                <h6><i class="fas fa-balance-scale text-info"></i> Fair Distribution</h6>
+                <ul class="small">
+                    <li>Each team plays exactly the specified number of matches</li>
+                    <li>Home and away games are balanced as evenly as possible</li>
+                    <li>Optimal opponent distribution across all teams</li>
+                    <li>No team plays another team excessively</li>
+                </ul>
+            </div>
+            
+            <div class="col-md-4">
+                <h6><i class="fas fa-calendar-check text-warning"></i> Ready for Scheduling</h6>
+                <ul class="small">
+                    <li>Generated matches appear in the Matches section</li>
+                    <li>All matches start as "unscheduled"</li>
+                    <li>Use the scheduling interface to set dates and times</li>
+                    <li>Coordinate with teams and facilities</li>
+                </ul>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <div class="alert alert-info mb-0">
+            <i class="fas fa-lightbulb"></i>
+            <strong>Requirements:</strong> Each league must have at least 2 teams to generate matches. 
+            The number of requested matches must be mathematically possible given the number of teams.
+        </div>
+    </div>
+</div>
 {% endif %}
+
+<!-- Match Generation Form (Hidden) -->
+<form id="generateMatchesForm" method="POST" style="display: none;">
+    <input type="hidden" name="league_id" id="generateLeagueId">
+</form>
 {% endblock %}
 
 {% block scripts %}
@@ -349,5 +403,22 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+async function generateMatches(leagueId, leagueName) {
+    // Confirm generation
+    if (!confirm(`Generate matches for "${leagueName}"?\n\nThis will create fair match pairings for all teams in the league.`)) {
+        return;
+    }
+    
+    // Show loading state on the button
+    const button = event.target.closest('button');
+    const originalContent = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    button.disabled = true;
+    
+    // Submit the form - let server handle team count validation
+    document.getElementById('generateLeagueId').value = leagueId;
+    document.getElementById('generateMatchesForm').submit();
+}
 </script>
 {% endblock %}

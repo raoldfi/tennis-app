@@ -70,37 +70,37 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for team in teams %}
+                    {% for enhanced_team in teams %}
                     <tr>
-                        <td><span class="badge bg-secondary">{{ team.id }}</span></td>
+                        <td><span class="badge bg-secondary">{{ enhanced_team.team.id }}</span></td>
                         <td>
-                            <strong>{{ team.name }}</strong>
-                            {% if team.captain %}
-                            <div class="small text-muted">{{ team.captain }}</div>
+                            <strong>{{ enhanced_team.team.name }}</strong>
+                            {% if enhanced_team.team.captain %}
+                            <div class="small text-muted">{{ enhanced_team.team.captain }}</div>
                             {% endif %}
                         </td>
                         <td>
-                            {% if team.captain %}
+                            {% if enhanced_team.team.captain %}
                             <i class="fas fa-user text-primary"></i>
-                            {{ team.captain }}
+                            {{ enhanced_team.team.captain }}
                             {% else %}
                             <span class="text-muted">Not specified</span>
                             {% endif %}
                         </td>
                         <td>
                             <div class="small">
-                                <strong>{{ team.league.name }}</strong><br>
-                                <span class="badge bg-info">{{ team.league.division }}</span>
-                                <span class="badge bg-primary">{{ team.league.year }}</span>
+                                <strong>{{ enhanced_team.team.league.name }}</strong><br>
+                                <span class="badge bg-info">{{ enhanced_team.team.league.division }}</span>
+                                <span class="badge bg-primary">{{ enhanced_team.team.league.year }}</span>
                             </div>
                         </td>
                         <td>
-                            <span class="badge bg-warning text-dark">{{ team.home_facility_id }}</span>
-                            <div class="small text-muted">Facility ID</div>
+                            <div class="fw-bold">{{ enhanced_team.facility_name }}</div>
+                            <div class="small text-muted">ID: {{ enhanced_team.team.home_facility_id }}</div>
                         </td>
                         <td>
-                            {% if team.preferred_days %}
-                                {% for day in team.preferred_days %}
+                            {% if enhanced_team.team.preferred_days %}
+                                {% for day in enhanced_team.team.preferred_days %}
                                 <span class="badge bg-success">{{ day[:3] }}</span>
                                 {% endfor %}
                             {% else %}
@@ -108,9 +108,9 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if team.preferred_days %}
-                                {% set compatible_days = team.get_compatible_days() %}
-                                {% set conflicts = team.conflicts_with_league_days() %}
+                            {% if enhanced_team.team.preferred_days %}
+                                {% set compatible_days = enhanced_team.team.get_compatible_days() %}
+                                {% set conflicts = enhanced_team.team.conflicts_with_league_days() %}
                                 
                                 {% if compatible_days %}
                                 <div class="mb-1">
@@ -145,18 +145,18 @@
                         </td>
                         <td>
                             <div class="d-flex gap-1">
-                                <a href="{{ url_for('edit_team', team_id=team.id) }}" 
+                                <a href="{{ url_for('edit_team', team_id=enhanced_team.team.id) }}" 
                                    class="btn btn-sm btn-outline-warning" 
                                    title="Edit team information">
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 <button class="btn btn-sm btn-outline-info" 
-                                        onclick="viewTeamDetails({{ team.id }})"
+                                        onclick="viewTeamDetails({{ enhanced_team.team.id }})"
                                         title="View team details">
                                     <i class="fas fa-eye"></i>
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger" 
-                                        onclick="deleteTeam({{ team.id }}, '{{ team.name }}')"
+                                        onclick="deleteTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')"
                                         title="Delete team">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -173,22 +173,23 @@
 <!-- Team Summary Cards for Mobile -->
 <div class="d-block d-md-none mt-4">
     <h5><i class="fas fa-list"></i> Team Cards</h5>
-    {% for team in teams %}
+    {% for enhanced_team in teams %}
     <div class="card mb-3">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-2">
-                <h6 class="mb-0">{{ team.name }}</h6>
-                <span class="badge bg-secondary">{{ team.id }}</span>
+                <h6 class="mb-0">{{ enhanced_team.team.name }}</h6>
+                <span class="badge bg-secondary">{{ enhanced_team.team.id }}</span>
             </div>
             
             <div class="row mb-2">
                 <div class="col-6">
                     <small class="text-muted">Captain</small>
-                    <div>{{ team.captain or 'Not specified' }}</div>
+                    <div>{{ enhanced_team.team.captain or 'Not specified' }}</div>
                 </div>
                 <div class="col-6">
                     <small class="text-muted">Home Facility</small>
-                    <div>ID: {{ team.home_facility_id }}</div>
+                    <div>{{ enhanced_team.facility_name }}</div>
+                    <div class="small text-muted">ID: {{ enhanced_team.team.home_facility_id }}</div>
                 </div>
             </div>
             
@@ -196,9 +197,9 @@
                 <div class="col-12">
                     <small class="text-muted">League</small>
                     <div class="small">
-                        {{ team.league.name }}<br>
-                        <span class="badge bg-info">{{ team.league.division }}</span>
-                        <span class="badge bg-primary">{{ team.league.year }}</span>
+                        {{ enhanced_team.team.league.name }}<br>
+                        <span class="badge bg-info">{{ enhanced_team.team.league.division }}</span>
+                        <span class="badge bg-primary">{{ enhanced_team.team.league.year }}</span>
                     </div>
                 </div>
             </div>
@@ -207,8 +208,8 @@
                 <div class="col-12">
                     <small class="text-muted">Preferred Days</small>
                     <div>
-                        {% if team.preferred_days %}
-                            {% for day in team.preferred_days %}
+                        {% if enhanced_team.team.preferred_days %}
+                            {% for day in enhanced_team.team.preferred_days %}
                             <span class="badge bg-success">{{ day }}</span>
                             {% endfor %}
                         {% else %}
@@ -218,12 +219,12 @@
                 </div>
             </div>
             
-            {% if team.preferred_days %}
+            {% if enhanced_team.team.preferred_days %}
             <div class="row mt-2">
                 <div class="col-12">
                     <small class="text-muted">Scheduling</small>
-                    {% set compatible_days = team.get_compatible_days() %}
-                    {% set conflicts = team.conflicts_with_league_days() %}
+                    {% set compatible_days = enhanced_team.team.get_compatible_days() %}
+                    {% set conflicts = enhanced_team.team.conflicts_with_league_days() %}
                     
                     {% if compatible_days %}
                     <div class="mb-1">
@@ -248,16 +249,16 @@
             
             <!-- Mobile Action Buttons -->
             <div class="mt-3">
-                <a href="{{ url_for('edit_team', team_id=team.id) }}" 
+                <a href="{{ url_for('edit_team', team_id=enhanced_team.team.id) }}" 
                    class="btn btn-sm btn-warning me-2">
                     <i class="fas fa-edit"></i> Edit
                 </a>
                 <button class="btn btn-sm btn-info me-2" 
-                        onclick="viewTeamDetails({{ team.id }})">
+                        onclick="viewTeamDetails({{ enhanced_team.team.id }})">
                     <i class="fas fa-eye"></i> Details
                 </button>
                 <button class="btn btn-sm btn-danger" 
-                        onclick="deleteTeam({{ team.id }}, '{{ team.name }}')">
+                        onclick="deleteTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')">
                     <i class="fas fa-trash"></i> Delete
                 </button>
             </div>
@@ -338,8 +339,8 @@
             <div class="col-md-4">
                 <h6><i class="fas fa-chart-pie text-primary"></i> Day Preferences</h6>
                 {% set day_counts = {} %}
-                {% for team in teams %}
-                    {% for day in team.preferred_days %}
+                {% for enhanced_team in teams %}
+                    {% for day in enhanced_team.team.preferred_days %}
                         {% if day_counts.update({day: day_counts.get(day, 0) + 1}) %}{% endif %}
                     {% endfor %}
                 {% endfor %}
@@ -365,10 +366,10 @@
                 {% set conflict_teams = 0 %}
                 {% set flexible_teams = 0 %}
                 
-                {% for team in teams %}
-                    {% if not team.preferred_days %}
+                {% for enhanced_team in teams %}
+                    {% if not enhanced_team.team.preferred_days %}
                         {% set flexible_teams = flexible_teams + 1 %}
-                    {% elif team.get_compatible_days() %}
+                    {% elif enhanced_team.team.get_compatible_days() %}
                         {% set compatible_teams = compatible_teams + 1 %}
                     {% else %}
                         {% set conflict_teams = conflict_teams + 1 %}
