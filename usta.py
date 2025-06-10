@@ -955,47 +955,38 @@ class Facility:
         return facility
     
     def to_yaml_dict(self) -> Dict[str, Any]:
-        """Convert the facility to a YAML-compatible dictionary structure"""
-        result = {
-            'id': self.id,
-            'name': self.name
-        }
-        
-        # Include short_name if present (or generate one)
-        current_short_name = self.short_name or self.generate_short_name()
-        if current_short_name:
-            result['short_name'] = current_short_name
-        
-        if self.location:
-            result['location'] = self.location
-        
-        if self.total_courts > 0:
-            result['total_courts'] = self.total_courts
-        
-        # Add schedule if it has any time slots
-        schedule_dict = {}
-        for day_name, day_schedule in self.schedule.get_all_days().items():
-            if day_schedule.start_times:
-                schedule_dict[day_name] = {
-                    'start_times': [
-                        {
-                            'time': slot.time,
-                            'available_courts': slot.available_courts
-                        }
-                        for slot in day_schedule.start_times
-                    ]
-                }
-            else:
-                schedule_dict[day_name] = {'start_times': []}
-        
-        if any(day_data['start_times'] for day_data in schedule_dict.values()):
-            result['schedule'] = schedule_dict
-        
-        # Add unavailable dates if any
-        if self.unavailable_dates:
-            result['unavailable_dates'] = self.unavailable_dates.copy()
-        
-        return result
+        """Convert facility to YAML-serializable dictionary"""
+        try:
+            # Build schedule dictionary
+            schedule_dict = {}
+            if hasattr(self, 'schedule') and self.schedule:
+                for day_name, day_schedule in self.schedule.get_all_days().items():
+                    if hasattr(day_schedule, 'start_times') and day_schedule.start_times:
+                        # Convert start_times list to dictionary format
+                        time_slots = {}
+                        for time_slot in day_schedule.start_times:
+                            # time_slot is a TimeSlot object with .time and .available_courts
+                            time_slots[time_slot.time] = time_slot.available_courts
+                        schedule_dict[day_name] = time_slots
+            
+            # Build the facility dictionary
+            facility_dict = {
+                'id': self.id,
+                'name': self.name,
+                'location': getattr(self, 'location', '') or '',
+                'total_courts': getattr(self, 'total_courts', 0),
+                'schedule': schedule_dict,
+                'unavailable_dates': getattr(self, 'unavailable_dates', []) or []
+            }
+            
+            # Add short_name if it exists and is different from name
+            if hasattr(self, 'short_name') and self.short_name and self.short_name != self.name:
+                facility_dict['short_name'] = self.short_name
+            
+            return facility_dict
+            
+        except Exception as e:
+            raise Exception(f"Error converting facility {self.id} to YAML dict: {str(e)}")
 
 @dataclass
 class League:
