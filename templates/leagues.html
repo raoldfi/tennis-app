@@ -267,93 +267,118 @@
     </div>
 </div>
 
-<!-- Leagues Table for Desktop -->
-<div class="card">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-table"></i> League Details</h5>
+<!-- Desktop Table View -->
+<div class="card d-none d-md-block">
+    <div class="card-header bg-primary text-white">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4 class="mb-0">
+                    <i class="fas fa-table"></i> League Details
+                </h4>
+            </div>
+            <div class="col-md-4 text-end">
+                <span class="badge bg-light text-dark fs-6">{{ leagues|length }} leagues</span>
+            </div>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-striped table-hover" id="leaguesTable">
+            <table class="table table-hover mb-0 align-middle league-table" id="leaguesTable">
                 <thead class="table-dark">
                     <tr>
-                        <th>ID</th>
-                        <th>League Name</th>
-                        <th>Location</th>
-                        <th>Age Group</th>
-                        <th>Division</th>
-                        <th>Format</th>
-                        <th>Season</th>
-                        <th>Actions</th>
+                        <th class="text-center" style="width: 80px;">ID</th>
+                        <th style="width: 200px;">League Name</th>
+                        <th class="text-center" style="width: 180px;">Location</th>
+                        <th class="text-center" style="width: 120px;">Age Group</th>
+                        <th class="text-center" style="width: 140px;">Division</th>
+                        <th class="text-center" style="width: 120px;">Format</th>
+                        <th class="text-center" style="width: 150px;">Season</th>
+                        <th class="text-center" style="width: 120px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for league in leagues %}
-                    <tr>
-                        <td><span class="badge bg-secondary">{{ league.id }}</span></td>
-                        <td>
-                            <div class="fw-bold">{{ league.name }}</div>
-                            <div class="small text-muted">{{ league.year }}</div>
+                    <tr class="league-row" data-league-id="{{ league.id }}">
+                        <td class="text-center">
+                            <span class="badge bg-secondary">{{ league.id }}</span>
                         </td>
                         <td>
-                            <div class="fw-bold">{{ league.section }}</div>
-                            <div class="small text-muted">{{ league.region }}</div>
+                            <div class="league-info-cell">
+                                <div class="fw-bold">{{ league.name }}</div>
+                                <div class="small text-muted">{{ league.year }}</div>
+                            </div>
                         </td>
-                        <td>
-                            <span class="badge bg-info">{{ league.age_group }}</span>
+                        <td class="text-center">
+                            <div class="location-cell">
+                                <div class="fw-bold">{{ league.section }}</div>
+                                <div class="small text-muted">{{ league.region }}</div>
+                            </div>
                         </td>
-                        <td>
-                            <span class="badge bg-success">{{ league.division }}</span>
+                        <td class="text-center">
+                            <div class="age-group-cell">
+                                <span class="badge bg-info">{{ league.age_group }}</span>
+                            </div>
                         </td>
-                        <td>
-                            <div class="small">
-                                <strong>{{ league.num_matches }}</strong> matches/team<br>
-                                <strong>{{ league.num_lines_per_match }}</strong> lines/match
-                                {% if league.allow_split_lines %}
-                                <br><span class="badge bg-warning text-dark">Split OK</span>
+                        <td class="text-center">
+                            <div class="division-cell">
+                                <span class="badge bg-success">{{ league.division }}</span>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <div class="format-cell">
+                                <div class="small">
+                                    <strong>{{ league.num_matches }}</strong> matches/team<br>
+                                    <strong>{{ league.num_lines_per_match }}</strong> lines/match
+                                    {% if league.allow_split_lines %}
+                                    <br><span class="badge bg-warning text-dark">Split OK</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <div class="season-cell">
+                                {% if league.start_date and league.end_date %}
+                                <div class="small">
+                                    <i class="fas fa-calendar"></i>
+                                    {{ league.start_date }} to {{ league.end_date }}
+                                </div>
+                                {% elif league.start_date %}
+                                <div class="small">
+                                    <i class="fas fa-play"></i>
+                                    Starts: {{ league.start_date }}
+                                </div>
+                                {% elif league.end_date %}
+                                <div class="small">
+                                    <i class="fas fa-stop"></i>
+                                    Ends: {{ league.end_date }}
+                                </div>
+                                {% else %}
+                                <span class="text-muted small">No dates set</span>
                                 {% endif %}
                             </div>
                         </td>
-                        <td>
-                            {% if league.start_date and league.end_date %}
-                            <div class="small">
-                                <i class="fas fa-calendar"></i>
-                                {{ league.start_date }} to {{ league.end_date }}
-                            </div>
-                            {% elif league.start_date %}
-                            <div class="small">
-                                <i class="fas fa-play"></i>
-                                Starts: {{ league.start_date }}
-                            </div>
-                            {% elif league.end_date %}
-                            <div class="small">
-                                <i class="fas fa-stop"></i>
-                                Ends: {{ league.end_date }}
-                            </div>
-                            {% else %}
-                            <span class="text-muted small">No dates set</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="btn-group" role="group">
-                                <a href="{{ url_for('teams', league_id=league.id) }}" 
-                                   class="btn btn-sm btn-outline-info" title="View teams">
-                                    <i class="fas fa-users"></i>
-                                </a>
-                                <a href="{{ url_for('edit_league', league_id=league.id) }}" 
-                                   class="btn btn-sm btn-outline-warning" title="Edit league">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <button class="btn btn-sm btn-outline-primary" 
-                                        onclick="generateMatches({{ league.id }}, '{{ league.name }}')"
-                                        title="Generate matches for this league">
-                                    <i class="fas fa-magic"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary" 
-                                        onclick="exportSingleLeague({{ league.id }}, '{{ league.name }}')"
-                                        title="Export this league">
-                                    <i class="fas fa-download"></i>
-                                </button>
+                        <td class="text-center">
+                            <div class="action-cell">
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('teams', league_id=league.id) }}" 
+                                       class="btn btn-sm btn-outline-info" title="View teams">
+                                        <i class="fas fa-users"></i>
+                                    </a>
+                                    <a href="{{ url_for('edit_league', league_id=league.id) }}" 
+                                       class="btn btn-sm btn-outline-warning" title="Edit league">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-primary" 
+                                            onclick="generateMatches({{ league.id }}, '{{ league.name }}')"
+                                            title="Generate matches for this league">
+                                        <i class="fas fa-magic"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" 
+                                            onclick="exportSingleLeague({{ league.id }}, '{{ league.name }}')"
+                                            title="Export this league">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </div>
                             </div>
                         </td>
                     </tr>
@@ -364,11 +389,11 @@
     </div>
 </div>
 
-<!-- League Summary Cards for Mobile -->
+<!-- Mobile Card View -->
 <div class="d-block d-md-none mt-4">
     <h5><i class="fas fa-list"></i> League Cards</h5>
     {% for league in leagues %}
-    <div class="card mb-3">
+    <div class="card mb-3 border-start border-primary border-3 league-card" data-league-id="{{ league.id }}">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <h6 class="mb-0">{{ league.name }}</h6>
@@ -648,17 +673,240 @@ function generateMatches(leagueId, leagueName) {
     }
 }
 
-// Initialize DataTable for better sorting and filtering
+// Initialize enhanced styling and interactions
 document.addEventListener('DOMContentLoaded', function() {
-    if (document.getElementById('leaguesTable')) {
-        $('#leaguesTable').DataTable({
-            pageLength: 25,
-            order: [[1, 'asc']],
-            columnDefs: [
-                { orderable: false, targets: [7] } // Actions column
-            ]
-        });
-    }
+    // Add enhanced table styles
+    const enhancedLeagueStyles = document.createElement('style');
+    enhancedLeagueStyles.textContent = `
+        /* Enhanced League Table Styling */
+        .league-table {
+            font-size: 0.9rem;
+        }
+        
+        .league-table thead th {
+            vertical-align: middle;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .league-table tbody tr {
+            transition: all 0.2s ease;
+        }
+        
+        .league-table tbody tr:hover {
+            background-color: #f8f9fa;
+            transform: scale(1.01);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* League-specific cell styling */
+        .league-info-cell {
+            min-width: 180px;
+        }
+        
+        .location-cell {
+            max-width: 160px;
+        }
+        
+        .age-group-cell .badge {
+            font-size: 0.7rem;
+            padding: 0.4rem 0.6rem;
+            min-width: 80px;
+        }
+        
+        .division-cell .badge {
+            font-size: 0.7rem;
+            padding: 0.4rem 0.6rem;
+            min-width: 90px;
+        }
+        
+        .format-cell {
+            min-width: 100px;
+        }
+        
+        .season-cell {
+            min-width: 130px;
+        }
+        
+        .action-cell .btn-group .btn {
+            border-radius: 0.25rem !important;
+            margin: 0 0.1rem;
+            font-size: 0.75rem;
+        }
+        
+        /* Card header styling consistent with schedule */
+        .card-header.bg-primary {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
+        }
+        
+        /* League row hover effects */
+        .league-row {
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .league-row:hover {
+            border-left-color: #6f42c1;
+            background: linear-gradient(90deg, rgba(111,66,193,0.05) 0%, rgba(255,255,255,1) 10%);
+        }
+        
+        /* Mobile card enhancements */
+        .league-card {
+            transition: all 0.2s ease;
+            border-left: 3px solid #007bff !important;
+        }
+        
+        .league-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            border-left-color: #6f42c1 !important;
+        }
+        
+        /* Responsive improvements */
+        @media (max-width: 1200px) {
+            .league-table {
+                font-size: 0.8rem;
+            }
+            
+            .league-info-cell {
+                min-width: 160px;
+            }
+            
+            .location-cell {
+                max-width: 140px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .action-cell .btn-group .btn {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.7rem;
+            }
+            
+            .league-card {
+                margin-bottom: 0.5rem;
+            }
+        }
+    `;
+    document.head.appendChild(enhancedLeagueStyles);
+    
+    // Setup table interactions
+    setupLeagueTableInteractions();
 });
+
+function setupLeagueTableInteractions() {
+    const table = document.getElementById('leaguesTable');
+    if (!table) return;
+    
+    // Add sortable headers
+    const headers = table.querySelectorAll('thead th');
+    headers.forEach((header, index) => {
+        // Skip action column
+        if (index === headers.length - 1) return;
+        
+        header.style.cursor = 'pointer';
+        header.style.userSelect = 'none';
+        header.setAttribute('data-sort-column', index);
+        
+        // Add sort icon
+        const sortIcon = document.createElement('i');
+        sortIcon.className = 'fas fa-sort ms-1 opacity-50';
+        header.appendChild(sortIcon);
+        
+        header.addEventListener('click', () => sortLeagueTable(index));
+    });
+    
+    // Add row click handlers
+    const rows = document.querySelectorAll('.league-row');
+    rows.forEach(row => {
+        row.addEventListener('click', function(e) {
+            // Don't trigger if clicking on buttons or links
+            if (e.target.matches('button, button *, a, a *')) return;
+            
+            const leagueId = this.getAttribute('data-league-id');
+            if (leagueId) {
+                // Add visual feedback
+                this.style.backgroundColor = '#e3f2fd';
+                setTimeout(() => {
+                    this.style.backgroundColor = '';
+                }, 200);
+                
+                // Navigate to teams in this league
+                window.location.href = `/teams?league_id=${leagueId}`;
+            }
+        });
+        
+        // Add hover tooltip
+        row.setAttribute('title', 'Click to view teams in this league');
+    });
+}
+
+function sortLeagueTable(columnIndex) {
+    const table = document.getElementById('leaguesTable');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.rows);
+    const header = table.querySelectorAll('thead th')[columnIndex];
+    const icon = header.querySelector('i');
+    
+    // Determine sort direction
+    const isAscending = !header.hasAttribute('data-sort-asc');
+    
+    // Reset all other headers
+    table.querySelectorAll('thead th').forEach(th => {
+        th.removeAttribute('data-sort-asc');
+        th.removeAttribute('data-sort-desc');
+        const otherIcon = th.querySelector('i');
+        if (otherIcon) {
+            otherIcon.className = 'fas fa-sort ms-1 opacity-50';
+        }
+    });
+    
+    // Set current header state
+    if (isAscending) {
+        header.setAttribute('data-sort-asc', '');
+        icon.className = 'fas fa-sort-up ms-1';
+    } else {
+        header.setAttribute('data-sort-desc', '');
+        icon.className = 'fas fa-sort-down ms-1';
+    }
+    
+    // Sort rows
+    rows.sort((a, b) => {
+        const aCell = a.cells[columnIndex];
+        const bCell = b.cells[columnIndex];
+        
+        let aValue = aCell.textContent.trim();
+        let bValue = bCell.textContent.trim();
+        
+        // Handle different data types
+        if (columnIndex === 0) { // League ID
+            aValue = parseInt(aValue.replace(/\D/g, '')) || 0;
+            bValue = parseInt(bValue.replace(/\D/g, '')) || 0;
+        }
+        
+        // Compare values
+        let comparison = 0;
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+            comparison = aValue - bValue;
+        } else {
+            comparison = aValue.localeCompare(bValue, undefined, { numeric: true });
+        }
+        
+        return isAscending ? comparison : -comparison;
+    });
+    
+    // Reorder rows in DOM
+    rows.forEach(row => tbody.appendChild(row));
+    
+    // Add visual feedback
+    tbody.style.opacity = '0.7';
+    setTimeout(() => {
+        tbody.style.opacity = '1';
+    }, 150);
+}
 </script>
 {% endblock %}

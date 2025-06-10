@@ -1411,13 +1411,13 @@ def test_leagues_export():
 
 @app.route('/teams')
 def teams():
-    """View teams with optional league filter and enhanced facility information"""
+    """View teams with optional league filter, search, and enhanced facility information"""
     db = get_db()
     if db is None:
         flash('No database connection', 'error')
         return redirect(url_for('index'))
     
-    # Fix: Handle league_id parameter more safely
+    # Handle league_id parameter safely
     league_id = None
     try:
         league_id_str = request.args.get('league_id')
@@ -1427,9 +1427,17 @@ def teams():
         # If conversion fails, ignore the parameter
         league_id = None
     
+    # Get search query
+    search_query = request.args.get('search', '').strip()
+    
     try:
+        # Get all teams first
         teams_list = db.list_teams(league_id=league_id)
         leagues_list = db.list_leagues()  # For filter dropdown
+        
+        # Apply search filter if provided
+        if search_query:
+            teams_list = filter_teams_by_search(teams_list, search_query)
         
         # Get selected league info if filtering
         selected_league = None
@@ -1492,6 +1500,191 @@ def teams():
         traceback.print_exc()
         flash(f'Error loading teams: {e}', 'error')
         return redirect(url_for('index'))
+
+
+def filter_teams_by_search(teams_list, search_query):
+    """
+    Filter teams based on search query
+    Searches across: team name, captain, facility name, contact email, league name
+    """
+    if not search_query:
+        return teams_list
+    
+    # Split search query into individual terms for more flexible matching
+    search_terms = [term.lower().strip() for term in search_query.split() if term.strip()]
+    if not search_terms:
+        return teams_list
+    
+    filtered_teams = []
+    
+    for team in teams_list:
+        # Collect all searchable text for this team
+        searchable_text = []
+        
+        # Team name
+        if hasattr(team, 'name') and team.name:
+            searchable_text.append(team.name.lower())
+        
+        # Captain name
+        if hasattr(team, 'captain') and team.captain:
+            searchable_text.append(team.captain.lower())
+        
+        # Contact email
+        if hasattr(team, 'contact_email') and team.contact_email:
+            searchable_text.append(team.contact_email.lower())
+        
+        # Home facility name
+        if hasattr(team, 'home_facility') and team.home_facility:
+            if hasattr(team.home_facility, 'name') and team.home_facility.name:
+                searchable_text.append(team.home_facility.name.lower())
+            elif isinstance(team.home_facility, str):
+                searchable_text.append(team.home_facility.lower())
+        
+        # League name and division
+        if hasattr(team, 'league') and team.league:
+            if hasattr(team.league, 'name') and team.league.name:
+                searchable_text.append(team.league.name.lower())
+            if hasattr(team.league, 'division') and team.league.division:
+                searchable_text.append(team.league.division.lower())
+        
+        # Preferred days
+        if hasattr(team, 'preferred_days') and team.preferred_days:
+            for day in team.preferred_days:
+                searchable_text.append(day.lower())
+        
+        # Notes (if available)
+        if hasattr(team, 'notes') and team.notes:
+            searchable_text.append(team.notes.lower())
+        
+        # Combine all searchable text
+        combined_text = ' '.join(searchable_text)
+        
+        # Check if all search terms are found in the combined text
+        matches_all_terms = all(
+            any(term in text_field for text_field in searchable_text)
+            for term in search_terms
+        )
+        
+        if matches_all_terms:
+            filtered_teams.append(team)
+    
+    return filtered_teams
+
+
+def search_teams_advanced(teams_list, search_query):
+    """
+    Advanced search with field-specific matching
+    Supports queries like: captain:john facility:club league:3.0
+    """
+    if not search_query:
+        return teams_list
+    
+    # Parse field-specific search terms
+    field_searches = {}
+    general_terms = []
+    
+    # Split by spaces and look for field:value patterns
+    terms = search_query.split()
+    for term in terms:
+        if ':' in term and len(term.split(':', 1)) == 2:
+            field, value = term.split(':', 1)
+            field = field.lower().strip()
+            value = value.lower().strip()
+            if field and value:
+                if field not in field_searches:
+                    field_searches[field] = []
+                field_searches[field].append(value)
+        else:
+            general_terms.append(term.lower().strip())
+    
+    filtered_teams = []
+    
+    for team in teams_list:
+        matches = True
+        
+        # Check field-specific searches
+        for field, values in field_searches.items():
+            field_match = False
+            
+            for value in values:
+                if field in ['name', 'team']:
+                    if hasattr(team, 'name') and team.name and value in team.name.lower():
+                        field_match = True
+                        break
+                elif field in ['captain', 'cap']:
+                    if hasattr(team, 'captain') and team.captain and value in team.captain.lower():
+                        field_match = True
+                        break
+                elif field in ['facility', 'fac']:
+                    if hasattr(team, 'home_facility') and team.home_facility:
+                        facility_name = ""
+                        if hasattr(team.home_facility, 'name'):
+                            facility_name = team.home_facility.name.lower()
+                        elif isinstance(team.home_facility, str):
+                            facility_name = team.home_facility.lower()
+                        if value in facility_name:
+                            field_match = True
+                            break
+                elif field in ['league', 'lg']:
+                    if hasattr(team, 'league') and team.league:
+                        if hasattr(team.league, 'name') and team.league.name and value in team.league.name.lower():
+                            field_match = True
+                            break
+                        if hasattr(team.league, 'division') and team.league.division and value in team.league.division.lower():
+                            field_match = True
+                            break
+                elif field in ['email', 'contact']:
+                    if hasattr(team, 'contact_email') and team.contact_email and value in team.contact_email.lower():
+                        field_match = True
+                        break
+                elif field in ['day', 'days']:
+                    if hasattr(team, 'preferred_days') and team.preferred_days:
+                        for day in team.preferred_days:
+                            if value in day.lower():
+                                field_match = True
+                                break
+                        if field_match:
+                            break
+            
+            if not field_match:
+                matches = False
+                break
+        
+        # Check general search terms (search across all fields)
+        if matches and general_terms:
+            # Use the existing general search logic
+            searchable_text = []
+            
+            if hasattr(team, 'name') and team.name:
+                searchable_text.append(team.name.lower())
+            if hasattr(team, 'captain') and team.captain:
+                searchable_text.append(team.captain.lower())
+            if hasattr(team, 'contact_email') and team.contact_email:
+                searchable_text.append(team.contact_email.lower())
+            if hasattr(team, 'home_facility') and team.home_facility:
+                if hasattr(team.home_facility, 'name') and team.home_facility.name:
+                    searchable_text.append(team.home_facility.name.lower())
+                elif isinstance(team.home_facility, str):
+                    searchable_text.append(team.home_facility.lower())
+            if hasattr(team, 'league') and team.league:
+                if hasattr(team.league, 'name') and team.league.name:
+                    searchable_text.append(team.league.name.lower())
+                if hasattr(team.league, 'division') and team.league.division:
+                    searchable_text.append(team.league.division.lower())
+            
+            combined_text = ' '.join(searchable_text)
+            
+            for term in general_terms:
+                if term not in combined_text:
+                    matches = False
+                    break
+        
+        if matches:
+            filtered_teams.append(team)
+    
+    return filtered_teams
+
+
 
 
 @app.route('/teams/add', methods=['GET', 'POST'])
@@ -2018,16 +2211,22 @@ def test_teams_export():
 
 @app.route('/matches')
 def matches():
-    """View matches with optional league filter and unscheduled match support"""
+    """View matches with optional league filter, search, and unscheduled match support"""
     db = get_db()
     if db is None:
         flash('No database connection', 'error')
         return redirect(url_for('index'))
     
     league_id = request.args.get('league_id', type=int)
-    show_unscheduled = request.args.get('show_unscheduled', 'true').lower() == 'true'
+    # Fix the checkbox handling
+    show_unscheduled_param = request.args.get('show_unscheduled', 'true')
+    show_unscheduled = show_unscheduled_param.lower() in ['true', '1', 'on', 'yes']
+    search_query = request.args.get('search', '').strip()
+    
+    print(f"DEBUG: show_unscheduled_param='{show_unscheduled_param}', show_unscheduled={show_unscheduled}")
     
     try:
+        # Get all matches first
         matches_list = db.list_matches(league_id=league_id, include_unscheduled=show_unscheduled)
         leagues_list = db.list_leagues()  # For filter dropdown
         facilities_list = db.list_facilities()  # For filter dropdown
@@ -2061,6 +2260,9 @@ def matches():
                 home_team = db.get_team(match.home_team_id)
                 if home_team:
                     enhanced_match['home_team_name'] = home_team.name
+                    # Store additional team info for search
+                    enhanced_match['home_team_captain'] = getattr(home_team, 'captain', '')
+                    enhanced_match['home_team_contact'] = getattr(home_team, 'contact_email', '')
             except Exception as e:
                 print(f"Warning: Could not get home team {match.home_team_id}: {e}")
             
@@ -2068,6 +2270,9 @@ def matches():
                 visitor_team = db.get_team(match.visitor_team_id)
                 if visitor_team:
                     enhanced_match['visitor_team_name'] = visitor_team.name
+                    # Store additional team info for search
+                    enhanced_match['visitor_team_captain'] = getattr(visitor_team, 'captain', '')
+                    enhanced_match['visitor_team_contact'] = getattr(visitor_team, 'contact_email', '')
             except Exception as e:
                 print(f"Warning: Could not get visitor team {match.visitor_team_id}: {e}")
             
@@ -2076,6 +2281,7 @@ def matches():
                     facility = db.get_facility(match.facility_id)
                     if facility:
                         enhanced_match['facility_name'] = facility.name
+                        enhanced_match['facility_location'] = getattr(facility, 'location', '')
                 except Exception as e:
                     print(f"Warning: Could not get facility {match.facility_id}: {e}")
             
@@ -2084,10 +2290,16 @@ def matches():
                     league = db.get_league(match.league_id)
                     if league:
                         enhanced_match['league_name'] = league.name
+                        enhanced_match['league_division'] = getattr(league, 'division', '')
+                        enhanced_match['league_year'] = getattr(league, 'year', '')
             except Exception as e:
                 print(f"Warning: Could not get league {match.league_id}: {e}")
             
             enhanced_matches.append(enhanced_match)
+        
+        # Apply search filter if provided
+        if search_query:
+            enhanced_matches = filter_matches_by_search(enhanced_matches, search_query)
         
         return render_template('matches.html', 
                              matches=enhanced_matches, 
@@ -2098,6 +2310,239 @@ def matches():
     except Exception as e:
         flash(f'Error loading matches: {e}', 'error')
         return redirect(url_for('index'))
+
+
+def filter_matches_by_search(matches_list, search_query):
+    """
+    Filter matches based on search query
+    Searches across: team names, captains, facility name/location, league name/division, dates, status
+    """
+    if not search_query:
+        return matches_list
+    
+    # Split search query into individual terms for more flexible matching
+    search_terms = [term.lower().strip() for term in search_query.split() if term.strip()]
+    if not search_terms:
+        return matches_list
+    
+    filtered_matches = []
+    
+    for match in matches_list:
+        # Collect all searchable text for this match
+        searchable_text = []
+        
+        # Team names
+        if match.get('home_team_name'):
+            searchable_text.append(match['home_team_name'].lower())
+        if match.get('visitor_team_name'):
+            searchable_text.append(match['visitor_team_name'].lower())
+        
+        # Team captains
+        if match.get('home_team_captain'):
+            searchable_text.append(match['home_team_captain'].lower())
+        if match.get('visitor_team_captain'):
+            searchable_text.append(match['visitor_team_captain'].lower())
+        
+        # Team contact emails
+        if match.get('home_team_contact'):
+            searchable_text.append(match['home_team_contact'].lower())
+        if match.get('visitor_team_contact'):
+            searchable_text.append(match['visitor_team_contact'].lower())
+        
+        # Facility information
+        if match.get('facility_name') and match['facility_name'] != 'Unknown':
+            searchable_text.append(match['facility_name'].lower())
+        if match.get('facility_location'):
+            searchable_text.append(match['facility_location'].lower())
+        
+        # League information
+        if match.get('league_name') and match['league_name'] != 'Unassigned':
+            searchable_text.append(match['league_name'].lower())
+        if match.get('league_division'):
+            searchable_text.append(match['league_division'].lower())
+        if match.get('league_year'):
+            searchable_text.append(str(match['league_year']).lower())
+        
+        # Match scheduling information
+        if match.get('date'):
+            searchable_text.append(str(match['date']).lower())
+        if match.get('time'):
+            searchable_text.append(str(match['time']).lower())
+        
+        # Match status
+        if match.get('status'):
+            searchable_text.append(match['status'].lower())
+        
+        # Match ID
+        searchable_text.append(str(match['id']))
+        
+        # Missing fields (what's preventing scheduling)
+        if match.get('missing_fields'):
+            for field in match['missing_fields']:
+                searchable_text.append(field.lower())
+        
+        # Combine all searchable text
+        combined_text = ' '.join(searchable_text)
+        
+        # Check if all search terms are found in the combined text
+        matches_all_terms = all(
+            any(term in text_field for text_field in searchable_text)
+            for term in search_terms
+        )
+        
+        if matches_all_terms:
+            filtered_matches.append(match)
+    
+    return filtered_matches
+
+
+def search_matches_advanced(matches_list, search_query):
+    """
+    Advanced search with field-specific matching
+    Supports queries like: home:lightning facility:club date:2025-01 status:scheduled
+    """
+    if not search_query:
+        return matches_list
+    
+    # Parse field-specific search terms
+    field_searches = {}
+    general_terms = []
+    
+    # Split by spaces and look for field:value patterns
+    terms = search_query.split()
+    for term in terms:
+        if ':' in term and len(term.split(':', 1)) == 2:
+            field, value = term.split(':', 1)
+            field = field.lower().strip()
+            value = value.lower().strip()
+            if field and value:
+                if field not in field_searches:
+                    field_searches[field] = []
+                field_searches[field].append(value)
+        else:
+            general_terms.append(term.lower().strip())
+    
+    filtered_matches = []
+    
+    for match in matches_list:
+        matches = True
+        
+        # Check field-specific searches
+        for field, values in field_searches.items():
+            field_match = False
+            
+            for value in values:
+                if field in ['home', 'home_team']:
+                    if match.get('home_team_name') and value in match['home_team_name'].lower():
+                        field_match = True
+                        break
+                elif field in ['visitor', 'visitor_team', 'away']:
+                    if match.get('visitor_team_name') and value in match['visitor_team_name'].lower():
+                        field_match = True
+                        break
+                elif field in ['team', 'teams']:
+                    home_match = match.get('home_team_name') and value in match['home_team_name'].lower()
+                    visitor_match = match.get('visitor_team_name') and value in match['visitor_team_name'].lower()
+                    if home_match or visitor_match:
+                        field_match = True
+                        break
+                elif field in ['facility', 'venue']:
+                    if match.get('facility_name') and value in match['facility_name'].lower():
+                        field_match = True
+                        break
+                elif field in ['league', 'lg']:
+                    if match.get('league_name') and value in match['league_name'].lower():
+                        field_match = True
+                        break
+                elif field in ['date', 'day']:
+                    if match.get('date') and value in str(match['date']).lower():
+                        field_match = True
+                        break
+                elif field in ['time']:
+                    if match.get('time') and value in str(match['time']).lower():
+                        field_match = True
+                        break
+                elif field in ['status']:
+                    if match.get('status') and value in match['status'].lower():
+                        field_match = True
+                        break
+                elif field in ['id', 'match_id']:
+                    if value in str(match['id']):
+                        field_match = True
+                        break
+                elif field in ['captain']:
+                    home_captain_match = match.get('home_team_captain') and value in match['home_team_captain'].lower()
+                    visitor_captain_match = match.get('visitor_team_captain') and value in match['visitor_team_captain'].lower()
+                    if home_captain_match or visitor_captain_match:
+                        field_match = True
+                        break
+                elif field in ['division', 'div']:
+                    if match.get('league_division') and value in match['league_division'].lower():
+                        field_match = True
+                        break
+                elif field in ['year']:
+                    if match.get('league_year') and value in str(match['league_year']):
+                        field_match = True
+                        break
+            
+            if not field_match:
+                matches = False
+                break
+        
+        # Check general search terms (search across all fields)
+        if matches and general_terms:
+            # Use the existing general search logic
+            searchable_text = []
+            
+            if match.get('home_team_name'):
+                searchable_text.append(match['home_team_name'].lower())
+            if match.get('visitor_team_name'):
+                searchable_text.append(match['visitor_team_name'].lower())
+            if match.get('facility_name') and match['facility_name'] != 'Unknown':
+                searchable_text.append(match['facility_name'].lower())
+            if match.get('league_name') and match['league_name'] != 'Unassigned':
+                searchable_text.append(match['league_name'].lower())
+            if match.get('date'):
+                searchable_text.append(str(match['date']).lower())
+            if match.get('status'):
+                searchable_text.append(match['status'].lower())
+            
+            combined_text = ' '.join(searchable_text)
+            
+            for term in general_terms:
+                if term not in combined_text:
+                    matches = False
+                    break
+        
+        if matches:
+            filtered_matches.append(match)
+    
+    return filtered_matches
+
+
+# Enhanced match status tracking for better search results
+def get_match_status_details(match):
+    """
+    Get detailed status information for a match to help with search
+    """
+    status_info = {
+        'is_fully_scheduled': match.is_scheduled(),
+        'status': match.get_status(),
+        'missing_fields': match.get_missing_fields(),
+        'has_facility': bool(match.facility_id),
+        'has_date': bool(match.date),
+        'has_time': bool(match.time),
+        'scheduling_completeness': 0
+    }
+    
+    # Calculate scheduling completeness percentage
+    required_fields = ['facility_id', 'date', 'time']
+    completed_fields = sum(1 for field in required_fields if getattr(match, field, None))
+    status_info['scheduling_completeness'] = (completed_fields / len(required_fields)) * 100
+    
+    return status_info
+
+
 
 @app.route('/matches/<int:match_id>/schedule', methods=['POST'])
 def schedule_match(match_id):
@@ -2591,10 +3036,13 @@ def stats():
 
 
 # Add this route to tennis_web_app.py after the existing matches route
+# ==================== SCHEDULE OUTPUT  ====================
+
+# Updated schedule() route in tennis_web_app.py
 
 @app.route('/schedule')
 def schedule():
-    """View matches organized by date in a schedule format"""
+    """View matches organized by date in a schedule format with search functionality"""
     print("=== SCHEDULE ROUTE DEBUG START ===")
     
     db = get_db()
@@ -2606,11 +3054,13 @@ def schedule():
     league_id = request.args.get('league_id', type=int)
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
+    search_query = request.args.get('search', '').strip()
     
     print(f"Request parameters:")
     print(f"  - league_id: {league_id} (type: {type(league_id)})")
     print(f"  - start_date: '{start_date}'")
     print(f"  - end_date: '{end_date}'")
+    print(f"  - search_query: '{search_query}'")
     
     try:
         # Get all scheduled matches (only those with dates)
@@ -2624,14 +3074,6 @@ def schedule():
         # Filter matches that have dates
         scheduled_matches = [match for match in all_matches if match.date]
         print(f"Filtered to {len(scheduled_matches)} scheduled matches (with dates)")
-        
-        # Debug: Show first few matches
-        if scheduled_matches:
-            print("\nFirst few scheduled matches:")
-            for i, match in enumerate(scheduled_matches[:3]):
-                print(f"  Match {i+1}: ID={match.id}, facility_id={match.facility_id} (type: {type(match.facility_id)})")
-                print(f"    home_team_id={match.home_team_id}, visitor_team_id={match.visitor_team_id}")
-                print(f"    date={match.date}, time={match.time}")
         
         # Apply date range filter if provided
         if start_date:
@@ -2659,11 +3101,6 @@ def schedule():
         
         for i, match in enumerate(scheduled_matches):
             print(f"\nProcessing match {i+1}/{len(scheduled_matches)} (ID: {match.id})")
-            print(f"  Raw match data:")
-            print(f"    facility_id: {match.facility_id} (type: {type(match.facility_id)})")
-            print(f"    home_team_id: {match.home_team_id} (type: {type(match.home_team_id)})")
-            print(f"    visitor_team_id: {match.visitor_team_id} (type: {type(match.visitor_team_id)})")
-            print(f"    league_id: {match.league_id} (type: {type(match.league_id)})")
             
             enhanced_match = {
                 'id': match.id,
@@ -2682,109 +3119,82 @@ def schedule():
             
             # Get home team
             try:
-                print(f"  Getting home team with ID: {match.home_team_id}")
                 home_team = db.get_team(match.home_team_id)
                 if home_team:
                     enhanced_match['home_team_name'] = home_team.name
-                    print(f"    Home team: {home_team.name}")
-                else:
-                    print(f"    WARNING: Home team with ID {match.home_team_id} not found")
+                    enhanced_match['home_team_captain'] = getattr(home_team, 'captain', '')
+                    enhanced_match['home_team_contact'] = getattr(home_team, 'contact_email', '')
             except Exception as e:
                 print(f"    ERROR getting home team {match.home_team_id}: {e}")
-                print(f"    Exception type: {type(e)}")
             
             # Get visitor team
             try:
-                print(f"  Getting visitor team with ID: {match.visitor_team_id}")
                 visitor_team = db.get_team(match.visitor_team_id)
                 if visitor_team:
                     enhanced_match['visitor_team_name'] = visitor_team.name
-                    print(f"    Visitor team: {visitor_team.name}")
-                else:
-                    print(f"    WARNING: Visitor team with ID {match.visitor_team_id} not found")
+                    enhanced_match['visitor_team_captain'] = getattr(visitor_team, 'captain', '')
+                    enhanced_match['visitor_team_contact'] = getattr(visitor_team, 'contact_email', '')
             except Exception as e:
                 print(f"    ERROR getting visitor team {match.visitor_team_id}: {e}")
-                print(f"    Exception type: {type(e)}")
             
             # Get facility - use home team's facility if match facility_id is not set
             try:
-                print(f"  Getting facility with ID: {match.facility_id}")
-                
                 facility_id_to_use = match.facility_id
                 facility_source = "match"
                 
                 # If match facility_id is None, try to use home team's facility
                 if match.facility_id is None:
-                    print(f"    WARNING: facility_id is None - trying to use home team's facility")
                     try:
-                        # Get the home team to access its facility
-                        if 'home_team_name' not in enhanced_match or enhanced_match['home_team_name'] == 'Unknown':
-                            # We need to get the home team if we haven't already
-                            home_team = db.get_team(match.home_team_id)
-                        else:
-                            # We already have the home team from earlier
-                            home_team = db.get_team(match.home_team_id)
+                        home_team = db.get_team(match.home_team_id) if 'home_team_name' not in enhanced_match else home_team
                         
                         if home_team and hasattr(home_team, 'home_facility') and home_team.home_facility:
-                            # If home_facility is a Facility object, get its ID
                             if hasattr(home_team.home_facility, 'id'):
                                 facility_id_to_use = home_team.home_facility.id
                                 facility_source = "home team facility object"
-                                print(f"    Using home team's facility ID: {facility_id_to_use}")
-                            # If home_facility is a string, try to find the facility by name
                             elif isinstance(home_team.home_facility, str):
                                 facilities = db.list_facilities()
                                 for fac in facilities:
                                     if fac.name == home_team.home_facility or (fac.short_name and fac.short_name == home_team.home_facility):
                                         facility_id_to_use = fac.id
                                         facility_source = "home team facility name lookup"
-                                        print(f"    Found facility '{fac.name}' by name, using ID: {facility_id_to_use}")
                                         break
-                                if facility_id_to_use is None:
-                                    print(f"    Could not find facility with name: {home_team.home_facility}")
-                        else:
-                            print(f"    Home team has no facility assigned")
                     except Exception as e:
                         print(f"    ERROR getting home team's facility: {e}")
                 
                 # Now try to get the facility
                 if facility_id_to_use is None:
-                    print(f"    No facility available - using fallback")
                     enhanced_match['facility_name'] = 'No Facility Assigned'
                 else:
                     facility = db.get_facility(facility_id_to_use)
                     if facility:
                         enhanced_match['facility_name'] = facility.name
-                        if facility_source != "match":
-                            enhanced_match['facility_name'] += f" (from {facility_source})"
-                        print(f"    Facility: {facility.name} (source: {facility_source})")
+                        enhanced_match['facility_location'] = getattr(facility, 'location', '')
                     else:
-                        print(f"    WARNING: Facility with ID {facility_id_to_use} not found")
                         enhanced_match['facility_name'] = f'Facility ID {facility_id_to_use} (Not Found)'
                         
             except Exception as e:
                 print(f"    ERROR getting facility: {e}")
-                print(f"    Exception type: {type(e)}")
-                print(f"    This is likely the source of your 'Facility ID must be a positive integer' error!")
-                # Don't let this break the whole page
                 enhanced_match['facility_name'] = f'Error: {str(e)}'
             
             # Get league
             try:
                 if match.league_id:
-                    print(f"  Getting league with ID: {match.league_id}")
                     league = db.get_league(match.league_id)
                     if league:
                         enhanced_match['league_name'] = league.name
-                        print(f"    League: {league.name}")
-                    else:
-                        print(f"    WARNING: League with ID {match.league_id} not found")
+                        enhanced_match['league_division'] = getattr(league, 'division', '')
+                        enhanced_match['league_year'] = getattr(league, 'year', '')
             except Exception as e:
                 print(f"    ERROR getting league {match.league_id}: {e}")
-                print(f"    Exception type: {type(e)}")
             
             enhanced_matches.append(enhanced_match)
-            print(f"  Enhanced match added successfully")
+        
+        # Apply search filter if provided
+        if search_query:
+            print(f"\n--- Applying search filter for '{search_query}' ---")
+            before_search = len(enhanced_matches)
+            enhanced_matches = filter_schedule_matches_by_search(enhanced_matches, search_query)
+            print(f"After search filter: {len(enhanced_matches)} matches (was {before_search})")
         
         print(f"\n--- Grouping {len(enhanced_matches)} enhanced matches by date ---")
         
@@ -2845,6 +3255,250 @@ def schedule():
         
         flash(f'Error loading schedule: {e}', 'error')
         return redirect(url_for('index'))
+
+
+def filter_schedule_matches_by_search(matches_list, search_query):
+    """
+    Filter schedule matches based on search query
+    Searches across: team names, captains, facility name/location, league name/division, dates, times
+    """
+    if not search_query:
+        return matches_list
+    
+    # Split search query into individual terms for more flexible matching
+    search_terms = [term.lower().strip() for term in search_query.split() if term.strip()]
+    if not search_terms:
+        return matches_list
+    
+    filtered_matches = []
+    
+    for match in matches_list:
+        # Collect all searchable text for this match
+        searchable_text = []
+        
+        # Team names
+        if match.get('home_team_name') and match['home_team_name'] != 'Unknown':
+            searchable_text.append(match['home_team_name'].lower())
+        if match.get('visitor_team_name') and match['visitor_team_name'] != 'Unknown':
+            searchable_text.append(match['visitor_team_name'].lower())
+        
+        # Team captains
+        if match.get('home_team_captain'):
+            searchable_text.append(match['home_team_captain'].lower())
+        if match.get('visitor_team_captain'):
+            searchable_text.append(match['visitor_team_captain'].lower())
+        
+        # Team contact emails
+        if match.get('home_team_contact'):
+            searchable_text.append(match['home_team_contact'].lower())
+        if match.get('visitor_team_contact'):
+            searchable_text.append(match['visitor_team_contact'].lower())
+        
+        # Facility information
+        if match.get('facility_name') and match['facility_name'] not in ['Unknown', 'No Facility Assigned']:
+            searchable_text.append(match['facility_name'].lower())
+        if match.get('facility_location'):
+            searchable_text.append(match['facility_location'].lower())
+        
+        # League information
+        if match.get('league_name') and match['league_name'] != 'Unknown':
+            searchable_text.append(match['league_name'].lower())
+        if match.get('league_division'):
+            searchable_text.append(match['league_division'].lower())
+        if match.get('league_year'):
+            searchable_text.append(str(match['league_year']).lower())
+        
+        # Match scheduling information
+        if match.get('date'):
+            searchable_text.append(str(match['date']).lower())
+            # Also add formatted date components for easier searching
+            try:
+                from datetime import datetime
+                date_obj = datetime.strptime(str(match['date']), '%Y-%m-%d')
+                searchable_text.append(date_obj.strftime('%A').lower())  # Day name
+                searchable_text.append(date_obj.strftime('%B').lower())  # Month name
+                searchable_text.append(date_obj.strftime('%Y'))  # Year
+                searchable_text.append(date_obj.strftime('%m'))  # Month number
+                searchable_text.append(date_obj.strftime('%d'))  # Day number
+            except ValueError:
+                pass
+        
+        if match.get('time'):
+            searchable_text.append(str(match['time']).lower())
+        
+        # Match status
+        if match.get('status'):
+            searchable_text.append(match['status'].lower())
+        
+        # Match ID
+        searchable_text.append(str(match['id']))
+        
+        # Combine all searchable text
+        combined_text = ' '.join(searchable_text)
+        
+        # Check if all search terms are found in the combined text
+        matches_all_terms = all(
+            any(term in text_field for text_field in searchable_text)
+            for term in search_terms
+        )
+        
+        if matches_all_terms:
+            filtered_matches.append(match)
+    
+    return filtered_matches
+
+
+def search_schedule_matches_advanced(matches_list, search_query):
+    """
+    Advanced search for schedule matches with field-specific matching
+    Supports queries like: home:lightning facility:club date:2025-01 time:morning
+    """
+    if not search_query:
+        return matches_list
+    
+    # Parse field-specific search terms
+    field_searches = {}
+    general_terms = []
+    
+    # Split by spaces and look for field:value patterns
+    terms = search_query.split()
+    for term in terms:
+        if ':' in term and len(term.split(':', 1)) == 2:
+            field, value = term.split(':', 1)
+            field = field.lower().strip()
+            value = value.lower().strip()
+            if field and value:
+                if field not in field_searches:
+                    field_searches[field] = []
+                field_searches[field].append(value)
+        else:
+            general_terms.append(term.lower().strip())
+    
+    filtered_matches = []
+    
+    for match in matches_list:
+        matches = True
+        
+        # Check field-specific searches
+        for field, values in field_searches.items():
+            field_match = False
+            
+            for value in values:
+                if field in ['home', 'home_team']:
+                    if match.get('home_team_name') and value in match['home_team_name'].lower():
+                        field_match = True
+                        break
+                elif field in ['visitor', 'visitor_team', 'away']:
+                    if match.get('visitor_team_name') and value in match['visitor_team_name'].lower():
+                        field_match = True
+                        break
+                elif field in ['team', 'teams']:
+                    home_match = match.get('home_team_name') and value in match['home_team_name'].lower()
+                    visitor_match = match.get('visitor_team_name') and value in match['visitor_team_name'].lower()
+                    if home_match or visitor_match:
+                        field_match = True
+                        break
+                elif field in ['facility', 'venue']:
+                    if match.get('facility_name') and value in match['facility_name'].lower():
+                        field_match = True
+                        break
+                elif field in ['league', 'lg']:
+                    if match.get('league_name') and value in match['league_name'].lower():
+                        field_match = True
+                        break
+                elif field in ['date', 'day']:
+                    if match.get('date'):
+                        date_str = str(match['date']).lower()
+                        if value in date_str:
+                            field_match = True
+                            break
+                        # Check day names and month names
+                        try:
+                            from datetime import datetime
+                            date_obj = datetime.strptime(str(match['date']), '%Y-%m-%d')
+                            if (value in date_obj.strftime('%A').lower() or  # Full day name
+                                value in date_obj.strftime('%a').lower() or  # Short day name
+                                value in date_obj.strftime('%B').lower() or  # Full month name
+                                value in date_obj.strftime('%b').lower()):   # Short month name
+                                field_match = True
+                                break
+                        except ValueError:
+                            pass
+                elif field in ['time']:
+                    if match.get('time') and value in str(match['time']).lower():
+                        field_match = True
+                        break
+                    # Support time range searches
+                    elif match.get('time'):
+                        try:
+                            time_str = str(match['time'])
+                            hour = int(time_str.split(':')[0])
+                            if value == 'morning' and 6 <= hour < 12:
+                                field_match = True
+                                break
+                            elif value == 'afternoon' and 12 <= hour < 18:
+                                field_match = True
+                                break
+                            elif value == 'evening' and 18 <= hour < 24:
+                                field_match = True
+                                break
+                        except (ValueError, IndexError):
+                            pass
+                elif field in ['status']:
+                    if match.get('status') and value in match['status'].lower():
+                        field_match = True
+                        break
+                elif field in ['id', 'match_id']:
+                    if value in str(match['id']):
+                        field_match = True
+                        break
+                elif field in ['captain']:
+                    home_captain_match = match.get('home_team_captain') and value in match['home_team_captain'].lower()
+                    visitor_captain_match = match.get('visitor_team_captain') and value in match['visitor_team_captain'].lower()
+                    if home_captain_match or visitor_captain_match:
+                        field_match = True
+                        break
+                elif field in ['division', 'div']:
+                    if match.get('league_division') and value in match['league_division'].lower():
+                        field_match = True
+                        break
+                elif field in ['year']:
+                    if match.get('league_year') and value in str(match['league_year']):
+                        field_match = True
+                        break
+            
+            if not field_match:
+                matches = False
+                break
+        
+        # Check general search terms (search across all fields)
+        if matches and general_terms:
+            searchable_text = []
+            
+            if match.get('home_team_name') and match['home_team_name'] != 'Unknown':
+                searchable_text.append(match['home_team_name'].lower())
+            if match.get('visitor_team_name') and match['visitor_team_name'] != 'Unknown':
+                searchable_text.append(match['visitor_team_name'].lower())
+            if match.get('facility_name') and match['facility_name'] not in ['Unknown', 'No Facility Assigned']:
+                searchable_text.append(match['facility_name'].lower())
+            if match.get('league_name') and match['league_name'] != 'Unknown':
+                searchable_text.append(match['league_name'].lower())
+            if match.get('date'):
+                searchable_text.append(str(match['date']).lower())
+            if match.get('time'):
+                searchable_text.append(str(match['time']).lower())
+            
+            combined_text = ' '.join(searchable_text)
+            
+            for term in general_terms:
+                if term not in combined_text:
+                    matches = False
+                    break
+        
+        if matches:
+            filtered_matches.append(match)
+    
+    return filtered_matches
         
 
 # ==================== APPLICATION CONTEXT ====================

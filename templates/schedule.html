@@ -17,11 +17,11 @@
     </div>
 </div>
 
-<!-- Filters -->
+<!-- Enhanced Filters and Search -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row align-items-end">
-            <div class="col-md-4">
+            <div class="col-lg-3 col-md-4 mb-2">
                 <label for="league_id" class="form-label">
                     <i class="fas fa-filter"></i> Filter by League
                 </label>
@@ -34,36 +34,85 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-lg-4 col-md-5 mb-2">
+                <label for="search_query" class="form-label">Search Schedule</label>
+                <div class="input-group">
+                    <input type="text" 
+                           class="form-control" 
+                           id="search_query" 
+                           name="search" 
+                           value="{{ request.args.get('search', '') }}"
+                           placeholder="Search by teams, facility, date...">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <div class="form-text">Search across team names, facilities, leagues, and dates</div>
+            </div>
+            <div class="col-lg-2 col-md-3 mb-2">
                 <label for="start_date" class="form-label">
                     <i class="fas fa-calendar-alt"></i> Start Date
                 </label>
                 <input type="date" class="form-control" id="start_date" name="start_date" 
                        value="{{ start_date }}" onchange="this.form.submit()">
             </div>
-            <div class="col-md-3">
+            <div class="col-lg-2 col-md-3 mb-2">
                 <label for="end_date" class="form-label">
                     <i class="fas fa-calendar-alt"></i> End Date
                 </label>
                 <input type="date" class="form-control" id="end_date" name="end_date" 
                        value="{{ end_date }}" onchange="this.form.submit()">
             </div>
-            <div class="col-md-2">
-                {% if selected_league or start_date or end_date %}
-                <a href="{{ url_for('schedule') }}" class="btn btn-outline-secondary w-100">
-                    <i class="fas fa-times"></i> Clear
-                </a>
-                {% endif %}
+            <div class="col-lg-1 col-md-12 mb-2">
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                    {% if selected_league or start_date or end_date or request.args.get('search') %}
+                    <a href="{{ url_for('schedule') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i>
+                    </a>
+                    {% endif %}
+                </div>
             </div>
         </form>
+        
+        <!-- Filter Status Summary -->
+        {% if selected_league or request.args.get('search') or start_date or end_date %}
+        <div class="alert alert-info mt-3 mb-0">
+            <i class="fas fa-info-circle"></i>
+            <strong>Active Filters:</strong>
+            {% if selected_league %}
+            <span class="badge bg-primary ms-1">League: {{ selected_league.name }}</span>
+            {% endif %}
+            {% if request.args.get('search') %}
+            <span class="badge bg-success ms-1">Search: "{{ request.args.get('search') }}"</span>
+            {% endif %}
+            {% if start_date %}
+            <span class="badge bg-info ms-1">From: {{ start_date }}</span>
+            {% endif %}
+            {% if end_date %}
+            <span class="badge bg-info ms-1">To: {{ end_date }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 </div>
 
+<!-- Search Results Summary -->
+{% if request.args.get('search') and schedule_data %}
+<div class="alert alert-success mb-4">
+    <i class="fas fa-search"></i>
+    <strong>Search Results:</strong> Found {{ total_matches }} matches for "{{ request.args.get('search') }}" 
+    across {{ schedule_data|length }} days
+</div>
+{% endif %}
+
 <!-- Schedule Display -->
 {% if schedule_data %}
-<div class="row">
+<div class="row" id="scheduleContainer">
     {% for day_data in schedule_data %}
-    <div class="col-12 mb-4">
+    <div class="col-12 mb-4 schedule-day-card" data-day="{{ day_data.date_str }}">
         <div class="card">
             <div class="card-header bg-primary text-white">
                 <div class="row align-items-center">
@@ -76,7 +125,8 @@
                     </div>
                     <div class="col-md-4 text-end">
                         <span class="badge bg-light text-dark fs-6">
-                            {{ day_data.matches|length }} match{% if day_data.matches|length != 1 %}es{% endif %}
+                            <span class="match-count">{{ day_data.matches|length }}</span> 
+                            match{% if day_data.matches|length != 1 %}es{% endif %}
                         </span>
                     </div>
                 </div>
@@ -86,43 +136,54 @@
                 <!-- Desktop Table View -->
                 <div class="d-none d-md-block">
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
+                        <table class="table table-hover mb-0 align-middle schedule-table">
+                            <thead class="table-dark">
                                 <tr>
-                                    <th>Time</th>
-                                    <th>Home Team</th>
-                                    <th>Visitor Team</th>
-                                    <th>Facility</th>
-                                    <th>League</th>
-                                    <th>Match ID</th>
+                                    <th class="text-center" style="width: 100px;">Time</th>
+                                    <th style="width: 200px;">Teams</th>
+                                    <th class="text-center" style="width: 150px;">Facility</th>
+                                    <th class="text-center" style="width: 140px;">League</th>
+                                    <th class="text-center" style="width: 80px;">Match ID</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for match in day_data.matches %}
-                                <tr>
-                                    <td>
-                                        {% if match.time %}
-                                            <span class="badge bg-success">{{ match.time }}</span>
-                                        {% else %}
-                                            <span class="badge bg-warning text-dark">TBD</span>
-                                        {% endif %}
+                                <tr class="schedule-match-row" data-match-id="{{ match.id }}">
+                                    <td class="text-center">
+                                        <div class="time-cell">
+                                            {% if match.time %}
+                                                <span class="badge bg-success">{{ match.time }}</span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark">TBD</span>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                     <td>
-                                        <strong>{{ match.home_team_name }}</strong>
-                                        <div class="small text-muted">Home</div>
+                                        <div class="teams-cell">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <span class="badge bg-primary me-2" style="min-width: 45px;">HOME</span>
+                                                <strong class="text-truncate">{{ match.home_team_name }}</strong>
+                                            </div>
+                                            <div class="d-flex align-items-center">
+                                                <span class="badge bg-secondary me-2" style="min-width: 45px;">AWAY</span>
+                                                <strong class="text-truncate">{{ match.visitor_team_name }}</strong>
+                                            </div>
+                                        </div>
                                     </td>
-                                    <td>
-                                        <strong>{{ match.visitor_team_name }}</strong>
-                                        <div class="small text-muted">Visitor</div>
+                                    <td class="text-center">
+                                        <div class="facility-cell">
+                                            <span class="badge bg-info text-wrap">{{ match.facility_name }}</span>
+                                        </div>
                                     </td>
-                                    <td>
-                                        <span class="badge bg-info">{{ match.facility_name }}</span>
+                                    <td class="text-center">
+                                        <div class="league-cell">
+                                            <div class="small text-muted">{{ match.league_name }}</div>
+                                        </div>
                                     </td>
-                                    <td>
-                                        <div class="small text-muted">{{ match.league_name }}</div>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-secondary">{{ match.id }}</span>
+                                    <td class="text-center">
+                                        <div class="match-id-cell">
+                                            <span class="badge bg-secondary">#{{ match.id }}</span>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -134,7 +195,7 @@
                 <!-- Mobile Card View -->
                 <div class="d-block d-md-none">
                     {% for match in day_data.matches %}
-                    <div class="card mb-3 border-start border-primary border-3">
+                    <div class="card mb-3 border-start border-primary border-3 schedule-match-card" data-match-id="{{ match.id }}">
                         <div class="card-body py-2">
                             <div class="row align-items-center">
                                 <div class="col-3">
@@ -175,24 +236,27 @@
 <div class="card mt-4">
     <div class="card-header">
         <i class="fas fa-chart-bar"></i> Schedule Summary
+        {% if request.args.get('search') %}
+        <small class="text-muted">- Search Results</small>
+        {% endif %}
     </div>
     <div class="card-body">
         <div class="row">
             <div class="col-md-3">
                 <div class="text-center">
-                    <h3 class="text-primary">{{ schedule_data|length }}</h3>
+                    <h3 class="text-primary" id="summary-days">{{ schedule_data|length }}</h3>
                     <small class="text-muted">Days with matches</small>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="text-center">
-                    <h3 class="text-success">{{ total_matches }}</h3>
+                    <h3 class="text-success" id="summary-matches">{{ total_matches }}</h3>
                     <small class="text-muted">Total matches</small>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="text-center">
-                    <h3 class="text-info">
+                    <h3 class="text-info" id="summary-avg">
                         {% if schedule_data %}
                         {{ "%.1f"|format(total_matches / schedule_data|length) }}
                         {% else %}
@@ -204,7 +268,7 @@
             </div>
             <div class="col-md-3">
                 <div class="text-center">
-                    <h3 class="text-warning">
+                    <h3 class="text-warning" id="summary-playing-days">
                         {% if schedule_data %}
                         {{ schedule_data|length }}
                         {% else %}
@@ -247,15 +311,29 @@
 <div class="card">
     <div class="card-body text-center">
         <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
+        {% if request.args.get('search') %}
+        <h5>No Matches Found</h5>
+        <p class="text-muted">No scheduled matches match your search for "<strong>{{ request.args.get('search') }}</strong>".</p>
+        <div class="d-flex gap-2 justify-content-center">
+            <a href="{{ url_for('schedule') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-times"></i> Clear Search
+            </a>
+            <a href="{{ url_for('matches') }}" class="btn btn-primary">
+                <i class="fas fa-calendar-alt"></i> View All Matches
+            </a>
+        </div>
+        {% elif selected_league %}
         <h5>No Scheduled Matches Found</h5>
-        {% if selected_league %}
         <p class="text-muted">No scheduled matches found for league: <strong>{{ selected_league.name }}</strong></p>
         {% elif start_date or end_date %}
+        <h5>No Scheduled Matches Found</h5>
         <p class="text-muted">No scheduled matches found in the specified date range.</p>
         {% else %}
+        <h5>No Scheduled Matches Found</h5>
         <p class="text-muted">No matches have been scheduled yet.</p>
         {% endif %}
         
+        {% if not request.args.get('search') %}
         <div class="d-flex gap-2 justify-content-center">
             <a href="{{ url_for('matches') }}" class="btn btn-primary">
                 <i class="fas fa-calendar-alt"></i> View All Matches
@@ -264,6 +342,7 @@
                 <i class="fas fa-magic"></i> Generate Matches
             </a>
         </div>
+        {% endif %}
         
         <div class="alert alert-info mt-3">
             <i class="fas fa-info-circle"></i>
@@ -309,16 +388,19 @@
 
 <!-- Quick Date Navigation -->
 {% if schedule_data %}
-<div class="card mt-4">
+<div class="card mt-4" id="quickNavCard">
     <div class="card-header">
-        <i class="fas fa-fast-forward"></i> Quick Navigation
+        <div class="d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-fast-forward"></i> Quick Navigation</span>
+            <small class="text-muted" id="nav-results-counter"></small>
+        </div>
     </div>
     <div class="card-body">
-        <div class="d-flex flex-wrap gap-2">
+        <div class="d-flex flex-wrap gap-2" id="quickNavContainer">
             {% for day_data in schedule_data %}
-            <a href="#day-{{ day_data.date_str }}" class="btn btn-sm btn-outline-primary">
+            <a href="#day-{{ day_data.date_str }}" class="btn btn-sm btn-outline-primary quick-nav-btn" data-day="{{ day_data.date_str }}">
                 {{ day_data.day_name[:3] }} {{ day_data.date_str.split('-')[1] }}/{{ day_data.date_str.split('-')[2] }}
-                <span class="badge bg-primary ms-1">{{ day_data.matches|length }}</span>
+                <span class="badge bg-primary ms-1 nav-match-count">{{ day_data.matches|length }}</span>
             </a>
             {% endfor %}
         </div>
@@ -342,6 +424,218 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {% block scripts %}
 <script>
+// Search functionality
+function clearSearch() {
+    const url = new URL(window.location);
+    url.searchParams.delete('search');
+    window.location.href = url.toString();
+}
+
+// Enhanced search with real-time filtering
+function setupLiveSearch() {
+    const searchInput = document.getElementById('search_query');
+    if (!searchInput) return;
+    
+    let searchTimeout;
+    
+    searchInput.addEventListener('input', function(e) {
+        clearTimeout(searchTimeout);
+        const query = e.target.value.trim();
+        
+        if (query.length >= 2) {
+            searchTimeout = setTimeout(function() {
+                performLiveSearch(query);
+            }, 300);
+        } else if (query.length === 0) {
+            clearHighlighting();
+            showAllMatches();
+            updateNavigationCounters();
+        }
+    });
+}
+
+function performLiveSearch(query) {
+    const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
+    let totalVisibleMatches = 0;
+    let visibleDays = 0;
+    
+    // Search through each day's matches
+    document.querySelectorAll('.schedule-day-card').forEach(dayCard => {
+        const dayMatches = dayCard.querySelectorAll('.schedule-match-row, .schedule-match-card');
+        let dayVisibleMatches = 0;
+        
+        dayMatches.forEach(matchElement => {
+            const text = matchElement.textContent.toLowerCase();
+            const matches = searchTerms.every(term => text.includes(term));
+            
+            if (matches) {
+                matchElement.style.display = '';
+                dayVisibleMatches++;
+                highlightSearchTerms(matchElement, searchTerms);
+            } else {
+                matchElement.style.display = 'none';
+                clearRowHighlighting(matchElement);
+            }
+        });
+        
+        // Update day card visibility and match count
+        const matchCountElement = dayCard.querySelector('.match-count');
+        if (matchCountElement) {
+            matchCountElement.textContent = dayVisibleMatches;
+        }
+        
+        if (dayVisibleMatches > 0) {
+            dayCard.style.display = '';
+            visibleDays++;
+            totalVisibleMatches += dayVisibleMatches;
+        } else {
+            dayCard.style.display = 'none';
+        }
+    });
+    
+    // Update summary statistics
+    updateSummaryCounters(totalVisibleMatches, visibleDays);
+    updateNavigationCounters();
+    updateResultsCounter(totalVisibleMatches, visibleDays);
+}
+
+function showAllMatches() {
+    // Show all day cards and matches
+    document.querySelectorAll('.schedule-day-card').forEach(dayCard => {
+        dayCard.style.display = '';
+        
+        // Show all matches in this day
+        dayCard.querySelectorAll('.schedule-match-row, .schedule-match-card').forEach(matchElement => {
+            matchElement.style.display = '';
+        });
+        
+        // Restore original match count
+        const matchCountElement = dayCard.querySelector('.match-count');
+        const totalMatches = dayCard.querySelectorAll('.schedule-match-row, .schedule-match-card').length;
+        if (matchCountElement) {
+            matchCountElement.textContent = totalMatches;
+        }
+    });
+    
+    // Restore original summary statistics
+    const originalDays = {{ schedule_data|length }};
+    const originalMatches = {{ total_matches }};
+    updateSummaryCounters(originalMatches, originalDays);
+}
+
+function updateSummaryCounters(totalMatches, totalDays) {
+    const summaryDays = document.getElementById('summary-days');
+    const summaryMatches = document.getElementById('summary-matches');
+    const summaryAvg = document.getElementById('summary-avg');
+    const summaryPlayingDays = document.getElementById('summary-playing-days');
+    
+    if (summaryDays) summaryDays.textContent = totalDays;
+    if (summaryMatches) summaryMatches.textContent = totalMatches;
+    if (summaryAvg) {
+        const avg = totalDays > 0 ? (totalMatches / totalDays).toFixed(1) : '0';
+        summaryAvg.textContent = avg;
+    }
+    if (summaryPlayingDays) summaryPlayingDays.textContent = totalDays;
+}
+
+function updateNavigationCounters() {
+    // Update quick navigation buttons to show filtered counts
+    document.querySelectorAll('.quick-nav-btn').forEach(navBtn => {
+        const dayDate = navBtn.getAttribute('data-day');
+        const dayCard = document.querySelector(`[data-day="${dayDate}"]`);
+        
+        if (dayCard) {
+            const visibleMatches = Array.from(dayCard.querySelectorAll('.schedule-match-row, .schedule-match-card'))
+                .filter(match => match.style.display !== 'none').length;
+            
+            const countBadge = navBtn.querySelector('.nav-match-count');
+            if (countBadge) {
+                countBadge.textContent = visibleMatches;
+            }
+            
+            // Hide navigation button if no matches are visible for this day
+            if (visibleMatches === 0) {
+                navBtn.style.display = 'none';
+            } else {
+                navBtn.style.display = '';
+            }
+        }
+    });
+}
+
+function updateResultsCounter(matchCount, dayCount) {
+    const counter = document.getElementById('nav-results-counter');
+    if (counter) {
+        if (matchCount > 0) {
+            counter.textContent = `${matchCount} matches across ${dayCount} days`;
+        } else {
+            counter.textContent = 'No matches found';
+        }
+    }
+}
+
+function highlightSearchTerms(element, searchTerms) {
+    clearRowHighlighting(element);
+    
+    searchTerms.forEach(term => {
+        const textNodes = getTextNodes(element);
+        textNodes.forEach(textNode => {
+            const text = textNode.textContent;
+            const index = text.toLowerCase().indexOf(term);
+            if (index !== -1) {
+                const span = document.createElement('span');
+                span.className = 'bg-warning search-highlight';
+                span.style.fontWeight = 'bold';
+                
+                const before = text.substring(0, index);
+                const match = text.substring(index, index + term.length);
+                const after = text.substring(index + term.length);
+                
+                textNode.textContent = before;
+                span.textContent = match;
+                
+                textNode.parentNode.insertBefore(span, textNode.nextSibling);
+                
+                if (after) {
+                    const afterNode = document.createTextNode(after);
+                    textNode.parentNode.insertBefore(afterNode, span.nextSibling);
+                }
+            }
+        });
+    });
+}
+
+function getTextNodes(element) {
+    const textNodes = [];
+    const walker = document.createTreeWalker(
+        element,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+    );
+    
+    let node;
+    while (node = walker.nextNode()) {
+        textNodes.push(node);
+    }
+    
+    return textNodes;
+}
+
+function clearHighlighting() {
+    document.querySelectorAll('.search-highlight').forEach(span => {
+        const text = span.textContent;
+        span.parentNode.replaceChild(document.createTextNode(text), span);
+    });
+}
+
+function clearRowHighlighting(row) {
+    row.querySelectorAll('.search-highlight').forEach(span => {
+        const text = span.textContent;
+        span.parentNode.replaceChild(document.createTextNode(text), span);
+    });
+}
+
 // Print functionality
 function printSchedule() {
     window.print();
@@ -352,20 +646,52 @@ function exportSchedule() {
     const csvData = [];
     csvData.push(['Date', 'Day', 'Time', 'Home Team', 'Visitor Team', 'Facility', 'League', 'Match ID']);
     
-    {% for day_data in schedule_data %}
-    {% for match in day_data.matches %}
-    csvData.push([
-        '{{ day_data.date_str }}',
-        '{{ day_data.day_name }}',
-        '{{ match.time or "TBD" }}',
-        '{{ match.home_team_name }}',
-        '{{ match.visitor_team_name }}',
-        '{{ match.facility_name }}',
-        '{{ match.league_name }}',
-        '{{ match.id }}'
-    ]);
-    {% endfor %}
-    {% endfor %}
+    // Only export visible matches
+    document.querySelectorAll('.schedule-day-card').forEach(dayCard => {
+        if (dayCard.style.display !== 'none') {
+            const dayDate = dayCard.getAttribute('data-day');
+            const dayName = dayCard.querySelector('h4').textContent.split(/\s+/)[1]; // Extract day name
+            
+            dayCard.querySelectorAll('.schedule-match-row, .schedule-match-card').forEach(matchElement => {
+                if (matchElement.style.display !== 'none') {
+                    const matchId = matchElement.getAttribute('data-match-id');
+                    // Extract match data from the element
+                    const cells = matchElement.querySelectorAll('td');
+                    if (cells.length >= 5) {
+                        // Desktop table row
+                        csvData.push([
+                            dayDate,
+                            dayName,
+                            cells[0].textContent.trim(),
+                            cells[1].textContent.trim().split('\n')[0],
+                            cells[1].textContent.trim().split('\n')[1],
+                            cells[2].textContent.trim(),
+                            cells[3].textContent.trim(),
+                            matchId
+                        ]);
+                    } else {
+                        // Mobile card - extract from text content
+                        const text = matchElement.textContent;
+                        const timeMatch = text.match(/(\d{2}:\d{2}|TBD)/);
+                        const teamsMatch = text.match(/(.+?) vs (.+?)(?=\s*•)/);
+                        const facilityMatch = text.match(/🏢\s*(.+?)\s*•/);
+                        const leagueMatch = text.match(/🏆\s*(.+?)\s*•/);
+                        
+                        csvData.push([
+                            dayDate,
+                            dayName,
+                            timeMatch ? timeMatch[1] : 'TBD',
+                            teamsMatch ? teamsMatch[1].trim() : '',
+                            teamsMatch ? teamsMatch[2].trim() : '',
+                            facilityMatch ? facilityMatch[1].trim() : '',
+                            leagueMatch ? leagueMatch[1].trim() : '',
+                            matchId
+                        ]);
+                    }
+                }
+            });
+        }
+    });
     
     const csvContent = csvData.map(row => row.map(field => 
         '"' + String(field).replace(/"/g, '""') + '"'
@@ -375,29 +701,218 @@ function exportSchedule() {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', 'tennis_schedule.csv');
+    link.setAttribute('download', 'tennis_schedule_filtered.csv');
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
 
-// Auto-refresh for live schedule updates (optional)
-// setInterval(() => {
-//     if (!document.hidden) {
-//         window.location.reload();
-//     }
-// }, 300000); // Refresh every 5 minutes
-
 // Smooth scrolling for quick navigation
 document.addEventListener('DOMContentLoaded', function() {
+    // Add enhanced table styles
+    const enhancedScheduleStyles = document.createElement('style');
+    enhancedScheduleStyles.textContent = `
+        /* Enhanced Schedule Table Styling */
+        .schedule-table {
+            font-size: 0.9rem;
+        }
+        
+        .schedule-table thead th {
+            vertical-align: middle;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .schedule-table tbody tr {
+            transition: all 0.2s ease;
+        }
+        
+        .schedule-table tbody tr:hover {
+            background-color: #f8f9fa;
+            transform: scale(1.01);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* Schedule-specific cell styling */
+        .time-cell .badge {
+            padding: 0.4rem 0.6rem;
+            font-size: 0.8rem;
+            min-width: 60px;
+        }
+        
+        .teams-cell {
+            min-width: 180px;
+        }
+        
+        .teams-cell .badge {
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        
+        .facility-cell .badge {
+            max-width: 120px;
+            white-space: normal;
+            line-height: 1.2;
+            padding: 0.4rem 0.6rem;
+        }
+        
+        .league-cell {
+            font-size: 0.8rem;
+        }
+        
+        .match-id-cell .badge {
+            font-size: 0.75rem;
+        }
+        
+        /* Schedule row hover effects */
+        .schedule-match-row {
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .schedule-match-row:hover {
+            border-left-color: #6f42c1;
+            background: linear-gradient(90deg, rgba(111,66,193,0.05) 0%, rgba(255,255,255,1) 10%);
+        }
+        
+        /* Day card styling */
+        .schedule-day-card {
+            transition: all 0.3s ease;
+        }
+        
+        .schedule-day-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        /* Day header styling */
+        .card-header.bg-primary {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
+        }
+        
+        /* Mobile card enhancements */
+        .schedule-match-card {
+            transition: all 0.2s ease;
+            border-left: 3px solid #007bff !important;
+        }
+        
+        .schedule-match-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            border-left-color: #6f42c1 !important;
+        }
+        
+        /* Search highlighting for schedule */
+        .search-highlight {
+            background-color: #fff3cd !important;
+            color: #856404 !important;
+            padding: 0.1rem 0.2rem;
+            border-radius: 0.25rem;
+            font-weight: 600;
+        }
+        
+        /* Quick navigation styling */
+        .quick-nav-btn {
+            transition: all 0.2s ease;
+        }
+        
+        .quick-nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .quick-nav-btn .nav-match-count {
+            transition: all 0.2s ease;
+        }
+        
+        /* Print optimizations */
+        @media print {
+            .schedule-day-card {
+                break-inside: avoid;
+                margin-bottom: 20px;
+            }
+            
+            .card-header {
+                background-color: #f8f9fa !important;
+                color: #000 !important;
+            }
+            
+            .schedule-table {
+                font-size: 11px;
+            }
+            
+            .search-highlight {
+                background-color: transparent !important;
+                font-weight: normal !important;
+            }
+            
+            .schedule-day-card[style*="display: none"],
+            .schedule-match-row[style*="display: none"],
+            .schedule-match-card[style*="display: none"] {
+                display: none !important;
+            }
+        }
+        
+        /* Responsive improvements */
+        @media (max-width: 1200px) {
+            .schedule-table {
+                font-size: 0.8rem;
+            }
+            
+            .teams-cell {
+                min-width: 160px;
+            }
+            
+            .facility-cell .badge {
+                font-size: 0.7rem;
+                max-width: 100px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .teams-cell .badge {
+                font-size: 0.6rem;
+                padding: 0.2rem 0.4rem;
+            }
+            
+            .schedule-match-card {
+                margin-bottom: 0.5rem;
+            }
+        }
+    `;
+    document.head.appendChild(enhancedScheduleStyles);
+    
+    // Setup live search functionality
+    setupLiveSearch();
+    
+    // Setup schedule table interactions
+    setupScheduleTableInteractions();
+    
+    // Add keyboard shortcut for search (Ctrl+F or Cmd+F)
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            const searchInput = document.getElementById('search_query');
+            if (searchInput) {
+                searchInput.focus();
+                searchInput.select();
+            }
+        }
+    });
+    
+    // Setup quick navigation smooth scrolling
     const quickNavLinks = document.querySelectorAll('a[href^="#day-"]');
     quickNavLinks.forEach(link => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
             const targetId = this.getAttribute('href').substring(1);
             const targetElement = document.getElementById(targetId);
-            if (targetElement) {
+            if (targetElement && targetElement.style.display !== 'none') {
                 targetElement.scrollIntoView({
                     behavior: 'smooth',
                     block: 'start'
@@ -407,29 +922,47 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Add print styles
-const printStyles = document.createElement('style');
-printStyles.textContent = `
-    @media print {
-        .btn, .card-header .badge, .alert, nav, footer {
-            display: none !important;
-        }
-        .card {
-            break-inside: avoid;
-            margin-bottom: 20px;
-        }
-        .card-header {
-            background-color: #f8f9fa !important;
-            color: #000 !important;
-        }
-        body {
-            font-size: 12px;
-        }
-        .table {
-            font-size: 11px;
-        }
-    }
-`;
-document.head.appendChild(printStyles);
+// Setup schedule table interactions
+function setupScheduleTableInteractions() {
+    // Add click handlers to schedule rows
+    document.querySelectorAll('.schedule-match-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            const matchId = this.getAttribute('data-match-id');
+            if (matchId) {
+                // Add visual feedback
+                this.style.backgroundColor = '#e3f2fd';
+                setTimeout(() => {
+                    this.style.backgroundColor = '';
+                }, 300);
+                
+                // You could navigate to match details or show a modal
+                console.log(`Clicked on match #${matchId}`);
+                // Example: window.location.href = `/matches/${matchId}`;
+            }
+        });
+        
+        // Add hover tooltip
+        row.setAttribute('title', 'Click for match details');
+    });
+    
+    // Add click handlers to mobile cards
+    document.querySelectorAll('.schedule-match-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+            const matchId = this.getAttribute('data-match-id');
+            if (matchId) {
+                // Add visual feedback
+                this.style.backgroundColor = '#e3f2fd';
+                setTimeout(() => {
+                    this.style.backgroundColor = '';
+                }, 300);
+                
+                console.log(`Clicked on match #${matchId}`);
+            }
+        });
+        
+        // Add hover tooltip
+        card.setAttribute('title', 'Click for match details');
+    });
+}
 </script>
 {% endblock %}

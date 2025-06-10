@@ -71,62 +71,86 @@
 <!-- Stats Cards -->
 <div class="row mb-4">
     <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card text-center">
+        <div class="card bg-primary text-white">
             <div class="card-body">
-                <i class="fas fa-building fa-2x text-primary mb-2"></i>
-                <h5 class="card-title">{{ facilities|length }}</h5>
-                <p class="card-text text-muted">Total Facilities</p>
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title mb-0">{{ facilities|length }}</h5>
+                        <p class="card-text">Total Facilities</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-building fa-2x"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card text-center">
+        <div class="card bg-success text-white">
             <div class="card-body">
-                <i class="fas fa-clock fa-2x text-success mb-2"></i>
-                <h5 class="card-title">
-                    {% set total_slots = 0 %}
-                    {% for facility in facilities %}
-                        {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
-                            {% set total_slots = total_slots + day_schedule.start_times|length %}
-                        {% endfor %}
-                    {% endfor %}
-                    {{ total_slots }}
-                </h5>
-                <p class="card-text text-muted">Total Time Slots</p>
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title mb-0">
+                            {% set total_slots = 0 %}
+                            {% for facility in facilities %}
+                                {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                                    {% set total_slots = total_slots + day_schedule.start_times|length %}
+                                {% endfor %}
+                            {% endfor %}
+                            {{ total_slots }}
+                        </h5>
+                        <p class="card-text">Total Time Slots</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card text-center">
+        <div class="card bg-warning text-dark">
             <div class="card-body">
-                <i class="fas fa-ban fa-2x text-warning mb-2"></i>
-                <h5 class="card-title">
-                    {% set total_blackouts = 0 %}
-                    {% for facility in facilities %}
-                        {% set total_blackouts = total_blackouts + (facility.unavailable_dates|length if facility.unavailable_dates else 0) %}
-                    {% endfor %}
-                    {{ total_blackouts }}
-                </h5>
-                <p class="card-text text-muted">Blackout Dates</p>
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title mb-0">
+                            {% set total_blackouts = 0 %}
+                            {% for facility in facilities %}
+                                {% set total_blackouts = total_blackouts + (facility.unavailable_dates|length if facility.unavailable_dates else 0) %}
+                            {% endfor %}
+                            {{ total_blackouts }}
+                        </h5>
+                        <p class="card-text">Blackout Dates</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-ban fa-2x"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card text-center">
+        <div class="card bg-info text-white">
             <div class="card-body">
-                <i class="fas fa-calendar-day fa-2x text-info mb-2"></i>
-                <h5 class="card-title">
-                    {% set active_days = 0 %}
-                    {% for facility in facilities %}
-                        {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
-                            {% if day_schedule.start_times %}
-                                {% set active_days = active_days + 1 %}
-                            {% endif %}
-                        {% endfor %}
-                    {% endfor %}
-                    {{ active_days }}
-                </h5>
-                <p class="card-text text-muted">Active Day Schedules</p>
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title mb-0">
+                            {% set active_days = 0 %}
+                            {% for facility in facilities %}
+                                {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                                    {% if day_schedule.start_times %}
+                                        {% set active_days = active_days + 1 %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                            {{ active_days }}
+                        </h5>
+                        <p class="card-text">Active Day Schedules</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar-day fa-2x"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -134,79 +158,94 @@
 
 <!-- Desktop Table View -->
 <div class="card d-none d-md-block">
-    <div class="card-header">
-        <i class="fas fa-table"></i> Facilities Overview
+    <div class="card-header bg-primary text-white">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4 class="mb-0">
+                    <i class="fas fa-table"></i> Facilities Overview
+                </h4>
+            </div>
+            <div class="col-md-4 text-end">
+                <span class="badge bg-light text-dark fs-6">{{ facilities|length }} facilities</span>
+            </div>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead>
+            <table class="table table-hover mb-0 align-middle facility-table" id="facilitiesTable">
+                <thead class="table-dark">
                     <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Location</th>
-                        <th>Schedule</th>
-                        <th>Availability</th>
-                        <th>Actions</th>
+                        <th class="text-center" style="width: 80px;">ID</th>
+                        <th style="width: 200px;">Facility Name</th>
+                        <th class="text-center" style="width: 180px;">Location</th>
+                        <th class="text-center" style="width: 150px;">Schedule</th>
+                        <th class="text-center" style="width: 140px;">Availability</th>
+                        <th class="text-center" style="width: 120px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for facility in facilities %}
-                    <tr>
-                        <td>
+                    <tr class="facility-row" data-facility-id="{{ facility.id }}">
+                        <td class="text-center">
                             <span class="badge bg-secondary">{{ facility.id }}</span>
                         </td>
                         <td>
-                            <div>
-                                <strong>{{ facility.get_display_name() }}</strong>
+                            <div class="facility-info-cell">
+                                <div class="fw-bold">{{ facility.get_display_name() }}</div>
                                 {% if facility.short_name and facility.short_name != facility.name %}
-                                <br><small class="text-muted">{{ facility.name }}</small>
+                                <div class="small text-muted">{{ facility.name }}</div>
                                 {% endif %}
                             </div>
                         </td>
-                        <td>
-                            {% if facility.location %}
-                            <i class="fas fa-map-marker-alt text-muted"></i> {{ facility.location }}
-                            {% else %}
-                            <span class="text-muted">Not specified</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% set total_slots = 0 %}
-                            {% set active_days = 0 %}
-                            {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
-                                {% if day_schedule.start_times %}
-                                    {% set active_days = active_days + 1 %}
-                                    {% set total_slots = total_slots + day_schedule.start_times|length %}
+                        <td class="text-center">
+                            <div class="location-cell">
+                                {% if facility.location %}
+                                <span class="badge bg-info text-wrap">{{ facility.location }}</span>
+                                {% else %}
+                                <span class="text-muted">Not specified</span>
                                 {% endif %}
-                            {% endfor %}
-                            <div>
-                                <i class="fas fa-calendar-week text-muted"></i> {{ active_days }} days
-                                <br><i class="fas fa-clock text-muted"></i> {{ total_slots }} time slots
                             </div>
                         </td>
-                        <td>
-                            {% if facility.unavailable_dates %}
-                            <span class="badge bg-warning">{{ facility.unavailable_dates|length }} blackout dates</span>
-                            {% else %}
-                            <span class="badge bg-success">Always available</span>
-                            {% endif %}
+                        <td class="text-center">
+                            <div class="schedule-cell">
+                                {% set total_slots = 0 %}
+                                {% set active_days = 0 %}
+                                {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                                    {% if day_schedule.start_times %}
+                                        {% set active_days = active_days + 1 %}
+                                        {% set total_slots = total_slots + day_schedule.start_times|length %}
+                                    {% endif %}
+                                {% endfor %}
+                                <div class="small text-muted">{{ active_days }} days</div>
+                                <div class="fw-bold">{{ total_slots }} slots</div>
+                            </div>
                         </td>
-                        <td>
-                            <div class="btn-group btn-group-sm" role="group">
-                                <a href="{{ url_for('view_facility', facility_id=facility.id) }}" 
-                                   class="btn btn-outline-info" title="View facility details">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{{ url_for('edit_facility', facility_id=facility.id) }}" 
-                                   class="btn btn-outline-warning" title="Edit facility">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <button class="btn btn-outline-secondary" 
-                                        onclick="exportSingleFacility({{ facility.id }})" 
-                                        title="Export this facility">
-                                    <i class="fas fa-download"></i>
-                                </button>
+                        <td class="text-center">
+                            <div class="availability-cell">
+                                {% if facility.unavailable_dates %}
+                                <span class="badge bg-warning text-dark">{{ facility.unavailable_dates|length }} blackouts</span>
+                                {% else %}
+                                <span class="badge bg-success">Always available</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <div class="action-cell">
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('view_facility', facility_id=facility.id) }}" 
+                                       class="btn btn-sm btn-outline-info" title="View facility details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('edit_facility', facility_id=facility.id) }}" 
+                                       class="btn btn-sm btn-outline-warning" title="Edit facility">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-secondary" 
+                                            onclick="exportSingleFacility({{ facility.id }})" 
+                                            title="Export this facility">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </div>
                             </div>
                         </td>
                     </tr>
@@ -221,7 +260,7 @@
 <div class="d-block d-md-none mt-4">
     <h5><i class="fas fa-list"></i> Facility Cards</h5>
     {% for facility in facilities %}
-    <div class="card mb-3">
+    <div class="card mb-3 border-start border-primary border-3 facility-card" data-facility-id="{{ facility.id }}">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <h6 class="mb-0">{{ facility.name }}</h6>
@@ -633,6 +672,235 @@ facilities:
     a.click();
     URL.revokeObjectURL(url);
     document.body.removeChild(a);
+}
+
+// Initialize enhanced styling and interactions
+document.addEventListener('DOMContentLoaded', function() {
+    // Add enhanced table styles
+    const enhancedFacilityStyles = document.createElement('style');
+    enhancedFacilityStyles.textContent = `
+        /* Enhanced Facility Table Styling */
+        .facility-table {
+            font-size: 0.9rem;
+        }
+        
+        .facility-table thead th {
+            vertical-align: middle;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .facility-table tbody tr {
+            transition: all 0.2s ease;
+        }
+        
+        .facility-table tbody tr:hover {
+            background-color: #f8f9fa;
+            transform: scale(1.01);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* Facility-specific cell styling */
+        .facility-info-cell {
+            min-width: 180px;
+        }
+        
+        .location-cell .badge {
+            max-width: 160px;
+            white-space: normal;
+            line-height: 1.2;
+            padding: 0.4rem 0.6rem;
+        }
+        
+        .schedule-cell {
+            min-width: 120px;
+        }
+        
+        .availability-cell .badge {
+            font-size: 0.7rem;
+            padding: 0.4rem 0.6rem;
+        }
+        
+        .action-cell .btn-group .btn {
+            border-radius: 0.25rem !important;
+            margin: 0 0.1rem;
+            font-size: 0.75rem;
+        }
+        
+        /* Card header styling consistent with schedule */
+        .card-header.bg-primary {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
+        }
+        
+        /* Facility row hover effects */
+        .facility-row {
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .facility-row:hover {
+            border-left-color: #6f42c1;
+            background: linear-gradient(90deg, rgba(111,66,193,0.05) 0%, rgba(255,255,255,1) 10%);
+        }
+        
+        /* Mobile card enhancements */
+        .facility-card {
+            transition: all 0.2s ease;
+            border-left: 3px solid #007bff !important;
+        }
+        
+        .facility-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            border-left-color: #6f42c1 !important;
+        }
+        
+        /* Responsive improvements */
+        @media (max-width: 1200px) {
+            .facility-table {
+                font-size: 0.8rem;
+            }
+            
+            .facility-info-cell {
+                min-width: 160px;
+            }
+            
+            .location-cell .badge {
+                font-size: 0.7rem;
+                max-width: 140px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .action-cell .btn-group .btn {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.7rem;
+            }
+            
+            .facility-card {
+                margin-bottom: 0.5rem;
+            }
+        }
+    `;
+    document.head.appendChild(enhancedFacilityStyles);
+    
+    // Setup table interactions
+    setupFacilityTableInteractions();
+});
+
+function setupFacilityTableInteractions() {
+    const table = document.getElementById('facilitiesTable');
+    if (!table) return;
+    
+    // Add sortable headers
+    const headers = table.querySelectorAll('thead th');
+    headers.forEach((header, index) => {
+        // Skip action column
+        if (index === headers.length - 1) return;
+        
+        header.style.cursor = 'pointer';
+        header.style.userSelect = 'none';
+        header.setAttribute('data-sort-column', index);
+        
+        // Add sort icon
+        const sortIcon = document.createElement('i');
+        sortIcon.className = 'fas fa-sort ms-1 opacity-50';
+        header.appendChild(sortIcon);
+        
+        header.addEventListener('click', () => sortFacilityTable(index));
+    });
+    
+    // Add row click handlers
+    const rows = document.querySelectorAll('.facility-row');
+    rows.forEach(row => {
+        row.addEventListener('click', function(e) {
+            // Don't trigger if clicking on buttons or links
+            if (e.target.matches('button, button *, a, a *')) return;
+            
+            const facilityId = this.getAttribute('data-facility-id');
+            if (facilityId) {
+                // Add visual feedback
+                this.style.backgroundColor = '#e3f2fd';
+                setTimeout(() => {
+                    this.style.backgroundColor = '';
+                }, 200);
+                
+                // Navigate to facility details
+                window.location.href = `/facilities/${facilityId}`;
+            }
+        });
+        
+        // Add hover tooltip
+        row.setAttribute('title', 'Click to view facility details');
+    });
+}
+
+function sortFacilityTable(columnIndex) {
+    const table = document.getElementById('facilitiesTable');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.rows);
+    const header = table.querySelectorAll('thead th')[columnIndex];
+    const icon = header.querySelector('i');
+    
+    // Determine sort direction
+    const isAscending = !header.hasAttribute('data-sort-asc');
+    
+    // Reset all other headers
+    table.querySelectorAll('thead th').forEach(th => {
+        th.removeAttribute('data-sort-asc');
+        th.removeAttribute('data-sort-desc');
+        const otherIcon = th.querySelector('i');
+        if (otherIcon) {
+            otherIcon.className = 'fas fa-sort ms-1 opacity-50';
+        }
+    });
+    
+    // Set current header state
+    if (isAscending) {
+        header.setAttribute('data-sort-asc', '');
+        icon.className = 'fas fa-sort-up ms-1';
+    } else {
+        header.setAttribute('data-sort-desc', '');
+        icon.className = 'fas fa-sort-down ms-1';
+    }
+    
+    // Sort rows
+    rows.sort((a, b) => {
+        const aCell = a.cells[columnIndex];
+        const bCell = b.cells[columnIndex];
+        
+        let aValue = aCell.textContent.trim();
+        let bValue = bCell.textContent.trim();
+        
+        // Handle different data types
+        if (columnIndex === 0) { // Facility ID
+            aValue = parseInt(aValue.replace(/\D/g, '')) || 0;
+            bValue = parseInt(bValue.replace(/\D/g, '')) || 0;
+        }
+        
+        // Compare values
+        let comparison = 0;
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+            comparison = aValue - bValue;
+        } else {
+            comparison = aValue.localeCompare(bValue, undefined, { numeric: true });
+        }
+        
+        return isAscending ? comparison : -comparison;
+    });
+    
+    // Reorder rows in DOM
+    rows.forEach(row => tbody.appendChild(row));
+    
+    // Add visual feedback
+    tbody.style.opacity = '0.7';
+    setTimeout(() => {
+        tbody.style.opacity = '1';
+    }, 150);
 }
 </script>
 {% endblock %}

@@ -203,12 +203,12 @@
     </div>
 </div>
 
-<!-- Filter Section -->
+<!-- Filter and Search Section -->
 {% if leagues %}
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row align-items-end">
-            <div class="col-md-4">
+            <div class="col-lg-3 col-md-4 mb-2">
                 <label for="league_filter" class="form-label">Filter by League</label>
                 <select class="form-select" id="league_filter" name="league_id" onchange="this.form.submit()">
                     <option value="">All Leagues</option>
@@ -220,23 +220,91 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-lg-4 col-md-5 mb-2">
+                <label for="search_query" class="form-label">Search Teams</label>
+                <div class="input-group">
+                    <input type="text" 
+                           class="form-control" 
+                           id="search_query" 
+                           name="search" 
+                           value="{{ request.args.get('search', '') }}"
+                           placeholder="Search by team name, captain, facility...">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <div class="form-text">Search across team names, captains, facilities, and contact emails</div>
+            </div>
+            <div class="col-lg-3 col-md-3 mb-2">
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-filter"></i> Apply Filter
+                        <i class="fas fa-filter"></i> Apply Filters
                     </button>
-                    {% if request.args.get('league_id') %}
+                    {% if request.args.get('league_id') or request.args.get('search') %}
                     <a href="{{ url_for('teams') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-times"></i> Clear Filter
+                        <i class="fas fa-times"></i> Clear
                     </a>
                     {% endif %}
                 </div>
             </div>
-            {% if selected_league %}
-            <div class="col-md-4">
+            {% if selected_league or request.args.get('search') %}
+            <div class="col-lg-2 col-md-12 mb-2">
                 <div class="alert alert-info mb-0 py-2">
-                    <small><i class="fas fa-info-circle"></i> 
-                    Showing teams for: <strong>{{ selected_league.name }}</strong></small>
+                    <small>
+                        <i class="fas fa-info-circle"></i> 
+                        {% if selected_league %}
+                        League: <strong>{{ selected_league.name }}</strong>
+                        {% endif %}
+                        {% if request.args.get('search') %}
+                        {% if selected_league %}<br>{% endif %}
+                        Search: <strong>"{{ request.args.get('search') }}"</strong>
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% else %}
+<!-- Show search even when no leagues exist -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row align-items-end">
+            <div class="col-md-6 mb-2">
+                <label for="search_query" class="form-label">Search Teams</label>
+                <div class="input-group">
+                    <input type="text" 
+                           class="form-control" 
+                           id="search_query" 
+                           name="search" 
+                           value="{{ request.args.get('search', '') }}"
+                           placeholder="Search by team name, captain, facility...">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <div class="form-text">Search across team names, captains, facilities, and contact emails</div>
+            </div>
+            <div class="col-md-3 mb-2">
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                    {% if request.args.get('search') %}
+                    <a href="{{ url_for('teams') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Clear
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% if request.args.get('search') %}
+            <div class="col-md-3 mb-2">
+                <div class="alert alert-info mb-0 py-2">
+                    <small>
+                        <i class="fas fa-search"></i> 
+                        Search: <strong>"{{ request.args.get('search') }}"</strong>
+                    </small>
                 </div>
             </div>
             {% endif %}
@@ -255,7 +323,7 @@
                     <div>
                         <h5 class="card-title mb-0">{{ teams|length }}</h5>
                         <p class="card-text">
-                            {% if selected_league %}Teams in League{% else %}Total Teams{% endif %}
+                            {% if selected_league %}Teams in League{% elif request.args.get('search') %}Search Results{% else %}Total Teams{% endif %}
                         </p>
                     </div>
                     <div class="align-self-center">
@@ -312,102 +380,128 @@
     </div>
 </div>
 
-<!-- Teams Table for Desktop -->
+<!-- Desktop Table View -->
 <div class="card d-none d-md-block">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-table"></i> Team Details</h5>
+    <div class="card-header bg-primary text-white">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4 class="mb-0">
+                    <i class="fas fa-table"></i> Team Details
+                    {% if request.args.get('search') %}
+                    <small class="ms-2 opacity-75">- Search results for "{{ request.args.get('search') }}"</small>
+                    {% endif %}
+                </h4>
+            </div>
+            <div class="col-md-4 text-end">
+                <span class="badge bg-light text-dark fs-6">{{ teams|length }} teams</span>
+            </div>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-striped table-hover" id="teamsTable">
+            <table class="table table-hover mb-0 align-middle team-table" id="teamsTable">
                 <thead class="table-dark">
                     <tr>
-                        <th>ID</th>
-                        <th>Team Name</th>
-                        <th>League</th>
-                        <th>Captain</th>
-                        <th>Home Facility</th>
-                        <th>Preferred Days</th>
-                        <th>Actions</th>
+                        <th class="text-center" style="width: 80px;">ID</th>
+                        <th style="width: 200px;">Team Name</th>
+                        <th class="text-center" style="width: 150px;">League</th>
+                        <th class="text-center" style="width: 150px;">Captain</th>
+                        <th class="text-center" style="width: 180px;">Home Facility</th>
+                        <th class="text-center" style="width: 140px;">Preferred Days</th>
+                        <th class="text-center" style="width: 120px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for enhanced_team in teams %}
-                    <tr>
-                        <td><span class="badge bg-secondary">{{ enhanced_team.team.id }}</span></td>
-                        <td>
-                            <div class="fw-bold">{{ enhanced_team.team.name }}</div>
-                            {% if enhanced_team.team.contact_email %}
-                            <div class="small text-muted">
-                                <i class="fas fa-envelope"></i> {{ enhanced_team.team.contact_email }}
-                            </div>
-                            {% endif %}
+                    <tr class="team-row" data-team-id="{{ enhanced_team.team.id }}">
+                        <td class="text-center">
+                            <span class="badge bg-secondary">{{ enhanced_team.team.id }}</span>
                         </td>
                         <td>
-                            <div class="small">
-                                <div class="fw-bold">{{ enhanced_team.team.league.name }}</div>
-                                <div class="text-muted">{{ enhanced_team.team.league.division }}</div>
-                                <span class="badge bg-primary">{{ enhanced_team.team.league.year }}</span>
-                            </div>
-                        </td>
-                        <td>
-                            <div class="fw-bold">{{ enhanced_team.team.captain or 'Not specified' }}</div>
-                        </td>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                {% if enhanced_team.facility_exists %}
-                                    <i class="fas fa-check-circle text-success me-1" title="Facility found in database"></i>
-                                {% else %}
-                                    <i class="fas fa-exclamation-triangle text-warning me-1" title="Custom facility name - not found in database"></i>
+                            <div class="team-info-cell">
+                                <div class="fw-bold">{{ enhanced_team.team.name }}</div>
+                                {% if enhanced_team.team.contact_email %}
+                                <div class="small text-muted">
+                                    <i class="fas fa-envelope"></i> {{ enhanced_team.team.contact_email }}
+                                </div>
                                 {% endif %}
-                                <div>
-                                    <div class="fw-bold">{{ enhanced_team.facility_name }}</div>
-                                    {% if enhanced_team.facility_exists and enhanced_team.facility_id %}
-                                    <div class="small text-muted">
-                                        <i class="fas fa-link"></i> 
-                                        <a href="{{ url_for('view_facility', facility_id=enhanced_team.facility_id) }}">
-                                            View facility details
-                                        </a>
-                                    </div>
-                                    {% elif not enhanced_team.facility_exists %}
-                                    <div class="small text-warning">
-                                        <i class="fas fa-info-circle"></i> Custom facility name
-                                    </div>
-                                    {% endif %}
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <div class="league-cell">
+                                <div class="small">
+                                    <div class="fw-bold">{{ enhanced_team.team.league.name }}</div>
+                                    <div class="text-muted">{{ enhanced_team.team.league.division }}</div>
+                                    <span class="badge bg-primary">{{ enhanced_team.team.league.year }}</span>
                                 </div>
                             </div>
                         </td>
-                        <td>
-                            {% if enhanced_team.has_preferred_days %}
-                                {% for day in enhanced_team.team.preferred_days %}
-                                <span class="badge bg-success">{{ day[:3] }}</span>
-                                {% endfor %}
-                            {% else %}
-                                <span class="text-muted small">No preference</span>
-                            {% endif %}
+                        <td class="text-center">
+                            <div class="captain-cell">
+                                <div class="fw-bold">{{ enhanced_team.team.captain or 'Not specified' }}</div>
+                            </div>
                         </td>
-                        <td>
-                            <div class="btn-group" role="group">
-                                <a href="{{ url_for('edit_team', team_id=enhanced_team.team.id) }}" 
-                                   class="btn btn-sm btn-outline-warning" 
-                                   title="Edit team information">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <button class="btn btn-sm btn-outline-info" 
-                                        onclick="viewTeamDetails({{ enhanced_team.team.id }})"
-                                        title="View team details">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary" 
-                                        onclick="exportSingleTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')"
-                                        title="Export this team">
-                                    <i class="fas fa-download"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger" 
-                                        onclick="deleteTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')"
-                                        title="Delete team">
-                                    <i class="fas fa-trash"></i>
-                                </button>
+                        <td class="text-center">
+                            <div class="facility-cell">
+                                <div class="d-flex align-items-center justify-content-center">
+                                    {% if enhanced_team.facility_exists %}
+                                        <i class="fas fa-check-circle text-success me-1" title="Facility found in database"></i>
+                                    {% else %}
+                                        <i class="fas fa-exclamation-triangle text-warning me-1" title="Custom facility name - not found in database"></i>
+                                    {% endif %}
+                                    <div class="text-center">
+                                        <div class="fw-bold">{{ enhanced_team.facility_name }}</div>
+                                        {% if enhanced_team.facility_exists and enhanced_team.facility_id %}
+                                        <div class="small text-muted">
+                                            <i class="fas fa-link"></i> 
+                                            <a href="{{ url_for('view_facility', facility_id=enhanced_team.facility_id) }}">
+                                                View details
+                                            </a>
+                                        </div>
+                                        {% elif not enhanced_team.facility_exists %}
+                                        <div class="small text-warning">
+                                            <i class="fas fa-info-circle"></i> Custom name
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <div class="days-cell">
+                                {% if enhanced_team.has_preferred_days %}
+                                    {% for day in enhanced_team.team.preferred_days %}
+                                    <span class="badge bg-success">{{ day[:3] }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted small">No preference</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <div class="action-cell">
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('edit_team', team_id=enhanced_team.team.id) }}" 
+                                       class="btn btn-sm btn-outline-warning" 
+                                       title="Edit team information">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-info" 
+                                            onclick="viewTeamDetails({{ enhanced_team.team.id }})"
+                                            title="View team details">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" 
+                                            onclick="exportSingleTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')"
+                                            title="Export this team">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" 
+                                            onclick="deleteTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')"
+                                            title="Delete team">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
                             </div>
                         </td>
                     </tr>
@@ -418,11 +512,16 @@
     </div>
 </div>
 
-<!-- Team Summary Cards for Mobile -->
+<!-- Mobile Card View -->
 <div class="d-block d-md-none mt-4">
-    <h5><i class="fas fa-list"></i> Team Cards</h5>
+    <h5>
+        <i class="fas fa-list"></i> Team Cards
+        {% if request.args.get('search') %}
+        <small class="text-muted">- Search results for "{{ request.args.get('search') }}"</small>
+        {% endif %}
+    </h5>
     {% for enhanced_team in teams %}
-    <div class="card mb-3">
+    <div class="card mb-3 border-start border-primary border-3 team-card" data-team-id="{{ enhanced_team.team.id }}">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <h6 class="mb-0">{{ enhanced_team.team.name }}</h6>
@@ -514,8 +613,19 @@
 <div class="card">
     <div class="card-body text-center">
         <i class="fas fa-users fa-4x text-muted mb-3"></i>
+        {% if request.args.get('search') %}
         <h5>No Teams Found</h5>
-        {% if request.args.get('league_id') %}
+        <p class="text-muted">No teams match your search for "<strong>{{ request.args.get('search') }}</strong>".</p>
+        <div class="d-flex gap-2 justify-content-center flex-wrap">
+            <a href="{{ url_for('teams') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-times"></i> Clear Search
+            </a>
+            <a href="{{ url_for('add_team') }}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Add Team
+            </a>
+        </div>
+        {% elif request.args.get('league_id') %}
+        <h5>No Teams Found</h5>
         <p class="text-muted">No teams are registered for the selected league.</p>
         <div class="d-flex gap-2 justify-content-center flex-wrap">
             <a href="{{ url_for('add_team') }}" class="btn btn-success">
@@ -526,6 +636,7 @@
             </a>
         </div>
         {% else %}
+        <h5>No Teams Found</h5>
         <p class="text-muted">No teams are currently registered in the database.</p>
         <div class="d-flex gap-2 justify-content-center flex-wrap">
             <a href="{{ url_for('add_team') }}" class="btn btn-success">
@@ -729,17 +840,242 @@ function deleteTeam(teamId, teamName) {
     }
 }
 
-// Initialize DataTable for better sorting and filtering
+// Initialize enhanced styling and interactions
 document.addEventListener('DOMContentLoaded', function() {
-    if (document.getElementById('teamsTable')) {
-        $('#teamsTable').DataTable({
-            pageLength: 25,
-            order: [[1, 'asc']],
-            columnDefs: [
-                { orderable: false, targets: [6] } // Actions column
-            ]
-        });
-    }
+    // Add enhanced table styles
+    const enhancedTeamStyles = document.createElement('style');
+    enhancedTeamStyles.textContent = `
+        /* Enhanced Team Table Styling */
+        .team-table {
+            font-size: 0.9rem;
+        }
+        
+        .team-table thead th {
+            vertical-align: middle;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .team-table tbody tr {
+            transition: all 0.2s ease;
+        }
+        
+        .team-table tbody tr:hover {
+            background-color: #f8f9fa;
+            transform: scale(1.01);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* Team-specific cell styling */
+        .team-info-cell {
+            min-width: 180px;
+        }
+        
+        .league-cell {
+            max-width: 160px;
+        }
+        
+        .captain-cell {
+            min-width: 120px;
+        }
+        
+        .facility-cell {
+            max-width: 160px;
+        }
+        
+        .days-cell .badge {
+            font-size: 0.7rem;
+            margin: 0.1rem;
+        }
+        
+        .action-cell .btn-group .btn {
+            border-radius: 0.25rem !important;
+            margin: 0 0.1rem;
+            font-size: 0.75rem;
+        }
+        
+        /* Card header styling consistent with schedule */
+        .card-header.bg-primary {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
+        }
+        
+        /* Team row hover effects */
+        .team-row {
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .team-row:hover {
+            border-left-color: #6f42c1;
+            background: linear-gradient(90deg, rgba(111,66,193,0.05) 0%, rgba(255,255,255,1) 10%);
+        }
+        
+        /* Facility status styling */
+        .facility-cell .fa-check-circle {
+            color: #198754 !important;
+        }
+        
+        .facility-cell .fa-exclamation-triangle {
+            color: #ffc107 !important;
+        }
+        
+        /* Mobile card enhancements */
+        .team-card {
+            transition: all 0.2s ease;
+            border-left: 3px solid #007bff !important;
+        }
+        
+        .team-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            border-left-color: #6f42c1 !important;
+        }
+        
+        /* Responsive improvements */
+        @media (max-width: 1200px) {
+            .team-table {
+                font-size: 0.8rem;
+            }
+            
+            .team-info-cell {
+                min-width: 160px;
+            }
+            
+            .facility-cell {
+                max-width: 140px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .action-cell .btn-group .btn {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.7rem;
+            }
+            
+            .team-card {
+                margin-bottom: 0.5rem;
+            }
+        }
+    `;
+    document.head.appendChild(enhancedTeamStyles);
+    
+    // Setup table interactions
+    setupTeamTableInteractions();
 });
+
+function setupTeamTableInteractions() {
+    const table = document.getElementById('teamsTable');
+    if (!table) return;
+    
+    // Add sortable headers
+    const headers = table.querySelectorAll('thead th');
+    headers.forEach((header, index) => {
+        // Skip action column
+        if (index === headers.length - 1) return;
+        
+        header.style.cursor = 'pointer';
+        header.style.userSelect = 'none';
+        header.setAttribute('data-sort-column', index);
+        
+        // Add sort icon
+        const sortIcon = document.createElement('i');
+        sortIcon.className = 'fas fa-sort ms-1 opacity-50';
+        header.appendChild(sortIcon);
+        
+        header.addEventListener('click', () => sortTeamTable(index));
+    });
+    
+    // Add row click handlers
+    const rows = document.querySelectorAll('.team-row');
+    rows.forEach(row => {
+        row.addEventListener('click', function(e) {
+            // Don't trigger if clicking on buttons or links
+            if (e.target.matches('button, button *, a, a *')) return;
+            
+            const teamId = this.getAttribute('data-team-id');
+            if (teamId) {
+                // Add visual feedback
+                this.style.backgroundColor = '#e3f2fd';
+                setTimeout(() => {
+                    this.style.backgroundColor = '';
+                }, 200);
+                
+                // Show team details
+                viewTeamDetails(parseInt(teamId));
+            }
+        });
+        
+        // Add hover tooltip
+        row.setAttribute('title', 'Click to view team details');
+    });
+}
+
+function sortTeamTable(columnIndex) {
+    const table = document.getElementById('teamsTable');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.rows);
+    const header = table.querySelectorAll('thead th')[columnIndex];
+    const icon = header.querySelector('i');
+    
+    // Determine sort direction
+    const isAscending = !header.hasAttribute('data-sort-asc');
+    
+    // Reset all other headers
+    table.querySelectorAll('thead th').forEach(th => {
+        th.removeAttribute('data-sort-asc');
+        th.removeAttribute('data-sort-desc');
+        const otherIcon = th.querySelector('i');
+        if (otherIcon) {
+            otherIcon.className = 'fas fa-sort ms-1 opacity-50';
+        }
+    });
+    
+    // Set current header state
+    if (isAscending) {
+        header.setAttribute('data-sort-asc', '');
+        icon.className = 'fas fa-sort-up ms-1';
+    } else {
+        header.setAttribute('data-sort-desc', '');
+        icon.className = 'fas fa-sort-down ms-1';
+    }
+    
+    // Sort rows
+    rows.sort((a, b) => {
+        const aCell = a.cells[columnIndex];
+        const bCell = b.cells[columnIndex];
+        
+        let aValue = aCell.textContent.trim();
+        let bValue = bCell.textContent.trim();
+        
+        // Handle different data types
+        if (columnIndex === 0) { // Team ID
+            aValue = parseInt(aValue.replace(/\D/g, '')) || 0;
+            bValue = parseInt(bValue.replace(/\D/g, '')) || 0;
+        }
+        
+        // Compare values
+        let comparison = 0;
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+            comparison = aValue - bValue;
+        } else {
+            comparison = aValue.localeCompare(bValue, undefined, { numeric: true });
+        }
+        
+        return isAscending ? comparison : -comparison;
+    });
+    
+    // Reorder rows in DOM
+    rows.forEach(row => tbody.appendChild(row));
+    
+    // Add visual feedback
+    tbody.style.opacity = '0.7';
+    setTimeout(() => {
+        tbody.style.opacity = '1';
+    }, 150);
+}
 </script>
 {% endblock %}
