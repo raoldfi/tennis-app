@@ -45,376 +45,267 @@
     </div>
 </div>
 
-<!-- Import Modal -->
-<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="importModalLabel">
-                    <i class="fas fa-upload"></i> Import Leagues
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="importForm" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label for="yamlFile" class="form-label">Select YAML File</label>
-                        <input type="file" class="form-control" id="yamlFile" name="yaml_file" accept=".yaml,.yml" required>
-                        <div class="form-text">Upload a YAML file containing league data. File must have .yaml or .yml extension.</div>
-                    </div>
-                    
-                    <div class="alert alert-info">
-                        <h6><i class="fas fa-info-circle"></i> Expected Format</h6>
-                        <div class="bg-light p-3 rounded">
-                            <pre class="mb-0"><code>leagues:
-  - id: 101
-    name: "2025 Adult 18+ 3.0 Women"
-    year: 2025
-    section: "Southwest"
-    region: "Northern New Mexico"
-    age_group: "18 & Over"
-    division: "3.0 Women"
-    num_matches: 6
-    num_lines_per_match: 4
-    allow_split_lines: false</code></pre>
-                        </div>
-                    </div>
-                    
-                    <div class="alert alert-warning">
-                        <h6><i class="fas fa-exclamation-triangle"></i> Important Notes</h6>
-                        <ul class="mb-0">
-                            <li><strong>Valid sections:</strong> Must be one of the official USTA sections (e.g., Southwest, Pacific Northwest)</li>
-                            <li><strong>Valid regions:</strong> Must be one of the USTA regions (e.g., Northern New Mexico, Southern California)</li>
-                            <li><strong>Valid age groups:</strong> 18 & Over, 40 & Over, 55 & Over, 65 & Over</li>
-                            <li><strong>Valid divisions:</strong> Format like "3.0 Women", "4.5 Men", "7.0 Mixed"</li>
-                            <li><strong>Optional fields:</strong> start_date, end_date, preferred_days, backup_days</li>
-                        </ul>
-                    </div>
-                </form>
-                
-                <div id="importStatus" class="d-none">
-                    <!-- Results will be populated by JavaScript -->
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-success" onclick="importLeagues()" id="importBtn">
-                    <i class="fas fa-upload"></i> Import Leagues
-                </button>
-                <button type="button" class="btn btn-primary d-none" onclick="location.reload()" id="refreshBtn">
-                    <i class="fas fa-refresh"></i> Refresh Page
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Import/Export Help Modal -->
-<div class="modal fade" id="importExportHelpModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-question-circle"></i> League Import/Export Help
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <h6><i class="fas fa-info-circle text-primary"></i> Overview</h6>
-                        <p>The import/export functionality allows you to:</p>
-                        <ul>
-                            <li><strong>Import:</strong> Add multiple leagues from a YAML file</li>
-                            <li><strong>Export:</strong> Save league data to YAML or JSON format</li>
-                            <li><strong>Backup:</strong> Create backups of your league configurations</li>
-                            <li><strong>Share:</strong> Transfer league setups between databases</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <h6><i class="fas fa-file-code text-success"></i> YAML Format Example</h6>
-                        <div class="bg-light p-3 rounded">
-                            <pre><code>leagues:
-  - id: 101
-    name: "2025 Adult 18+ 3.0 Women"
-    year: 2025
-    section: "Southwest"
-    region: "Northern New Mexico"
-    age_group: "18 & Over"
-    division: "3.0 Women"
-    num_matches: 6
-    num_lines_per_match: 4
-    allow_split_lines: false
-    preferred_days: ["Saturday", "Sunday"]
-    start_date: "2025-03-01"
-    end_date: "2025-05-31"
-  - id: 102
-    name: "2025 Adult 18+ 4.0 Men"
-    year: 2025
-    section: "Southwest"
-    region: "Northern New Mexico"
-    age_group: "18 & Over"
-    division: "4.0 Men"
-    num_matches: 8
-    num_lines_per_match: 3
-    allow_split_lines: true</code></pre>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <h6><i class="fas fa-upload text-primary"></i> Import Process</h6>
-                        <ol>
-                            <li>Prepare your YAML file</li>
-                            <li>Click "Import YAML"</li>
-                            <li>Select your .yaml/.yml file</li>
-                            <li>Review import status</li>
-                            <li>Refresh page to see results</li>
-                        </ol>
-                    </div>
-                    <div class="col-md-6">
-                        <h6><i class="fas fa-download text-success"></i> Export Options</h6>
-                        <ul>
-                            <li><strong>Export All to YAML:</strong> All leagues</li>
-                            <li><strong>Export All to JSON:</strong> JSON format</li>
-                            <li><strong>Export Single:</strong> Individual league</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-12">
-                        <h6><i class="fas fa-download text-info"></i> Get Started</h6>
-                        <button class="btn btn-outline-primary" onclick="downloadExampleYAML()">
-                            <i class="fas fa-download"></i> Download Example YAML
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
+<!-- Bulk Match Generation Section -->
 {% if leagues %}
-<!-- League Summary Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card bg-primary text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title mb-0">{{ leagues|length }}</h5>
-                        <p class="card-text">Total Leagues</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-trophy fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title mb-0">{{ leagues|map(attribute='year')|unique|list|length }}</h5>
-                        <p class="card-text">Years</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-calendar fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-success text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title mb-0">{{ leagues|map(attribute='section')|unique|list|length }}</h5>
-                        <p class="card-text">Sections</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-map fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-warning text-dark">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title mb-0">{{ leagues|map(attribute='division')|unique|list|length }}</h5>
-                        <p class="card-text">Divisions</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-layer-group fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Desktop Table View -->
-<div class="card d-none d-md-block">
+<div class="card mb-4 border-primary">
     <div class="card-header bg-primary text-white">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <h4 class="mb-0">
-                    <i class="fas fa-table"></i> League Details
-                </h4>
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-0">
+                    <i class="fas fa-magic"></i> Bulk Match Generation
+                </h5>
+                <small class="text-light">Generate matches for multiple leagues at once</small>
             </div>
-            <div class="col-md-4 text-end">
-                <span class="badge bg-light text-dark fs-6">{{ leagues|length }} leagues</span>
+            <div class="text-end">
+                <small class="text-light">
+                    <i class="fas fa-info-circle"></i> 
+                    {{ leagues|length }} league{% if leagues|length != 1 %}s{% endif %} available
+                </small>
             </div>
         </div>
     </div>
     <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle league-table" id="leaguesTable">
-                <thead class="table-dark">
-                    <tr>
-                        <th class="text-center" style="width: 80px;">ID</th>
-                        <th style="width: 200px;">League Name</th>
-                        <th class="text-center" style="width: 180px;">Location</th>
-                        <th class="text-center" style="width: 120px;">Age Group</th>
-                        <th class="text-center" style="width: 140px;">Division</th>
-                        <th class="text-center" style="width: 120px;">Format</th>
-                        <th class="text-center" style="width: 150px;">Season</th>
-                        <th class="text-center" style="width: 120px;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for league in leagues %}
-                    <tr class="league-row" data-league-id="{{ league.id }}">
-                        <td class="text-center">
-                            <span class="badge bg-secondary">{{ league.id }}</span>
-                        </td>
-                        <td>
-                            <div class="league-info-cell">
-                                <div class="fw-bold">{{ league.name }}</div>
-                                <div class="small text-muted">{{ league.year }}</div>
-                            </div>
-                        </td>
-                        <td class="text-center">
-                            <div class="location-cell">
-                                <div class="fw-bold">{{ league.section }}</div>
-                                <div class="small text-muted">{{ league.region }}</div>
-                            </div>
-                        </td>
-                        <td class="text-center">
-                            <div class="age-group-cell">
-                                <span class="badge bg-info">{{ league.age_group }}</span>
-                            </div>
-                        </td>
-                        <td class="text-center">
-                            <div class="division-cell">
-                                <span class="badge bg-success">{{ league.division }}</span>
-                            </div>
-                        </td>
-                        <td class="text-center">
-                            <div class="format-cell">
-                                <div class="small">
-                                    <strong>{{ league.num_matches }}</strong> matches/team<br>
-                                    <strong>{{ league.num_lines_per_match }}</strong> lines/match
-                                    {% if league.allow_split_lines %}
-                                    <br><span class="badge bg-warning text-dark">Split OK</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </td>
-                        <td class="text-center">
-                            <div class="season-cell">
-                                {% if league.start_date and league.end_date %}
-                                <div class="small">
-                                    <i class="fas fa-calendar"></i>
-                                    {{ league.start_date }} to {{ league.end_date }}
-                                </div>
-                                {% elif league.start_date %}
-                                <div class="small">
-                                    <i class="fas fa-play"></i>
-                                    Starts: {{ league.start_date }}
-                                </div>
-                                {% elif league.end_date %}
-                                <div class="small">
-                                    <i class="fas fa-stop"></i>
-                                    Ends: {{ league.end_date }}
-                                </div>
-                                {% else %}
-                                <span class="text-muted small">No dates set</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td class="text-center">
-                            <div class="action-cell">
-                                <div class="btn-group" role="group">
-                                    <a href="{{ url_for('teams', league_id=league.id) }}" 
-                                       class="btn btn-sm btn-outline-info" title="View teams">
-                                        <i class="fas fa-users"></i>
-                                    </a>
-                                    <a href="{{ url_for('edit_league', league_id=league.id) }}" 
-                                       class="btn btn-sm btn-outline-warning" title="Edit league">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button class="btn btn-sm btn-outline-primary" 
-                                            onclick="generateMatches({{ league.id }}, '{{ league.name }}')"
-                                            title="Generate matches for this league">
-                                        <i class="fas fa-magic"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary" 
-                                            onclick="exportSingleLeague({{ league.id }}, '{{ league.name }}')"
-                                            title="Export this league">
-                                        <i class="fas fa-download"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="d-flex gap-3 align-items-center">
+                    <button type="button" class="btn btn-primary btn-lg" onclick="generateMatchesForAllLeagues()">
+                        <i class="fas fa-magic"></i> Generate Matches for All Leagues
+                    </button>
+                    <div class="vr d-none d-md-block"></div>
+                    <div class="text-muted small">
+                        <i class="fas fa-info-circle"></i>
+                        This will generate matches for all leagues that have sufficient teams
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="small text-muted">
+                    <div><i class="fas fa-check-circle text-success"></i> Instant generation</div>
+                    <div><i class="fas fa-balance-scale text-info"></i> Fair distribution</div>
+                    <div><i class="fas fa-calendar-alt text-warning"></i> Ready for scheduling</div>
+                </div>
+            </div>
         </div>
+        
+        <!-- Progress indicator (initially hidden) -->
+        <div id="bulkGenerationProgress" class="mt-3" style="display: none;">
+            <div class="progress mb-2">
+                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                     role="progressbar" style="width: 0%"></div>
+            </div>
+            <div id="progressText" class="small text-muted text-center">
+                Initializing...
+            </div>
+        </div>
+        
+        <!-- Results summary (initially hidden) -->
+        <div id="bulkGenerationResults" class="mt-3" style="display: none;">
+            <!-- Results will be populated by JavaScript -->
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- League Search and Filters -->
+{% if leagues %}
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h6 class="mb-0"><i class="fas fa-search"></i> Search & Filter</h6>
+            </div>
+            <div class="col-md-6 text-end">
+                <small class="text-muted">{{ leagues|length }} league{% if leagues|length != 1 %}s{% endif %} total</small>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="searchInput" class="form-label">Search</label>
+                <input type="text" class="form-control" id="searchInput" placeholder="Search leagues...">
+            </div>
+            <div class="col-md-2">
+                <label for="yearFilter" class="form-label">Year</label>
+                <select class="form-select" id="yearFilter">
+                    <option value="">All Years</option>
+                    {% for year in leagues|map(attribute='year')|unique|sort(reverse=True) %}
+                    <option value="{{ year }}">{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="divisionFilter" class="form-label">Division</label>
+                <select class="form-select" id="divisionFilter">
+                    <option value="">All Divisions</option>
+                    {% for division in leagues|map(attribute='division')|unique|sort %}
+                    <option value="{{ division }}">{{ division }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="ageGroupFilter" class="form-label">Age Group</label>
+                <select class="form-select" id="ageGroupFilter">
+                    <option value="">All Age Groups</option>
+                    {% for age_group in leagues|map(attribute='age_group')|unique|sort %}
+                    <option value="{{ age_group }}">{{ age_group }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Leagues Table/Cards -->
+{% if leagues %}
+<!-- Desktop Table View -->
+<div class="card d-none d-lg-block">
+    <div class="card-header bg-light">
+        <div class="row align-items-center">
+            <div class="col">
+                <h6 class="mb-0"><i class="fas fa-table"></i> Leagues Overview</h6>
+            </div>
+            <div class="col-auto">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-secondary" onclick="exportVisible('yaml')">
+                        <i class="fas fa-download"></i> Export Visible
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                        <i class="fas fa-times"></i> Clear Filters
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover league-table mb-0" id="leaguesTable">
+            <thead class="table-light">
+                <tr>
+                    <th>League Information</th>
+                    <th>Location</th>
+                    <th class="text-center">Age Group</th>
+                    <th class="text-center">Division</th>
+                    <th class="text-center">Format</th>
+                    <th class="text-center">Season</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for league in leagues %}
+                <tr class="league-row" data-league-id="{{ league.id }}">
+                    <td class="league-info-cell">
+                        <div class="fw-bold text-primary">{{ league.name }}</div>
+                        <div class="small text-muted">
+                            <strong>{{ league.year }}</strong> • {{ league.section or 'No Section' }}
+                        </div>
+                    </td>
+                    <td class="location-cell">
+                        <div class="small">
+                            <i class="fas fa-map-marker-alt text-muted"></i>
+                            {{ league.region or 'No Region' }}
+                        </div>
+                    </td>
+                    <td class="text-center age-group-cell">
+                        <span class="badge bg-info">{{ league.age_group }}</span>
+                    </td>
+                    <td class="text-center division-cell">
+                        <span class="badge bg-secondary">{{ league.division }}</span>
+                    </td>
+                    <td class="text-center format-cell">
+                        <div class="small">
+                            <div><strong>{{ league.num_matches }}</strong> matches/team</div>
+                            <div><strong>{{ league.num_lines_per_match }}</strong> lines/match</div>
+                            {% if league.allow_split_lines %}
+                            <span class="badge bg-warning text-dark mt-1">Split OK</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="text-center season-cell">
+                        {% if league.start_date and league.end_date %}
+                        <div class="small">
+                            <i class="fas fa-calendar"></i>
+                            {{ league.start_date }} to {{ league.end_date }}
+                        </div>
+                        {% elif league.start_date %}
+                        <div class="small">
+                            <i class="fas fa-play"></i>
+                            Starts: {{ league.start_date }}
+                        </div>
+                        {% elif league.end_date %}
+                        <div class="small">
+                            <i class="fas fa-stop"></i>
+                            Ends: {{ league.end_date }}
+                        </div>
+                        {% else %}
+                        <span class="text-muted small">No dates set</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center action-cell">
+                        <div class="btn-group" role="group">
+                            <a href="{{ url_for('teams', league_id=league.id) }}" 
+                               class="btn btn-sm btn-outline-info" title="View teams">
+                                <i class="fas fa-users"></i>
+                            </a>
+                            <a href="{{ url_for('edit_league', league_id=league.id) }}" 
+                               class="btn btn-sm btn-outline-warning" title="Edit league">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button class="btn btn-sm btn-primary" 
+                                    onclick="generateMatches({{ league.id }}, '{{ league.name }}')"
+                                    title="Generate matches">
+                                <i class="fas fa-magic"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" 
+                                    onclick="exportSingleLeague({{ league.id }}, '{{ league.name }}')"
+                                    title="Export league">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 
 <!-- Mobile Card View -->
-<div class="d-block d-md-none mt-4">
-    <h5><i class="fas fa-list"></i> League Cards</h5>
+<div class="d-lg-none">
     {% for league in leagues %}
-    <div class="card mb-3 border-start border-primary border-3 league-card" data-league-id="{{ league.id }}">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-                <h6 class="mb-0">{{ league.name }}</h6>
-                <span class="badge bg-secondary">{{ league.id }}</span>
-            </div>
-            
-            <div class="row mb-2">
-                <div class="col-6">
-                    <small class="text-muted">Year</small>
-                    <div class="fw-bold">{{ league.year }}</div>
+    <div class="card mb-3 league-card" data-league-id="{{ league.id }}">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="mb-1 text-primary">{{ league.name }}</h6>
+                    <small class="text-muted">{{ league.year }} • {{ league.section or 'No Section' }}</small>
                 </div>
+                <span class="badge bg-info">{{ league.age_group }}</span>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row g-2 mb-3">
                 <div class="col-6">
                     <small class="text-muted">Division</small>
-                    <div><span class="badge bg-success">{{ league.division }}</span></div>
+                    <div><span class="badge bg-secondary">{{ league.division }}</span></div>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted">Location</small>
+                    <div class="small">
+                        <i class="fas fa-map-marker-alt text-muted"></i>
+                        {{ league.region or 'No Region' }}
+                    </div>
                 </div>
             </div>
             
-            <div class="row mb-2">
-                <div class="col-12">
-                    <small class="text-muted">Location</small>
-                    <div class="small">{{ league.section }} - {{ league.region }}</div>
+            <div class="mb-2">
+                <small class="text-muted">Format</small>
+                <div class="small">
+                    <strong>{{ league.num_matches }}</strong> matches/team<br>
+                    <strong>{{ league.num_lines_per_match }}</strong> lines/match
+                    {% if league.allow_split_lines %}
+                    <br><span class="badge bg-warning text-dark">Split OK</span>
+                    {% endif %}
                 </div>
             </div>
             
@@ -479,172 +370,240 @@
 </div>
 {% endif %}
 
+<!-- Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importModalLabel">
+                    <i class="fas fa-upload"></i> Import Leagues
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="importForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="yamlFile" class="form-label">Select YAML File</label>
+                        <input type="file" class="form-control" id="yamlFile" name="yaml_file" accept=".yaml,.yml" required>
+                        <div class="form-text">Upload a YAML file containing league data.</div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Import Process:</strong> The file will be validated and processed. 
+                        Existing leagues with matching IDs will be updated.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitImport()">
+                    <i class="fas fa-upload"></i> Import Leagues
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Export functionality
-function exportLeagues(format) {
-    const url = `/leagues/export?format=${format}`;
-    window.location.href = url;
-}
+// Global variables for tracking bulk generation
+let bulkGenerationActive = false;
+let bulkGenerationResults = {
+    successful: [],
+    failed: [],
+    skipped: []
+};
 
-function exportSingleLeague(leagueId, leagueName) {
-    const url = `/leagues/${leagueId}/export`;
-    window.location.href = url;
-}
-
-// Import functionality
-function showImportModal() {
-    const modal = new bootstrap.Modal(document.getElementById('importModal'));
-    modal.show();
-}
-
-function importLeagues() {
-    const fileInput = document.getElementById('yamlFile');
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        alert('Please select a YAML file to import.');
+// Bulk match generation functionality
+async function generateMatchesForAllLeagues() {
+    if (bulkGenerationActive) {
+        alert('Bulk generation is already in progress. Please wait for it to complete.');
         return;
     }
     
-    // Show progress and disable button
-    document.getElementById('importBtn').innerHTML = '<div class="spinner-border spinner-border-sm me-2" role="status"></div>Importing...';
-    document.getElementById('importBtn').disabled = true;
-    document.getElementById('importStatus').classList.add('d-none');
+    const leagues = {{ leagues|map(attribute='id')|list|tojson }};
+    const leagueNames = {{ leagues|map(attribute='name')|list|tojson }};
     
-    // Prepare form data
-    const formData = new FormData();
-    formData.append('yaml_file', file);
+    if (leagues.length === 0) {
+        alert('No leagues available for match generation.');
+        return;
+    }
     
-    // Submit import request
-    fetch('/leagues/import', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        // Reset button
-        document.getElementById('importBtn').innerHTML = '<i class="fas fa-upload"></i> Import Leagues';
-        document.getElementById('importBtn').disabled = false;
+    const confirmed = confirm(
+        `Generate matches for all ${leagues.length} leagues?\n\n` +
+        'This will create matches for each league that has sufficient teams. ' +
+        'Leagues without enough teams will be skipped.\n\n' +
+        'This operation may take a few moments to complete.'
+    );
+    
+    if (!confirmed) return;
+    
+    bulkGenerationActive = true;
+    bulkGenerationResults = { successful: [], failed: [], skipped: [] };
+    
+    // Show progress indicators
+    const progressContainer = document.getElementById('bulkGenerationProgress');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const resultsContainer = document.getElementById('bulkGenerationResults');
+    
+    progressContainer.style.display = 'block';
+    resultsContainer.style.display = 'none';
+    
+    // Reset progress
+    progressBar.style.width = '0%';
+    progressText.textContent = 'Starting bulk generation...';
+    
+    try {
+        for (let i = 0; i < leagues.length; i++) {
+            const leagueId = leagues[i];
+            const leagueName = leagueNames[i];
+            const progress = Math.round(((i + 1) / leagues.length) * 100);
+            
+            // Update progress
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `Processing ${i + 1}/${leagues.length}: ${leagueName}`;
+            
+            try {
+                const response = await fetch(`/api/generate-matches/${leagueId}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    bulkGenerationResults.failed.push({
+                        id: leagueId,
+                        name: leagueName,
+                        error: data.error
+                    });
+                } else if (data.created_count === 0) {
+                    bulkGenerationResults.skipped.push({
+                        id: leagueId,
+                        name: leagueName,
+                        reason: 'No matches needed (insufficient teams or already generated)'
+                    });
+                } else {
+                    bulkGenerationResults.successful.push({
+                        id: leagueId,
+                        name: leagueName,
+                        matches: data.created_count
+                    });
+                }
+            } catch (error) {
+                bulkGenerationResults.failed.push({
+                    id: leagueId,
+                    name: leagueName,
+                    error: error.message
+                });
+            }
+            
+            // Small delay to prevent overwhelming the server
+            await new Promise(resolve => setTimeout(resolve, 250));
+        }
         
-        // Show results
-        displayImportResults(data);
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        // Reset button
-        document.getElementById('importBtn').innerHTML = '<i class="fas fa-upload"></i> Import Leagues';
-        document.getElementById('importBtn').disabled = false;
+        // Show final results
+        displayBulkGenerationResults();
         
-        displayImportResults({
-            success: false,
-            error: 'Network error: ' + error.message
-        });
-    });
+    } catch (error) {
+        alert('Error during bulk generation: ' + error.message);
+        progressContainer.style.display = 'none';
+    }
+    
+    bulkGenerationActive = false;
 }
 
-function displayImportResults(data) {
-    const statusDiv = document.getElementById('importStatus');
-    statusDiv.classList.remove('d-none');
+function displayBulkGenerationResults() {
+    const progressContainer = document.getElementById('bulkGenerationProgress');
+    const resultsContainer = document.getElementById('bulkGenerationResults');
     
-    if (data.success) {
-        statusDiv.innerHTML = `
-            <div class="alert alert-success">
-                <h6><i class="fas fa-check-circle"></i> Import Successful!</h6>
-                <ul class="mb-0">
-                    <li><strong>${data.imported_count}</strong> new leagues imported</li>
-                    <li><strong>${data.updated_count}</strong> existing leagues updated</li>
-                    <li><strong>${data.total_processed}</strong> total leagues processed</li>
-                </ul>
-                ${data.error_count > 0 ? `<div class="mt-2"><strong>Errors:</strong> ${data.error_count} league(s) failed to import</div>` : ''}
+    progressContainer.style.display = 'none';
+    
+    const { successful, failed, skipped } = bulkGenerationResults;
+    const totalMatches = successful.reduce((sum, league) => sum + league.matches, 0);
+    
+    let resultsHTML = `
+        <div class="alert alert-success">
+            <h6><i class="fas fa-check-circle"></i> Bulk Match Generation Complete</h6>
+            <div class="row text-center mt-3">
+                <div class="col-md-3">
+                    <div class="h4 text-success">${successful.length}</div>
+                    <small class="text-muted">Successful</small>
+                </div>
+                <div class="col-md-3">
+                    <div class="h4 text-warning">${skipped.length}</div>
+                    <small class="text-muted">Skipped</small>
+                </div>
+                <div class="col-md-3">
+                    <div class="h4 text-danger">${failed.length}</div>
+                    <small class="text-muted">Failed</small>
+                </div>
+                <div class="col-md-3">
+                    <div class="h4 text-primary">${totalMatches}</div>
+                    <small class="text-muted">Total Matches</small>
+                </div>
             </div>
-            ${data.errors ? `<div class="alert alert-warning">
-                <h6>Import Errors:</h6>
-                <ul>${data.errors.map(error => `<li>${error}</li>`).join('')}</ul>
-                ${data.additional_errors ? `<p>... and ${data.additional_errors} more errors</p>` : ''}
-            </div>` : ''}
-        `;
-        
-        // Show refresh button
-        document.getElementById('refreshBtn').classList.remove('d-none');
-    } else {
-        statusDiv.innerHTML = `
-            <div class="alert alert-danger">
-                <h6><i class="fas fa-exclamation-triangle"></i> Import Failed</h6>
-                <p><strong>Error:</strong> ${data.error}</p>
-                ${data.details ? `<p><strong>Details:</strong> ${data.details}</p>` : ''}
+        </div>
+    `;
+    
+    if (successful.length > 0) {
+        resultsHTML += `
+            <div class="alert alert-success">
+                <h6><i class="fas fa-trophy"></i> Successfully Generated (${successful.length} leagues)</h6>
+                <ul class="mb-0">
+                    ${successful.map(league => 
+                        `<li><strong>${league.name}</strong> - ${league.matches} matches generated</li>`
+                    ).join('')}
+                </ul>
             </div>
         `;
     }
-}
-
-// Help functionality
-function showImportExportHelp() {
-    const modal = new bootstrap.Modal(document.getElementById('importExportHelpModal'));
-    modal.show();
-}
-
-function downloadExampleYAML() {
-    const exampleYAML = `# Example Leagues YAML File
-# Save this as leagues_example.yaml and modify as needed
-
-leagues:
-  - id: 101
-    name: "2025 Adult 18+ 3.0 Women"
-    year: 2025
-    section: "Southwest"
-    region: "Northern New Mexico"
-    age_group: "18 & Over"
-    division: "3.0 Women"
-    num_matches: 6
-    num_lines_per_match: 4
-    allow_split_lines: false
-    preferred_days: ["Saturday", "Sunday"]
-    start_date: "2025-03-01"
-    end_date: "2025-05-31"
     
-  - id: 102
-    name: "2025 Adult 18+ 4.0 Men"
-    year: 2025
-    section: "Southwest"
-    region: "Northern New Mexico"
-    age_group: "18 & Over"
-    division: "4.0 Men"
-    num_matches: 8
-    num_lines_per_match: 3
-    allow_split_lines: true
-    preferred_days: ["Saturday"]
-    backup_days: ["Sunday"]
-    start_date: "2025-03-15"
-    end_date: "2025-06-15"
-
-  - id: 103
-    name: "2025 Adult 18+ 7.0 Mixed Doubles"
-    year: 2025
-    section: "Southwest"
-    region: "Northern New Mexico"
-    age_group: "18 & Over"
-    division: "7.0 Mixed"
-    num_matches: 10
-    num_lines_per_match: 3
-    allow_split_lines: false
-    preferred_days: ["Saturday", "Sunday"]
-`;
-
-    const blob = new Blob([exampleYAML], { type: 'text/yaml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'leagues_example.yaml';
-    document.body.appendChild(a);
-    a.click();
-    URL.revokeObjectURL(url);
-    document.body.removeChild(a);
+    if (skipped.length > 0) {
+        resultsHTML += `
+            <div class="alert alert-warning">
+                <h6><i class="fas fa-exclamation-triangle"></i> Skipped (${skipped.length} leagues)</h6>
+                <ul class="mb-0">
+                    ${skipped.map(league => 
+                        `<li><strong>${league.name}</strong> - ${league.reason}</li>`
+                    ).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
+    if (failed.length > 0) {
+        resultsHTML += `
+            <div class="alert alert-danger">
+                <h6><i class="fas fa-times-circle"></i> Failed (${failed.length} leagues)</h6>
+                <ul class="mb-0">
+                    ${failed.map(league => 
+                        `<li><strong>${league.name}</strong> - ${league.error}</li>`
+                    ).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
+    resultsHTML += `
+        <div class="text-center mt-3">
+            <button class="btn btn-outline-secondary" onclick="hideBulkResults()">
+                <i class="fas fa-times"></i> Hide Results
+            </button>
+            <a href="{{ url_for('matches') }}" class="btn btn-primary ms-2">
+                <i class="fas fa-calendar-alt"></i> View Generated Matches
+            </a>
+        </div>
+    `;
+    
+    resultsContainer.innerHTML = resultsHTML;
+    resultsContainer.style.display = 'block';
 }
 
-// Match generation functionality
+function hideBulkResults() {
+    document.getElementById('bulkGenerationResults').style.display = 'none';
+}
+
+// Individual league match generation (existing functionality)
 function generateMatches(leagueId, leagueName) {
     if (confirm(`Generate matches for league "${leagueName}"?\n\nThis will create all round-robin matches for teams in this league.`)) {
         // Show loading state
@@ -673,8 +632,74 @@ function generateMatches(leagueId, leagueName) {
     }
 }
 
-// Initialize enhanced styling and interactions
+// Table filtering and search functionality
 document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const yearFilter = document.getElementById('yearFilter');
+    const divisionFilter = document.getElementById('divisionFilter');
+    const ageGroupFilter = document.getElementById('ageGroupFilter');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', filterLeagues);
+        yearFilter.addEventListener('change', filterLeagues);
+        divisionFilter.addEventListener('change', filterLeagues);
+        ageGroupFilter.addEventListener('change', filterLeagues);
+    }
+    
+    // Initialize enhanced styling and interactions
+    setupEnhancedStyling();
+    setupLeagueTableInteractions();
+});
+
+function filterLeagues() {
+    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    const yearFilter = document.getElementById('yearFilter')?.value || '';
+    const divisionFilter = document.getElementById('divisionFilter')?.value || '';
+    const ageGroupFilter = document.getElementById('ageGroupFilter')?.value || '';
+    
+    const tableRows = document.querySelectorAll('.league-row');
+    const cardElements = document.querySelectorAll('.league-card');
+    
+    // Filter table rows
+    tableRows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const matchesSearch = searchTerm === '' || text.includes(searchTerm);
+        const matchesYear = yearFilter === '' || text.includes(yearFilter);
+        const matchesDivision = divisionFilter === '' || text.includes(divisionFilter);
+        const matchesAgeGroup = ageGroupFilter === '' || text.includes(ageGroupFilter);
+        
+        if (matchesSearch && matchesYear && matchesDivision && matchesAgeGroup) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    // Filter card elements
+    cardElements.forEach(card => {
+        const text = card.textContent.toLowerCase();
+        const matchesSearch = searchTerm === '' || text.includes(searchTerm);
+        const matchesYear = yearFilter === '' || text.includes(yearFilter);
+        const matchesDivision = divisionFilter === '' || text.includes(divisionFilter);
+        const matchesAgeGroup = ageGroupFilter === '' || text.includes(ageGroupFilter);
+        
+        if (matchesSearch && matchesYear && matchesDivision && matchesAgeGroup) {
+            card.style.display = '';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('yearFilter').value = '';
+    document.getElementById('divisionFilter').value = '';
+    document.getElementById('ageGroupFilter').value = '';
+    filterLeagues();
+}
+
+function setupEnhancedStyling() {
     // Add enhanced table styles
     const enhancedLeagueStyles = document.createElement('style');
     enhancedLeagueStyles.textContent = `
@@ -728,75 +753,40 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         .season-cell {
-            min-width: 130px;
+            min-width: 120px;
         }
         
-        .action-cell .btn-group .btn {
-            border-radius: 0.25rem !important;
-            margin: 0 0.1rem;
-            font-size: 0.75rem;
+        .action-cell {
+            min-width: 180px;
         }
         
-        /* Card header styling consistent with schedule */
-        .card-header.bg-primary {
-            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
-        }
-        
-        /* League row hover effects */
-        .league-row {
-            cursor: pointer;
-            border-left: 3px solid transparent;
-            transition: all 0.3s ease;
-        }
-        
-        .league-row:hover {
-            border-left-color: #6f42c1;
-            background: linear-gradient(90deg, rgba(111,66,193,0.05) 0%, rgba(255,255,255,1) 10%);
-        }
-        
-        /* Mobile card enhancements */
+        /* Mobile card styling */
         .league-card {
             transition: all 0.2s ease;
-            border-left: 3px solid #007bff !important;
         }
         
         .league-card:hover {
-            transform: translateX(5px);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            border-left-color: #6f42c1 !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         
-        /* Responsive improvements */
-        @media (max-width: 1200px) {
-            .league-table {
-                font-size: 0.8rem;
-            }
-            
-            .league-info-cell {
-                min-width: 160px;
-            }
-            
-            .location-cell {
-                max-width: 140px;
-            }
+        /* Bulk generation styling */
+        .progress {
+            height: 8px;
         }
         
-        @media (max-width: 768px) {
-            .action-cell .btn-group .btn {
-                padding: 0.25rem 0.5rem;
-                font-size: 0.7rem;
-            }
-            
-            .league-card {
-                margin-bottom: 0.5rem;
-            }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        
+        /* Filter styling */
+        .form-select:focus, .form-control:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
         }
     `;
     document.head.appendChild(enhancedLeagueStyles);
-    
-    // Setup table interactions
-    setupLeagueTableInteractions();
-});
+}
 
 function setupLeagueTableInteractions() {
     const table = document.getElementById('leaguesTable');
@@ -845,68 +835,123 @@ function setupLeagueTableInteractions() {
     });
 }
 
+let sortDirection = {};
+
 function sortLeagueTable(columnIndex) {
     const table = document.getElementById('leaguesTable');
     const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.rows);
-    const header = table.querySelectorAll('thead th')[columnIndex];
-    const icon = header.querySelector('i');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
     
-    // Determine sort direction
-    const isAscending = !header.hasAttribute('data-sort-asc');
+    // Toggle sort direction
+    sortDirection[columnIndex] = sortDirection[columnIndex] === 'asc' ? 'desc' : 'asc';
     
-    // Reset all other headers
-    table.querySelectorAll('thead th').forEach(th => {
-        th.removeAttribute('data-sort-asc');
-        th.removeAttribute('data-sort-desc');
-        const otherIcon = th.querySelector('i');
-        if (otherIcon) {
-            otherIcon.className = 'fas fa-sort ms-1 opacity-50';
+    // Update sort icons
+    const headers = table.querySelectorAll('thead th');
+    headers.forEach((header, index) => {
+        const icon = header.querySelector('i');
+        if (icon && index < headers.length - 1) {
+            if (index === columnIndex) {
+                icon.className = `fas fa-sort-${sortDirection[columnIndex] === 'asc' ? 'up' : 'down'} ms-1`;
+            } else {
+                icon.className = 'fas fa-sort ms-1 opacity-50';
+            }
         }
     });
-    
-    // Set current header state
-    if (isAscending) {
-        header.setAttribute('data-sort-asc', '');
-        icon.className = 'fas fa-sort-up ms-1';
-    } else {
-        header.setAttribute('data-sort-desc', '');
-        icon.className = 'fas fa-sort-down ms-1';
-    }
     
     // Sort rows
     rows.sort((a, b) => {
-        const aCell = a.cells[columnIndex];
-        const bCell = b.cells[columnIndex];
+        const aText = a.cells[columnIndex].textContent.trim();
+        const bText = b.cells[columnIndex].textContent.trim();
         
-        let aValue = aCell.textContent.trim();
-        let bValue = bCell.textContent.trim();
-        
-        // Handle different data types
-        if (columnIndex === 0) { // League ID
-            aValue = parseInt(aValue.replace(/\D/g, '')) || 0;
-            bValue = parseInt(bValue.replace(/\D/g, '')) || 0;
-        }
-        
-        // Compare values
         let comparison = 0;
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-            comparison = aValue - bValue;
-        } else {
-            comparison = aValue.localeCompare(bValue, undefined, { numeric: true });
-        }
+        if (aText < bText) comparison = -1;
+        if (aText > bText) comparison = 1;
         
-        return isAscending ? comparison : -comparison;
+        return sortDirection[columnIndex] === 'asc' ? comparison : -comparison;
     });
     
-    // Reorder rows in DOM
+    // Reorder rows in table
     rows.forEach(row => tbody.appendChild(row));
+}
+
+// Import/Export functionality (existing)
+function showImportModal() {
+    const modal = new bootstrap.Modal(document.getElementById('importModal'));
+    modal.show();
+}
+
+function submitImport() {
+    const form = document.getElementById('importForm');
+    const formData = new FormData(form);
     
-    // Add visual feedback
-    tbody.style.opacity = '0.7';
-    setTimeout(() => {
-        tbody.style.opacity = '1';
-    }, 150);
+    // Show loading state
+    const submitBtn = event.target;
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+    submitBtn.disabled = true;
+    
+    fetch('/leagues/import', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+        
+        if (data.success) {
+            alert(`Success! Imported ${data.imported_count} leagues.`);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+        alert('Error during import: ' + error.message);
+    });
+}
+
+function exportLeagues(format) {
+    window.location.href = `/leagues/export?format=${format}`;
+}
+
+function exportVisible(format) {
+    // Get visible league IDs
+    const visibleRows = document.querySelectorAll('.league-row:not([style*="display: none"])');
+    const leagueIds = Array.from(visibleRows).map(row => row.getAttribute('data-league-id'));
+    
+    if (leagueIds.length === 0) {
+        alert('No leagues visible to export. Please adjust your filters.');
+        return;
+    }
+    
+    // Create form to submit league IDs
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/leagues/export?format=${format}`;
+    
+    const idsInput = document.createElement('input');
+    idsInput.type = 'hidden';
+    idsInput.name = 'league_ids';
+    idsInput.value = JSON.stringify(leagueIds);
+    
+    form.appendChild(idsInput);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+
+function exportSingleLeague(leagueId, leagueName) {
+    if (confirm(`Export league "${leagueName}" to YAML file?`)) {
+        window.location.href = `/leagues/export?format=yaml&league_id=${leagueId}`;
+    }
+}
+
+function showImportExportHelp() {
+    const modal = new bootstrap.Modal(document.getElementById('importExportHelpModal'));
+    modal.show();
 }
 </script>
 {% endblock %}

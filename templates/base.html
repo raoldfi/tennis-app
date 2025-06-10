@@ -10,6 +10,12 @@
         .navbar-brand {
             font-weight: bold;
             color: #2c5530 !important;
+            display: flex;
+            align-items: center;
+        }
+        .navbar-brand img {
+            height: 40px;
+            margin-right: 10px;
         }
         .table th {
             background-color: #f8f9fa;
@@ -50,7 +56,8 @@
     <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-tennis-ball"></i> Tennis Database
+                <img src="{{ url_for('static', filename='ameo-analytics-logo.png') }}" alt="AMEO Analytics" />
+                Tennis Database
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
