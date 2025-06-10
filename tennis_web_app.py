@@ -1049,7 +1049,365 @@ def edit_league(league_id):
         flash(f'Error loading form data: {e}', 'error')
         return redirect(url_for('leagues'))
 
+
+# ==================== LEAGUE EXPORT/IMPORT ROUTES ====================
+
+@app.route('/leagues/export')
+def export_leagues():
+    """Export all leagues to YAML or JSON format with comprehensive error handling"""
+    try:
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connection'}), 500
+        
+        export_format = request.args.get('format', 'yaml').lower()
+        print(f"Export format requested: {export_format}")  # Debug
+        
+        leagues_list = db.list_leagues()
+        print(f"Found {len(leagues_list)} leagues")  # Debug
+        
+        # Convert leagues to exportable format
+        leagues_data = []
+        for i, league in enumerate(leagues_list):
+            try:
+                # Check if league has to_yaml_dict method
+                if hasattr(league, 'to_yaml_dict'):
+                    league_dict = league.to_yaml_dict()
+                else:
+                    # Fallback: create dict manually
+                    print(f"Warning: League {league.id} missing to_yaml_dict method, using fallback")
+                    league_dict = create_league_dict_fallback(league)
+                
+                leagues_data.append(league_dict)
+                print(f"Processed league {i+1}: {league.name}")  # Debug
+                
+            except Exception as e:
+                print(f"Error processing league {league.id}: {str(e)}")
+                return jsonify({'error': f'Error processing league {league.id}: {str(e)}'}), 500
+        
+        # Prepare export data
+        export_data = {
+            'leagues': leagues_data,
+            'exported_at': datetime.now().isoformat(),
+            'exported_count': len(leagues_data)
+        }
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        if export_format == 'json':
+            try:
+                # Export as JSON
+                json_str = json.dumps(export_data, indent=2, ensure_ascii=False, default=str)
+                print(f"Generated JSON, length: {len(json_str)}")  # Debug
+                
+                # Create response with proper headers
+                response = make_response(json_str)
+                response.headers['Content-Type'] = 'application/json'
+                response.headers['Content-Disposition'] = f'attachment; filename=leagues_export_{timestamp}.json'
+                return response
+            except Exception as e:
+                print(f"JSON export error: {str(e)}")
+                return jsonify({'error': f'JSON serialization error: {str(e)}'}), 500
+        else:
+            try:
+                # Export as YAML (default)
+                yaml_str = yaml.dump(export_data, default_flow_style=False, allow_unicode=True, sort_keys=False)
+                print(f"Generated YAML, length: {len(yaml_str)}")  # Debug
+                
+                # Create response with proper headers
+                response = make_response(yaml_str)
+                response.headers['Content-Type'] = 'application/x-yaml'
+                response.headers['Content-Disposition'] = f'attachment; filename=leagues_export_{timestamp}.yaml'
+                return response
+            except Exception as e:
+                print(f"YAML export error: {str(e)}")
+                return jsonify({'error': f'YAML serialization error: {str(e)}'}), 500
+    
+    except Exception as e:
+        print(f"General export error: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': f'Export failed: {str(e)}', 'traceback': traceback.format_exc()}), 500
+
+
+@app.route('/leagues/<int:league_id>/export')
+def export_single_league(league_id):
+    """Export a single league to YAML format with error handling"""
+    try:
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connection'}), 500
+        
+        league = db.get_league(league_id)
+        if not league:
+            return jsonify({'error': f'League {league_id} not found'}), 404
+        
+        print(f"Exporting league: {league.name}")  # Debug
+        
+        # Convert league to exportable format
+        try:
+            if hasattr(league, 'to_yaml_dict'):
+                league_dict = league.to_yaml_dict()
+            else:
+                print(f"Warning: League {league_id} missing to_yaml_dict method, using fallback")
+                league_dict = create_league_dict_fallback(league)
+        except Exception as e:
+            print(f"Error converting league to dict: {str(e)}")
+            return jsonify({'error': f'Error converting league: {str(e)}'}), 500
+        
+        # Prepare export data
+        export_data = {
+            'leagues': [league_dict],
+            'exported_at': datetime.now().isoformat(),
+            'league_name': league.name
+        }
+        
+        try:
+            # Generate YAML
+            yaml_str = yaml.dump(export_data, default_flow_style=False, allow_unicode=True, sort_keys=False)
+            print(f"Generated YAML, length: {len(yaml_str)}")  # Debug
+            
+            # Create response with proper headers
+            safe_filename = secure_filename(f"{league.name}_{league.year}")
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            
+            response = make_response(yaml_str)
+            response.headers['Content-Type'] = 'application/x-yaml'
+            response.headers['Content-Disposition'] = f'attachment; filename=league_{safe_filename}_{timestamp}.yaml'
+            return response
+            
+        except Exception as e:
+            print(f"YAML export error: {str(e)}")
+            return jsonify({'error': f'YAML serialization error: {str(e)}'}), 500
+    
+    except Exception as e:
+        print(f"General export error: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': f'Export failed: {str(e)}', 'traceback': traceback.format_exc()}), 500
+
+
+@app.route('/leagues/import', methods=['POST'])
+def import_leagues():
+    """Import leagues from YAML file"""
+    db = get_db()
+    if db is None:
+        return jsonify({'success': False, 'error': 'No database connection'}), 500
+    
+    try:
+        # Check if file was uploaded
+        if 'yaml_file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+        
+        file = request.files['yaml_file']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+        
+        # Check file extension
+        if not file.filename.lower().endswith(('.yaml', '.yml')):
+            return jsonify({'success': False, 'error': 'File must be a YAML file (.yaml or .yml)'}), 400
+        
+        # Read and parse YAML content
+        try:
+            yaml_content = file.read().decode('utf-8')
+            data = yaml.safe_load(yaml_content)
+        except yaml.YAMLError as e:
+            return jsonify({
+                'success': False, 
+                'error': f'Invalid YAML format: {str(e)}',
+                'details': str(e)
+            }), 400
+        except UnicodeDecodeError as e:
+            return jsonify({
+                'success': False, 
+                'error': f'File encoding error: {str(e)}',
+                'details': 'File must be UTF-8 encoded'
+            }), 400
+        
+        # Validate data structure
+        if not isinstance(data, dict):
+            return jsonify({
+                'success': False, 
+                'error': 'Invalid file format: Root element must be a dictionary'
+            }), 400
+        
+        if 'leagues' not in data:
+            return jsonify({
+                'success': False, 
+                'error': 'Invalid file format: Missing "leagues" key'
+            }), 400
+        
+        if not isinstance(data['leagues'], list):
+            return jsonify({
+                'success': False, 
+                'error': 'Invalid file format: "leagues" must be a list'
+            }), 400
+        
+        # Import leagues
+        imported_count = 0
+        updated_count = 0
+        errors = []
+        
+        for i, league_data in enumerate(data['leagues']):
+            try:
+                # Check if it's already a League object or needs conversion
+                if hasattr(league_data, '__dict__'):
+                    league = league_data
+                else:
+                    # Create League from dict data
+                    if hasattr(League, 'from_yaml_dict'):
+                        league = League.from_yaml_dict(league_data)
+                    else:
+                        # Fallback: create League object manually
+                        league = create_league_from_dict_fallback(league_data)
+                
+                # Check if league already exists
+                existing_league = None
+                try:
+                    existing_league = db.get_league(league.id) if hasattr(league, 'id') and league.id else None
+                except:
+                    pass
+                
+                if existing_league:
+                    # Update existing league
+                    db.update_league(league)
+                    updated_count += 1
+                else:
+                    # Insert new league
+                    db.add_league(league)
+                    imported_count += 1
+                    
+            except Exception as e:
+                errors.append(f"Row {i+1}: {str(e)}")
+                continue
+        
+        result = {
+            'success': True,
+            'imported_count': imported_count,
+            'updated_count': updated_count,
+            'total_processed': imported_count + updated_count,
+            'error_count': len(errors)
+        }
+        
+        if errors:
+            result['errors'] = errors[:10]  # Limit error messages
+            if len(errors) > 10:
+                result['additional_errors'] = len(errors) - 10
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Import failed: {str(e)}',
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+def create_league_dict_fallback(league):
+    """Fallback method to convert League object to dictionary"""
+    try:
+        league_dict = {
+            'id': league.id,
+            'name': league.name,
+            'year': league.year,
+            'section': league.section,
+            'region': league.region,
+            'age_group': league.age_group,
+            'division': league.division,
+            'num_matches': league.num_matches,
+            'num_lines_per_match': league.num_lines_per_match,
+            'allow_split_lines': league.allow_split_lines
+        }
+        
+        # Add optional fields if they exist
+        if hasattr(league, 'start_date') and league.start_date:
+            league_dict['start_date'] = league.start_date
+        if hasattr(league, 'end_date') and league.end_date:
+            league_dict['end_date'] = league.end_date
+        if hasattr(league, 'preferred_days') and league.preferred_days:
+            league_dict['preferred_days'] = league.preferred_days
+        
+        return league_dict
+        
+    except Exception as e:
+        print(f"Fallback conversion error: {str(e)}")
+        raise Exception(f"Could not convert league to dictionary: {str(e)}")
+
+
+def create_league_from_dict_fallback(league_data):
+    """Fallback method to create League object from dictionary"""
+    try:
+        # Create League with required fields
+        league = League(
+            id=league_data.get('id'),
+            name=league_data['name'],
+            year=league_data['year'],
+            section=league_data['section'],
+            region=league_data['region'],
+            age_group=league_data['age_group'],
+            division=league_data['division'],
+            num_matches=league_data.get('num_matches', 6),
+            num_lines_per_match=league_data.get('num_lines_per_match', 4),
+            allow_split_lines=league_data.get('allow_split_lines', False)
+        )
+        
+        # Add optional fields if they exist
+        if 'start_date' in league_data:
+            league.start_date = league_data['start_date']
+        if 'end_date' in league_data:
+            league.end_date = league_data['end_date']
+        if 'preferred_days' in league_data:
+            league.preferred_days = league_data['preferred_days']
+        
+        return league
+        
+    except Exception as e:
+        print(f"Fallback creation error: {str(e)}")
+        raise Exception(f"Could not create league from dictionary: {str(e)}")
+
+# Test routes for export/import functionality
+@app.route('/leagues/export/test')
+def test_leagues_export():
+    """Test route to verify league export functionality"""
+    try:
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connection', 'test': 'failed'})
+        
+        leagues_list = db.list_leagues()
+        
+        test_result = {
+            'test': 'passed',
+            'leagues_count': len(leagues_list),
+            'yaml_available': 'yaml' in sys.modules,
+            'json_available': 'json' in sys.modules,
+            'leagues_sample': []
+        }
+        
+        # Test first league if available
+        if leagues_list:
+            league = leagues_list[0]
+            test_result['leagues_sample'] = [{
+                'id': league.id,
+                'name': league.name,
+                'has_to_yaml_dict': hasattr(league, 'to_yaml_dict'),
+                'year': league.year,
+                'section': league.section
+            }]
+        
+        return jsonify(test_result)
+        
+    except Exception as e:
+        return jsonify({
+            'test': 'failed',
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        })
+
+
 # ==================== TEAM ROUTES ====================
+
+# Fix for the teams() route in tennis_web_app.py
 
 @app.route('/teams')
 def teams():
@@ -1059,7 +1417,15 @@ def teams():
         flash('No database connection', 'error')
         return redirect(url_for('index'))
     
-    league_id = request.args.get('league_id', type=int)
+    # Fix: Handle league_id parameter more safely
+    league_id = None
+    try:
+        league_id_str = request.args.get('league_id')
+        if league_id_str:
+            league_id = int(league_id_str)
+    except (ValueError, TypeError):
+        # If conversion fails, ignore the parameter
+        league_id = None
     
     try:
         teams_list = db.list_teams(league_id=league_id)
@@ -1076,22 +1442,42 @@ def teams():
             # Check if the facility exists in the database
             facility_exists = True
             facility_id = None
+            facility_name = "Unknown"
             
             try:
                 # Try to get the facility by ID if the home_facility has an id
-                if hasattr(team.home_facility, 'id'):
+                if hasattr(team.home_facility, 'id') and team.home_facility.id:
                     facility_id = team.home_facility.id
                     facility = db.get_facility(facility_id)
                     facility_exists = facility is not None
+                    if facility:
+                        facility_name = facility.name
+                    else:
+                        facility_name = f"Facility ID {facility_id} (Not Found)"
+                elif hasattr(team.home_facility, 'name') and team.home_facility.name:
+                    # If it's a facility object with name but no/invalid ID
+                    facility_name = team.home_facility.name
+                    facility_exists = False  # Custom facility name
                 else:
+                    # Fallback - check if home_facility is a string
+                    facility_name = str(team.home_facility) if team.home_facility else "Unknown"
                     facility_exists = False
-            except:
+            except Exception as e:
+                print(f"Warning: Error processing facility for team {team.id}: {e}")
                 facility_exists = False
+                facility_name = "Error loading facility"
+            
+            # Check if team has preferred days
+            has_preferred_days = (hasattr(team, 'preferred_days') and 
+                                team.preferred_days and 
+                                len(team.preferred_days) > 0)
             
             enhanced_team = {
                 'team': team,
                 'facility_exists': facility_exists,
-                'facility_id': facility_id
+                'facility_id': facility_id,
+                'facility_name': facility_name,
+                'has_preferred_days': has_preferred_days
             }
             enhanced_teams.append(enhanced_team)
         
@@ -1101,6 +1487,9 @@ def teams():
                              selected_league=selected_league)
     
     except Exception as e:
+        print(f"Error in teams route: {e}")
+        import traceback
+        traceback.print_exc()
         flash(f'Error loading teams: {e}', 'error')
         return redirect(url_for('index'))
 
@@ -1208,6 +1597,422 @@ def delete_team_api(team_id):
         return jsonify({'success': True, 'message': f'Team {team_id} deleted successfully'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+
+@app.route('/teams/export')
+def export_teams():
+    """Export all teams to YAML or JSON format with comprehensive error handling"""
+    try:
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connection'}), 500
+        
+        export_format = request.args.get('format', 'yaml').lower()
+        league_id = request.args.get('league_id', type=int)
+        print(f"Export format requested: {export_format}")  # Debug
+        print(f"League filter: {league_id}")  # Debug
+        
+        teams_list = db.list_teams(league_id=league_id)
+        print(f"Found {len(teams_list)} teams")  # Debug
+        
+        # Convert teams to exportable format
+        teams_data = []
+        for i, team in enumerate(teams_list):
+            try:
+                # Check if team has to_yaml_dict method
+                if hasattr(team, 'to_yaml_dict'):
+                    team_dict = team.to_yaml_dict()
+                else:
+                    # Fallback: create dict manually
+                    print(f"Warning: Team {team.id} missing to_yaml_dict method, using fallback")
+                    team_dict = create_team_dict_fallback(team)
+                
+                teams_data.append(team_dict)
+                print(f"Processed team {i+1}: {team.name}")  # Debug
+                
+            except Exception as e:
+                print(f"Error processing team {team.id}: {str(e)}")
+                return jsonify({'error': f'Error processing team {team.id}: {str(e)}'}), 500
+        
+        # Prepare export data
+        export_data = {
+            'teams': teams_data,
+            'exported_at': datetime.now().isoformat(),
+            'exported_count': len(teams_data)
+        }
+        
+        if league_id:
+            export_data['league_filter'] = league_id
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        league_suffix = f"_league_{league_id}" if league_id else ""
+        
+        if export_format == 'json':
+            try:
+                # Export as JSON
+                json_str = json.dumps(export_data, indent=2, ensure_ascii=False, default=str)
+                print(f"Generated JSON, length: {len(json_str)}")  # Debug
+                
+                # Create response with proper headers
+                response = make_response(json_str)
+                response.headers['Content-Type'] = 'application/json'
+                response.headers['Content-Disposition'] = f'attachment; filename=teams_export{league_suffix}_{timestamp}.json'
+                return response
+            except Exception as e:
+                print(f"JSON export error: {str(e)}")
+                return jsonify({'error': f'JSON serialization error: {str(e)}'}), 500
+        else:
+            try:
+                # Export as YAML (default)
+                yaml_str = yaml.dump(export_data, default_flow_style=False, allow_unicode=True, sort_keys=False)
+                print(f"Generated YAML, length: {len(yaml_str)}")  # Debug
+                
+                # Create response with proper headers
+                response = make_response(yaml_str)
+                response.headers['Content-Type'] = 'application/x-yaml'
+                response.headers['Content-Disposition'] = f'attachment; filename=teams_export{league_suffix}_{timestamp}.yaml'
+                return response
+            except Exception as e:
+                print(f"YAML export error: {str(e)}")
+                return jsonify({'error': f'YAML serialization error: {str(e)}'}), 500
+    
+    except Exception as e:
+        print(f"General export error: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': f'Export failed: {str(e)}', 'traceback': traceback.format_exc()}), 500
+
+
+@app.route('/teams/<int:team_id>/export')
+def export_single_team(team_id):
+    """Export a single team to YAML format with error handling"""
+    try:
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connection'}), 500
+        
+        team = db.get_team(team_id)
+        if not team:
+            return jsonify({'error': f'Team {team_id} not found'}), 404
+        
+        print(f"Exporting team: {team.name}")  # Debug
+        
+        # Convert team to exportable format
+        try:
+            if hasattr(team, 'to_yaml_dict'):
+                team_dict = team.to_yaml_dict()
+            else:
+                print(f"Warning: Team {team_id} missing to_yaml_dict method, using fallback")
+                team_dict = create_team_dict_fallback(team)
+        except Exception as e:
+            print(f"Error converting team to dict: {str(e)}")
+            return jsonify({'error': f'Error converting team: {str(e)}'}), 500
+        
+        # Prepare export data
+        export_data = {
+            'teams': [team_dict],
+            'exported_at': datetime.now().isoformat(),
+            'team_name': team.name
+        }
+        
+        try:
+            # Generate YAML
+            yaml_str = yaml.dump(export_data, default_flow_style=False, allow_unicode=True, sort_keys=False)
+            print(f"Generated YAML, length: {len(yaml_str)}")  # Debug
+            
+            # Create response with proper headers
+            safe_filename = secure_filename(team.name)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            
+            response = make_response(yaml_str)
+            response.headers['Content-Type'] = 'application/x-yaml'
+            response.headers['Content-Disposition'] = f'attachment; filename=team_{safe_filename}_{timestamp}.yaml'
+            return response
+            
+        except Exception as e:
+            print(f"YAML export error: {str(e)}")
+            return jsonify({'error': f'YAML serialization error: {str(e)}'}), 500
+    
+    except Exception as e:
+        print(f"General export error: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': f'Export failed: {str(e)}', 'traceback': traceback.format_exc()}), 500
+
+
+@app.route('/teams/import', methods=['POST'])
+def import_teams():
+    """Import teams from YAML file"""
+    db = get_db()
+    if db is None:
+        return jsonify({'success': False, 'error': 'No database connection'}), 500
+    
+    try:
+        # Check if file was uploaded
+        if 'yaml_file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+        
+        file = request.files['yaml_file']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+        
+        # Check file extension
+        if not file.filename.lower().endswith(('.yaml', '.yml')):
+            return jsonify({'success': False, 'error': 'File must be a YAML file (.yaml or .yml)'}), 400
+        
+        # Read and parse YAML content
+        try:
+            yaml_content = file.read().decode('utf-8')
+            data = yaml.safe_load(yaml_content)
+        except yaml.YAMLError as e:
+            return jsonify({
+                'success': False, 
+                'error': f'Invalid YAML format: {str(e)}',
+                'details': str(e)
+            }), 400
+        except UnicodeDecodeError as e:
+            return jsonify({
+                'success': False, 
+                'error': f'File encoding error: {str(e)}',
+                'details': 'File must be UTF-8 encoded'
+            }), 400
+        
+        # Validate data structure
+        if not isinstance(data, dict):
+            return jsonify({
+                'success': False, 
+                'error': 'Invalid file format: Root element must be a dictionary'
+            }), 400
+        
+        if 'teams' not in data:
+            return jsonify({
+                'success': False, 
+                'error': 'Invalid file format: Missing "teams" key'
+            }), 400
+        
+        if not isinstance(data['teams'], list):
+            return jsonify({
+                'success': False, 
+                'error': 'Invalid file format: "teams" must be a list'
+            }), 400
+        
+        # Import teams
+        imported_count = 0
+        updated_count = 0
+        errors = []
+        
+        for i, team_data in enumerate(data['teams']):
+            try:
+                # Check if it's already a Team object or needs conversion
+                if hasattr(team_data, '__dict__'):
+                    team = team_data
+                else:
+                    # Create Team from dict data
+                    if hasattr(Team, 'from_yaml_dict'):
+                        team = Team.from_yaml_dict(team_data)
+                    else:
+                        # Fallback: create Team object manually
+                        team = create_team_from_dict_fallback(team_data, db)
+                
+                # Check if team already exists
+                existing_team = None
+                try:
+                    existing_team = db.get_team(team.id) if hasattr(team, 'id') and team.id else None
+                except:
+                    pass
+                
+                if existing_team:
+                    # Update existing team
+                    db.update_team(team)
+                    updated_count += 1
+                else:
+                    # Insert new team
+                    db.add_team(team)
+                    imported_count += 1
+                    
+            except Exception as e:
+                errors.append(f"Row {i+1}: {str(e)}")
+                continue
+        
+        result = {
+            'success': True,
+            'imported_count': imported_count,
+            'updated_count': updated_count,
+            'total_processed': imported_count + updated_count,
+            'error_count': len(errors)
+        }
+        
+        if errors:
+            result['errors'] = errors[:10]  # Limit error messages
+            if len(errors) > 10:
+                result['additional_errors'] = len(errors) - 10
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Import failed: {str(e)}',
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+def create_team_dict_fallback(team):
+    """Fallback method to convert Team object to dictionary"""
+    try:
+        team_dict = {
+            'id': team.id,
+            'name': team.name,
+            'league_id': team.league.id if hasattr(team, 'league') and team.league else None,
+            'captain': team.captain
+        }
+        
+        # Handle home facility - export the facility ID if available
+        if hasattr(team, 'home_facility') and team.home_facility:
+            if hasattr(team.home_facility, 'id') and team.home_facility.id:
+                team_dict['home_facility_id'] = team.home_facility.id
+            # Also include the facility name for reference
+            if hasattr(team.home_facility, 'name'):
+                team_dict['home_facility_name'] = team.home_facility.name
+        elif hasattr(team, 'home_facility_id') and team.home_facility_id:
+            # Fallback if only ID is available
+            team_dict['home_facility_id'] = team.home_facility_id
+        
+        # Add optional fields if they exist
+        if hasattr(team, 'preferred_days') and team.preferred_days:
+            team_dict['preferred_days'] = team.preferred_days
+        if hasattr(team, 'contact_email') and team.contact_email:
+            team_dict['contact_email'] = team.contact_email
+        if hasattr(team, 'notes') and team.notes:
+            team_dict['notes'] = team.notes
+        
+        return team_dict
+        
+    except Exception as e:
+        print(f"Fallback conversion error: {str(e)}")
+        raise Exception(f"Could not convert team to dictionary: {str(e)}")
+
+
+def create_team_from_dict_fallback(team_data, db):
+    """Fallback method to create Team object from dictionary"""
+    try:
+        # Get league object if league_id is provided
+        league = None
+        if 'league_id' in team_data and team_data['league_id']:
+            try:
+                league = db.get_league(team_data['league_id'])
+                if not league:
+                    raise Exception(f"League with ID {team_data['league_id']} not found")
+            except Exception as e:
+                raise Exception(f"Invalid league_id {team_data['league_id']}: {str(e)}")
+        
+        # Handle home facility - get the actual Facility object
+        home_facility = None
+        
+        if 'home_facility_id' in team_data and team_data['home_facility_id']:
+            # Primary method: use facility ID to get Facility object
+            try:
+                home_facility = db.get_facility(team_data['home_facility_id'])
+                if not home_facility:
+                    raise Exception(f"Facility with ID {team_data['home_facility_id']} not found")
+            except Exception as e:
+                raise Exception(f"Invalid home_facility_id {team_data['home_facility_id']}: {str(e)}")
+                
+        elif 'home_facility' in team_data and team_data['home_facility']:
+            # Legacy support: try to find facility by name
+            facility_name = team_data['home_facility']
+            try:
+                facilities = db.list_facilities()
+                for facility in facilities:
+                    if facility.name == facility_name:
+                        home_facility = facility
+                        break
+                
+                if not home_facility:
+                    # Create a minimal facility object for custom names
+                    # This depends on your Facility class constructor
+                    print(f"Warning: Facility '{facility_name}' not found in database, creating custom facility reference")
+                    # You may need to adjust this based on your Facility class constructor
+                    from usta import Facility
+                    home_facility = Facility(
+                        id=None,
+                        name=facility_name,
+                        location='Unknown',
+                        schedule=None  # or create a default schedule
+                    )
+            except Exception as e:
+                print(f"Error looking up facility by name: {str(e)}")
+                # Create minimal facility object as fallback
+                from usta import Facility
+                home_facility = Facility(
+                    id=None,
+                    name=facility_name,
+                    location='Unknown',
+                    schedule=None
+                )
+        
+        # Create Team with required fields
+        team = Team(
+            id=team_data.get('id'),
+            name=team_data['name'],
+            league=league,
+            captain=team_data.get('captain', ''),
+            home_facility=home_facility  # Pass the Facility object
+        )
+        
+        # Add optional fields if they exist
+        if 'preferred_days' in team_data:
+            team.preferred_days = team_data['preferred_days']
+        if 'contact_email' in team_data:
+            team.contact_email = team_data['contact_email']
+        if 'notes' in team_data:
+            team.notes = team_data['notes']
+        
+        return team
+        
+    except Exception as e:
+        print(f"Fallback creation error: {str(e)}")
+        raise Exception(f"Could not create team from dictionary: {str(e)}")
+
+
+@app.route('/teams/export/test')
+def test_teams_export():
+    """Test route to verify team export functionality"""
+    try:
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connection', 'test': 'failed'})
+        
+        teams_list = db.list_teams()
+        
+        test_result = {
+            'test': 'passed',
+            'teams_count': len(teams_list),
+            'yaml_available': 'yaml' in sys.modules,
+            'json_available': 'json' in sys.modules,
+            'teams_sample': []
+        }
+        
+        # Test first team if available
+        if teams_list:
+            team = teams_list[0]
+            test_result['teams_sample'] = [{
+                'id': team.id,
+                'name': team.name,
+                'has_to_yaml_dict': hasattr(team, 'to_yaml_dict'),
+                'captain': team.captain,
+                'league_name': team.league.name if hasattr(team, 'league') and team.league else 'Unknown'
+            }]
+        
+        return jsonify(test_result)
+        
+    except Exception as e:
+        return jsonify({
+            'test': 'failed',
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        })
+
 
 # ==================== MATCH ROUTES ====================
 
