@@ -699,7 +699,7 @@ def edit_league(league_id):
 
 @app.route('/teams')
 def teams():
-    """View teams with optional league filter"""
+    """View teams with optional league filter and enhanced facility information"""
     db = get_db()
     if db is None:
         flash('No database connection', 'error')
@@ -716,34 +716,44 @@ def teams():
         if league_id:
             selected_league = db.get_league(league_id)
         
-        # Enhance teams with facility names
+        # Create enhanced team objects that match what the template expects
         enhanced_teams = []
         for team in teams_list:
-            enhanced_team = {
-                'team': team,
-                'facility_name': 'Unknown Facility'
-            }
+            # Check if the facility exists in the database
+            facility_exists = True
+            facility_id = None
             
             try:
-                facility = db.get_facility(team.home_facility_id)
-                if facility:
-                    enhanced_team['facility_name'] = facility.name
-            except Exception as e:
-                print(f"Warning: Could not get facility {team.home_facility_id} for team {team.id}: {e}")
+                # Try to get the facility by ID if the home_facility has an id
+                if hasattr(team.home_facility, 'id'):
+                    facility_id = team.home_facility.id
+                    facility = db.get_facility(facility_id)
+                    facility_exists = facility is not None
+                else:
+                    facility_exists = False
+            except:
+                facility_exists = False
             
+            enhanced_team = {
+                'team': team,
+                'facility_exists': facility_exists,
+                'facility_id': facility_id
+            }
             enhanced_teams.append(enhanced_team)
         
         return render_template('teams.html', 
-                             teams=enhanced_teams,  # Pass enhanced teams instead of raw teams
+                             teams=enhanced_teams,
                              leagues=leagues_list,
                              selected_league=selected_league)
+    
     except Exception as e:
         flash(f'Error loading teams: {e}', 'error')
         return redirect(url_for('index'))
 
+
 @app.route('/teams/add', methods=['GET', 'POST'])
 def add_team():
-    """Add a new team"""
+    # ADD THIS LINE - Get database connection first!
     db = get_db()
     if db is None:
         flash('No database connection', 'error')
@@ -751,66 +761,38 @@ def add_team():
     
     if request.method == 'POST':
         try:
-            team_id = int(request.form.get('id'))
-            name = request.form.get('name', '').strip()
-            league_id = int(request.form.get('league_id'))
-            home_facility_id = int(request.form.get('home_facility_id'))
-            captain = request.form.get('captain', '').strip()
+            # Get facility object instead of facility name
+            facility_id = int(request.form.get('home_facility_id'))
+            facility = db.get_facility(facility_id)
+            if not facility:
+                flash('Invalid facility selected.', 'error')
+                return redirect(url_for('add_team'))
             
-            # Get preferred days
-            preferred_days = request.form.getlist('preferred_days')
-            
-            if not all([name, captain]):
-                flash('Team name and captain are required', 'error')
-                return render_template('add_team.html', 
-                                     leagues=db.list_leagues(),
-                                     facilities=db.list_facilities())
-            
-            # Get the league object
-            league = db.get_league(league_id)
-            if not league:
-                flash(f'League with ID {league_id} not found', 'error')
-                return render_template('add_team.html', 
-                                     leagues=db.list_leagues(),
-                                     facilities=db.list_facilities())
-            
+            # Create team with Facility object
             team = Team(
-                id=team_id,
-                name=name,
-                league=league,
-                home_facility_id=home_facility_id,
-                captain=captain,
-                preferred_days=preferred_days
+                id=int(request.form.get('id')),
+                name=request.form.get('name'),
+                league=db.get_league(int(request.form.get('league_id'))),
+                home_facility=facility,  # CHANGED: pass Facility object
+                captain=request.form.get('captain') or None,
+                preferred_days=request.form.getlist('preferred_days')
             )
-            db.add_team(team)
             
-            flash(f'Successfully added team: {name}', 'success')
+            db.add_team(team)
+            flash('Team added successfully!', 'success')
             return redirect(url_for('teams'))
             
-        except ValueError as e:
-            if 'already exists' in str(e):
-                flash(f'Team with ID {team_id} already exists', 'error')
-            else:
-                flash(f'Invalid data: {e}', 'error')
         except Exception as e:
             flash(f'Error adding team: {e}', 'error')
-        
-        return render_template('add_team.html', 
-                             leagues=db.list_leagues(),
-                             facilities=db.list_facilities())
     
-    # GET request - show the form
-    try:
-        return render_template('add_team.html', 
-                             leagues=db.list_leagues(),
-                             facilities=db.list_facilities())
-    except Exception as e:
-        flash(f'Error loading form data: {e}', 'error')
-        return redirect(url_for('teams'))
+    # GET request - show form
+    leagues = db.list_leagues()
+    facilities = db.list_facilities()  # For dropdown
+    return render_template('add_team.html', leagues=leagues, facilities=facilities)
+
 
 @app.route('/teams/<int:team_id>/edit', methods=['GET', 'POST'])
 def edit_team(team_id):
-    """Edit an existing team"""
     db = get_db()
     if db is None:
         flash('No database connection', 'error')
@@ -819,7 +801,7 @@ def edit_team(team_id):
     try:
         team = db.get_team(team_id)
         if not team:
-            flash(f'Team with ID {team_id} not found', 'error')
+            flash('Team not found.', 'error')
             return redirect(url_for('teams'))
     except Exception as e:
         flash(f'Error loading team: {e}', 'error')
@@ -827,61 +809,39 @@ def edit_team(team_id):
     
     if request.method == 'POST':
         try:
-            name = request.form.get('name', '').strip()
-            league_id = int(request.form.get('league_id'))
-            home_facility_id = int(request.form.get('home_facility_id'))
-            captain = request.form.get('captain', '').strip()
+            # Get facility object instead of facility name
+            facility_id = int(request.form.get('home_facility_id'))
+            facility = db.get_facility(facility_id)
+            if not facility:
+                flash('Invalid facility selected.', 'error')
+                return redirect(url_for('edit_team', team_id=team_id))
             
-            # Get preferred days
-            preferred_days = request.form.getlist('preferred_days')
+            # Update team with new Facility object
+            updated_team = Team(
+                id=team.id,
+                name=request.form.get('name'),
+                league=db.get_league(int(request.form.get('league_id'))),
+                home_facility=facility,  # CHANGED: pass Facility object
+                captain=request.form.get('captain') or None,
+                preferred_days=request.form.getlist('preferred_days')
+            )
             
-            if not all([name, captain]):
-                flash('Team name and captain are required', 'error')
-                return render_template('edit_team.html', 
-                                     team=team,
-                                     leagues=db.list_leagues(),
-                                     facilities=db.list_facilities())
-            
-            # Get the league object
-            league = db.get_league(league_id)
-            if not league:
-                flash(f'League with ID {league_id} not found', 'error')
-                return render_template('edit_team.html', 
-                                     team=team,
-                                     leagues=db.list_leagues(),
-                                     facilities=db.list_facilities())
-            
-            # Update the team object
-            team.name = name
-            team.league = league
-            team.home_facility_id = home_facility_id
-            team.captain = captain
-            team.preferred_days = preferred_days
-            
-            db.update_team(team)
-            
-            flash(f'Successfully updated team: {name}', 'success')
+            db.update_team(updated_team)
+            flash('Team updated successfully!', 'success')
             return redirect(url_for('teams'))
             
-        except ValueError as e:
-            flash(f'Invalid data: {e}', 'error')
         except Exception as e:
             flash(f'Error updating team: {e}', 'error')
-        
-        return render_template('edit_team.html', 
-                             team=team,
-                             leagues=db.list_leagues(),
-                             facilities=db.list_facilities())
     
-    # GET request - show the form with existing data
+    # GET request - show form
     try:
-        return render_template('edit_team.html', 
-                             team=team,
-                             leagues=db.list_leagues(),
-                             facilities=db.list_facilities())
+        leagues = db.list_leagues()
+        facilities = db.list_facilities()  # For dropdown
+        return render_template('edit_team.html', team=team, leagues=leagues, facilities=facilities)
     except Exception as e:
         flash(f'Error loading form data: {e}', 'error')
         return redirect(url_for('teams'))
+
 
 @app.route('/teams/<int:team_id>/delete', methods=['DELETE'])
 def delete_team_api(team_id):
@@ -952,12 +912,13 @@ def matches():
             except Exception as e:
                 print(f"Warning: Could not get visitor team {match.visitor_team_id}: {e}")
             
-            try:
-                facility = db.get_facility(match.facility_id)
-                if facility:
-                    enhanced_match['facility_name'] = facility.name
-            except Exception as e:
-                print(f"Warning: Could not get facility {match.facility_id}: {e}")
+            if match.facility_id: 
+                try:
+                    facility = db.get_facility(match.facility_id)
+                    if facility:
+                        enhanced_match['facility_name'] = facility.name
+                except Exception as e:
+                    print(f"Warning: Could not get facility {match.facility_id}: {e}")
             
             try:
                 if match.league_id:
@@ -982,37 +943,96 @@ def matches():
 @app.route('/matches/<int:match_id>/schedule', methods=['POST'])
 def schedule_match(match_id):
     """Schedule an existing unscheduled match using auto-scheduling"""
+    print(f"\n=== SCHEDULE MATCH DEBUG START ===")
+    print(f"Attempting to schedule match ID: {match_id}")
+    
     db = get_db()
     if db is None:
+        print("ERROR: No database connection")
         return jsonify({'error': 'No database connected'}), 500
     
     try:
+        print(f"Database connection established: {type(db)}")
+        
         # Get the match object
+        print(f"Retrieving match with ID: {match_id}")
         match = db.get_match(match_id)
         if not match:
+            print(f"ERROR: Match {match_id} not found")
             return jsonify({'error': f'Match {match_id} not found'}), 404
         
+        print(f"Match found:")
+        print(f"  ID: {match.id}")
+        print(f"  League ID: {match.league_id}")
+        print(f"  Home Team ID: {match.home_team_id}")
+        print(f"  Visitor Team ID: {match.visitor_team_id}")
+        print(f"  Current facility_id: {match.facility_id}")
+        print(f"  Current date: {match.date}")
+        print(f"  Current time: {match.time}")
+        print(f"  Is scheduled: {match.is_scheduled()}")
+        
+        # Check if database has auto_schedule_matches method
+        print(f"Checking if database has auto_schedule_matches method...")
+        if hasattr(db, 'auto_schedule_matches'):
+            print("✓ auto_schedule_matches method found")
+        else:
+            print("✗ auto_schedule_matches method NOT found")
+            return jsonify({'error': 'Auto-scheduling not available in this database backend'}), 500
+        
         # Use the auto-scheduling method with a list containing the single match
-        result = db.auto_schedule_matches([match], dry_run=False)
+        print(f"Calling auto_schedule_matches with single match...")
+        try:
+            result = db.auto_schedule_matches([match], dry_run=False)
+            print(f"Auto-schedule result: {result}")
+        except Exception as auto_error:
+            print(f"ERROR in auto_schedule_matches: {auto_error}")
+            print(f"Auto-schedule error type: {type(auto_error)}")
+            import traceback
+            print("Auto-schedule traceback:")
+            traceback.print_exc()
+            raise auto_error
         
         # Check if the match is now scheduled by querying the database
+        print(f"Re-checking match status after scheduling attempt...")
         updated_match = db.get_match(match_id)
-        if updated_match and updated_match.is_scheduled():
-            return jsonify({
-                'success': True,
-                'message': f'Match {match_id} has been automatically scheduled',
-                'details': result
-            })
+        if updated_match:
+            print(f"Updated match status:")
+            print(f"  facility_id: {updated_match.facility_id}")
+            print(f"  date: {updated_match.date}")
+            print(f"  time: {updated_match.time}")
+            print(f"  is_scheduled: {updated_match.is_scheduled()}")
+            
+            if updated_match.is_scheduled():
+                print("✓ Match successfully scheduled!")
+                return jsonify({
+                    'success': True,
+                    'message': f'Match {match_id} has been automatically scheduled',
+                    'details': result
+                })
+            else:
+                print("✗ Match is still unscheduled after attempt")
+                return jsonify({
+                    'error': 'Could not find suitable scheduling option for this match',
+                    'details': result
+                }), 400
         else:
-            return jsonify({
-                'error': 'Could not find suitable scheduling option for this match',
-                'details': result
-            }), 400
+            print("ERROR: Could not retrieve updated match")
+            return jsonify({'error': 'Could not verify match scheduling status'}), 500
             
     except ValueError as e:
+        print(f"ValueError in schedule_match: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 400
     except Exception as e:
+        print(f"Exception in schedule_match: {e}")
+        print(f"Exception type: {type(e)}")
+        import traceback
+        print("Full traceback:")
+        traceback.print_exc()
         return jsonify({'error': f'Failed to auto-schedule match: {e}'}), 500
+    finally:
+        print("=== SCHEDULE MATCH DEBUG END ===\n")
 
 
 # Fix for tennis_web_app.py - Update the schedule-all route
@@ -1167,23 +1187,76 @@ def delete_all_matches():
 @app.route('/api/teams/<int:league_id>')
 def api_teams_by_league(league_id):
     """API endpoint to get teams by league"""
+    return jsonify([])  # Return empty list for now
+
+
+# Add utility route for facility migration
+@app.route('/admin/migrate-teams', methods=['GET', 'POST'])
+def migrate_teams_to_facility_names():
+    """Admin route to migrate teams from facility IDs to facility names"""
+    db = get_db()
+    if db is None:
+        flash('No database connection', 'error')
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        try:
+            dry_run = request.form.get('dry_run', 'true').lower() == 'true'
+            
+            # Perform migration using the team manager's migration method
+            if hasattr(db.team_manager, 'migrate_teams_to_facility_names'):
+                result = db.team_manager.migrate_teams_to_facility_names(dry_run=dry_run)
+                
+                if result['status'] == 'no_migration_needed':
+                    flash(result['message'], 'info')
+                elif dry_run:
+                    flash(f"Dry run completed: {result['successful_migrations']} teams would be migrated, {result['failed_migrations']} would fail", 'info')
+                else:
+                    flash(f"Migration completed: {result['successful_migrations']} teams migrated, {result['failed_migrations']} failed", 'success')
+                
+                return render_template('admin_migrate_teams.html', migration_result=result)
+            else:
+                flash('Migration functionality not available', 'error')
+                
+        except Exception as e:
+            flash(f'Error during migration: {e}', 'error')
+    
+    # GET request - show migration form
+    return render_template('admin_migrate_teams.html')
+
+
+# Add utility route to find teams by facility
+@app.route('/api/teams/by-facility/<facility_name>')
+def api_teams_by_facility_name(facility_name):
+    """API endpoint to get teams by facility name"""
     db = get_db()
     if db is None:
         return jsonify({'error': 'No database connected'}), 500
     
     try:
-        teams_list = db.list_teams(league_id=league_id)
+        exact_match = request.args.get('exact', 'true').lower() == 'true'
+        teams_list = db.team_manager.get_teams_by_facility_name(facility_name, exact_match=exact_match)
+        
         teams_data = []
         for team in teams_list:
             teams_data.append({
                 'id': team.id,
                 'name': team.name,
                 'captain': team.captain,
-                'home_facility_id': team.home_facility_id
+                'home_facility': team.home_facility,
+                'league_name': team.league.name,
+                'league_id': team.league.id
             })
-        return jsonify(teams_data)
+        
+        return jsonify({
+            'facility_name': facility_name,
+            'exact_match': exact_match,
+            'teams_count': len(teams_data),
+            'teams': teams_data
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/generate-matches/<int:league_id>')
 def api_generate_matches(league_id):
@@ -1363,8 +1436,11 @@ def stats():
 @app.route('/schedule')
 def schedule():
     """View matches organized by date in a schedule format"""
+    print("=== SCHEDULE ROUTE DEBUG START ===")
+    
     db = get_db()
     if db is None:
+        print("ERROR: No database connection")
         flash('No database connection', 'error')
         return redirect(url_for('index'))
     
@@ -1372,28 +1448,64 @@ def schedule():
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
     
+    print(f"Request parameters:")
+    print(f"  - league_id: {league_id} (type: {type(league_id)})")
+    print(f"  - start_date: '{start_date}'")
+    print(f"  - end_date: '{end_date}'")
+    
     try:
         # Get all scheduled matches (only those with dates)
+        print("\n--- Getting matches from database ---")
         all_matches = db.list_matches(league_id=league_id, include_unscheduled=False)
+        print(f"Retrieved {len(all_matches)} matches from database")
+        
         leagues_list = db.list_leagues()  # For filter dropdown
+        print(f"Retrieved {len(leagues_list)} leagues for dropdown")
         
         # Filter matches that have dates
         scheduled_matches = [match for match in all_matches if match.date]
+        print(f"Filtered to {len(scheduled_matches)} scheduled matches (with dates)")
+        
+        # Debug: Show first few matches
+        if scheduled_matches:
+            print("\nFirst few scheduled matches:")
+            for i, match in enumerate(scheduled_matches[:3]):
+                print(f"  Match {i+1}: ID={match.id}, facility_id={match.facility_id} (type: {type(match.facility_id)})")
+                print(f"    home_team_id={match.home_team_id}, visitor_team_id={match.visitor_team_id}")
+                print(f"    date={match.date}, time={match.time}")
         
         # Apply date range filter if provided
         if start_date:
+            before_filter = len(scheduled_matches)
             scheduled_matches = [match for match in scheduled_matches if match.date >= start_date]
+            print(f"After start_date filter: {len(scheduled_matches)} matches (was {before_filter})")
         if end_date:
+            before_filter = len(scheduled_matches)
             scheduled_matches = [match for match in scheduled_matches if match.date <= end_date]
+            print(f"After end_date filter: {len(scheduled_matches)} matches (was {before_filter})")
         
         # Get selected league info if filtering
         selected_league = None
         if league_id:
+            print(f"\n--- Getting league info for ID {league_id} ---")
             selected_league = db.get_league(league_id)
+            if selected_league:
+                print(f"Selected league: {selected_league.name}")
+            else:
+                print(f"WARNING: League with ID {league_id} not found")
         
         # Enhance matches with team and facility names
+        print(f"\n--- Enhancing {len(scheduled_matches)} matches ---")
         enhanced_matches = []
-        for match in scheduled_matches:
+        
+        for i, match in enumerate(scheduled_matches):
+            print(f"\nProcessing match {i+1}/{len(scheduled_matches)} (ID: {match.id})")
+            print(f"  Raw match data:")
+            print(f"    facility_id: {match.facility_id} (type: {type(match.facility_id)})")
+            print(f"    home_team_id: {match.home_team_id} (type: {type(match.home_team_id)})")
+            print(f"    visitor_team_id: {match.visitor_team_id} (type: {type(match.visitor_team_id)})")
+            print(f"    league_id: {match.league_id} (type: {type(match.league_id)})")
+            
             enhanced_match = {
                 'id': match.id,
                 'league_id': match.league_id,
@@ -1409,36 +1521,113 @@ def schedule():
                 'status': match.get_status()
             }
             
+            # Get home team
             try:
+                print(f"  Getting home team with ID: {match.home_team_id}")
                 home_team = db.get_team(match.home_team_id)
                 if home_team:
                     enhanced_match['home_team_name'] = home_team.name
+                    print(f"    Home team: {home_team.name}")
+                else:
+                    print(f"    WARNING: Home team with ID {match.home_team_id} not found")
             except Exception as e:
-                print(f"Warning: Could not get home team {match.home_team_id}: {e}")
+                print(f"    ERROR getting home team {match.home_team_id}: {e}")
+                print(f"    Exception type: {type(e)}")
             
+            # Get visitor team
             try:
+                print(f"  Getting visitor team with ID: {match.visitor_team_id}")
                 visitor_team = db.get_team(match.visitor_team_id)
                 if visitor_team:
                     enhanced_match['visitor_team_name'] = visitor_team.name
+                    print(f"    Visitor team: {visitor_team.name}")
+                else:
+                    print(f"    WARNING: Visitor team with ID {match.visitor_team_id} not found")
             except Exception as e:
-                print(f"Warning: Could not get visitor team {match.visitor_team_id}: {e}")
+                print(f"    ERROR getting visitor team {match.visitor_team_id}: {e}")
+                print(f"    Exception type: {type(e)}")
             
+            # Get facility - use home team's facility if match facility_id is not set
             try:
-                facility = db.get_facility(match.facility_id)
-                if facility:
-                    enhanced_match['facility_name'] = facility.name
+                print(f"  Getting facility with ID: {match.facility_id}")
+                
+                facility_id_to_use = match.facility_id
+                facility_source = "match"
+                
+                # If match facility_id is None, try to use home team's facility
+                if match.facility_id is None:
+                    print(f"    WARNING: facility_id is None - trying to use home team's facility")
+                    try:
+                        # Get the home team to access its facility
+                        if 'home_team_name' not in enhanced_match or enhanced_match['home_team_name'] == 'Unknown':
+                            # We need to get the home team if we haven't already
+                            home_team = db.get_team(match.home_team_id)
+                        else:
+                            # We already have the home team from earlier
+                            home_team = db.get_team(match.home_team_id)
+                        
+                        if home_team and hasattr(home_team, 'home_facility') and home_team.home_facility:
+                            # If home_facility is a Facility object, get its ID
+                            if hasattr(home_team.home_facility, 'id'):
+                                facility_id_to_use = home_team.home_facility.id
+                                facility_source = "home team facility object"
+                                print(f"    Using home team's facility ID: {facility_id_to_use}")
+                            # If home_facility is a string, try to find the facility by name
+                            elif isinstance(home_team.home_facility, str):
+                                facilities = db.list_facilities()
+                                for fac in facilities:
+                                    if fac.name == home_team.home_facility or (fac.short_name and fac.short_name == home_team.home_facility):
+                                        facility_id_to_use = fac.id
+                                        facility_source = "home team facility name lookup"
+                                        print(f"    Found facility '{fac.name}' by name, using ID: {facility_id_to_use}")
+                                        break
+                                if facility_id_to_use is None:
+                                    print(f"    Could not find facility with name: {home_team.home_facility}")
+                        else:
+                            print(f"    Home team has no facility assigned")
+                    except Exception as e:
+                        print(f"    ERROR getting home team's facility: {e}")
+                
+                # Now try to get the facility
+                if facility_id_to_use is None:
+                    print(f"    No facility available - using fallback")
+                    enhanced_match['facility_name'] = 'No Facility Assigned'
+                else:
+                    facility = db.get_facility(facility_id_to_use)
+                    if facility:
+                        enhanced_match['facility_name'] = facility.name
+                        if facility_source != "match":
+                            enhanced_match['facility_name'] += f" (from {facility_source})"
+                        print(f"    Facility: {facility.name} (source: {facility_source})")
+                    else:
+                        print(f"    WARNING: Facility with ID {facility_id_to_use} not found")
+                        enhanced_match['facility_name'] = f'Facility ID {facility_id_to_use} (Not Found)'
+                        
             except Exception as e:
-                print(f"Warning: Could not get facility {match.facility_id}: {e}")
+                print(f"    ERROR getting facility: {e}")
+                print(f"    Exception type: {type(e)}")
+                print(f"    This is likely the source of your 'Facility ID must be a positive integer' error!")
+                # Don't let this break the whole page
+                enhanced_match['facility_name'] = f'Error: {str(e)}'
             
+            # Get league
             try:
                 if match.league_id:
+                    print(f"  Getting league with ID: {match.league_id}")
                     league = db.get_league(match.league_id)
                     if league:
                         enhanced_match['league_name'] = league.name
+                        print(f"    League: {league.name}")
+                    else:
+                        print(f"    WARNING: League with ID {match.league_id} not found")
             except Exception as e:
-                print(f"Warning: Could not get league {match.league_id}: {e}")
+                print(f"    ERROR getting league {match.league_id}: {e}")
+                print(f"    Exception type: {type(e)}")
             
             enhanced_matches.append(enhanced_match)
+            print(f"  Enhanced match added successfully")
+        
+        print(f"\n--- Grouping {len(enhanced_matches)} enhanced matches by date ---")
         
         # Group matches by date
         from collections import defaultdict
@@ -1447,6 +1636,10 @@ def schedule():
         matches_by_date = defaultdict(list)
         for match in enhanced_matches:
             matches_by_date[match['date']].append(match)
+        
+        print(f"Grouped into {len(matches_by_date)} different dates:")
+        for date_str, matches in matches_by_date.items():
+            print(f"  {date_str}: {len(matches)} matches")
         
         # Sort matches within each date by time
         for date_key in matches_by_date:
@@ -1470,6 +1663,11 @@ def schedule():
                 'matches': matches_by_date[date_str]
             })
         
+        print(f"\nFinal schedule_data contains {len(schedule_data)} date entries")
+        print(f"Total enhanced matches: {len(enhanced_matches)}")
+        
+        print("=== SCHEDULE ROUTE DEBUG END ===\n")
+        
         return render_template('schedule.html', 
                              schedule_data=schedule_data,
                              leagues=leagues_list,
@@ -1479,6 +1677,13 @@ def schedule():
                              total_matches=len(enhanced_matches))
     
     except Exception as e:
+        print(f"\n!!! CRITICAL ERROR in schedule route: {e}")
+        print(f"Exception type: {type(e)}")
+        import traceback
+        print("Full traceback:")
+        traceback.print_exc()
+        print("=== SCHEDULE ROUTE DEBUG END (ERROR) ===\n")
+        
         flash(f'Error loading schedule: {e}', 'error')
         return redirect(url_for('index'))
         

@@ -1,163 +1,257 @@
 {% extends "base.html" %}
 
-{% block title %}Edit Facility - Tennis Database{% endblock %}
+{% block title %}Edit {{ facility.name }} - Tennis Database{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-10">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-edit"></i> Edit Facility: {{ facility.name }}
-            </div>
-            <div class="card-body">
-                <form method="POST" id="facilityForm">
-                    <!-- Basic Info -->
-                    <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <label for="id" class="form-label">
-                                <i class="fas fa-hashtag"></i> Facility ID *
-                            </label>
-                            <input type="number" class="form-control" id="id" name="id" 
-                                   value="{{ facility.id }}" readonly disabled>
-                            <div class="form-text">Facility ID cannot be changed</div>
-                        </div>
-                        
-                        <div class="col-md-9 mb-3">
-                            <label for="name" class="form-label">
-                                <i class="fas fa-building"></i> Facility Name *
-                            </label>
-                            <input type="text" class="form-control" id="name" name="name" 
-                                   value="{{ facility.name }}" required maxlength="255"
-                                   placeholder="e.g., Tennis Center North">
-                            <div class="form-text">Full name of the tennis facility</div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label for="location" class="form-label">
-                            <i class="fas fa-map-marker-alt"></i> Location
-                        </label>
-                        <input type="text" class="form-control" id="location" name="location" 
-                               value="{{ facility.location or '' }}" maxlength="500"
-                               placeholder="e.g., 123 Tennis Dr, Albuquerque, NM">
-                        <div class="form-text">Street address or general location description</div>
-                    </div>
+<div class="mb-4">
+    <h1><i class="fas fa-edit"></i> Edit Facility</h1>
+    <p class="text-muted">Update facility information and scheduling</p>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('facilities') }}">Facilities</a></li>
+            <li class="breadcrumb-item active">Edit {{ facility.get_display_name() }}</li>
+        </ol>
+    </nav>
+</div>
 
-                    <!-- Weekly Schedule -->
-                    <h5><i class="fas fa-calendar-week"></i> Weekly Schedule</h5>
-                    <p class="text-muted small">Define available time slots for each day of the week. Leave empty for days with no availability.</p>
-                    
-                    <div class="row">
-                        {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
-                        <div class="col-md-6 mb-3">
-                            <div class="card">
-                                <div class="card-header py-2">
-                                    <strong>{{ day }}</strong>
-                                    <button type="button" class="btn btn-sm btn-outline-primary float-end" 
-                                            onclick="addTimeSlot('{{ day.lower() }}')">
-                                        <i class="fas fa-plus"></i> Add Time
-                                    </button>
-                                </div>
-                                <div class="card-body py-2">
-                                    <div id="{{ day.lower() }}_slots">
-                                        <!-- Existing time slots will be loaded here -->
-                                        {% if facility.schedule %}
-                                            {% set day_schedule = facility.schedule.get_day_schedule(day) %}
-                                            {% if day_schedule and day_schedule.start_times %}
-                                                {% for time_slot in day_schedule.start_times %}
-                                                <div class="row mb-2" id="{{ day.lower() }}_slot_{{ loop.index }}">
-                                                    <div class="col-5">
-                                                        <input type="time" class="form-control form-control-sm" 
-                                                               name="{{ day.lower() }}_times" value="{{ time_slot.time }}">
-                                                    </div>
-                                                    <div class="col-4">
-                                                        <input type="number" class="form-control form-control-sm" 
-                                                               name="{{ day.lower() }}_courts" value="{{ time_slot.available_courts }}" min="1">
-                                                    </div>
-                                                    <div class="col-3">
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" 
-                                                                onclick="removeTimeSlot('{{ day.lower() }}_slot_{{ loop.index }}')">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                {% endfor %}
-                                            {% endif %}
-                                        {% endif %}
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-building"></i> Facility Information
+    </div>
+    <div class="card-body">
+        <form method="POST" class="row g-3">
+            <div class="col-md-6">
+                <label for="id" class="form-label">Facility ID</label>
+                <input type="text" class="form-control" id="id" value="{{ facility.id }}" disabled>
+                <div class="form-text">Facility ID cannot be changed</div>
+            </div>
+            
+            <div class="col-md-6">
+                <label for="name" class="form-label">Facility Name *</label>
+                <input type="text" class="form-control" id="name" name="name" required 
+                       value="{{ facility.name }}" placeholder="Full facility name">
+                <div class="form-text">Full name of the tennis facility</div>
+            </div>
+            
+            <div class="col-md-6">
+                <label for="short_name" class="form-label">Short Name</label>
+                <input type="text" class="form-control" id="short_name" name="short_name" 
+                       maxlength="10" value="{{ facility.short_name or '' }}" 
+                       placeholder="VR, TCA, JC, etc.">
+                <div class="form-text">Optional short abbreviation (max 10 characters)</div>
+            </div>
+            
+            <div class="col-md-6">
+                <label for="location" class="form-label">Location</label>
+                <input type="text" class="form-control" id="location" name="location" 
+                       value="{{ facility.location or '' }}" 
+                       placeholder="City, State or full address">
+                <div class="form-text">Optional location information</div>
+            </div>
+            
+            <div class="col-md-6">
+                <label for="total_courts" class="form-label">Total Courts</label>
+                <input type="number" class="form-control" id="total_courts" name="total_courts" 
+                       min="0" value="{{ facility.total_courts }}" placeholder="Total number of courts">
+                <div class="form-text">Optional total court count</div>
+            </div>
+            
+            <!-- Weekly Schedule Section -->
+            <div class="col-12">
+                <hr>
+                <h5><i class="fas fa-calendar-week"></i> Weekly Schedule</h5>
+                <p class="text-muted">Define available time slots for each day of the week.</p>
+                
+                <div class="row">
+                    {% set days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                    {% for day in days %}
+                    <div class="col-lg-6 mb-3">
+                        <div class="card">
+                            <div class="card-header py-2">
+                                <strong>{{ day }}</strong>
+                                <button type="button" class="btn btn-sm btn-outline-primary float-end" 
+                                        onclick="addTimeSlot('{{ day.lower() }}')">
+                                    <i class="fas fa-plus"></i> Add Time
+                                </button>
+                            </div>
+                            <div class="card-body py-2" id="{{ day.lower() }}_slots">
+                                {% set day_schedule = facility.schedule.get_day_schedule(day) %}
+                                {% if day_schedule.start_times %}
+                                    {% for time_slot in day_schedule.start_times %}
+                                    <div class="row mb-2 time-slot">
+                                        <div class="col-6">
+                                            <input type="time" class="form-control form-control-sm" 
+                                                   name="{{ day.lower() }}_times" value="{{ time_slot.time }}">
+                                        </div>
+                                        <div class="col-4">
+                                            <input type="number" class="form-control form-control-sm" 
+                                                   name="{{ day.lower() }}_courts" min="0" 
+                                                   value="{{ time_slot.available_courts }}">
+                                        </div>
+                                        <div class="col-2">
+                                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                    onclick="removeTimeSlot(this)">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="row mb-2 time-slot">
+                                        <div class="col-6">
+                                            <input type="time" class="form-control form-control-sm" 
+                                                   name="{{ day.lower() }}_times" placeholder="Time">
+                                        </div>
+                                        <div class="col-4">
+                                            <input type="number" class="form-control form-control-sm" 
+                                                   name="{{ day.lower() }}_courts" min="0" placeholder="Courts">
+                                        </div>
+                                        <div class="col-2">
+                                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                    onclick="removeTimeSlot(this)">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
-                        {% if loop.index % 2 == 0 %}</div><div class="row">{% endif %}
-                        {% endfor %}
                     </div>
+                    {% if loop.index % 2 == 0 %}</div><div class="row">{% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Unavailable Dates Section -->
+            <div class="col-12">
+                <hr>
+                <label for="unavailable_dates" class="form-label">
+                    <i class="fas fa-ban"></i> Unavailable Dates
+                </label>
+                <textarea class="form-control" id="unavailable_dates" name="unavailable_dates" 
+                          rows="4" placeholder="Enter dates in YYYY-MM-DD format, one per line">{% for date in facility.unavailable_dates %}{{ date }}
+{% endfor %}</textarea>
+                <div class="form-text">
+                    Enter dates when the facility is not available (holidays, maintenance, etc.). 
+                    One date per line in YYYY-MM-DD format.
+                </div>
+            </div>
+            
+            <div class="col-12">
+                <hr>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save"></i> Update Facility
+                    </button>
+                    <a href="{{ url_for('view_facility', facility_id=facility.id) }}" class="btn btn-info">
+                        <i class="fas fa-eye"></i> View Details
+                    </a>
+                    <a href="{{ url_for('facilities') }}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 
-                    <!-- Unavailable Dates -->
-                    <div class="mt-4">
-                        <h5><i class="fas fa-ban"></i> Unavailable Dates</h5>
-                        <p class="text-muted small">Enter dates when the facility is closed (maintenance, holidays, etc.). One date per line in YYYY-MM-DD format.</p>
-                        
-                        <div class="mb-3">
-                            <label for="unavailable_dates" class="form-label">Unavailable Dates</label>
-                            <textarea class="form-control" id="unavailable_dates" name="unavailable_dates" 
-                                      rows="6" placeholder="2025-07-04&#10;2025-12-25&#10;2025-01-01">{% if facility.unavailable_dates %}{% for date in facility.unavailable_dates %}{{ date }}{% if not loop.last %}&#10;{% endif %}{% endfor %}{% endif %}</textarea>
-                            <div class="form-text">Format: YYYY-MM-DD (one date per line)</div>
-                        </div>
+<!-- Preview Section -->
+<div class="card mt-4">
+    <div class="card-header">
+        <i class="fas fa-eye"></i> Current Schedule Preview
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-header py-2">
+                        <strong>{{ day_name }}</strong>
+                        <span class="badge bg-light text-dark ms-2">
+                            {{ day_schedule.start_times|length }} slots
+                        </span>
                     </div>
-                    
-                    <hr>
-                    
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Save Changes
-                        </button>
-                        <a href="{{ url_for('facilities') }}" class="btn btn-secondary">
-                            <i class="fas fa-times"></i> Cancel
-                        </a>
-                        <a href="{{ url_for('view_facility', facility_id=facility.id) }}" class="btn btn-outline-info">
-                            <i class="fas fa-eye"></i> View Details
-                        </a>
-                    </div>
-                </form>
-            </div>
-        </div>
-        
-        <!-- Help Section -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <i class="fas fa-info-circle"></i> Facility Editing Guidelines
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <h6><i class="fas fa-clock text-warning"></i> Time Slots</h6>
-                        <ul class="small">
-                            <li>Use 24-hour format (e.g., 18:00 for 6 PM)</li>
-                            <li>Each time slot needs available court count</li>
-                            <li>Courts must be positive numbers</li>
-                            <li>Leave days empty if no availability</li>
-                        </ul>
-                    </div>
-                    <div class="col-md-4">
-                        <h6><i class="fas fa-calendar text-info"></i> Unavailable Dates</h6>
-                        <ul class="small">
-                            <li>Format: YYYY-MM-DD (e.g., 2025-07-04)</li>
-                            <li>One date per line</li>
-                            <li>Include holidays, maintenance days</li>
-                            <li>Can be empty if always available</li>
-                        </ul>
-                    </div>
-                    <div class="col-md-4">
-                        <h6><i class="fas fa-exclamation-triangle text-danger"></i> Important Notes</h6>
-                        <ul class="small">
-                            <li>Facility ID cannot be changed after creation</li>
-                            <li>Schedule changes may affect existing matches</li>
-                            <li>Consider team preferences when setting schedule</li>
-                            <li>Unavailable dates override regular schedule</li>
-                        </ul>
+                    <div class="card-body py-2">
+                        {% if day_schedule.start_times %}
+                            {% for time_slot in day_schedule.start_times %}
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="badge bg-primary">{{ time_slot.time }}</span>
+                                <span class="small">{{ time_slot.available_courts }} courts</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <span class="text-muted small">No availability</span>
+                        {% endif %}
                     </div>
                 </div>
             </div>
+            {% if loop.index % 2 == 0 %}</div><div class="row">{% endif %}
+            {% endfor %}
+        </div>
+        
+        {% if facility.unavailable_dates %}
+        <hr>
+        <h6><i class="fas fa-ban text-warning"></i> Unavailable Dates</h6>
+        <div class="row">
+            {% for date in facility.unavailable_dates %}
+            <div class="col-md-3 mb-2">
+                <span class="badge bg-warning text-dark">{{ date }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Help Section -->
+<div class="card mt-4">
+    <div class="card-header">
+        <i class="fas fa-question-circle"></i> Editing Guidelines
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <h6><i class="fas fa-clock text-primary"></i> Time Slots</h6>
+                <ul class="small">
+                    <li>Use 24-hour format (e.g., 18:00 for 6 PM)</li>
+                    <li>Clear time and courts to remove a slot</li>
+                    <li>Add more slots using the "+ Add Time" button</li>
+                    <li>Each slot represents when matches can start</li>
+                </ul>
+            </div>
+            
+            <div class="col-md-4">
+                <h6><i class="fas fa-exclamation-triangle text-warning"></i> Important</h6>
+                <ul class="small">
+                    <li>Changes take effect immediately after saving</li>
+                    <li>Existing scheduled matches are not affected</li>
+                    <li>Future scheduling will use the new availability</li>
+                    <li>Consider impact on current season</li>
+                </ul>
+            </div>
+            
+            <div class="col-md-4">
+                <h6><i class="fas fa-lightbulb text-success"></i> Tips</h6>
+                <ul class="small">
+                    <li>Use the preview section to verify changes</li>
+                    <li>Short names help with display in lists</li>
+                    <li>Check match schedules before major changes</li>
+                    <li>Coordinate with team captains for updates</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="alert alert-info mt-3 mb-0">
+            <i class="fas fa-info-circle"></i>
+            <strong>Note:</strong> This facility currently has 
+            {% set total_slots = 0 %}
+            {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                {% set total_slots = total_slots + day_schedule.start_times|length %}
+            {% endfor %}
+            {{ total_slots }} time slots across all days.
+            {% if facility.unavailable_dates %}
+            There are {{ facility.unavailable_dates|length }} unavailable dates set.
+            {% endif %}
         </div>
     </div>
 </div>
@@ -165,104 +259,131 @@
 
 {% block scripts %}
 <script>
-// Calculate initial counter based on existing time slots
-let timeSlotCounter = 100;
-{% if facility.schedule %}
-    {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
-        {% set day_schedule = facility.schedule.get_day_schedule(day) %}
-        {% if day_schedule and day_schedule.start_times %}
-            timeSlotCounter += {{ day_schedule.start_times|length }};
-        {% endif %}
-    {% endfor %}
-{% endif %}
-
-function addTimeSlot(day, time = '', courts = '') {
-    timeSlotCounter++;
+function addTimeSlot(day) {
     const container = document.getElementById(day + '_slots');
-    const slotId = `${day}_slot_${timeSlotCounter}`;
-    
-    const slotHtml = `
-        <div class="row mb-2" id="${slotId}">
-            <div class="col-5">
-                <input type="time" class="form-control form-control-sm" 
-                       name="${day}_times" placeholder="Time" value="${time}">
-            </div>
-            <div class="col-4">
-                <input type="number" class="form-control form-control-sm" 
-                       name="${day}_courts" placeholder="Courts" min="1" value="${courts}">
-            </div>
-            <div class="col-3">
-                <button type="button" class="btn btn-sm btn-outline-danger" 
-                        onclick="removeTimeSlot('${slotId}')">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
+    const newSlot = document.createElement('div');
+    newSlot.className = 'row mb-2 time-slot';
+    newSlot.innerHTML = `
+        <div class="col-6">
+            <input type="time" class="form-control form-control-sm" 
+                   name="${day}_times" placeholder="Time">
+        </div>
+        <div class="col-4">
+            <input type="number" class="form-control form-control-sm" 
+                   name="${day}_courts" min="0" placeholder="Courts">
+        </div>
+        <div class="col-2">
+            <button type="button" class="btn btn-sm btn-outline-danger" 
+                    onclick="removeTimeSlot(this)">
+                <i class="fas fa-trash"></i>
+            </button>
         </div>
     `;
-    
-    container.insertAdjacentHTML('beforeend', slotHtml);
+    container.appendChild(newSlot);
 }
 
-function removeTimeSlot(slotId) {
-    const element = document.getElementById(slotId);
-    if (element) {
-        element.remove();
+function removeTimeSlot(button) {
+    const slot = button.closest('.time-slot');
+    const container = slot.parentNode;
+    if (container.children.length > 1) {
+        slot.remove();
+    } else {
+        // Clear the inputs instead of removing the last slot
+        const timeInput = slot.querySelector('input[type="time"]');
+        const courtsInput = slot.querySelector('input[type="number"]');
+        timeInput.value = '';
+        courtsInput.value = '';
     }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Ensure each day has at least one empty slot if it has no slots
-    ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].forEach(day => {
-        const container = document.getElementById(day + '_slots');
-        if (container.children.length === 0) {
-            addTimeSlot(day);
-        }
-    });
+// Auto-suggest short names based on facility name if short name is empty
+document.getElementById('name').addEventListener('input', function() {
+    const name = this.value.trim();
+    const shortNameField = document.getElementById('short_name');
     
-    // Form validation
-    document.getElementById('facilityForm').addEventListener('submit', function(e) {
-        const name = document.getElementById('name').value.trim();
+    // Don't overwrite if user has already entered something
+    if (shortNameField.value.trim() !== '') {
+        return;
+    }
+    
+    // Generate simple abbreviation from first letters of words
+    const words = name.split(' ').filter(word => word.length > 0);
+    if (words.length >= 2) {
+        const abbreviation = words.map(word => word.charAt(0).toUpperCase()).join('');
+        if (abbreviation.length <= 10) {
+            shortNameField.value = abbreviation;
+        }
+    }
+});
+
+// Validate form before submission
+document.querySelector('form').addEventListener('submit', function(e) {
+    const name = document.getElementById('name').value.trim();
+    const shortName = document.getElementById('short_name').value.trim();
+    
+    if (!name) {
+        e.preventDefault();
+        alert('Facility name is required.');
+        return;
+    }
+    
+    if (shortName && shortName.length > 10) {
+        e.preventDefault();
+        alert('Short name must be 10 characters or less.');
+        return;
+    }
+    
+    // Validate that at least one time slot has both time and courts
+    let hasValidSlot = false;
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    
+    for (const day of days) {
+        const times = document.querySelectorAll(`input[name="${day}_times"]`);
+        const courts = document.querySelectorAll(`input[name="${day}_courts"]`);
         
-        if (!name) {
-            alert('Please enter a facility name');
+        for (let i = 0; i < times.length; i++) {
+            if (times[i].value && courts[i].value && parseInt(courts[i].value) > 0) {
+                hasValidSlot = true;
+                break;
+            }
+        }
+        
+        if (hasValidSlot) break;
+    }
+    
+    if (!hasValidSlot) {
+        if (!confirm('No valid time slots defined. The facility will have no availability. Continue?')) {
             e.preventDefault();
             return;
         }
+    }
+});
+
+// Highlight changes when editing
+document.addEventListener('DOMContentLoaded', function() {
+    const originalData = {
+        name: document.getElementById('name').value,
+        shortName: document.getElementById('short_name').value,
+        location: document.getElementById('location').value,
+        totalCourts: document.getElementById('total_courts').value
+    };
+    
+    function highlightChanges() {
+        const name = document.getElementById('name');
+        const shortName = document.getElementById('short_name');
+        const location = document.getElementById('location');
+        const totalCourts = document.getElementById('total_courts');
         
-        // Validate at least one schedule entry exists
-        let hasSchedule = false;
-        ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].forEach(day => {
-            const timeInputs = document.querySelectorAll(`input[name="${day}_times"]`);
-            const courtInputs = document.querySelectorAll(`input[name="${day}_courts"]`);
-            
-            for (let i = 0; i < timeInputs.length; i++) {
-                if (timeInputs[i].value.trim() && courtInputs[i].value.trim()) {
-                    hasSchedule = true;
-                    break;
-                }
-            }
-        });
-        
-        if (!hasSchedule) {
-            if (!confirm('No schedule entries found. Continue with empty schedule?')) {
-                e.preventDefault();
-                return;
-            }
-        }
-        
-        // Validate unavailable dates format
-        const unavailableDates = document.getElementById('unavailable_dates').value.trim();
-        if (unavailableDates) {
-            const dates = unavailableDates.split('\n');
-            for (let date of dates) {
-                date = date.trim();
-                if (date && !date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                    alert(`Invalid date format: "${date}". Use YYYY-MM-DD format.`);
-                    e.preventDefault();
-                    return;
-                }
-            }
-        }
+        // Add/remove changed class based on whether value has changed
+        name.classList.toggle('border-warning', name.value !== originalData.name);
+        shortName.classList.toggle('border-warning', shortName.value !== originalData.shortName);
+        location.classList.toggle('border-warning', location.value !== originalData.location);
+        totalCourts.classList.toggle('border-warning', totalCourts.value !== originalData.totalCourts);
+    }
+    
+    // Add event listeners for change detection
+    ['name', 'short_name', 'location', 'total_courts'].forEach(id => {
+        document.getElementById(id).addEventListener('input', highlightChanges);
     });
 });
 </script>

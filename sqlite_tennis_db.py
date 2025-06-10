@@ -81,10 +81,13 @@ class SQLiteTennisDB(TennisDBInterface):
             self.cursor.execute("PRAGMA busy_timeout = 30000")
             self.cursor.execute("PRAGMA cache_size = -64000")  # 64MB cache
             
+            # REMOVED: self._check_and_migrate_schema() call
+            
             self.conn.executescript("""
             CREATE TABLE IF NOT EXISTS facilities (
                 id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL,
+                short_name TEXT,
                 location TEXT,
                 total_courts INTEGER NOT NULL DEFAULT 0
             );
@@ -129,7 +132,7 @@ class SQLiteTennisDB(TennisDBInterface):
                 home_facility_id INTEGER NOT NULL,
                 captain TEXT,
                 preferred_days TEXT NOT NULL DEFAULT '',
-                FOREIGN KEY (league_id) REFERENCES leagues(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+                FOREIGN KEY (league_id) REFERENCES leagues(id) ON DELETE CASCADE ON UPDATE CASCADE,
                 FOREIGN KEY (home_facility_id) REFERENCES facilities(id) ON DELETE RESTRICT ON UPDATE CASCADE
             );
     
@@ -147,7 +150,7 @@ class SQLiteTennisDB(TennisDBInterface):
                 FOREIGN KEY (visitor_team_id) REFERENCES teams(id) ON DELETE RESTRICT ON UPDATE CASCADE,
                 FOREIGN KEY (facility_id) REFERENCES facilities(id) ON DELETE RESTRICT ON UPDATE CASCADE
             );
-
+    
             CREATE TABLE IF NOT EXISTS lines (
                 id INTEGER PRIMARY KEY,
                 match_id INTEGER NOT NULL,
@@ -160,7 +163,7 @@ class SQLiteTennisDB(TennisDBInterface):
                 FOREIGN KEY (facility_id) REFERENCES facilities(id) ON DELETE RESTRICT ON UPDATE CASCADE,
                 UNIQUE(match_id, line_number)
             );
-
+    
             CREATE INDEX IF NOT EXISTS idx_lines_match_id ON lines(match_id);
             CREATE INDEX IF NOT EXISTS idx_lines_facility_date ON lines(facility_id, date);
             CREATE INDEX IF NOT EXISTS idx_lines_facility_date_time ON lines(facility_id, date, time);
@@ -168,8 +171,10 @@ class SQLiteTennisDB(TennisDBInterface):
             CREATE INDEX IF NOT EXISTS idx_teams_league_id ON teams(league_id);
             CREATE INDEX IF NOT EXISTS idx_facility_schedules_lookup ON facility_schedules(facility_id, day, time);
             CREATE INDEX IF NOT EXISTS idx_matches_team_date ON matches(home_team_id, visitor_team_id, date);
+            CREATE INDEX IF NOT EXISTS idx_facilities_short_name ON facilities(short_name);
+            CREATE INDEX IF NOT EXISTS idx_teams_home_facility ON teams(home_facility_id);
             """)
-            
+        
         except sqlite3.Error as e:
             raise RuntimeError(f"Database initialization failed: {e}")
 
@@ -233,6 +238,10 @@ class SQLiteTennisDB(TennisDBInterface):
 
     def delete_team(self, team_id: int) -> None:
         return self.team_manager.delete_team(team_id)
+
+    def get_teams_by_facility_name(self, facility_name: str, exact_match: bool = True) -> List[Team]:
+        """Get all teams that use a specific facility name as their home"""
+        return self.team_manager.get_teams_by_facility_name(facility_name, exact_match)    
 
     # ========== League Management (Delegated to LeagueManager) ==========
     
@@ -496,14 +505,14 @@ class SQLiteTennisDB(TennisDBInterface):
         records = data.get(table, [])
         if not isinstance(records, list):
             raise ValueError(f"Table '{table}' in YAML must be a list, got: {type(records)}")
-
+    
         method_map = {
             "teams": self.add_team,
             "leagues": self.add_league,
             "matches": self.add_match,
             "facilities": self.add_facility
         }
-
+    
         insert_fn = method_map[table]
         
         for i, record in enumerate(records):
@@ -513,15 +522,25 @@ class SQLiteTennisDB(TennisDBInterface):
             try:
                 # Convert dict to appropriate dataclass
                 if table == "teams":
-                    # For teams, we need to get the league object first
+                    # For teams, we need to get the league and facility objects first
                     if 'league_id' not in record:
                         raise ValueError(f"Team record {i} missing required 'league_id' field")
+                    if 'home_facility_id' not in record:
+                        raise ValueError(f"Team record {i} missing required 'home_facility_id' field")
                     
                     league_id = record.pop('league_id')  # Remove league_id from record
+                    home_facility_id = record.pop('home_facility_id')  # Remove home_facility_id from record
+                    
                     league = self.get_league(league_id)
+                    home_facility = self.get_facility(home_facility_id)
+                    
                     if not league:
                         raise ValueError(f"League with ID {league_id} not found for team record {i}")
+                    if not home_facility:
+                        raise ValueError(f"Facility with ID {home_facility_id} not found for team record {i}")
+                    
                     record['league'] = league
+                    record['home_facility'] = home_facility
                     obj = Team(**record)
                 elif table == "leagues":
                     obj = League(**record)
@@ -563,7 +582,7 @@ class SQLiteTennisDB(TennisDBInterface):
 # Test the implementation if run directly
 if __name__ == "__main__":
     # Test the implementation
-    config = {"db_path": "tennis_test.db"}
+    config = {"db_path": "tennis.db"}
     db = SQLiteTennisDB(config)
     db.connect()
     print("✓ SQLite database connection successful")

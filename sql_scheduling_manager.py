@@ -121,6 +121,35 @@ class SQLSchedulingManager:
         except Exception as e:
             raise
 
+    def check_team_facility_conflict(self, team_id: int, date: str, facility_id: int) -> bool:
+        """
+        Check if a team already has a match scheduled at a different facility on the given date.
+        Updated to work with teams that have string facility names.
+        
+        Args:
+            team_id: Team to check
+            date: Date to check (YYYY-MM-DD format)
+            facility_id: Facility ID being considered for scheduling
+            
+        Returns:
+            True if there's a conflict (team already scheduled elsewhere), False if no conflict
+        """
+        try:
+            # Get the facility name for the facility being considered
+            facility = self.db.facility_manager.get_facility(facility_id)
+            if not facility:
+                return False  # If facility doesn't exist, no conflict
+            
+            facility_name = facility.name
+            
+            # Use the team manager's method which now works with facility names
+            return self.db.team_manager.check_team_facility_conflict(team_id, date, facility_name)
+            
+        except Exception as e:
+            raise RuntimeError(f"Database error checking team facility conflict: {e}")
+
+    
+
     def schedule_match_split_lines(
         self,
         match_id: int,
@@ -270,10 +299,13 @@ class SQLSchedulingManager:
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error unscheduling match {match_id}: {e}")
 
+
+
     def find_scheduling_options_for_match(self, match_id: int, preferred_dates: List[str], 
                                         facility_ids: Optional[List[int]] = None) -> Dict[str, List[Dict]]:
         """
         Find all possible scheduling options for a match
+        Updated to work with teams that have string facility names.
         
         Args:
             match_id: Match to schedule
@@ -299,6 +331,12 @@ class SQLSchedulingManager:
                 all_facilities = self.db.facility_manager.list_facilities()
                 facility_ids = [f.id for f in all_facilities]
             
+            # Get home team to potentially prioritize its facility
+            home_team = self.db.team_manager.get_team(match.home_team_id)
+            preferred_facility_id = None
+            if home_team:
+                preferred_facility_id = self._resolve_facility_id_from_name(home_team.home_facility)
+            
             options = {}
             
             for date in preferred_dates:
@@ -309,7 +347,13 @@ class SQLSchedulingManager:
                 
                 date_options = []
                 
-                for facility_id in facility_ids:
+                # Prioritize home team's facility if it's in the list
+                ordered_facility_ids = facility_ids.copy()
+                if preferred_facility_id and preferred_facility_id in ordered_facility_ids:
+                    ordered_facility_ids.remove(preferred_facility_id)
+                    ordered_facility_ids.insert(0, preferred_facility_id)
+                
+                for facility_id in ordered_facility_ids:
                     facility = self.db.facility_manager.get_facility(facility_id)
                     if not facility:
                         continue
@@ -330,12 +374,15 @@ class SQLSchedulingManager:
                                 valid_times.append(time)
                         
                         if valid_times:
+                            option_priority = 1 if facility_id == preferred_facility_id else 2
                             date_options.append({
                                 'facility_id': facility_id,
                                 'facility_name': facility.name,
                                 'day': day_name,
                                 'times': valid_times,
-                                'type': 'same_time'
+                                'type': 'same_time',
+                                'priority': option_priority,
+                                'is_home_facility': facility_id == preferred_facility_id
                             })
                         
                         # Also check split line options if allowed
@@ -358,15 +405,20 @@ class SQLSchedulingManager:
                                         valid_split_options.append(option)
                                 
                                 if valid_split_options:
+                                    option_priority = 1 if facility_id == preferred_facility_id else 2
                                     date_options.append({
                                         'facility_id': facility_id,
                                         'facility_name': facility.name,
                                         'day': day_name,
                                         'split_options': valid_split_options,
-                                        'type': 'split_lines'
+                                        'type': 'split_lines',
+                                        'priority': option_priority,
+                                        'is_home_facility': facility_id == preferred_facility_id
                                     })
                 
                 if date_options:
+                    # Sort options by priority (home facility first)
+                    date_options.sort(key=lambda x: x['priority'])
                     options[date] = date_options
             
             return options
@@ -374,6 +426,8 @@ class SQLSchedulingManager:
         except Exception as e:
             raise RuntimeError(f"Error finding scheduling options for match {match_id}: {e}")
 
+
+    
     def auto_schedule_match(self, match_id: int, preferred_dates: List[str], 
                           prefer_home_facility: bool = True) -> bool:
         """
@@ -404,7 +458,10 @@ class SQLSchedulingManager:
             if prefer_home_facility:
                 home_team = self.db.team_manager.get_team(match.home_team_id)
                 if home_team:
-                    facility_ids = [home_team.home_facility_id]
+                    # Resolve facility ID from facility name
+                    facility_id = self._resolve_facility_id_from_name(home_team.home_facility)
+                    if facility_id:
+                        facility_ids = [facility_id]
             
             # Try each date in order
             for date in preferred_dates:
@@ -449,6 +506,467 @@ class SQLSchedulingManager:
         except Exception as e:
             raise RuntimeError(f"Error auto-scheduling match {match_id}: {e}")
 
+    
+    def auto_schedule_match(self, match_id: int, preferred_dates: List[str], 
+                          prefer_home_facility: bool = True) -> bool:
+        """
+        Attempt to automatically schedule a single match
+        
+        Args:
+            match_id: Match to schedule
+            preferred_dates: List of dates to try (in order of preference)
+            prefer_home_facility: Whether to prefer the home team's facility
+            
+        Returns:
+            True if match was successfully scheduled
+        """
+        try:
+            # Get the match and ensure it has lines
+            match = self.db.match_line_manager.get_match_with_lines(match_id)
+            if not match:
+                raise ValueError(f"Match with ID {match_id} does not exist")
+            
+            # Ensure lines exist
+            if not match.lines:
+                league = self.db.league_manager.get_league(match.league_id)
+                self.db.match_line_manager.create_lines_for_match(match_id, league)
+                match = self.db.match_line_manager.get_match_with_lines(match_id)  # Reload with lines
+            
+            # Get home team's facility if preferring home facility
+            facility_ids = None
+            if prefer_home_facility:
+                home_team = self.db.team_manager.get_team(match.home_team_id)
+                if home_team:
+                    # Resolve facility ID from facility name
+                    facility_id = home_team.get_home_facility().get_id()
+                    #facility_id = self._resolve_facility_id_from_name(home_team.home_facility)
+                    if facility_id:
+                        facility_ids = [facility_id]
+            
+            # Try each date in order
+            for date in preferred_dates:
+                # Skip dates where either team already has a match
+                if (self.db.team_manager.check_team_date_conflict(match.home_team_id, date, exclude_match_id=match_id) or
+                    self.db.team_manager.check_team_date_conflict(match.visitor_team_id, date, exclude_match_id=match_id)):
+                    continue  # Skip this date and try the next one
+                
+                # Find scheduling options for this date
+                options_by_date = self.find_scheduling_options_for_match(match_id, [date], facility_ids)
+                
+                if date in options_by_date:
+                    # Try the first available option
+                    for option in options_by_date[date]:
+                        try:
+                            if option['type'] == 'same_time' and option['times']:
+                                # Schedule all lines at the same time
+                                time = option['times'][0]  # Use first available time
+                                success = self.schedule_match_all_lines_same_time(
+                                    match_id, option['facility_id'], date, time
+                                )
+                                if success:
+                                    return True
+                            
+                            elif option['type'] == 'split_lines' and option['split_options']:
+                                # Schedule lines across different times
+                                split_option = option['split_options'][0]  # Use first split option
+                                # Convert to the format expected by the database method
+                                plan_tuples = [
+                                    (time, option['facility_id'], courts) 
+                                    for time, courts in split_option
+                                ]
+                                success = self.schedule_match_split_lines(match_id, date, plan_tuples)
+                                if success:
+                                    return True
+                        except Exception:
+                            # If this specific option fails, try the next one
+                            continue
+            
+            return False
+            
+        except Exception as e:
+            raise RuntimeError(f"Error auto-scheduling match {match_id}: {e}")
+    
+    def _resolve_facility_id_from_name(self, facility_name: str) -> Optional[int]:
+        """
+        Helper method to resolve a facility ID from a facility name
+        
+        Args:
+            facility_name: Name of the facility (full name or short name)
+            
+        Returns:
+            Facility ID if found, None otherwise
+        """
+        try:
+            facilities = self.db.facility_manager.list_facilities()
+            for facility in facilities:
+                if (facility.name == facility_name or 
+                    (facility.short_name and facility.short_name == facility_name)):
+                    return facility.id
+            return None
+        except Exception:
+            return None
+    
+    def check_team_facility_conflict(self, team_id: int, date: str, facility_id: int) -> bool:
+        """
+        Check if a team already has a match scheduled at a different facility on the given date.
+        Updated to work with teams that have string facility names.
+        
+        Args:
+            team_id: Team to check
+            date: Date to check (YYYY-MM-DD format)
+            facility_id: Facility ID being considered for scheduling
+            
+        Returns:
+            True if there's a conflict (team already scheduled elsewhere), False if no conflict
+        """
+        try:
+            # Get the facility name for the facility being considered
+            facility = self.db.facility_manager.get_facility(facility_id)
+            if not facility:
+                return False  # If facility doesn't exist, no conflict
+            
+            facility_name = facility.name
+            
+            # Use the team manager's method which now works with facility names
+            return self.db.team_manager.check_team_facility_conflict(team_id, date, facility_name)
+            
+        except Exception as e:
+            raise RuntimeError(f"Database error checking team facility conflict: {e}")
+    
+    def get_optimal_scheduling_dates(self, match: Match, 
+                                   start_date: Optional[str] = None,
+                                   end_date: Optional[str] = None,
+                                   num_dates: int = 20) -> List[str]:
+        """
+        Find optimal dates for scheduling a specific match, prioritizing team preferences
+        Updated to work with teams that have string facility names.
+        
+        Args:
+            match: Match to find dates for
+            start_date: Start date for search (defaults to league start_date)
+            end_date: End date for search (defaults to league end_date)  
+            num_dates: Number of dates to return
+            
+        Returns:
+            List of date strings in YYYY-MM-DD format, ordered by preference
+            (team preferred days first, then league preferred days, then backup days)
+        """
+        try:
+            # Get the league
+            league = self.db.league_manager.get_league(match.league_id)
+            if not league:
+                raise ValueError(f"League with ID {match.league_id} does not exist")
+            
+            # Get teams to understand their preferences
+            home_team = self.db.team_manager.get_team(match.home_team_id)
+            visitor_team = self.db.team_manager.get_team(match.visitor_team_id)
+            
+            if not home_team or not visitor_team:
+                raise ValueError(f"Teams not found for match {match.id}")
+            
+            # Use league dates or reasonable defaults
+            search_start = start_date or league.start_date or datetime.now().strftime('%Y-%m-%d')
+            search_end = end_date or league.end_date
+            
+            if not search_end:
+                # Default to 16 weeks from start
+                start_dt = datetime.strptime(search_start, '%Y-%m-%d')
+                end_dt = start_dt + timedelta(weeks=16)
+                search_end = end_dt.strftime('%Y-%m-%d')
+            
+            # Generate candidate dates with priority system
+            start_dt = datetime.strptime(search_start, '%Y-%m-%d')
+            end_dt = datetime.strptime(search_end, '%Y-%m-%d')
+            
+            candidate_dates = []
+            current = start_dt
+            
+            # Create combined team preferred days (intersection is highest priority)
+            home_preferred = set(home_team.preferred_days)
+            visitor_preferred = set(visitor_team.preferred_days)
+            
+            # Priority levels:
+            # 1 = Both teams prefer this day
+            # 2 = One team prefers this day
+            # 3 = League prefers this day (but no team preference)
+            # 4 = League backup day (but no team preference)
+            # 5 = Day is allowed but not preferred by anyone
+            
+            while current <= end_dt:
+                day_name = current.strftime('%A')
+                date_str = current.strftime('%Y-%m-%d')
+                
+                # Skip days that the league doesn't allow
+                if not league.can_schedule_on_day(day_name):
+                    current += timedelta(days=1)
+                    continue
+                
+                # Determine priority based on team and league preferences
+                priority = 5  # Default: allowed but not preferred
+                
+                if day_name in home_preferred and day_name in visitor_preferred:
+                    priority = 1  # Both teams prefer this day
+                elif day_name in home_preferred or day_name in visitor_preferred:
+                    priority = 2  # One team prefers this day
+                elif day_name in league.preferred_days:
+                    priority = 3  # League prefers this day
+                elif day_name in league.backup_days:
+                    priority = 4  # League backup day
+                
+                candidate_dates.append((date_str, priority))
+                current += timedelta(days=1)
+            
+            # Sort by priority (lower number = higher priority)
+            # For same priority, maintain chronological order
+            candidate_dates.sort(key=lambda x: (x[1], x[0]))
+            
+            # Return the requested number of dates
+            return [date for date, _ in candidate_dates[:num_dates]]
+            
+        except Exception as e:
+            raise RuntimeError(f"Error getting optimal scheduling dates for match {match.id}: {e}")
+    
+    def find_scheduling_options_for_match(self, match_id: int, preferred_dates: List[str], 
+                                        facility_ids: Optional[List[int]] = None) -> Dict[str, List[Dict]]:
+        """
+        Find all possible scheduling options for a match
+        Updated to work with teams that have string facility names.
+        
+        Args:
+            match_id: Match to schedule
+            preferred_dates: List of preferred dates to check
+            facility_ids: Optional list of facility IDs to check (if None, checks all)
+            
+        Returns:
+            Dictionary mapping dates to scheduling options
+        """
+        try:
+            # Get the match and verify it exists
+            match = self.db.match_line_manager.get_match_with_lines(match_id)
+            if not match:
+                raise ValueError(f"Match with ID {match_id} does not exist")
+            
+            # Get the league
+            league = self.db.league_manager.get_league(match.league_id)
+            if not league:
+                raise ValueError(f"League with ID {match.league_id} does not exist")
+            
+            # Get facility list
+            if facility_ids is None:
+                all_facilities = self.db.facility_manager.list_facilities()
+                facility_ids = [f.id for f in all_facilities]
+            
+            # Get home team to potentially prioritize its facility
+            home_team = self.db.team_manager.get_team(match.home_team_id)
+            preferred_facility_id = None
+            if home_team:
+                preferred_facility_id = self._resolve_facility_id_from_name(home_team.home_facility)
+            
+            options = {}
+            
+            for date in preferred_dates:
+                # Skip dates where either team already has a match
+                if (self.db.team_manager.check_team_date_conflict(match.home_team_id, date, exclude_match_id=match_id) or
+                    self.db.team_manager.check_team_date_conflict(match.visitor_team_id, date, exclude_match_id=match_id)):
+                    continue
+                
+                date_options = []
+                
+                # Prioritize home team's facility if it's in the list
+                ordered_facility_ids = facility_ids.copy()
+                if preferred_facility_id and preferred_facility_id in ordered_facility_ids:
+                    ordered_facility_ids.remove(preferred_facility_id)
+                    ordered_facility_ids.insert(0, preferred_facility_id)
+                
+                for facility_id in ordered_facility_ids:
+                    facility = self.db.facility_manager.get_facility(facility_id)
+                    if not facility:
+                        continue
+                    
+                    # Get scheduling options for this facility/date
+                    facility_options = facility.get_scheduling_options_for_match(league, date)
+                    
+                    if facility_options:
+                        # Check if we have enough courts
+                        day_name = list(facility_options.keys())[0]
+                        available_times = facility_options[day_name]
+                        
+                        valid_times = []
+                        for time in available_times:
+                            if self.db.facility_manager.check_court_availability(
+                                facility_id, date, time, league.get_total_courts_needed()
+                            ):
+                                valid_times.append(time)
+                        
+                        if valid_times:
+                            option_priority = 1 if facility_id == preferred_facility_id else 2
+                            date_options.append({
+                                'facility_id': facility_id,
+                                'facility_name': facility.name,
+                                'day': day_name,
+                                'times': valid_times,
+                                'type': 'same_time',
+                                'priority': option_priority,
+                                'is_home_facility': facility_id == preferred_facility_id
+                            })
+                        
+                        # Also check split line options if allowed
+                        if league.allow_split_lines:
+                            split_options = facility.find_scheduling_slots_for_split_lines(
+                                day_name, league.get_total_courts_needed()
+                            )
+                            if split_options:
+                                # Validate each split option against actual availability
+                                valid_split_options = []
+                                for option in split_options:
+                                    is_valid = True
+                                    for time_str, courts_needed in option:
+                                        if not self.db.facility_manager.check_court_availability(
+                                            facility_id, date, time_str, courts_needed
+                                        ):
+                                            is_valid = False
+                                            break
+                                    if is_valid:
+                                        valid_split_options.append(option)
+                                
+                                if valid_split_options:
+                                    option_priority = 1 if facility_id == preferred_facility_id else 2
+                                    date_options.append({
+                                        'facility_id': facility_id,
+                                        'facility_name': facility.name,
+                                        'day': day_name,
+                                        'split_options': valid_split_options,
+                                        'type': 'split_lines',
+                                        'priority': option_priority,
+                                        'is_home_facility': facility_id == preferred_facility_id
+                                    })
+                
+                if date_options:
+                    # Sort options by priority (home facility first)
+                    date_options.sort(key=lambda x: x['priority'])
+                    options[date] = date_options
+            
+            return options
+            
+        except Exception as e:
+            raise RuntimeError(f"Error finding scheduling options for match {match_id}: {e}")
+
+    def resolve_team_facility_conflicts(self, match_id: int, date: str) -> Dict[str, Any]:
+        """
+        Check for and resolve potential facility conflicts for teams
+        Updated to work with string facility names.
+        
+        Args:
+            match_id: Match to check
+            date: Date to check conflicts for
+            
+        Returns:
+            Dictionary with conflict information and suggestions
+        """
+        try:
+            match = self.db.match_line_manager.get_match(match_id)
+            if not match:
+                raise ValueError(f"Match with ID {match_id} does not exist")
+            
+            home_team = self.db.team_manager.get_team(match.home_team_id)
+            visitor_team = self.db.team_manager.get_team(match.visitor_team_id)
+            
+            if not home_team or not visitor_team:
+                raise ValueError(f"Teams not found for match {match_id}")
+            
+            conflict_info = {
+                'match_id': match_id,
+                'date': date,
+                'home_team': {
+                    'id': home_team.id,
+                    'name': home_team.name,
+                    'home_facility': home_team.home_facility,
+                    'has_date_conflict': False,
+                    'conflicting_matches': []
+                },
+                'visitor_team': {
+                    'id': visitor_team.id,
+                    'name': visitor_team.name,
+                    'home_facility': visitor_team.home_facility,
+                    'has_date_conflict': False,
+                    'conflicting_matches': []
+                },
+                'suggested_facilities': [],
+                'resolution_needed': False
+            }
+            
+            # Check date conflicts for both teams
+            home_conflicts = self.db.team_manager.get_team_date_conflicts(home_team.id, date, exclude_match_id=match_id)
+            visitor_conflicts = self.db.team_manager.get_team_date_conflicts(visitor_team.id, date, exclude_match_id=match_id)
+            
+            if home_conflicts:
+                conflict_info['home_team']['has_date_conflict'] = True
+                conflict_info['home_team']['conflicting_matches'] = home_conflicts
+                conflict_info['resolution_needed'] = True
+            
+            if visitor_conflicts:
+                conflict_info['visitor_team']['has_date_conflict'] = True
+                conflict_info['visitor_team']['conflicting_matches'] = visitor_conflicts
+                conflict_info['resolution_needed'] = True
+            
+            # If no date conflicts, suggest facilities
+            if not conflict_info['resolution_needed']:
+                # Resolve facility IDs from team facility names
+                home_facility_id = self._resolve_facility_id_from_name(home_team.home_facility)
+                visitor_facility_id = self._resolve_facility_id_from_name(visitor_team.home_facility)
+                
+                suggested_facilities = []
+                
+                # Add home team's facility as first suggestion
+                if home_facility_id:
+                    facility = self.db.facility_manager.get_facility(home_facility_id)
+                    if facility:
+                        suggested_facilities.append({
+                            'facility_id': facility.id,
+                            'facility_name': facility.name,
+                            'reason': f"Home facility for {home_team.name}",
+                            'priority': 1
+                        })
+                
+                # Add visitor team's facility as backup
+                if visitor_facility_id and visitor_facility_id != home_facility_id:
+                    facility = self.db.facility_manager.get_facility(visitor_facility_id)
+                    if facility:
+                        suggested_facilities.append({
+                            'facility_id': facility.id,
+                            'facility_name': facility.name,
+                            'reason': f"Home facility for {visitor_team.name}",
+                            'priority': 2
+                        })
+                
+                conflict_info['suggested_facilities'] = suggested_facilities
+            
+            return conflict_info
+            
+        except Exception as e:
+            raise RuntimeError(f"Error resolving team facility conflicts: {e}")
+    
+    def _resolve_facility_id_from_name(self, facility_name: str) -> Optional[int]:
+        """
+        Helper method to resolve a facility ID from a facility name
+        
+        Args:
+            facility_name: Name of the facility (full name or short name)
+            
+        Returns:
+            Facility ID if found, None otherwise
+        """
+        try:
+            facilities = self.db.facility_manager.list_facilities()
+            for facility in facilities:
+                if (facility.name == facility_name or 
+                    (facility.short_name and facility.short_name == facility_name)):
+                    return facility.id
+            return None
+        except Exception:
+            return None
+        
+    
     def auto_schedule_matches(self, matches: List[Match], dry_run: bool = False) -> Dict[str, Any]:
         """
         Attempt to automatically schedule a list of matches
@@ -474,7 +992,7 @@ class SQLSchedulingManager:
                 optimal_dates = self.get_optimal_scheduling_dates(match)
                 
                 if not dry_run:
-                    success = self.auto_schedule_match(match.id, optimal_dates[:10])  # Try first 10 dates
+                    success = self.auto_schedule_match(match.id, optimal_dates)  # Try first 10 dates
                 else:
                     # For dry run, just check if options exist
                     options = self.find_scheduling_options_for_match(match.id, optimal_dates[:5])
@@ -542,6 +1060,7 @@ class SQLSchedulingManager:
                                    num_dates: int = 20) -> List[str]:
         """
         Find optimal dates for scheduling a specific match, prioritizing team preferences
+        Updated to work with teams that have string facility names.
         
         Args:
             match: Match to find dates for

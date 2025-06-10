@@ -49,6 +49,7 @@
                             <div class="form-text">League this team competes in</div>
                         </div>
                         
+                        <!-- UPDATED: Home facility section for Facility object -->
                         <div class="col-md-6 mb-3">
                             <label for="home_facility_id" class="form-label">
                                 <i class="fas fa-building"></i> Home Facility *
@@ -56,56 +57,68 @@
                             <select class="form-select" id="home_facility_id" name="home_facility_id" required>
                                 <option value="">Select a facility...</option>
                                 {% for facility in facilities %}
-                                <option value="{{ facility.id }}">
+                                <option value="{{ facility.id }}" 
+                                        data-name="{{ facility.name }}" 
+                                        data-short="{{ facility.short_name or '' }}"
+                                        data-location="{{ facility.location or '' }}">
                                     {{ facility.name }}
-                                    {% if facility.location %}
-                                    <small class="text-muted"> - {{ facility.location }}</small>
-                                    {% endif %}
+                                    {% if facility.short_name %}({{ facility.short_name }}){% endif %}
+                                    {% if facility.location %}- {{ facility.location }}{% endif %}
                                 </option>
                                 {% endfor %}
                             </select>
-                            <div class="form-text">Team's home venue</div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="captain" class="form-label">
-                            <i class="fas fa-user"></i> Team Captain *
-                        </label>
-                        <input type="text" class="form-control" id="captain" name="captain" 
-                               required maxlength="255"
-                               placeholder="e.g., Jane Smith">
-                        <div class="form-text">Full name of the team captain</div>
-                    </div>
-                    
-                    <!-- New Preferred Days Section -->
-                    <div class="mb-3">
-                        <label for="preferred_days" class="form-label">
-                            <i class="fas fa-calendar-check"></i> Preferred Playing Days
-                        </label>
-                        <div class="form-check-container">
-                            {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" 
-                                       id="preferred_{{ day.lower() }}" 
-                                       name="preferred_days" 
-                                       value="{{ day }}">
-                                <label class="form-check-label" for="preferred_{{ day.lower() }}">
-                                    {{ day }}
-                                </label>
+                            <div class="form-text">
+                                Select the facility where this team plays home matches
+                                {% if facilities|length == 0 %}
+                                <br><span class="text-warning">
+                                    <i class="fas fa-exclamation-triangle"></i> 
+                                    No facilities available. Please add facilities first.
+                                </span>
+                                {% endif %}
                             </div>
-                            {% endfor %}
                         </div>
-                        <div class="form-text">
-                            Select days when this team prefers to play matches. 
-                            Leave empty if the team has no preference.
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="captain" class="form-label">
+                                <i class="fas fa-user"></i> Captain *
+                            </label>
+                            <input type="text" class="form-control" id="captain" name="captain" 
+                                   required maxlength="255"
+                                   placeholder="e.g., John Smith">
+                            <div class="form-text">Team captain's name</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="preferred_days" class="form-label">
+                                <i class="fas fa-calendar-alt"></i> Preferred Playing Days
+                            </label>
+                            <div class="row">
+                                {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               id="day_{{ day }}" name="preferred_days" value="{{ day }}">
+                                        <label class="form-check-label" for="day_{{ day }}">
+                                            {{ day }}
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="form-text">
+                                Select the days this team prefers to play. 
+                                Leave empty if the team has no preference.
+                            </div>
                         </div>
                     </div>
                     
                     <hr>
                     
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" 
+                                {% if facilities|length == 0 %}disabled title="Add facilities before creating teams"{% endif %}>
                             <i class="fas fa-plus"></i> Add Team
                         </button>
                         <a href="{{ url_for('teams') }}" class="btn btn-secondary">
@@ -145,32 +158,54 @@
                         <h6><i class="fas fa-check-circle text-success"></i> Requirements</h6>
                         <ul class="small">
                             <li>Team must be assigned to an existing league</li>
-                            <li>Home facility must exist in the database</li>
+                            <li>Home facility must be selected from available facilities</li>
                             <li>Team ID must be unique</li>
                             <li>Captain name is required for contact purposes</li>
                         </ul>
                         <div class="alert alert-info mt-2 p-2 small">
-                            <i class="fas fa-info-circle"></i> If you don't see the league or facility you need, add them first.
+                            <i class="fas fa-info-circle"></i> 
+                            Teams can only be assigned to facilities that exist in the database.
+                            If you need to add a new facility, 
+                            <a href="{{ url_for('add_facility') }}" target="_blank">create it here first</a>.
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <h6><i class="fas fa-calendar text-info"></i> Scheduling Preferences</h6>
-                        <ul class="small">
-                            <li>Preferred days help with match scheduling</li>
-                            <li>System will try to schedule on preferred days first</li>
-                            <li>Leave empty if team has no day preferences</li>
-                            <li>Consider league's scheduling preferences too</li>
-                        </ul>
-                        <div class="mt-2">
-                            <a href="{{ url_for('leagues') }}" class="btn btn-sm btn-outline-primary me-2">
-                                <i class="fas fa-trophy"></i> View Leagues
-                            </a>
-                            <a href="{{ url_for('facilities') }}" class="btn btn-sm btn-outline-success">
-                                <i class="fas fa-building"></i> View Facilities
-                            </a>
+                        <h6><i class="fas fa-star text-warning"></i> Preferred Days</h6>
+                        <p class="small">
+                            Selecting preferred days helps with automatic scheduling.
+                            The system will prioritize these days when scheduling matches.
+                        </p>
+                        <div class="small">
+                            <strong>Strategy:</strong>
+                            <ul class="mb-0">
+                                <li>Choose days that work best for your team</li>
+                                <li>Consider facility availability</li>
+                                <li>Coordinate with league scheduling preferences</li>
+                                <li>Leave blank for maximum flexibility</li>
+                            </ul>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Team Details Modal (for viewing facility info) -->
+<div class="modal fade" id="facilityDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-building"></i> Facility Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="facilityDetailsContent">
+                <!-- Facility details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -179,122 +214,36 @@
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Auto-focus on the first input
-    document.getElementById('id').focus();
-    
-    // Add league change handler to show scheduling info
-    document.getElementById('league_id').addEventListener('change', function() {
-        const leagueId = this.value;
-        if (leagueId) {
-            showLeagueSchedulingInfo(leagueId);
-        } else {
-            hideLeagueSchedulingInfo();
-        }
-    });
-});
-
-function showLeagueSchedulingInfo(leagueId) {
-    // Get the selected league's text to parse scheduling info
-    const leagueSelect = document.getElementById('league_id');
-    const selectedOption = leagueSelect.options[leagueSelect.selectedIndex];
-    
-    // Create or update scheduling info alert
-    let alertDiv = document.getElementById('league-scheduling-alert');
-    if (!alertDiv) {
-        alertDiv = document.createElement('div');
-        alertDiv.id = 'league-scheduling-alert';
-        alertDiv.className = 'alert alert-info mt-3';
-        
-        // Insert after the league select
-        const leagueContainer = leagueSelect.closest('.col-md-6');
-        leagueContainer.appendChild(alertDiv);
-    }
-    
-    alertDiv.innerHTML = `
-        <i class="fas fa-info-circle"></i>
-        <strong>League Scheduling:</strong> ${selectedOption.text}<br>
-        <small>Consider selecting team preferred days that align with this league's scheduling preferences.</small>
-    `;
-}
-
-function hideLeagueSchedulingInfo() {
-    const alertDiv = document.getElementById('league-scheduling-alert');
-    if (alertDiv) {
-        alertDiv.remove();
-    }
-}
-
 function generateTeamName() {
     const captain = document.getElementById('captain').value.trim();
     const facilitySelect = document.getElementById('home_facility_id');
-    const facilityName = facilitySelect.options[facilitySelect.selectedIndex]?.text;
+    const selectedOption = facilitySelect.options[facilitySelect.selectedIndex];
     
-    if (captain && facilityName && facilityName !== 'Select a facility...') {
-        // Extract captain's last name (assume last word is last name)
-        const nameParts = captain.split(' ');
-        const lastName = nameParts[nameParts.length - 1];
+    if (captain && selectedOption.value) {
+        const facilityName = selectedOption.getAttribute('data-name');
+        const facilityShort = selectedOption.getAttribute('data-short');
         
-        // Extract facility name (remove location part if present)
-        const facilityNameOnly = facilityName.split(' - ')[0];
+        // Extract last name from captain (assume "First Last" format)
+        const lastName = captain.split(' ').pop();
         
-        const teamName = `${lastName} - ${facilityNameOnly}`;
-        document.getElementById('name').value = teamName;
-    } else {
-        alert('Please enter captain name and select a home facility first.');
+        // Use short name if available and under 15 chars, otherwise use full name
+        const facilityDisplay = (facilityShort && facilityShort.length > 0 && facilityShort.length <= 15) 
+            ? facilityShort 
+            : facilityName;
+        
+        const suggestedName = `${lastName} - ${facilityDisplay}`;
+        document.getElementById('name').value = suggestedName;
+        
+        // Highlight the updated field briefly
+        const nameField = document.getElementById('name');
+        nameField.classList.add('bg-warning', 'bg-opacity-25');
+        setTimeout(() => {
+            nameField.classList.remove('bg-warning', 'bg-opacity-25');
+        }, 1500);
     }
 }
 
-// Form validation
-document.querySelector('form').addEventListener('submit', function(e) {
-    const id = document.getElementById('id').value;
-    const name = document.getElementById('name').value.trim();
-    const leagueId = document.getElementById('league_id').value;
-    const facilityId = document.getElementById('home_facility_id').value;
-    const captain = document.getElementById('captain').value.trim();
-    
-    if (!id || id < 1) {
-        alert('Please enter a valid team ID (must be a positive number)');
-        e.preventDefault();
-        return;
-    }
-    
-    if (!name) {
-        alert('Please enter a team name');
-        e.preventDefault();
-        return;
-    }
-    
-    if (!leagueId) {
-        alert('Please select a league');
-        e.preventDefault();
-        return;
-    }
-    
-    if (!facilityId) {
-        alert('Please select a home facility');
-        e.preventDefault();
-        return;
-    }
-    
-    if (!captain) {
-        alert('Please enter the team captain name');
-        e.preventDefault();
-        return;
-    }
-    
-    // Optional: Warn if no preferred days selected
-    const preferredDays = document.querySelectorAll('input[name="preferred_days"]:checked');
-    if (preferredDays.length === 0) {
-        const proceed = confirm('No preferred playing days selected. The team will be available for scheduling on any day. Continue?');
-        if (!proceed) {
-            e.preventDefault();
-            return;
-        }
-    }
-});
-
-// Update team name suggestion when captain or facility changes
+// Auto-generate team name when both captain and facility are filled
 document.getElementById('captain').addEventListener('blur', function() {
     if (this.value.trim() && document.getElementById('home_facility_id').value && !document.getElementById('name').value.trim()) {
         generateTeamName();
@@ -306,5 +255,62 @@ document.getElementById('home_facility_id').addEventListener('change', function(
         generateTeamName();
     }
 });
+
+// Show facility details when hovering over facility option
+document.getElementById('home_facility_id').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    if (selectedOption.value) {
+        const facilityName = selectedOption.getAttribute('data-name');
+        const facilityShort = selectedOption.getAttribute('data-short');
+        const facilityLocation = selectedOption.getAttribute('data-location');
+        
+        // Update form text with facility details
+        const formText = this.nextElementSibling;
+        let detailText = `Selected: <strong>${facilityName}</strong>`;
+        if (facilityShort) {
+            detailText += ` (${facilityShort})`;
+        }
+        if (facilityLocation) {
+            detailText += ` - ${facilityLocation}`;
+        }
+        formText.innerHTML = detailText;
+    }
+});
+
+// Validation for preferred days - warn if no days selected
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const checkboxes = document.querySelectorAll('input[name="preferred_days"]:checked');
+        
+        if (checkboxes.length === 0) {
+            const proceed = confirm('No preferred days selected. The team will be available for scheduling on any day. Continue?');
+            if (!proceed) {
+                e.preventDefault();
+                return;
+            }
+        }
+    });
+});
+
+// Facility search functionality
+function filterFacilities() {
+    const searchTerm = document.getElementById('facilitySearch').value.toLowerCase();
+    const select = document.getElementById('home_facility_id');
+    const options = select.options;
+    
+    for (let i = 1; i < options.length; i++) { // Skip first option (placeholder)
+        const option = options[i];
+        const facilityName = option.getAttribute('data-name').toLowerCase();
+        const facilityShort = (option.getAttribute('data-short') || '').toLowerCase();
+        const facilityLocation = (option.getAttribute('data-location') || '').toLowerCase();
+        
+        const matches = facilityName.includes(searchTerm) || 
+                       facilityShort.includes(searchTerm) || 
+                       facilityLocation.includes(searchTerm);
+        
+        option.style.display = matches ? '' : 'none';
+    }
+}
 </script>
 {% endblock %}

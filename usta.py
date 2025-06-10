@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any, Tuple
 from datetime import date, datetime, timedelta
 import itertools
+import re
 from collections import defaultdict
 
 # Predefined USTA categories for validation
@@ -94,6 +95,28 @@ class TimeSlot:
         if not isinstance(self.available_courts, int) or self.available_courts < 0:
             raise ValueError(f"Available courts must be a non-negative integer, got: {self.available_courts}")
 
+    # ========== TimeSlot Class Getters ==========
+    def get_time(self) -> str:
+        """Get the time string in HH:MM format"""
+        return self.time
+    
+    def get_available_courts(self) -> int:
+        """Get the number of available courts"""
+        return self.available_courts
+    
+    def get_hour(self) -> int:
+        """Get the hour component of the time (0-23)"""
+        return int(self.time.split(':')[0])
+    
+    def get_minute(self) -> int:
+        """Get the minute component of the time (0-59)"""
+        return int(self.time.split(':')[1])
+    
+    def get_time_as_minutes(self) -> int:
+        """Get time as total minutes from midnight"""
+        hour, minute = self.get_hour(), self.get_minute()
+        return hour * 60 + minute
+
 @dataclass
 class DaySchedule:
     """Represents the schedule for a single day"""
@@ -107,6 +130,40 @@ class DaySchedule:
         for i, slot in enumerate(self.start_times):
             if not isinstance(slot, TimeSlot):
                 raise ValueError(f"All items in start_times must be TimeSlot objects, item {i} is {type(slot)}")
+    
+    # ========== DaySchedule Class Getters ==========
+
+    def get_start_times(self) -> List[TimeSlot]:
+        """Get the list of time slots for this day"""
+        return self.start_times.copy()
+    
+    def get_time_slots_count(self) -> int:
+        """Get the number of time slots for this day"""
+        return len(self.start_times)
+    
+    def get_earliest_time(self) -> Optional[str]:
+        """Get the earliest start time for this day"""
+        if not self.start_times:
+            return None
+        return min(slot.time for slot in self.start_times)
+    
+    def get_latest_time(self) -> Optional[str]:
+        """Get the latest start time for this day"""
+        if not self.start_times:
+            return None
+        return max(slot.time for slot in self.start_times)
+    
+    def get_total_courts_available(self) -> int:
+        """Get total courts available across all time slots"""
+        return sum(slot.available_courts for slot in self.start_times)
+    
+    def get_time_range(self) -> Optional[Tuple[str, str]]:
+        """Get the time range (earliest, latest) for this day"""
+        earliest = self.get_earliest_time()
+        latest = self.get_latest_time()
+        if earliest and latest:
+            return (earliest, latest)
+        return None
     
     def add_time_slot(self, time: str, available_courts: int) -> None:
         """Add a new time slot to this day"""
@@ -143,6 +200,62 @@ class WeeklySchedule:
     friday: DaySchedule = field(default_factory=DaySchedule)
     saturday: DaySchedule = field(default_factory=DaySchedule)
     sunday: DaySchedule = field(default_factory=DaySchedule)
+
+    # ========== WeeklySchedule Class Getters ==========
+
+    def get_monday(self) -> DaySchedule:
+        """Get Monday's schedule"""
+        return self.monday
+    
+    def get_tuesday(self) -> DaySchedule:
+        """Get Tuesday's schedule"""
+        return self.tuesday
+    
+    def get_wednesday(self) -> DaySchedule:
+        """Get Wednesday's schedule"""
+        return self.wednesday
+    
+    def get_thursday(self) -> DaySchedule:
+        """Get Thursday's schedule"""
+        return self.thursday
+    
+    def get_friday(self) -> DaySchedule:
+        """Get Friday's schedule"""
+        return self.friday
+    
+    def get_saturday(self) -> DaySchedule:
+        """Get Saturday's schedule"""
+        return self.saturday
+    
+    def get_sunday(self) -> DaySchedule:
+        """Get Sunday's schedule"""
+        return self.sunday
+    
+    def get_weekdays(self) -> Dict[str, DaySchedule]:
+        """Get weekday schedules (Monday-Friday)"""
+        return {
+            'Monday': self.monday,
+            'Tuesday': self.tuesday,
+            'Wednesday': self.wednesday,
+            'Thursday': self.thursday,
+            'Friday': self.friday
+        }
+    
+    def get_weekends(self) -> Dict[str, DaySchedule]:
+        """Get weekend schedules (Saturday-Sunday)"""
+        return {
+            'Saturday': self.saturday,
+            'Sunday': self.sunday
+        }
+    
+    def get_days_with_availability(self) -> List[str]:
+        """Get list of days that have any availability"""
+        available_days = []
+        for day_name, day_schedule in self.get_all_days().items():
+            if day_schedule.has_availability():
+                available_days.append(day_name)
+        return available_days
+    
     
     def get_day_schedule(self, day: str) -> DaySchedule:
         """Get schedule for a specific day (case-insensitive)"""
@@ -253,6 +366,53 @@ class Line:
         if self.court_number is not None:
             if not isinstance(self.court_number, int) or self.court_number <= 0:
                 raise ValueError(f"Court number must be a positive integer or None, got: {self.court_number}")
+
+    # ========== Line Class Getters ==========
+
+    def get_id(self) -> int:
+        """Get the line ID"""
+        return self.id
+    
+    def get_match_id(self) -> int:
+        """Get the match ID this line belongs to"""
+        return self.match_id
+    
+    def get_line_number(self) -> int:
+        """Get the line number within the match"""
+        return self.line_number
+    
+    def get_facility_id(self) -> Optional[int]:
+        """Get the facility ID (None if unscheduled)"""
+        return self.facility_id
+    
+    def get_date(self) -> Optional[str]:
+        """Get the scheduled date in YYYY-MM-DD format (None if unscheduled)"""
+        return self.date
+    
+    def get_time(self) -> Optional[str]:
+        """Get the scheduled time in HH:MM format (None if unscheduled)"""
+        return self.time
+    
+    def get_court_number(self) -> Optional[int]:
+        """Get the court number (None if not assigned)"""
+        return self.court_number
+    
+    def get_date_time_str(self) -> Optional[str]:
+        """Get combined date and time string (None if unscheduled)"""
+        if self.date and self.time:
+            return f"{self.date} {self.time}"
+        return None
+    
+    def get_scheduling_info(self) -> Dict[str, Any]:
+        """Get all scheduling information as a dictionary"""
+        return {
+            'facility_id': self.facility_id,
+            'date': self.date,
+            'time': self.time,
+            'court_number': self.court_number,
+            'is_scheduled': self.is_scheduled()
+        }
+
     
     def is_scheduled(self) -> bool:
         """Check if the line is scheduled (has date, time, and facility)"""
@@ -295,6 +455,7 @@ class Facility:
     """Represents a tennis facility with scheduling capabilities"""
     id: int
     name: str
+    short_name: Optional[str] = None  # Short name for display (e.g., "VR", "TCA")
     location: Optional[str] = None
     schedule: WeeklySchedule = field(default_factory=WeeklySchedule)
     unavailable_dates: List[str] = field(default_factory=list)  # List of dates in "YYYY-MM-DD" format
@@ -307,6 +468,13 @@ class Facility:
         
         if not isinstance(self.name, str) or not self.name.strip():
             raise ValueError("Facility name must be a non-empty string")
+        
+        # Validate short_name
+        if self.short_name is not None:
+            if not isinstance(self.short_name, str) or not self.short_name.strip():
+                raise ValueError("Short name must be a non-empty string or None")
+            if len(self.short_name) > 10:
+                raise ValueError("Short name must be 10 characters or less")
         
         if self.location is not None and not isinstance(self.location, str):
             raise ValueError("Location must be a string or None")
@@ -334,6 +502,200 @@ class Facility:
                     raise ValueError("Invalid date values")
             except (ValueError, IndexError):
                 raise ValueError(f"Invalid date format: '{date_str}'. Expected YYYY-MM-DD format")
+
+    # ========== Facility Class Getters ==========
+
+    def get_id(self) -> int:
+        """Get the facility ID"""
+        return self.id
+    
+    def get_name(self) -> str:
+        """Get the facility name"""
+        return self.name
+    
+    def get_short_name(self) -> Optional[str]:
+        """Get the short name (abbreviation)"""
+        return self.short_name
+    
+    def get_location(self) -> Optional[str]:
+        """Get the facility location"""
+        return self.location
+    
+    def get_schedule(self) -> WeeklySchedule:
+        """Get the weekly schedule"""
+        return self.schedule
+    
+    def get_unavailable_dates(self) -> List[str]:
+        """Get list of unavailable dates in YYYY-MM-DD format"""
+        return self.unavailable_dates.copy()
+    
+    def get_total_courts(self) -> int:
+        """Get the total number of courts at the facility"""
+        return self.total_courts
+    
+    def get_unavailable_dates_count(self) -> int:
+        """Get the number of unavailable dates"""
+        return len(self.unavailable_dates)
+    
+    def get_facility_summary(self) -> Dict[str, Any]:
+        """Get a summary of facility information"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'short_name': self.short_name,
+            'location': self.location,
+            'total_courts': self.total_courts,
+            'unavailable_dates_count': len(self.unavailable_dates),
+            'has_schedule': any(day.has_availability() for day in self.schedule.get_all_days().values())
+        }
+    
+    def get_available_dates_in_range(self, start_date: str, end_date: str) -> List[str]:
+        """Get all available dates in a date range"""
+        from datetime import datetime, timedelta
+        
+        start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+        end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+        
+        available_dates = []
+        current_dt = start_dt
+        while current_dt <= end_dt:
+            date_str = current_dt.strftime('%Y-%m-%d')
+            if self.is_available_on_date(date_str):
+                available_dates.append(date_str)
+            current_dt += timedelta(days=1)
+        
+        return available_dates
+
+
+    def generate_short_name(self, max_length: int = 10) -> str:
+        """
+        Generate a short name (abbreviation) from the facility's full name.
+        
+        Args:
+            max_length: Maximum length for the short name (default 10, matching validation)
+            
+        Returns:
+            A short name/abbreviation of the facility name
+            
+        Examples:
+            "Valley Ranch Tennis Club" -> "VRTC"
+            "Tennis Center of Albuquerque" -> "TCA"
+            "Rio Rancho Tennis Complex" -> "RRTC"
+            "Sandia Peak Tennis" -> "SPT"
+        """
+        if not self.name or not self.name.strip():
+            return "UNK"  # Unknown
+        
+        # Clean and normalize the name
+        name = self.name.strip()
+        
+        # Remove common words that don't add meaning to abbreviations
+        stop_words = {
+            'the', 'of', 'at', 'in', 'on', 'and', 'or', 'but', 'for', 'with',
+            'a', 'an', 'de', 'del', 'la', 'las', 'los', 'el'
+        }
+        
+        # Split into words and filter
+        words = re.findall(r'\b\w+\b', name.lower())
+        meaningful_words = [word for word in words if word not in stop_words]
+        
+        # If we filtered out everything, use original words
+        if not meaningful_words:
+            meaningful_words = re.findall(r'\b\w+\b', name.lower())
+        
+        # Strategy 1: Try initials of meaningful words
+        if len(meaningful_words) <= 5:  # Reasonable number of words
+            initials = ''.join(word[0].upper() for word in meaningful_words)
+            if len(initials) <= max_length:
+                return initials
+        
+        # Strategy 2: Try initials of first few words if too many
+        if len(meaningful_words) > 5:
+            first_words = meaningful_words[:4]  # Take first 4 words
+            initials = ''.join(word[0].upper() for word in first_words)
+            if len(initials) <= max_length:
+                return initials
+        
+        # Strategy 3: Use first word + initials of rest
+        if len(meaningful_words) >= 2:
+            first_word = meaningful_words[0]
+            rest_initials = ''.join(word[0].upper() for word in meaningful_words[1:])
+            
+            # Try different combinations
+            combinations = [
+                first_word[:3].upper() + rest_initials,  # First 3 chars + initials
+                first_word[:4].upper() + rest_initials,  # First 4 chars + initials
+                first_word[:2].upper() + rest_initials,  # First 2 chars + initials
+            ]
+            
+            for combo in combinations:
+                if len(combo) <= max_length:
+                    return combo
+        
+        # Strategy 4: Truncate first word if single word or nothing else works
+        if len(meaningful_words) >= 1:
+            first_word = meaningful_words[0].upper()
+            if len(first_word) <= max_length:
+                return first_word
+            else:
+                return first_word[:max_length]
+        
+        # Fallback: Just truncate the original name
+        clean_name = re.sub(r'[^A-Za-z0-9]', '', name).upper()
+        return clean_name[:max_length] if clean_name else "FACILITY"
+    
+    def set_short_name(self, short_name: Optional[str]) -> None:
+        """
+        Set the short name, with validation.
+        
+        Args:
+            short_name: The short name to set, or None to clear it
+        """
+        if short_name is not None:
+            if not isinstance(short_name, str) or not short_name.strip():
+                raise ValueError("Short name must be a non-empty string or None")
+            if len(short_name) > 10:
+                raise ValueError("Short name must be 10 characters or less")
+        
+        self.short_name = short_name
+    
+    def auto_generate_short_name(self) -> str:
+        """
+        Generate and set a short name if one doesn't exist.
+        
+        Returns:
+            The generated short name
+        """
+        if self.short_name is None:
+            self.short_name = self.generate_short_name()
+        return self.short_name
+    
+    def get_display_name(self) -> str:
+        """Get the display name (short_name if available, otherwise generate one)"""
+        if self.short_name:
+            return self.short_name
+        else:
+            # Auto-generate short name if not set
+            return self.generate_short_name()
+    
+    def get_full_display_name(self) -> str:
+        """Get full display name with both names if short_name exists"""
+        current_short_name = self.short_name or self.generate_short_name()
+        if current_short_name and current_short_name != self.name:
+            return f"{current_short_name} ({self.name})"
+        return self.name
+    
+    def ensure_short_name(self) -> str:
+        """
+        Ensure the facility has a short name, generating one if needed.
+        This modifies the facility object if short_name was None.
+        
+        Returns:
+            The short name (existing or newly generated)
+        """
+        if self.short_name is None:
+            self.short_name = self.generate_short_name()
+        return self.short_name
     
     def add_unavailable_date(self, date_str: str) -> None:
         """Add a date to the unavailable dates list"""
@@ -510,6 +872,7 @@ class Facility:
         # Extract basic facility info
         facility_id = data.get('id')
         name = data.get('name')
+        short_name = data.get('short_name')
         location = data.get('location')
         total_courts = data.get('total_courts', 0)
         
@@ -522,9 +885,19 @@ class Facility:
             raise ValueError(f"Facility '{name}' (ID: {facility_id}) is missing required 'unavailable_dates' field")
         
         # Create the facility with basic info first
-        facility = cls(id=facility_id, name=name, location=location, total_courts=total_courts)
+        facility = cls(
+            id=facility_id, 
+            name=name, 
+            short_name=short_name,
+            location=location, 
+            total_courts=total_courts
+        )
         
-        # Process schedule - now required
+        # Auto-generate short_name if not provided
+        if facility.short_name is None:
+            facility.auto_generate_short_name()
+        
+        # Process schedule data - now required
         schedule_data = data['schedule']
         if not isinstance(schedule_data, dict):
             raise ValueError(f"Facility '{name}' schedule must be a dictionary with day names as keys")
@@ -587,6 +960,11 @@ class Facility:
             'id': self.id,
             'name': self.name
         }
+        
+        # Include short_name if present (or generate one)
+        current_short_name = self.short_name or self.generate_short_name()
+        if current_short_name:
+            result['short_name'] = current_short_name
         
         if self.location:
             result['location'] = self.location
@@ -740,6 +1118,113 @@ class League:
                     pass  # Date format validation already handled above
                 else:
                     raise
+
+    # ========== League Class Getters ==========
+
+    def get_id(self) -> int:
+        """Get the league ID"""
+        return self.id
+    
+    def get_name(self) -> str:
+        """Get the league name"""
+        return self.name
+    
+    def get_year(self) -> int:
+        """Get the league year"""
+        return self.year
+    
+    def get_section(self) -> str:
+        """Get the USTA section"""
+        return self.section
+    
+    def get_region(self) -> str:
+        """Get the USTA region"""
+        return self.region
+    
+    def get_age_group(self) -> str:
+        """Get the age group"""
+        return self.age_group
+    
+    def get_division(self) -> str:
+        """Get the division"""
+        return self.division
+    
+    def get_num_lines_per_match(self) -> int:
+        """Get the number of lines per match"""
+        return self.num_lines_per_match
+    
+    def get_num_matches(self) -> int:
+        """Get the number of matches per team"""
+        return self.num_matches
+    
+    def get_allow_split_lines(self) -> bool:
+        """Get whether lines can be split across time slots"""
+        return self.allow_split_lines
+    
+    def get_preferred_days(self) -> List[str]:
+        """Get the list of preferred scheduling days"""
+        return self.preferred_days.copy()
+    
+    def get_backup_days(self) -> List[str]:
+        """Get the list of backup scheduling days"""
+        return self.backup_days.copy()
+    
+    def get_start_date(self) -> Optional[str]:
+        """Get the league start date in YYYY-MM-DD format"""
+        return self.start_date
+    
+    def get_end_date(self) -> Optional[str]:
+        """Get the league end date in YYYY-MM-DD format"""
+        return self.end_date
+    
+    def get_preferred_days_count(self) -> int:
+        """Get the number of preferred days"""
+        return len(self.preferred_days)
+    
+    def get_backup_days_count(self) -> int:
+        """Get the number of backup days"""
+        return len(self.backup_days)
+    
+    def get_total_scheduling_days_count(self) -> int:
+        """Get the total number of available scheduling days"""
+        return len(self.get_all_scheduling_days())
+    
+    def get_league_type(self) -> str:
+        """Get league type based on division (e.g., 'Men', 'Women', 'Mixed')"""
+        if 'Men' in self.division:
+            return 'Men'
+        elif 'Women' in self.division:
+            return 'Women'
+        elif 'Mixed' in self.division:
+            return 'Mixed'
+        else:
+            return 'Unknown'
+    
+    def get_skill_level(self) -> str:
+        """Extract skill level from division (e.g., '3.0', '4.5')"""
+        import re
+        match = re.search(r'(\d+\.?\d*)', self.division)
+        return match.group(1) if match else 'Unknown'
+    
+    def get_league_description(self) -> str:
+        """Get a descriptive string for the league"""
+        return f"{self.year} {self.region} {self.age_group} {self.division}"
+    
+    def get_date_range_info(self) -> Dict[str, Any]:
+        """Get information about the league's date range"""
+        info = {
+            'start_date': self.start_date,
+            'end_date': self.end_date,
+            'has_dates': bool(self.start_date and self.end_date),
+            'duration_days': self.get_season_duration_days(),
+            'duration_weeks': self.get_season_duration_weeks()
+        }
+        if info['has_dates']:
+            info['status'] = self.get_season_status()
+        return info
+    
+
+
     
     def get_total_courts_needed(self) -> int:
         """Calculate total courts needed for a match (lines per match)"""
@@ -985,6 +1470,8 @@ class League:
         """
         Generate a list of unscheduled Match objects from the list of teams.
         
+        Updated to work with teams that have string facility names instead of facility IDs.
+        
         This algorithm ensures:
         - Fair distribution of matches for each team
         - Balanced home/away games
@@ -1099,12 +1586,16 @@ class League:
         matches = []
         for i, (home_team, visitor_team) in enumerate(selected_pairs):
             match_id = base_match_id + i + 1  # Sequential: base+1, base+2, base+3, etc.
+            
+            # For matches, we still need facility_id for scheduling, but we can derive it
+            # from the home team's facility name. For now, we'll leave facility_id as None
+            # since this is for unscheduled matches, and it will be resolved during scheduling.
             match = Match(
                 id=match_id,
                 league_id=self.id,
                 home_team_id=home_team.id,
                 visitor_team_id=visitor_team.id,
-                facility_id=home_team.home_facility_id,  # Use home team's facility
+                facility_id=None,  # Will be resolved during scheduling based on home team's facility
                 date=None,  # Unscheduled
                 time=None   # Unscheduled
             )
@@ -1112,6 +1603,68 @@ class League:
         
         return matches
 
+    def resolve_facility_id_from_team_facility_name(self, facility_name: str, facilities_list: List['Facility']) -> Optional[int]:
+        """
+        Helper method to resolve a facility ID from a team's home_facility name
+        
+        Args:
+            facility_name: The facility name from the team
+            facilities_list: List of available facilities to search
+            
+        Returns:
+            Facility ID if found, None if not found
+        """
+        for facility in facilities_list:
+            if (facility.name == facility_name or 
+                (facility.short_name and facility.short_name == facility_name)):
+                return facility.id
+        return None
+
+
+    def set_home_facility_for_matches(self, matches: List['Match'], teams: List['Team'], 
+                                    facilities_list: List['Facility']) -> List['Match']:
+        """
+        Set the facility_id for matches based on home team's facility name
+        
+        Args:
+            matches: List of matches to update
+            teams: List of teams (to look up facility names)
+            facilities_list: List of facilities (to resolve IDs)
+            
+        Returns:
+            List of matches with facility_id set where possible
+        """
+        # Create a mapping of team_id to team for quick lookup
+        team_map = {team.id: team for team in teams}
+        
+        updated_matches = []
+        for match in matches:
+            # Find the home team
+            home_team = team_map.get(match.home_team_id)
+            if home_team:
+                # Resolve facility ID from facility name
+                facility_id = self.resolve_facility_id_from_team_facility_name(
+                    home_team.home_facility, facilities_list
+                )
+                
+                # Create new match with facility_id set
+                updated_match = Match(
+                    id=match.id,
+                    league_id=match.league_id,
+                    home_team_id=match.home_team_id,
+                    visitor_team_id=match.visitor_team_id,
+                    facility_id=facility_id,  # Now resolved
+                    date=match.date,
+                    time=match.time,
+                    lines=match.lines.copy()
+                )
+                updated_matches.append(updated_match)
+            else:
+                # Keep original match if home team not found
+                updated_matches.append(match)
+        
+        return updated_matches
+    
     def _generate_deterministic_start_id(self) -> int:
         """
         Generate a deterministic starting match ID for this league.
@@ -1147,15 +1700,16 @@ class League:
         
         return base_id
 
+
 @dataclass
 class Team:
     """Represents a tennis team"""
     id: int
     name: str
     league: League
-    home_facility_id: int
+    home_facility: Facility  # CHANGED: from str to Facility object
     captain: Optional[str] = None
-    preferred_days: List[str] = field(default_factory=list)  # Preferred days for scheduling
+    preferred_days: List[str] = field(default_factory=list)
     
     def __post_init__(self):
         """Validate team data"""
@@ -1168,8 +1722,8 @@ class Team:
         if not isinstance(self.league, League):
             raise ValueError("League must be a League object")
         
-        if not isinstance(self.home_facility_id, int) or self.home_facility_id <= 0:
-            raise ValueError(f"Home facility ID must be a positive integer, got: {self.home_facility_id}")
+        if not isinstance(self.home_facility, Facility):  # CHANGED: validate Facility object
+            raise ValueError("Home facility must be a Facility object")
         
         if self.captain is not None and (not isinstance(self.captain, str) or not self.captain.strip()):
             raise ValueError("Captain must be a non-empty string or None")
@@ -1183,6 +1737,86 @@ class Team:
         for day in self.preferred_days:
             if not isinstance(day, str) or day not in valid_days:
                 raise ValueError(f"Invalid preferred day: {day}. Must be one of: {valid_days}")
+
+    # ========== Team Class Getters ==========
+
+    def get_id(self) -> int:
+        """Get the team ID"""
+        return self.id
+    
+    def get_name(self) -> str:
+        """Get the team name"""
+        return self.name
+    
+    def get_league(self) -> League:
+        """Get the league this team belongs to"""
+        return self.league
+    
+    def get_home_facility(self) -> Facility:
+        """Get the home facility object"""
+        return self.home_facility
+    
+    def get_captain(self) -> Optional[str]:
+        """Get the team captain name"""
+        return self.captain
+    
+    def get_preferred_days(self) -> List[str]:
+        """Get the list of preferred playing days"""
+        return self.preferred_days.copy()
+    
+    def get_league_id(self) -> int:
+        """Get the ID of the league this team belongs to"""
+        return self.league.id
+    
+    def get_home_facility_id(self) -> int:
+        """Get the ID of the home facility"""
+        return self.home_facility.id
+    
+    def get_home_facility_name(self) -> str:
+        """Get the name of the home facility"""
+        return self.home_facility.name
+    
+    def get_home_facility_short_name(self) -> Optional[str]:
+        """Get the short name of the home facility"""
+        return self.home_facility.short_name
+    
+    def get_preferred_days_count(self) -> int:
+        """Get the number of preferred days"""
+        return len(self.preferred_days)
+    
+    def get_league_year(self) -> int:
+        """Get the year of the league this team plays in"""
+        return self.league.year
+    
+    def get_league_division(self) -> str:
+        """Get the division of the league this team plays in"""
+        return self.league.division
+    
+    def get_league_region(self) -> str:
+        """Get the region of the league this team plays in"""
+        return self.league.region
+    
+    def get_team_summary(self) -> Dict[str, Any]:
+        """Get a summary of team information"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'captain': self.captain,
+            'league_id': self.league.id,
+            'league_name': self.league.name,
+            'league_division': self.league.division,
+            'home_facility_id': self.home_facility.id,
+            'home_facility_name': self.home_facility.name,
+            'preferred_days_count': len(self.preferred_days),
+            'preferred_days': self.preferred_days.copy()
+        }
+    
+    def get_full_team_description(self) -> str:
+        """Get a full descriptive string for the team"""
+        return f"{self.name} ({self.league.division} - {self.home_facility.name})"
+
+
+    
     
     def can_play_on_day(self, day: str) -> bool:
         """Check if the team can play on a specific day"""
@@ -1291,6 +1925,35 @@ class Team:
         good_days = list(team_preferred & league_backup)
         
         return best_days + good_days
+    
+    def get_home_facility_display(self) -> str:
+        """Get a display-friendly version of the home facility name"""
+        return self.home_facility.name
+
+
+    def matches_facility_name(self, facility_name: str, 
+                            check_short_name: bool = True,
+                            case_sensitive: bool = False) -> bool:
+        """Check if this team's home facility matches a given facility name"""
+        # Check against main name
+        if not case_sensitive:
+            name_match = self.home_facility.name.lower() == facility_name.lower()
+        else:
+            name_match = self.home_facility.name == facility_name
+        
+        if name_match:
+            return True
+        
+        # Check against short name if enabled
+        if check_short_name and self.home_facility.short_name:
+            if not case_sensitive:
+                return self.home_facility.short_name.lower() == facility_name.lower()
+            else:
+                return self.home_facility.short_name == facility_name
+        
+        return False
+
+
 
 @dataclass
 class Match:
@@ -1363,7 +2026,122 @@ class Match:
                 raise ValueError(f"All lines must be Line objects, line {i} is {type(line)}")
             if line.match_id != self.id:
                 raise ValueError(f"Line {i} match_id ({line.match_id}) doesn't match this match ID ({self.id})")
+
+    # ========== Match Class Getters ==========
+
+    def get_id(self) -> int:
+        """Get the match ID"""
+        return self.id
     
+    def get_league_id(self) -> int:
+        """Get the league ID"""
+        return self.league_id
+    
+    def get_home_team_id(self) -> int:
+        """Get the home team ID"""
+        return self.home_team_id
+    
+    def get_visitor_team_id(self) -> int:
+        """Get the visitor team ID"""
+        return self.visitor_team_id
+    
+    def get_facility_id(self) -> Optional[int]:
+        """Get the facility ID (None if unscheduled)"""
+        return self.facility_id
+    
+    def get_date(self) -> Optional[str]:
+        """Get the match date in YYYY-MM-DD format (None if unscheduled)"""
+        return self.date
+    
+    def get_time(self) -> Optional[str]:
+        """Get the match time in HH:MM format (None if unscheduled)"""
+        return self.time
+    
+    def get_lines(self) -> List[Line]:
+        """Get the list of lines for this match"""
+        return self.lines.copy()
+    
+    def get_lines_count(self) -> int:
+        """Get the number of lines in this match"""
+        return len(self.lines)
+    
+    def get_scheduled_lines_count(self) -> int:
+        """Get the number of scheduled lines"""
+        return len(self.get_scheduled_lines())
+    
+    def get_unscheduled_lines_count(self) -> int:
+        """Get the number of unscheduled lines"""
+        return len(self.get_unscheduled_lines())
+    
+    def get_date_time_str(self) -> Optional[str]:
+        """Get combined date and time string (None if unscheduled)"""
+        if self.date and self.time:
+            return f"{self.date} {self.time}"
+        return None
+    
+    def get_team_ids(self) -> Tuple[int, int]:
+        """Get both team IDs as a tuple (home, visitor)"""
+        return (self.home_team_id, self.visitor_team_id)
+    
+    def get_all_line_ids(self) -> List[int]:
+        """Get list of all line IDs"""
+        return [line.id for line in self.lines]
+    
+    def get_scheduled_line_ids(self) -> List[int]:
+        """Get list of scheduled line IDs"""
+        return [line.id for line in self.lines if line.is_scheduled()]
+    
+    def get_unscheduled_line_ids(self) -> List[int]:
+        """Get list of unscheduled line IDs"""
+        return [line.id for line in self.lines if line.is_unscheduled()]
+    
+    def get_lines_by_number(self) -> Dict[int, Line]:
+        """Get lines organized by line number"""
+        return {line.line_number: line for line in self.lines}
+    
+    def get_match_summary(self) -> Dict[str, Any]:
+        """Get a comprehensive summary of match information"""
+        return {
+            'id': self.id,
+            'league_id': self.league_id,
+            'home_team_id': self.home_team_id,
+            'visitor_team_id': self.visitor_team_id,
+            'facility_id': self.facility_id,
+            'date': self.date,
+            'time': self.time,
+            'is_scheduled': self.is_scheduled(),
+            'status': self.get_status(),
+            'lines_count': len(self.lines),
+            'scheduled_lines_count': self.get_scheduled_lines_count(),
+            'unscheduled_lines_count': self.get_unscheduled_lines_count(),
+            'line_scheduling_status': self.get_line_scheduling_status(),
+            'missing_fields': self.get_missing_fields()
+        }
+    
+    def get_earliest_line_time(self) -> Optional[str]:
+        """Get the earliest scheduled line time"""
+        scheduled_times = [line.time for line in self.lines if line.time]
+        return min(scheduled_times) if scheduled_times else None
+    
+    def get_latest_line_time(self) -> Optional[str]:
+        """Get the latest scheduled line time"""
+        scheduled_times = [line.time for line in self.lines if line.time]
+        return max(scheduled_times) if scheduled_times else None
+    
+    def get_unique_facilities_used(self) -> List[int]:
+        """Get list of unique facility IDs used by lines"""
+        facility_ids = [line.facility_id for line in self.lines if line.facility_id]
+        return list(set(facility_ids))
+    
+    def get_unique_dates_used(self) -> List[str]:
+        """Get list of unique dates used by lines"""
+        dates = [line.date for line in self.lines if line.date]
+        return list(set(dates))
+    
+    def get_unique_times_used(self) -> List[str]:
+        """Get list of unique times used by lines"""
+        times = [line.time for line in self.lines if line.time]
+        return list(set(times))
     # ========== Basic Status Methods ==========
     
     def is_scheduled(self) -> bool:

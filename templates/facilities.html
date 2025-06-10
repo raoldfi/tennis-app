@@ -33,8 +33,12 @@
                     <tr>
                         <td><span class="badge bg-secondary">{{ facility.id }}</span></td>
                         <td>
-                            <strong>{{ facility.name }}</strong>
+                            <strong>{{ facility.get_display_name() }}</strong>
+                            {% if facility.short_name and facility.short_name != facility.name %}
+                            <div class="small text-muted">{{ facility.name }}</div>
+                            {% endif %}
                         </td>
+                        
                         <td>
                             {% if facility.location %}
                             <i class="fas fa-map-marker-alt text-muted"></i>

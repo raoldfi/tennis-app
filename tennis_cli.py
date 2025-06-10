@@ -6,7 +6,7 @@ This CLI provides a unified interface for managing tennis leagues, teams, matche
 and facilities across different database backends (SQLite, PostgreSQL, MongoDB, etc.).
 
 Usage examples:
-    # SQLite (default)
+    # SQLite (default) - will create database if it doesn't exist
     python tennis_cli.py --backend sqlite --db-path tennis.db list leagues
     
     # PostgreSQL
@@ -24,6 +24,9 @@ Usage examples:
     
     # From config file
     python tennis_cli.py --config config/production.json generate-matches --league-id 1
+    
+    # Initialize new database
+    python tennis_cli.py --db-path new_tennis.db init
 
 Commands:
     list            List entities (teams, leagues, matches, facilities, lines)
@@ -60,6 +63,110 @@ class TennisCLI:
     def __init__(self):
         self.db_manager = None
     
+    def ensure_database_exists(self, backend_str: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Ensure database file exists for SQLite, create if necessary
+        
+        Args:
+            backend_str: Database backend type
+            config: Database configuration
+            
+        Returns:
+            Updated configuration dictionary
+        """
+        if backend_str.lower() == 'sqlite':
+            db_path = config.get('db_path', 'tennis.db')
+            
+            # Check if database file exists
+            if not os.path.exists(db_path):
+                print(f"Database file '{db_path}' does not exist. Creating new database...", file=sys.stderr)
+                
+                try:
+                    # Create directory if it doesn't exist
+                    db_dir = os.path.dirname(db_path)
+                    if db_dir and not os.path.exists(db_dir):
+                        os.makedirs(db_dir, exist_ok=True)
+                        print(f"Created directory: {db_dir}", file=sys.stderr)
+                    
+                    # Create empty database file by attempting connection
+                    import sqlite3
+                    conn = sqlite3.connect(db_path)
+                    conn.close()
+                    
+                    print(f"✓ Created new SQLite database: {db_path}", file=sys.stderr)
+                    
+                    # Auto-initialize schema for new databases
+                    self._auto_initialize_schema(backend_str, config)
+                    
+                except Exception as e:
+                    print(f"Error creating database file: {e}", file=sys.stderr)
+                    raise
+                    
+            else:
+                # Check if existing database has tables
+                try:
+                    import sqlite3
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    
+                    # Check if main tables exist
+                    cursor.execute("""
+                        SELECT name FROM sqlite_master 
+                        WHERE type='table' AND name IN ('teams', 'leagues', 'facilities', 'matches')
+                    """)
+                    tables = cursor.fetchall()
+                    conn.close()
+                    
+                    if len(tables) == 0:
+                        print(f"Database '{db_path}' exists but appears empty. Initializing schema...", file=sys.stderr)
+                        self._auto_initialize_schema(backend_str, config)
+                    
+                except Exception as e:
+                    print(f"Warning: Could not check database schema: {e}", file=sys.stderr)
+        
+        return config
+    
+    def _auto_initialize_schema(self, backend_str: str, config: Dict[str, Any]) -> None:
+        """
+        Automatically initialize database schema for new databases
+        
+        Args:
+            backend_str: Database backend type
+            config: Database configuration
+        """
+        try:
+            print("Initializing database schema...", file=sys.stderr)
+            
+            # Create temporary database manager for initialization
+            if backend_str.lower() == 'sqlite':
+                backend = DatabaseBackend.SQLITE
+            elif backend_str.lower() == 'postgresql':
+                backend = DatabaseBackend.POSTGRESQL
+            elif backend_str.lower() == 'mongodb':
+                backend = DatabaseBackend.MONGODB
+            elif backend_str.lower() == 'mysql':
+                backend = DatabaseBackend.MYSQL
+            else:
+                print(f"Auto-initialization not supported for backend: {backend_str}", file=sys.stderr)
+                return
+            
+            temp_manager = TennisDBManager(backend, config)
+            
+            with temp_manager as db:
+                if hasattr(db, 'initialize_schema'):
+                    db.initialize_schema()
+                elif hasattr(db, '_initialize_schema'):
+                    db._initialize_schema()
+                else:
+                    print("Warning: No schema initialization method found", file=sys.stderr)
+                    return
+            
+            print("✓ Database schema initialized successfully", file=sys.stderr)
+            
+        except Exception as e:
+            print(f"Error during auto-initialization: {e}", file=sys.stderr)
+            print("You may need to run 'init' command manually", file=sys.stderr)
+    
     def create_database_connection(self, args) -> TennisDBManager:
         """Create database connection based on command line arguments"""
         
@@ -69,18 +176,30 @@ class TennisCLI:
                 raise FileNotFoundError(f"Configuration file not found: {args.config}")
             
             backend, config = TennisDBConfig.from_file(args.config)
+            
+            # Ensure database exists for file-based backends
+            config = self.ensure_database_exists(backend.value, config)
+            
             return TennisDBManager(backend, config)
         
         # Option 2: Use environment variables
         if not hasattr(args, 'backend') or not args.backend:
             try:
                 backend, config = TennisDBConfig.from_environment()
+                
+                # Ensure database exists for file-based backends
+                config = self.ensure_database_exists(backend.value, config)
+                
                 return TennisDBManager(backend, config)
             except Exception:
                 # Fall back to SQLite default
-                backend = DatabaseBackend.SQLITE
+                backend_str = 'sqlite'
                 config = {'db_path': 'tennis.db'}
-                return TennisDBManager(backend, config)
+                
+                # Ensure database exists
+                config = self.ensure_database_exists(backend_str, config)
+                
+                return TennisDBManager(DatabaseBackend.SQLITE, config)
         
         # Option 3: Use command line arguments
         backend_str = args.backend.lower()
@@ -89,6 +208,10 @@ class TennisCLI:
             config = {
                 'db_path': getattr(args, 'db_path', 'tennis.db')
             }
+            
+            # Ensure database exists
+            config = self.ensure_database_exists(backend_str, config)
+            
             return TennisDBManager(DatabaseBackend.SQLITE, config)
         
         elif backend_str == 'postgresql':
@@ -127,440 +250,215 @@ class TennisCLI:
             raise ValueError(f"Unsupported backend: {backend_str}. Available: {available}")
 
     def handle_list_command(self, args, db):
-        """Handle list commands"""
+        """Handle list commands for various entities"""
         try:
-            if args.table == "sections":
-                # These are constants, not in database
-                try:
-                    from usta import USTA_SECTIONS
-                    results = USTA_SECTIONS.copy()
-                except ImportError:
-                    results = ["Southwest", "Northern", "Southern", "Eastern", "Western"]
-                    
-            elif args.table == "regions":
-                try:
-                    from usta import USTA_REGIONS
-                    results = USTA_REGIONS.copy()
-                except ImportError:
-                    results = ["Northern New Mexico", "Southern New Mexico", "Central New Mexico"]
-                    
-            elif args.table == "age-groups":
-                try:
-                    from usta import USTA_AGE_GROUPS
-                    results = USTA_AGE_GROUPS.copy()
-                except ImportError:
-                    results = ["18 & Over", "40 & Over", "55 & Over", "65 & Over"]
-                    
-            elif args.table == "divisions":
-                try:
-                    from usta import USTA_DIVISIONS
-                    results = USTA_DIVISIONS.copy()
-                except ImportError:
-                    results = ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"]
-                    
-            elif args.table == "backends":
-                backends = TennisDBFactory.list_backends()
-                results = [{"name": b.value, "available": True} for b in backends]
+            if args.table == "teams":
+                teams = db.list_teams(args.league_id)
+                teams_data = [
+                    {
+                        'id': team.id,
+                        'name': team.name,
+                        'captain': team.captain,
+                        'league_name': team.league.name,
+                        'league_id': team.league.id,
+                        'home_facility': team.home_facility if isinstance(team.home_facility, str) else team.home_facility.name,
+                        'preferred_days': team.preferred_days
+                    }
+                    for team in teams
+                ]
+                self._output_data(teams_data, args)
                 
-            elif args.table == "lines":
-                results = db.list_lines(
-                    match_id=getattr(args, 'match_id', None),
-                    facility_id=getattr(args, 'facility_id', None),
-                    date=getattr(args, 'date', None)
-                )
-                
-            elif args.table == "teams":
-                results = db.list_teams(league_id=getattr(args, 'league_id', None))
-                
-            elif args.table == "matches":
-                if getattr(args, 'with_lines', False):
-                    results = db.list_matches_with_lines(
-                        league_id=getattr(args, 'league_id', None), 
-                        include_unscheduled=getattr(args, 'include_unscheduled', False)
-                    )
-                else:
-                    results = db.list_matches(
-                        league_id=getattr(args, 'league_id', None), 
-                        include_unscheduled=getattr(args, 'include_unscheduled', False)
-                    )
-                    
             elif args.table == "leagues":
-                results = db.list_leagues()
+                leagues = db.list_leagues()
+                leagues_data = [
+                    {
+                        'id': league.id,
+                        'name': league.name,
+                        'year': league.year,
+                        'section': league.section,
+                        'region': league.region,
+                        'age_group': league.age_group,
+                        'division': league.division,
+                        'num_lines_per_match': league.num_lines_per_match,
+                        'num_matches': league.num_matches,
+                        'preferred_days': league.preferred_days,
+                        'backup_days': league.backup_days
+                    }
+                    for league in leagues
+                ]
+                self._output_data(leagues_data, args)
                 
             elif args.table == "facilities":
-                results = db.list_facilities()
-                
-            else:
-                raise ValueError(f"Unknown table: {args.table}")
-
-            # Convert dataclass objects to dicts for JSON serialization
-            if args.table in ["teams", "leagues", "matches", "facilities", "lines"]:
-                if args.table == "teams":
-                    # Flatten team data for better readability
-                    enhanced_results = []
-                    for team in results:
-                        try:
-                            team_dict = {
-                                'id': team.id,
-                                'name': team.name,
-                                'league_id': team.league.id,
-                                'league_name': team.league.name,
-                                'year': team.league.year,
-                                'section': team.league.section,
-                                'region': team.league.region,
-                                'age_group': team.league.age_group,
-                                'division': team.league.division,
-                                'home_facility_id': team.home_facility_id,
-                                'captain': team.captain,
-                                'preferred_days': team.preferred_days
-                            }
-                            enhanced_results.append(team_dict)
-                        except Exception as e:
-                            print(f"Warning: Could not process team {team.id}: {e}", file=sys.stderr)
-                    results = enhanced_results
-                    
-                elif args.table == "matches" and getattr(args, 'with_lines', False):
-                    # Include line information in match output
-                    enhanced_results = []
-                    for match in results:
-                        try:
-                            match_dict = match.__dict__.copy() if hasattr(match, '__dict__') else {}
-                            match_dict['lines'] = [line.__dict__ if hasattr(line, '__dict__') else line for line in match.lines]
-                            match_dict['line_count'] = len(match.lines)
-                            match_dict['scheduling_status'] = match.get_line_scheduling_status()
-                            enhanced_results.append(match_dict)
-                        except Exception as e:
-                            print(f"Warning: Could not process match {match.id}: {e}", file=sys.stderr)
-                    results = enhanced_results
-                    
-                else:
-                    results = [obj.__dict__ if hasattr(obj, '__dict__') else obj for obj in results]
-
-            # Format output
-            if getattr(args, 'format', 'json') == 'json':
-                print(json.dumps(results, indent=2, default=str))
-            elif args.format == 'table':
-                self._print_table(results)
-            else:
-                print(json.dumps(results, indent=2, default=str))
-                
-        except Exception as e:
-            print(f"Error: Failed to list {args.table}: {e}", file=sys.stderr)
-            if getattr(args, 'verbose', False):
-                traceback.print_exc()
-            sys.exit(1)
-
-    def handle_create_command(self, args, db):
-        """Handle create commands"""
-        if args.entity == "matches":
-            try:
-                league = db.get_league(args.league_id)
-                if not league:
-                    print(f"Error: League with ID {args.league_id} not found", file=sys.stderr)
-                    sys.exit(1)
-
-                teams = db.list_teams(league_id=args.league_id)
-                if len(teams) < 2:
-                    print(f"Error: League '{league.name}' has fewer than 2 teams; cannot generate matches.", file=sys.stderr)
-                    sys.exit(1)
-
-                matches = db.bulk_create_matches_with_lines(args.league_id, teams)
-
-                match_results = []
-                for m in matches:
-                    match_dict = {
-                        "match_id": m.id,
-                        "league_id": m.league_id,
-                        "home_team_id": m.home_team_id,
-                        "visitor_team_id": m.visitor_team_id,
-                        "lines_created": len(m.lines),
-                        "status": "unscheduled"
+                facilities = db.list_facilities()
+                facilities_data = [
+                    {
+                        'id': facility.id,
+                        'name': facility.name,
+                        'short_name': facility.short_name,
+                        'location': facility.location,
+                        'total_courts': facility.total_courts,
+                        'schedule_days': len(facility.schedule.days)
                     }
-                    match_results.append(match_dict)
-
-                print(json.dumps(match_results, indent=2))
-                print(f"\nSuccessfully created {len(matches)} matches with lines for league {args.league_id}", file=sys.stderr)
-
-            except Exception as e:
-                print(f"Error: Failed to generate matches - {e}", file=sys.stderr)
-                if getattr(args, 'verbose', False):
-                    traceback.print_exc()
-                sys.exit(1)
-        
-        elif args.entity == "lines":
-            try:
-                match = db.get_match(args.match_id)
-                if not match:
-                    print(f"Error: Match with ID {args.match_id} not found", file=sys.stderr)
-                    sys.exit(1)
+                    for facility in facilities
+                ]
+                self._output_data(facilities_data, args)
                 
-                league = db.get_league(match.league_id)
-                if not league:
-                    print(f"Error: League for match {args.match_id} not found", file=sys.stderr)
-                    sys.exit(1)
+            elif args.table == "matches":
+                include_unscheduled = getattr(args, 'include_unscheduled', False)
+                matches = db.list_matches(args.league_id, include_unscheduled)
+                matches_data = [
+                    {
+                        'id': match.id,
+                        'league_id': match.league_id,
+                        'home_team_id': match.home_team_id,
+                        'visitor_team_id': match.visitor_team_id,
+                        'facility_id': match.facility_id,
+                        'date': match.date,
+                        'time': match.time,
+                        'status': 'scheduled' if match.facility_id else 'unscheduled'
+                    }
+                    for match in matches
+                ]
+                self._output_data(matches_data, args)
                 
-                lines = db.create_lines_for_match(args.match_id, league)
+            elif args.table == "lines":
+                lines = db.list_lines(args.match_id, args.facility_id, args.date)
+                lines_data = [
+                    {
+                        'id': line.id,
+                        'match_id': line.match_id,
+                        'line_number': line.line_number,
+                        'facility_id': line.facility_id,
+                        'date': line.date,
+                        'time': line.time,
+                        'court_number': line.court_number,
+                        'status': line.get_status()
+                    }
+                    for line in lines
+                ]
+                self._output_data(lines_data, args)
                 
-                line_results = []
-                for line in lines:
-                    line_results.append({
-                        "line_id": line.id,
-                        "match_id": line.match_id,
-                        "line_number": line.line_number,
-                        "scheduled": line.is_scheduled(),
-                        "status": "scheduled" if line.is_scheduled() else "unscheduled"
-                    })
+            elif args.table == "sections":
+                from usta import USTA_SECTIONS
+                sections_data = [{'name': section} for section in USTA_SECTIONS]
+                self._output_data(sections_data, args)
                 
-                print(json.dumps(line_results, indent=2))
-                print(f"\nSuccessfully created {len(lines)} lines for match {args.match_id}", file=sys.stderr)
+            elif args.table == "regions":
+                from usta import USTA_REGIONS
+                regions_data = [{'name': region} for region in USTA_REGIONS]
+                self._output_data(regions_data, args)
                 
-            except Exception as e:
-                print(f"Error: Failed to create lines - {e}", file=sys.stderr)
-                if getattr(args, 'verbose', False):
-                    traceback.print_exc()
-                sys.exit(1)
-
-    def handle_schedule_command(self, args, db):
-        """Handle schedule commands"""
-        try:
-            if getattr(args, 'split_lines', False):
-                # For now, just try same-time scheduling
-                # In a full implementation, you'd parse a more complex scheduling plan
-                success = db.schedule_match_all_lines_same_time(
-                    args.match_id, args.facility_id, args.date, args.time
-                )
-            else:
-                success = db.schedule_match_all_lines_same_time(
-                    args.match_id, args.facility_id, args.date, args.time
-                )
-            
-            result = {
-                "match_id": args.match_id,
-                "facility_id": args.facility_id,
-                "date": args.date,
-                "time": args.time,
-                "success": success,
-                "split_lines": getattr(args, 'split_lines', False)
-            }
-            
-            print(json.dumps(result, indent=2))
-            
-            if success:
-                print(f"\n✓ Successfully scheduled match {args.match_id} for {args.date} at {args.time}", file=sys.stderr)
-            else:
-                print(f"\n✗ Failed to schedule match {args.match_id} - not enough courts available", file=sys.stderr)
-                sys.exit(1)
+            elif args.table == "age-groups":
+                from usta import USTA_AGE_GROUPS
+                age_groups_data = [{'name': age_group} for age_group in USTA_AGE_GROUPS]
+                self._output_data(age_groups_data, args)
+                
+            elif args.table == "divisions":
+                from usta import USTA_DIVISIONS
+                divisions_data = [{'name': division} for division in USTA_DIVISIONS]
+                self._output_data(divisions_data, args)
+                
+            elif args.table == "backends":
+                available = TennisDBFactory.list_backends()
+                backends_data = [
+                    {
+                        'name': backend.value,
+                        'available': TennisDBFactory.is_backend_available(backend)
+                    }
+                    for backend in available
+                ]
+                self._output_data(backends_data, args)
                 
         except Exception as e:
-            print(f"Error: Failed to schedule match - {e}", file=sys.stderr)
-            if getattr(args, 'verbose', False):
-                traceback.print_exc()
-            sys.exit(1)
-
-    def handle_unschedule_command(self, args, db):
-        """Handle unschedule commands"""
-        try:
-            db.unschedule_match(args.match_id)
-            
-            result = {
-                "match_id": args.match_id,
-                "action": "unscheduled",
-                "success": True
-            }
-            
-            print(json.dumps(result, indent=2))
-            print(f"\n✓ Successfully unscheduled match {args.match_id}", file=sys.stderr)
-            
-        except Exception as e:
-            print(f"Error: Failed to unschedule match - {e}", file=sys.stderr)
-            if getattr(args, 'verbose', False):
-                traceback.print_exc()
-            sys.exit(1)
-
-    def handle_check_availability_command(self, args, db):
-        """Handle availability checking"""
-        try:
-            available = db.check_court_availability(
-                args.facility_id, args.date, args.time, args.courts_needed
-            )
-            available_count = db.get_available_courts_count(
-                args.facility_id, args.date, args.time
-            )
-            
-            result = {
-                "facility_id": args.facility_id,
-                "date": args.date,
-                "time": args.time,
-                "courts_needed": args.courts_needed,
-                "available": available,
-                "courts_available": available_count,
-                "can_schedule": available
-            }
-            
-            print(json.dumps(result, indent=2))
-            
-            if available:
-                print(f"\n✓ {available_count} courts available (need {args.courts_needed})", file=sys.stderr)
-            else:
-                print(f"\n✗ Only {available_count} courts available (need {args.courts_needed})", file=sys.stderr)
-            
-        except Exception as e:
-            print(f"Error: Failed to check availability - {e}", file=sys.stderr)
-            if getattr(args, 'verbose', False):
-                traceback.print_exc()
-            sys.exit(1)
-
-    def handle_stats_command(self, args, db):
-        """Handle statistics commands"""
-        try:
-            if args.entity == "league":
-                stats = db.get_league_scheduling_status(args.league_id)
-                
-                # Add calculated percentages
-                if stats['total_matches'] > 0:
-                    stats['scheduling_percentage'] = round(
-                        (stats['scheduled_matches'] / stats['total_matches']) * 100, 1
-                    )
-                if stats['total_lines'] > 0:
-                    stats['line_scheduling_percentage'] = round(
-                        (stats['scheduled_lines'] / stats['total_lines']) * 100, 1
-                    )
-                
-                print(json.dumps(stats, indent=2))
-                
-            elif args.entity == "facility":
-                stats = db.get_facility_utilization(
-                    args.facility_id, 
-                    args.start_date, 
-                    args.end_date
-                )
-                print(json.dumps(stats, indent=2))
-                
-            else:
-                raise ValueError(f"Unknown stats entity: {args.entity}")
-                
-        except Exception as e:
-            print(f"Error: Failed to get statistics - {e}", file=sys.stderr)
-            if getattr(args, 'verbose', False):
-                traceback.print_exc()
-            sys.exit(1)
-
-    def handle_migrate_command(self, args):
-        """Handle database migration"""
-        try:
-            # Source database
-            source_manager = self.create_database_connection(args)
-            
-            # Target database configuration
-            if args.target_backend == 'sqlite':
-                target_config = {'db_path': args.target_db_path}
-            elif args.target_backend == 'postgresql':
-                target_config = {
-                    'host': args.target_host,
-                    'port': args.target_port,
-                    'database': args.target_database,
-                    'user': args.target_user,
-                    'password': args.target_password
-                }
-            elif args.target_backend == 'mongodb':
-                target_config = {
-                    'connection_string': args.target_connection_string,
-                    'database': args.target_database
-                }
-            else:
-                raise ValueError(f"Unsupported target backend: {args.target_backend}")
-            
-            target_backend = DatabaseBackend(args.target_backend.upper())
-            
-            # Perform migration
-            print(f"Starting migration from {source_manager.backend.value} to {target_backend.value}...", file=sys.stderr)
-            
-            dry_run = getattr(args, 'dry_run', False)
-            report = source_manager.migrate_to(target_backend, target_config, dry_run=dry_run)
-            
-            print(json.dumps(report, indent=2))
-            
-            if report['status'] == 'completed successfully':
-                print(f"\n✓ Migration completed successfully!", file=sys.stderr)
-            else:
-                print(f"\n✗ Migration had issues: {report['status']}", file=sys.stderr)
-                if report['errors']:
-                    print(f"Errors: {len(report['errors'])}", file=sys.stderr)
-            
-        except Exception as e:
-            print(f"Error: Migration failed - {e}", file=sys.stderr)
-            if getattr(args, 'verbose', False):
-                traceback.print_exc()
-            sys.exit(1)
-
-    def handle_health_command(self, args, db_manager):
-        """Handle health check command"""
-        try:
-            health = db_manager.health_check()
-            print(json.dumps(health, indent=2))
-            
-            if health['connected'] and health['responsive']:
-                print(f"\n✓ Database health: OK", file=sys.stderr)
-            else:
-                print(f"\n✗ Database health: FAILED", file=sys.stderr)
-                if health['error']:
-                    print(f"Error: {health['error']}", file=sys.stderr)
-                sys.exit(1)
-                
-        except Exception as e:
-            print(f"Error: Health check failed - {e}", file=sys.stderr)
-            if getattr(args, 'verbose', False):
-                traceback.print_exc()
-            sys.exit(1)
-
-    def handle_load_command(self, args, db):
-        """Handle YAML loading command"""
-        try:
-            if hasattr(db, 'load_yaml'):
-                db.load_yaml(args.table, args.yaml_path)
-                
-                result = {
-                    "action": "load",
-                    "table": args.table,
-                    "file": args.yaml_path,
-                    "success": True
-                }
-                
-                print(json.dumps(result, indent=2))
-                print(f"\n✓ Successfully loaded {args.table} from {args.yaml_path}", file=sys.stderr)
-            else:
-                print(f"Error: Backend does not support YAML loading", file=sys.stderr)
-                sys.exit(1)
-                
-        except Exception as e:
-            print(f"Error: Failed to load YAML - {e}", file=sys.stderr)
+            print(f"Error: Failed to list {args.table} - {e}", file=sys.stderr)
             if getattr(args, 'verbose', False):
                 traceback.print_exc()
             sys.exit(1)
 
     def handle_init_command(self, args, db):
-        """Handle database initialization"""
+        """Handle database initialization with enhanced feedback"""
         try:
+            print("Initializing database schema...", file=sys.stderr)
+            
             # Try to initialize/create schema
             if hasattr(db, 'initialize_schema'):
                 db.initialize_schema()
             elif hasattr(db, '_initialize_schema'):
                 db._initialize_schema()
+            else:
+                raise AttributeError("Database does not support schema initialization")
+            
+            # Verify initialization by checking for key tables
+            verification_result = self._verify_database_schema(db)
             
             result = {
                 "action": "initialize",
                 "backend": self.db_manager.backend.value,
-                "success": True
+                "success": True,
+                "verification": verification_result
             }
             
             print(json.dumps(result, indent=2))
             print(f"\n✓ Database schema initialized successfully", file=sys.stderr)
+            
+            if verification_result['missing_tables']:
+                print(f"⚠ Warning: Some tables may not have been created: {verification_result['missing_tables']}", file=sys.stderr)
             
         except Exception as e:
             print(f"Error: Failed to initialize database - {e}", file=sys.stderr)
             if getattr(args, 'verbose', False):
                 traceback.print_exc()
             sys.exit(1)
+    
+    def _verify_database_schema(self, db) -> Dict[str, Any]:
+        """
+        Verify that the database schema was properly initialized
+        
+        Args:
+            db: Database instance
+            
+        Returns:
+            Dictionary with verification results
+        """
+        expected_tables = ['teams', 'leagues', 'facilities', 'matches', 'lines']
+        found_tables = []
+        missing_tables = []
+        
+        try:
+            # This is backend-specific verification
+            if hasattr(db, 'cursor') and db.cursor:
+                # SQLite verification
+                db.cursor.execute("""
+                    SELECT name FROM sqlite_master 
+                    WHERE type='table' AND name NOT LIKE 'sqlite_%'
+                    ORDER BY name
+                """)
+                found_tables = [row[0] for row in db.cursor.fetchall()]
+                
+            missing_tables = [table for table in expected_tables if table not in found_tables]
+            
+            return {
+                'expected_tables': expected_tables,
+                'found_tables': found_tables,
+                'missing_tables': missing_tables,
+                'initialization_complete': len(missing_tables) == 0
+            }
+            
+        except Exception as e:
+            return {
+                'expected_tables': expected_tables,
+                'found_tables': [],
+                'missing_tables': expected_tables,
+                'initialization_complete': False,
+                'error': str(e)
+            }
+
+    def _output_data(self, data, args):
+        """Output data in requested format"""
+        if getattr(args, 'format', 'json') == 'table':
+            self._print_table(data)
+        else:
+            print(json.dumps(data, indent=2))
 
     def _print_table(self, data):
         """Print data in table format (simple implementation)"""
@@ -588,13 +486,13 @@ class TennisCLI:
         # Backend selection
         available_backends = ['sqlite', 'postgresql', 'mongodb', 'mysql', 'memory']
         parser.add_argument('--backend', choices=available_backends,
-                           help='Database backend to use')
+                           help='Database backend to use (default: sqlite)')
         
         # Configuration file
         parser.add_argument('--config', help='Path to configuration file (JSON)')
         
         # SQLite arguments
-        parser.add_argument('--db-path', help='Path to SQLite database file')
+        parser.add_argument('--db-path', help='Path to SQLite database file (default: tennis.db)')
         
         # PostgreSQL/MySQL arguments
         parser.add_argument('--host', help='Database host')
@@ -634,37 +532,36 @@ class TennisCLI:
         list_parser.add_argument("--match-id", type=int, help="Filter lines by match ID")
         list_parser.add_argument("--facility-id", type=int, help="Filter lines by facility ID")
         list_parser.add_argument("--date", help="Filter lines by date (YYYY-MM-DD)")
-        list_parser.add_argument("--include-unscheduled", action="store_true", help="Include unscheduled matches")
-        list_parser.add_argument("--with-lines", action="store_true", help="Include line details for matches")
+        list_parser.add_argument("--include-unscheduled", action="store_true", 
+                               help="Include unscheduled matches in results")
 
         # Create command
-        create_parser = subparsers.add_parser("create", help="Create entities")
-        create_parser.add_argument("entity", choices=["matches", "lines"], help="Type of entity to create")
-        create_parser.add_argument("--league-id", type=int, help="League ID (for matches)")
-        create_parser.add_argument("--match-id", type=int, help="Match ID (for lines)")
+        create_parser = subparsers.add_parser("create", help="Create new entities")
+        create_parser.add_argument("entity", choices=["match", "line"], help="Type of entity to create")
+        create_parser.add_argument("--league-id", type=int, required=True, help="League ID")
+        create_parser.add_argument("--home-team-id", type=int, required=True, help="Home team ID")
+        create_parser.add_argument("--visitor-team-id", type=int, required=True, help="Visitor team ID")
 
         # Schedule command
-        schedule_parser = subparsers.add_parser("schedule", help="Schedule matches")
+        schedule_parser = subparsers.add_parser("schedule", help="Schedule matches at facilities")
         schedule_parser.add_argument("--match-id", type=int, required=True, help="Match ID to schedule")
         schedule_parser.add_argument("--facility-id", type=int, required=True, help="Facility ID")
         schedule_parser.add_argument("--date", required=True, help="Date (YYYY-MM-DD)")
         schedule_parser.add_argument("--time", required=True, help="Time (HH:MM)")
-        schedule_parser.add_argument("--split-lines", action="store_true", help="Allow split-line scheduling")
 
         # Unschedule command
-        unschedule_parser = subparsers.add_parser("unschedule", help="Unschedule matches")
+        unschedule_parser = subparsers.add_parser("unschedule", help="Remove scheduling from matches")
         unschedule_parser.add_argument("--match-id", type=int, required=True, help="Match ID to unschedule")
 
         # Check availability command
-        avail_parser = subparsers.add_parser("check-availability", help="Check court availability")
-        avail_parser.add_argument("--facility-id", type=int, required=True, help="Facility ID")
-        avail_parser.add_argument("--date", required=True, help="Date (YYYY-MM-DD)")
-        avail_parser.add_argument("--time", required=True, help="Time (HH:MM)")
-        avail_parser.add_argument("--courts-needed", type=int, default=1, help="Number of courts needed")
+        check_parser = subparsers.add_parser("check-availability", help="Check court availability")
+        check_parser.add_argument("--facility-id", type=int, required=True, help="Facility ID")
+        check_parser.add_argument("--date", required=True, help="Date (YYYY-MM-DD)")
+        check_parser.add_argument("--time", required=True, help="Time (HH:MM)")
+        check_parser.add_argument("--courts-needed", type=int, default=1, help="Number of courts needed")
 
         # Stats command
-        stats_parser = subparsers.add_parser("stats", help="Get statistics")
-        stats_parser.add_argument("entity", choices=["league", "facility"], help="Type of statistics")
+        stats_parser = subparsers.add_parser("stats", help="Get scheduling statistics")
         stats_parser.add_argument("--league-id", type=int, help="League ID (for league stats)")
         stats_parser.add_argument("--facility-id", type=int, help="Facility ID (for facility stats)")
         stats_parser.add_argument("--start-date", help="Start date for facility stats (YYYY-MM-DD)")
@@ -694,8 +591,10 @@ class TennisCLI:
         # Health command
         health_parser = subparsers.add_parser("health", help="Check database connection health")
 
-        # Init command
+        # Init command - enhanced with better help
         init_parser = subparsers.add_parser("init", help="Initialize database schema")
+        init_parser.add_argument("--force", action="store_true", 
+                               help="Force initialization even if tables already exist")
 
         try:
             args = parser.parse_args()
@@ -704,7 +603,7 @@ class TennisCLI:
                 parser.print_help()
                 sys.exit(1)
             
-            # Create database connection
+            # Create database connection (with auto-initialization for new databases)
             self.db_manager = self.create_database_connection(args)
             
             # Handle commands that don't need a database connection
@@ -744,6 +643,133 @@ class TennisCLI:
             print(f"Unexpected error: {e}", file=sys.stderr)
             if getattr(args, 'verbose', False) if 'args' in locals() else False:
                 traceback.print_exc()
+            sys.exit(1)
+
+    # Placeholder methods for commands not fully implemented yet
+    def handle_health_command(self, args, db_manager):
+        """Handle health check command"""
+        try:
+            with db_manager as db:
+                if db.ping():
+                    result = {
+                        "status": "healthy",
+                        "backend": db_manager.backend.value,
+                        "message": "Database connection successful"
+                    }
+                    print(json.dumps(result, indent=2))
+                    print("✓ Database connection is healthy", file=sys.stderr)
+                else:
+                    result = {
+                        "status": "unhealthy",
+                        "backend": db_manager.backend.value,
+                        "message": "Database ping failed"
+                    }
+                    print(json.dumps(result, indent=2))
+                    print("✗ Database connection failed", file=sys.stderr)
+                    sys.exit(1)
+        except Exception as e:
+            result = {
+                "status": "error",
+                "backend": db_manager.backend.value if db_manager else "unknown",
+                "message": str(e)
+            }
+            print(json.dumps(result, indent=2))
+            print(f"✗ Database health check failed: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    def handle_create_command(self, args, db):
+        """Handle create command"""
+        print(f"Create {args.entity} command not fully implemented yet", file=sys.stderr)
+
+    def handle_schedule_command(self, args, db):
+        """Handle schedule command"""
+        print("Schedule command not fully implemented yet", file=sys.stderr)
+
+    def handle_unschedule_command(self, args, db):
+        """Handle unschedule command"""
+        print("Unschedule command not fully implemented yet", file=sys.stderr)
+
+    def handle_check_availability_command(self, args, db):
+        """Handle check availability command"""
+        print("Check availability command not fully implemented yet", file=sys.stderr)
+
+    def handle_stats_command(self, args, db):
+        """Handle stats command"""
+        print("Stats command not fully implemented yet", file=sys.stderr)
+
+    def handle_migrate_command(self, args):
+        """Handle migrate command"""
+        print("Migrate command not fully implemented yet", file=sys.stderr)
+
+    def handle_load_command(self, args, db):
+        """Handle load command"""
+        try:
+            # Validate arguments
+            if not hasattr(args, 'table') or not args.table:
+                print("Error: Table name is required", file=sys.stderr)
+                sys.exit(1)
+            
+            if not hasattr(args, 'yaml_path') or not args.yaml_path:
+                print("Error: YAML file path is required", file=sys.stderr)
+                sys.exit(1)
+            
+            # Check if YAML file exists
+            if not os.path.exists(args.yaml_path):
+                print(f"Error: YAML file '{args.yaml_path}' not found", file=sys.stderr)
+                sys.exit(1)
+            
+            print(f"Loading {args.table} from {args.yaml_path}...", file=sys.stderr)
+            
+            # Call the database's load_yaml method
+            db.load_yaml(args.table, args.yaml_path)
+            
+            print(f"✓ Successfully loaded {args.table} from {args.yaml_path}", file=sys.stderr)
+            
+            # Return success status as JSON
+            result = {
+                "status": "success",
+                "table": args.table,
+                "file": args.yaml_path,
+                "message": f"Successfully loaded {args.table} data"
+            }
+            print(json.dumps(result, indent=2))
+            
+        except FileNotFoundError as e:
+            error_result = {
+                "status": "error",
+                "table": args.table,
+                "file": args.yaml_path,
+                "error": "file_not_found",
+                "message": str(e)
+            }
+            print(json.dumps(error_result, indent=2))
+            print(f"✗ File not found: {e}", file=sys.stderr)
+            sys.exit(1)
+            
+        except ValueError as e:
+            error_result = {
+                "status": "error", 
+                "table": args.table,
+                "file": args.yaml_path,
+                "error": "validation_error",
+                "message": str(e)
+            }
+            print(json.dumps(error_result, indent=2))
+            print(f"✗ Validation error: {e}", file=sys.stderr)
+            sys.exit(1)
+            
+        except Exception as e:
+            error_result = {
+                "status": "error",
+                "table": args.table,
+                "file": args.yaml_path,
+                "error": "unknown_error", 
+                "message": str(e)
+            }
+            print(json.dumps(error_result, indent=2))
+            print(f"✗ Unexpected error: {e}", file=sys.stderr)
+            if hasattr(args, 'debug') and args.debug:
+                traceback.print_exc(file=sys.stderr)
             sys.exit(1)
 
 

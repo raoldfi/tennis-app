@@ -38,13 +38,14 @@ class SQLFacilityManager:
             if existing:
                 raise ValueError(f"Facility with ID {facility.id} already exists")
             
-            # Insert basic facility info
+            # Insert basic facility info (including short_name)
             self.cursor.execute("""
-                INSERT INTO facilities (id, name, location, total_courts)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO facilities (id, name, short_name, location, total_courts)
+                VALUES (?, ?, ?, ?, ?)
             """, (
                 facility.id,
                 facility.name,
+                facility.short_name,  # NEW: Include short_name
                 facility.location,
                 facility.total_courts
             ))
@@ -74,10 +75,11 @@ class SQLFacilityManager:
             
             facility_data = self._dictify(row)
             
-            # Create basic facility
+            # Create basic facility (including short_name)
             facility = Facility(
                 id=facility_data['id'],
                 name=facility_data['name'],
+                short_name=facility_data.get('short_name'),  # NEW: Include short_name
                 location=facility_data['location'],
                 total_courts=facility_data.get('total_courts', 0)
             )
@@ -103,13 +105,14 @@ class SQLFacilityManager:
             if not existing_facility:
                 raise ValueError(f"Facility with ID {facility.id} does not exist")
             
-            # Update basic facility info
+            # Update basic facility info (including short_name)
             self.cursor.execute("""
                 UPDATE facilities 
-                SET name = ?, location = ?, total_courts = ?
+                SET name = ?, short_name = ?, location = ?, total_courts = ?
                 WHERE id = ?
             """, (
                 facility.name,
+                facility.short_name,  # NEW: Include short_name
                 facility.location,
                 facility.total_courts,
                 facility.id
@@ -141,9 +144,22 @@ class SQLFacilityManager:
             if not existing_facility:
                 raise ValueError(f"Facility with ID {facility_id} does not exist")
             
-            # Check if facility is referenced by teams
-            self.cursor.execute("SELECT COUNT(*) as count FROM teams WHERE home_facility_id = ?", (facility_id,))
-            team_count = self.cursor.fetchone()['count']
+            # Check if facility is referenced by teams (by facility name, not ID)
+            facility = self.get_facility(facility_id)
+            if facility:
+                # Check both facility name and short_name
+                if facility.short_name:
+                    self.cursor.execute("""
+                        SELECT COUNT(*) as count FROM teams 
+                        WHERE home_facility = ? OR home_facility = ?
+                    """, (facility.name, facility.short_name))
+                else:
+                    self.cursor.execute("SELECT COUNT(*) as count FROM teams WHERE home_facility = ?", (facility.name,))
+                team_count = self.cursor.fetchone()['count']
+            else:
+                # Facility doesn't exist, so no teams can reference it
+                team_count = 0
+            
             if team_count > 0:
                 raise ValueError(f"Cannot delete facility {facility_id}: it is referenced by {team_count} team(s)")
             
@@ -178,10 +194,11 @@ class SQLFacilityManager:
             for row in self.cursor.fetchall():
                 facility_data = self._dictify(row)
                 
-                # Create basic facility
+                # Create basic facility (including short_name)
                 facility = Facility(
                     id=facility_data['id'],
                     name=facility_data['name'],
+                    short_name=facility_data.get('short_name'),  # NEW: Include short_name
                     location=facility_data['location'],
                     total_courts=facility_data.get('total_courts', 0)
                 )
@@ -195,6 +212,7 @@ class SQLFacilityManager:
             return facilities
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error listing facilities: {e}")
+
 
     def _insert_facility_schedule(self, facility_id: int, schedule: WeeklySchedule) -> None:
         """Insert facility schedule data into the database"""
