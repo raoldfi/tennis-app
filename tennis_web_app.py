@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, g
 from tennis_db_interface import TennisDBInterface
-from usta import League, Team, Match, Facility, WeeklySchedule, DaySchedule, TimeSlot
 import os
 import json
 from datetime import datetime
@@ -15,6 +14,19 @@ import os
 from io import StringIO, BytesIO
 from datetime import datetime
 import traceback
+
+from usta_league import League
+from usta_team import Team
+from usta_match import Match
+from usta_facility import Facility, WeeklySchedule, DaySchedule, TimeSlot
+
+from usta_constants import USTA_SECTIONS, USTA_REGIONS, USTA_AGE_GROUPS, USTA_DIVISIONS
+
+import logging
+from flask import jsonify
+
+# Configure your logger at app initialization
+logger = logging.getLogger(__name__)
 
 
 app = Flask(__name__)
@@ -1050,6 +1062,63 @@ def edit_league(league_id):
         return redirect(url_for('leagues'))
 
 
+@app.route('/leagues/generate-matches', methods=['POST'])
+def generate_matches():
+    """Generate matches for a league - FIXED to use League objects"""
+    db = get_db()
+    if db is None:
+        return jsonify({'error': 'No database connected'}), 500
+    
+    try:
+        league_id = int(request.form.get('league_id'))
+        overwrite_existing = request.form.get('overwrite_existing', 'false').lower() == 'true'
+        
+        # Get the League object
+        league = db.get_league(league_id)
+        if not league:
+            return jsonify({'error': f'League {league_id} not found'}), 404
+        
+        # Get teams in the league - FIXED to pass League object
+        teams = db.list_teams(league)
+        
+        if len(teams) < 2:
+            return jsonify({'error': 'Need at least 2 teams to generate matches'}), 400
+        
+        # Check for existing matches unless overwriting
+        if not overwrite_existing:
+            existing_matches = db.list_matches(league)  # Pass League object
+            if existing_matches:
+                return jsonify({'error': f'League already has {len(existing_matches)} matches. Use overwrite option to replace them.'}), 400
+        
+        # Generate matches using the league's generate_matches method
+        new_matches = league.generate_matches(teams)
+        
+        # Save matches to database
+        saved_matches = []
+        for match in new_matches:
+            try:
+                if overwrite_existing:
+                    # Delete existing matches for this league first
+                    existing = db.list_matches(league)
+                    for existing_match in existing:
+                        db.delete_match(existing_match.id)
+                
+                db.add_match(match)
+                saved_matches.append(match)
+            except Exception as e:
+                print(f"Error saving match: {e}")
+        
+        return jsonify({
+            'success': True,
+            'created_count': len(saved_matches),
+            'message': f'Generated {len(saved_matches)} matches for {league.name}'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to generate matches: {str(e)}'}), 500
+
+
+
 # ==================== LEAGUE EXPORT/IMPORT ROUTES ====================
 
 @app.route('/leagues/export')
@@ -1409,95 +1478,106 @@ def test_leagues_export():
 
 # Fix for the teams() route in tennis_web_app.py
 
+def enhance_teams_with_facility_info(teams_list, db):
+    """
+    Enhance teams with facility information for the template
+    This function was missing but is required by the teams.html template
+    """
+    enhanced_teams = []
+    
+    for team in teams_list:
+        # Get facility information
+        facility_name = "No facility assigned"
+        facility_exists = False
+        facility_id = None
+        facility_location = None
+        
+        if hasattr(team, 'home_facility') and team.home_facility:
+            if hasattr(team.home_facility, 'name'):
+                # Team has a Facility object
+                facility_name = team.home_facility.name
+                facility_exists = True
+                facility_id = getattr(team.home_facility, 'id', None)
+                facility_location = getattr(team.home_facility, 'location', None)
+            else:
+                # Team has a facility name string
+                facility_name = str(team.home_facility)
+                # Check if this facility exists in the database
+                facilities = db.list_facilities()
+                for facility in facilities:
+                    if facility.name == facility_name:
+                        facility_exists = True
+                        facility_id = facility.id
+                        facility_location = facility.location
+                        break
+        
+        # Check if team has preferred days
+        has_preferred_days = (hasattr(team, 'preferred_days') and 
+                            team.preferred_days and 
+                            len(team.preferred_days) > 0)
+        
+        # Create enhanced team object
+        enhanced_team = {
+            'team': team,  # This is what the template expects!
+            'facility_name': facility_name,
+            'facility_exists': facility_exists,
+            'facility_id': facility_id,
+            'facility_location': facility_location,
+            'has_preferred_days': has_preferred_days
+        }
+        
+        enhanced_teams.append(enhanced_team)
+    
+    return enhanced_teams
+
+
+# Fixed teams route
 @app.route('/teams')
 def teams():
-    """View teams with optional league filter, search, and enhanced facility information"""
+    """View teams with optional league filter - FIXED to enhance teams properly"""
     db = get_db()
     if db is None:
         flash('No database connection', 'error')
         return redirect(url_for('index'))
+
+    print("TRYING TO LIST TEAMS IN WEB APP")
     
     # Handle league_id parameter safely
     league_id = None
+    selected_league = None
     try:
         league_id_str = request.args.get('league_id')
         if league_id_str:
             league_id = int(league_id_str)
+            selected_league = db.get_league(league_id)
     except (ValueError, TypeError):
         # If conversion fails, ignore the parameter
         league_id = None
+        selected_league = None
     
     # Get search query
     search_query = request.args.get('search', '').strip()
     
     try:
-        # Get all teams first
-        teams_list = db.list_teams(league_id=league_id)
+        # Get teams - Pass League object instead of ID
+        teams_list = db.list_teams(selected_league)  # Pass League object or None
         leagues_list = db.list_leagues()  # For filter dropdown
+
+        print(f"FOUND {len(teams_list)} teams")
         
         # Apply search filter if provided
         if search_query:
             teams_list = filter_teams_by_search(teams_list, search_query)
         
-        # Get selected league info if filtering
-        selected_league = None
-        if league_id:
-            selected_league = db.get_league(league_id)
-        
-        # Create enhanced team objects that match what the template expects
-        enhanced_teams = []
-        for team in teams_list:
-            # Check if the facility exists in the database
-            facility_exists = True
-            facility_id = None
-            facility_name = "Unknown"
-            
-            try:
-                # Try to get the facility by ID if the home_facility has an id
-                if hasattr(team.home_facility, 'id') and team.home_facility.id:
-                    facility_id = team.home_facility.id
-                    facility = db.get_facility(facility_id)
-                    facility_exists = facility is not None
-                    if facility:
-                        facility_name = facility.name
-                    else:
-                        facility_name = f"Facility ID {facility_id} (Not Found)"
-                elif hasattr(team.home_facility, 'name') and team.home_facility.name:
-                    # If it's a facility object with name but no/invalid ID
-                    facility_name = team.home_facility.name
-                    facility_exists = False  # Custom facility name
-                else:
-                    # Fallback - check if home_facility is a string
-                    facility_name = str(team.home_facility) if team.home_facility else "Unknown"
-                    facility_exists = False
-            except Exception as e:
-                print(f"Warning: Error processing facility for team {team.id}: {e}")
-                facility_exists = False
-                facility_name = "Error loading facility"
-            
-            # Check if team has preferred days
-            has_preferred_days = (hasattr(team, 'preferred_days') and 
-                                team.preferred_days and 
-                                len(team.preferred_days) > 0)
-            
-            enhanced_team = {
-                'team': team,
-                'facility_exists': facility_exists,
-                'facility_id': facility_id,
-                'facility_name': facility_name,
-                'has_preferred_days': has_preferred_days
-            }
-            enhanced_teams.append(enhanced_team)
+        # CRITICAL FIX: Enhance teams with facility info for the template
+        enhanced_teams = enhance_teams_with_facility_info(teams_list, db)
         
         return render_template('teams.html', 
-                             teams=enhanced_teams,
-                             leagues=leagues_list,
-                             selected_league=selected_league)
-    
+                             teams=enhanced_teams,  # Pass enhanced teams
+                             leagues=leagues_list, 
+                             selected_league=selected_league,
+                             search_query=search_query)
     except Exception as e:
-        print(f"Error in teams route: {e}")
-        import traceback
-        traceback.print_exc()
         flash(f'Error loading teams: {e}', 'error')
         return redirect(url_for('index'))
 
@@ -1512,13 +1592,10 @@ def filter_teams_by_search(teams_list, search_query):
     
     # Split search query into individual terms for more flexible matching
     search_terms = [term.lower().strip() for term in search_query.split() if term.strip()]
-    if not search_terms:
-        return teams_list
-    
     filtered_teams = []
     
     for team in teams_list:
-        # Collect all searchable text for this team
+        # Create searchable text from team attributes
         searchable_text = []
         
         # Team name
@@ -1533,43 +1610,27 @@ def filter_teams_by_search(teams_list, search_query):
         if hasattr(team, 'contact_email') and team.contact_email:
             searchable_text.append(team.contact_email.lower())
         
-        # Home facility name
+        # League name
+        if hasattr(team, 'league') and team.league and hasattr(team.league, 'name'):
+            searchable_text.append(team.league.name.lower())
+        
+        # Facility name
         if hasattr(team, 'home_facility') and team.home_facility:
-            if hasattr(team.home_facility, 'name') and team.home_facility.name:
+            if hasattr(team.home_facility, 'name'):
                 searchable_text.append(team.home_facility.name.lower())
-            elif isinstance(team.home_facility, str):
-                searchable_text.append(team.home_facility.lower())
+            else:
+                searchable_text.append(str(team.home_facility).lower())
         
-        # League name and division
-        if hasattr(team, 'league') and team.league:
-            if hasattr(team.league, 'name') and team.league.name:
-                searchable_text.append(team.league.name.lower())
-            if hasattr(team.league, 'division') and team.league.division:
-                searchable_text.append(team.league.division.lower())
+        # Join all searchable text
+        full_text = ' '.join(searchable_text)
         
-        # Preferred days
-        if hasattr(team, 'preferred_days') and team.preferred_days:
-            for day in team.preferred_days:
-                searchable_text.append(day.lower())
-        
-        # Notes (if available)
-        if hasattr(team, 'notes') and team.notes:
-            searchable_text.append(team.notes.lower())
-        
-        # Combine all searchable text
-        combined_text = ' '.join(searchable_text)
-        
-        # Check if all search terms are found in the combined text
-        matches_all_terms = all(
-            any(term in text_field for text_field in searchable_text)
-            for term in search_terms
-        )
+        # Check if all search terms are found
+        matches_all_terms = all(term in full_text for term in search_terms)
         
         if matches_all_terms:
             filtered_teams.append(team)
     
     return filtered_teams
-
 
 def search_teams_advanced(teams_list, search_query):
     """
@@ -1795,7 +1856,7 @@ def delete_team_api(team_id):
 
 @app.route('/teams/export')
 def export_teams():
-    """Export all teams to YAML or JSON format with comprehensive error handling"""
+    """Export teams - FIXED to use League objects"""
     try:
         db = get_db()
         if db is None:
@@ -1803,78 +1864,49 @@ def export_teams():
         
         export_format = request.args.get('format', 'yaml').lower()
         league_id = request.args.get('league_id', type=int)
-        print(f"Export format requested: {export_format}")  # Debug
-        print(f"League filter: {league_id}")  # Debug
         
-        teams_list = db.list_teams(league_id=league_id)
-        print(f"Found {len(teams_list)} teams")  # Debug
+        # Get selected league if filtering
+        selected_league = None
+        if league_id:
+            selected_league = db.get_league(league_id)
+        
+        # FIXED: Pass League object instead of league_id
+        teams_list = db.list_teams(selected_league)
         
         # Convert teams to exportable format
         teams_data = []
-        for i, team in enumerate(teams_list):
+        for team in teams_list:
             try:
-                # Check if team has to_yaml_dict method
                 if hasattr(team, 'to_yaml_dict'):
                     team_dict = team.to_yaml_dict()
                 else:
                     # Fallback: create dict manually
-                    print(f"Warning: Team {team.id} missing to_yaml_dict method, using fallback")
                     team_dict = create_team_dict_fallback(team)
-                
                 teams_data.append(team_dict)
-                print(f"Processed team {i+1}: {team.name}")  # Debug
-                
             except Exception as e:
-                print(f"Error processing team {team.id}: {str(e)}")
                 return jsonify({'error': f'Error processing team {team.id}: {str(e)}'}), 500
         
         # Prepare export data
         export_data = {
             'teams': teams_data,
             'exported_at': datetime.now().isoformat(),
-            'exported_count': len(teams_data)
+            'total_teams': len(teams_data)
         }
         
-        if league_id:
-            export_data['league_filter'] = league_id
-        
-        # Generate filename with timestamp
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        league_suffix = f"_league_{league_id}" if league_id else ""
-        
-        if export_format == 'json':
-            try:
-                # Export as JSON
-                json_str = json.dumps(export_data, indent=2, ensure_ascii=False, default=str)
-                print(f"Generated JSON, length: {len(json_str)}")  # Debug
-                
-                # Create response with proper headers
-                response = make_response(json_str)
-                response.headers['Content-Type'] = 'application/json'
-                response.headers['Content-Disposition'] = f'attachment; filename=teams_export{league_suffix}_{timestamp}.json'
-                return response
-            except Exception as e:
-                print(f"JSON export error: {str(e)}")
-                return jsonify({'error': f'JSON serialization error: {str(e)}'}), 500
+        # Generate filename
+        if selected_league:
+            filename = f"teams_{selected_league.name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}"
         else:
-            try:
-                # Export as YAML (default)
-                yaml_str = yaml.dump(export_data, default_flow_style=False, allow_unicode=True, sort_keys=False)
-                print(f"Generated YAML, length: {len(yaml_str)}")  # Debug
-                
-                # Create response with proper headers
-                response = make_response(yaml_str)
-                response.headers['Content-Type'] = 'application/x-yaml'
-                response.headers['Content-Disposition'] = f'attachment; filename=teams_export{league_suffix}_{timestamp}.yaml'
-                return response
-            except Exception as e:
-                print(f"YAML export error: {str(e)}")
-                return jsonify({'error': f'YAML serialization error: {str(e)}'}), 500
-    
+            filename = f"teams_all_{datetime.now().strftime('%Y%m%d')}"
+        
+        # Export based on format
+        if export_format == 'json':
+            return export_as_json(export_data, f"{filename}.json")
+        else:  # Default to YAML
+            return export_as_yaml(export_data, f"{filename}.yaml")
+            
     except Exception as e:
-        print(f"General export error: {str(e)}")
-        print(f"Traceback: {traceback.format_exc()}")
-        return jsonify({'error': f'Export failed: {str(e)}', 'traceback': traceback.format_exc()}), 500
+        return jsonify({'error': f'Export failed: {str(e)}'}), 500
 
 
 @app.route('/teams/<int:team_id>/export')
@@ -2209,191 +2241,330 @@ def test_teams_export():
 
 # ==================== MATCH ROUTES ====================
 
+# Fix for tennis_web_app.py - Matches route parameter mismatch
+
 @app.route('/matches')
 def matches():
-    """View matches with optional league filter, search, and unscheduled match support"""
+    """Matches page - FIXED parameter mismatch for include unscheduled"""
     db = get_db()
     if db is None:
-        flash('No database connection', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('connect'))
     
+    # Get filter parameters - FIXED: Handle both parameter names
     league_id = request.args.get('league_id', type=int)
-    # Fix the checkbox handling
-    show_unscheduled_param = request.args.get('show_unscheduled', 'true')
-    show_unscheduled = show_unscheduled_param.lower() in ['true', '1', 'on', 'yes']
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
     search_query = request.args.get('search', '').strip()
     
-    print(f"DEBUG: show_unscheduled_param='{show_unscheduled_param}', show_unscheduled={show_unscheduled}")
+    # CRITICAL FIX: Template uses 'show_unscheduled' but backend expects 'include_unscheduled'
+    show_unscheduled = request.args.get('show_unscheduled', 'false').lower() == 'true'
+    include_unscheduled = request.args.get('include_unscheduled', 'true').lower() == 'true'
+    
+    # Use either parameter name - prioritize show_unscheduled since that's what the template uses
+    include_unscheduled = show_unscheduled or include_unscheduled
     
     try:
-        # Get all matches first
-        matches_list = db.list_matches(league_id=league_id, include_unscheduled=show_unscheduled)
-        leagues_list = db.list_leagues()  # For filter dropdown
-        facilities_list = db.list_facilities()  # For filter dropdown
-        
-        # Get selected league info if filtering
+        # Get selected league if filtering
         selected_league = None
         if league_id:
             selected_league = db.get_league(league_id)
         
-        # Enhance matches with team and facility names, plus status
+        # Get matches - Pass League object instead of ID
+        matches_list = db.list_matches(selected_league, include_unscheduled)
+        
+        # Apply additional filters
+        if start_date or end_date or search_query:
+            matches_list = filter_matches(matches_list, start_date, end_date, search_query)
+        
+        # Enhance matches for template display
         enhanced_matches = []
         for match in matches_list:
-            enhanced_match = {
-                'id': match.id,
-                'league_id': match.league_id,
-                'home_team_id': match.home_team_id,
-                'visitor_team_id': match.visitor_team_id,
-                'facility_id': match.facility_id,
-                'date': match.date,
-                'time': match.time,
-                'home_team_name': 'Unknown',
-                'visitor_team_name': 'Unknown',
-                'facility_name': 'Unknown',
-                'league_name': 'Unassigned',
-                'status': match.get_status(),
-                'is_scheduled': match.is_scheduled(),
-                'missing_fields': match.get_missing_fields()
-            }
-            
-            try:
-                home_team = db.get_team(match.home_team_id)
-                if home_team:
-                    enhanced_match['home_team_name'] = home_team.name
-                    # Store additional team info for search
-                    enhanced_match['home_team_captain'] = getattr(home_team, 'captain', '')
-                    enhanced_match['home_team_contact'] = getattr(home_team, 'contact_email', '')
-            except Exception as e:
-                print(f"Warning: Could not get home team {match.home_team_id}: {e}")
-            
-            try:
-                visitor_team = db.get_team(match.visitor_team_id)
-                if visitor_team:
-                    enhanced_match['visitor_team_name'] = visitor_team.name
-                    # Store additional team info for search
-                    enhanced_match['visitor_team_captain'] = getattr(visitor_team, 'captain', '')
-                    enhanced_match['visitor_team_contact'] = getattr(visitor_team, 'contact_email', '')
-            except Exception as e:
-                print(f"Warning: Could not get visitor team {match.visitor_team_id}: {e}")
-            
-            if match.facility_id: 
-                try:
-                    facility = db.get_facility(match.facility_id)
-                    if facility:
-                        enhanced_match['facility_name'] = facility.name
-                        enhanced_match['facility_location'] = getattr(facility, 'location', '')
-                except Exception as e:
-                    print(f"Warning: Could not get facility {match.facility_id}: {e}")
-            
-            try:
-                if match.league_id:
-                    league = db.get_league(match.league_id)
-                    if league:
-                        enhanced_match['league_name'] = league.name
-                        enhanced_match['league_division'] = getattr(league, 'division', '')
-                        enhanced_match['league_year'] = getattr(league, 'year', '')
-            except Exception as e:
-                print(f"Warning: Could not get league {match.league_id}: {e}")
-            
+            enhanced_match = enhance_match_for_template(match)
             enhanced_matches.append(enhanced_match)
         
-        # Apply search filter if provided
-        if search_query:
-            enhanced_matches = filter_matches_by_search(enhanced_matches, search_query)
+        # Get leagues for filter dropdown
+        leagues_list = db.list_leagues()
         
         return render_template('matches.html', 
-                             matches=enhanced_matches, 
+                             matches=enhanced_matches,
                              leagues=leagues_list,
-                             facilities=facilities_list,
                              selected_league=selected_league,
-                             show_unscheduled=show_unscheduled)
+                             search_query=search_query,
+                             start_date=start_date,
+                             end_date=end_date,
+                             show_unscheduled=show_unscheduled,  # Use show_unscheduled for template
+                             include_unscheduled=include_unscheduled)  # Keep both for compatibility
+        
     except Exception as e:
         flash(f'Error loading matches: {e}', 'error')
         return redirect(url_for('index'))
 
 
+def enhance_match_for_template(match):
+    """
+    Enhanced match object creation for template display
+    """
+    # Get scheduled times - handle different ways they might be stored
+    scheduled_times = []
+    if hasattr(match, 'scheduled_times') and match.scheduled_times:
+        if isinstance(match.scheduled_times, list):
+            scheduled_times = match.scheduled_times
+        elif isinstance(match.scheduled_times, str):
+            # Handle comma-separated times
+            scheduled_times = [time.strip() for time in match.scheduled_times.split(',') if time.strip()]
+    
+    # Calculate expected lines
+    expected_lines = 0
+    if hasattr(match, 'league') and match.league and hasattr(match.league, 'num_lines_per_match'):
+        expected_lines = match.league.num_lines_per_match
+    
+    # Determine scheduling status
+    has_facility = hasattr(match, 'facility') and match.facility is not None
+    has_date = hasattr(match, 'date') and match.date is not None
+    num_scheduled_lines = len(scheduled_times)
+    
+    is_fully_scheduled = (has_facility and has_date and 
+                         num_scheduled_lines >= expected_lines and expected_lines > 0)
+    is_partially_scheduled = (has_facility and has_date and 
+                            num_scheduled_lines > 0 and num_scheduled_lines < expected_lines)
+    
+    # Determine status text
+    if is_fully_scheduled:
+        status = "Fully Scheduled"
+    elif is_partially_scheduled:
+        status = f"Partially Scheduled ({num_scheduled_lines}/{expected_lines})"
+    elif has_facility and has_date:
+        status = "Location/Date Set"
+    else:
+        status = "Unscheduled"
+    
+    # Determine missing fields
+    missing_fields = []
+    if not has_facility:
+        missing_fields.append('Facility')
+    if not has_date:
+        missing_fields.append('Date')
+    if num_scheduled_lines < expected_lines:
+        if expected_lines > 0:
+            missing_fields.append(f'Times ({num_scheduled_lines}/{expected_lines})')
+        elif num_scheduled_lines == 0:
+            missing_fields.append('Times')
+    
+    # Create enhanced match object
+    enhanced_match = {
+        'id': match.id,
+        'home_team_name': match.home_team.name if hasattr(match, 'home_team') and match.home_team else 'Unknown',
+        'visitor_team_name': match.visitor_team.name if hasattr(match, 'visitor_team') and match.visitor_team else 'Unknown',
+        'facility_name': match.facility.name if has_facility else 'No Facility Assigned',
+        'facility_id': match.facility.id if has_facility else None,
+        'league_name': match.league.name if hasattr(match, 'league') and match.league else 'Unknown',
+        'date': match.date,
+        'time': ', '.join(scheduled_times) if scheduled_times else 'Not Scheduled',
+        'scheduled_times': scheduled_times,
+        'status': status,
+        'num_scheduled_lines': num_scheduled_lines,
+        'expected_lines': expected_lines,
+        'is_fully_scheduled': is_fully_scheduled,
+        'is_partially_scheduled': is_partially_scheduled,
+        'missing_fields': missing_fields,
+        'has_facility': has_facility,
+        'has_date': has_date
+    }
+    
+    return enhanced_match
+
+
+def filter_matches(matches_list, start_date, end_date, search_query):
+    """
+    Filter matches based on date range and search query
+    """
+    filtered_matches = matches_list
+    
+    # Apply date filters
+    if start_date:
+        try:
+            start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+            filtered_matches = [m for m in filtered_matches 
+                              if m.date and m.date >= start_date_obj]
+        except ValueError:
+            pass  # Invalid date format, skip filter
+    
+    if end_date:
+        try:
+            end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+            filtered_matches = [m for m in filtered_matches 
+                              if m.date and m.date <= end_date_obj]
+        except ValueError:
+            pass  # Invalid date format, skip filter
+    
+    # Apply search filter
+    if search_query:
+        filtered_matches = filter_matches_by_search(filtered_matches, search_query)
+    
+    return filtered_matches
+
+
 def filter_matches_by_search(matches_list, search_query):
     """
-    Filter matches based on search query
-    Searches across: team names, captains, facility name/location, league name/division, dates, status
+    Search functionality that works with match objects
     """
     if not search_query:
         return matches_list
     
-    # Split search query into individual terms for more flexible matching
     search_terms = [term.lower().strip() for term in search_query.split() if term.strip()]
-    if not search_terms:
-        return matches_list
-    
     filtered_matches = []
     
     for match in matches_list:
-        # Collect all searchable text for this match
+        # Create searchable text from match attributes
         searchable_text = []
         
         # Team names
-        if match.get('home_team_name'):
-            searchable_text.append(match['home_team_name'].lower())
-        if match.get('visitor_team_name'):
-            searchable_text.append(match['visitor_team_name'].lower())
+        if hasattr(match, 'home_team') and match.home_team and hasattr(match.home_team, 'name'):
+            searchable_text.append(match.home_team.name.lower())
+        if hasattr(match, 'visitor_team') and match.visitor_team and hasattr(match.visitor_team, 'name'):
+            searchable_text.append(match.visitor_team.name.lower())
         
-        # Team captains
-        if match.get('home_team_captain'):
-            searchable_text.append(match['home_team_captain'].lower())
-        if match.get('visitor_team_captain'):
-            searchable_text.append(match['visitor_team_captain'].lower())
+        # Facility name
+        if hasattr(match, 'facility') and match.facility and hasattr(match.facility, 'name'):
+            searchable_text.append(match.facility.name.lower())
         
-        # Team contact emails
-        if match.get('home_team_contact'):
-            searchable_text.append(match['home_team_contact'].lower())
-        if match.get('visitor_team_contact'):
-            searchable_text.append(match['visitor_team_contact'].lower())
+        # League name
+        if hasattr(match, 'league') and match.league and hasattr(match.league, 'name'):
+            searchable_text.append(match.league.name.lower())
         
-        # Facility information
-        if match.get('facility_name') and match['facility_name'] != 'Unknown':
-            searchable_text.append(match['facility_name'].lower())
-        if match.get('facility_location'):
-            searchable_text.append(match['facility_location'].lower())
+        # Date
+        if hasattr(match, 'date') and match.date:
+            searchable_text.append(str(match.date))
         
-        # League information
-        if match.get('league_name') and match['league_name'] != 'Unassigned':
-            searchable_text.append(match['league_name'].lower())
-        if match.get('league_division'):
-            searchable_text.append(match['league_division'].lower())
-        if match.get('league_year'):
-            searchable_text.append(str(match['league_year']).lower())
-        
-        # Match scheduling information
-        if match.get('date'):
-            searchable_text.append(str(match['date']).lower())
-        if match.get('time'):
-            searchable_text.append(str(match['time']).lower())
-        
-        # Match status
-        if match.get('status'):
-            searchable_text.append(match['status'].lower())
+        # Times
+        if hasattr(match, 'scheduled_times') and match.scheduled_times:
+            if isinstance(match.scheduled_times, list):
+                searchable_text.extend([time.lower() for time in match.scheduled_times])
+            else:
+                searchable_text.append(str(match.scheduled_times).lower())
         
         # Match ID
-        searchable_text.append(str(match['id']))
+        searchable_text.append(str(match.id))
         
-        # Missing fields (what's preventing scheduling)
-        if match.get('missing_fields'):
-            for field in match['missing_fields']:
-                searchable_text.append(field.lower())
+        # Join all searchable text
+        full_text = ' '.join(searchable_text)
         
-        # Combine all searchable text
-        combined_text = ' '.join(searchable_text)
-        
-        # Check if all search terms are found in the combined text
-        matches_all_terms = all(
-            any(term in text_field for text_field in searchable_text)
-            for term in search_terms
-        )
+        # Check if all search terms are found
+        matches_all_terms = all(term in full_text for term in search_terms)
         
         if matches_all_terms:
             filtered_matches.append(match)
     
     return filtered_matches
+
+
+
+def _calculate_status(match, scheduled_times):
+    """Calculate status when Match class doesn't have get_status method"""
+    if not match.facility or not match.date:
+        return "Unscheduled"
+    
+    if not scheduled_times:
+        return "Location/Date Set"
+    
+    expected_lines = match.league.num_lines_per_match if match.league else 0
+    scheduled_lines = len(scheduled_times)
+    
+    if scheduled_lines >= expected_lines:
+        return "Fully Scheduled"
+    elif scheduled_lines > 0:
+        return f"Partially Scheduled ({scheduled_lines}/{expected_lines})"
+    else:
+        return "Location/Date Set"
+
+
+def _is_scheduled(match, scheduled_times):
+    """Calculate if scheduled when Match class doesn't have is_scheduled method"""
+    expected_lines = match.league.num_lines_per_match if match.league else 0
+    return (match.facility is not None and 
+            match.date is not None and 
+            len(scheduled_times) >= expected_lines)
+
+
+
+
+
+
+# Alternative function to get match status for cleaner code
+def get_match_status(match):
+    """Helper function to determine match status"""
+    if not match.facility:
+        return 'Unscheduled'
+    elif not match.date or not match.time:
+        return 'Partially Scheduled'
+    else:
+        return 'Scheduled'
+
+
+
+@app.route('/matches')
+def list_matches():
+    """
+    List all matches  
+    UPDATED: Much simpler since Match objects contain all needed data
+    """
+    db = get_db()
+    if not db:
+        return render_template('connect.html')
+    
+    try:
+        # Get matches with full object data
+        matches = db.list_matches()  # Now returns Match objects with League/Team/Facility objects
+        
+        # No need for separate team/facility/league lookups!
+        # Template can directly access match.home_team.name, match.facility.location, etc.
+        
+        enhanced_matches = []
+        for match in matches:
+            enhanced_match = {
+                'id': match.id,
+                'home_team_name': match.home_team.name,           # Direct access!
+                'visitor_team_name': match.visitor_team.name,     # Direct access!
+                'league_name': match.league.name,                # Direct access!
+                'facility_name': match.facility.name if match.facility else 'Unscheduled',
+                'facility_location': match.facility.location if match.facility else '',
+                'date': match.date,
+                'time': match.time,
+                'is_scheduled': match.is_scheduled(),
+                'team_display': match.get_team_names_display(),
+                'scheduling_display': match.get_scheduling_display()
+            }
+            enhanced_matches.append(enhanced_match)
+        
+        return render_template('matches.html', matches=enhanced_matches)
+        
+    except Exception as e:
+        flash(f'Error loading matches: {str(e)}', 'error')
+        return render_template('matches.html', matches=[])
+
+
+@app.route('/match/<int:match_id>')
+def view_match(match_id):
+    """View match details - optimized for object references"""
+    db = get_db()
+    if not db:
+        return render_template('connect.html')
+    
+    try:
+        match = db.get_match(match_id)  # Use get_match instead of get_match_with_lines
+        if not match:
+            flash('Match not found', 'error')
+            return redirect(url_for('matches'))
+        
+        # All data is directly available from the match object
+        return render_template('view_match.html', match=match)
+        
+    except Exception as e:
+        flash(f'Error loading match: {str(e)}', 'error')
+        return redirect(url_for('matches'))
+
+
+
 
 
 def search_matches_advanced(matches_list, search_query):
@@ -2546,7 +2717,7 @@ def get_match_status_details(match):
 
 @app.route('/matches/<int:match_id>/schedule', methods=['POST'])
 def schedule_match(match_id):
-    """Schedule an existing unscheduled match using auto-scheduling"""
+    """Schedule a match - updated to work with scheduled_times"""
     print(f"\n=== SCHEDULE MATCH DEBUG START ===")
     print(f"Attempting to schedule match ID: {match_id}")
     
@@ -2556,88 +2727,36 @@ def schedule_match(match_id):
         return jsonify({'error': 'No database connected'}), 500
     
     try:
-        print(f"Database connection established: {type(db)}")
-        
         # Get the match object
-        print(f"Retrieving match with ID: {match_id}")
         match = db.get_match(match_id)
         if not match:
-            print(f"ERROR: Match {match_id} not found")
             return jsonify({'error': f'Match {match_id} not found'}), 404
         
-        print(f"Match found:")
-        print(f"  ID: {match.id}")
-        print(f"  League ID: {match.league_id}")
-        print(f"  Home Team ID: {match.home_team_id}")
-        print(f"  Visitor Team ID: {match.visitor_team_id}")
-        print(f"  Current facility_id: {match.facility_id}")
-        print(f"  Current date: {match.date}")
-        print(f"  Current time: {match.time}")
-        print(f"  Is scheduled: {match.is_scheduled()}")
+        # Check if already has scheduled times
+        if hasattr(match, 'scheduled_times') and match.scheduled_times:
+            return jsonify({'error': 'Match already has scheduled times'}), 400
         
-        # Check if database has auto_schedule_matches method
-        print(f"Checking if database has auto_schedule_matches method...")
-        if hasattr(db, 'auto_schedule_matches'):
-            print("✓ auto_schedule_matches method found")
-        else:
-            print("✗ auto_schedule_matches method NOT found")
-            return jsonify({'error': 'Auto-scheduling not available in this database backend'}), 500
+        # Auto-schedule the match using available method
+        success = db.auto_schedule_matches([match])
         
-        # Use the auto-scheduling method with a list containing the single match
-        print(f"Calling auto_schedule_matches with single match...")
-        try:
-            result = db.auto_schedule_matches([match], dry_run=False)
-            print(f"Auto-schedule result: {result}")
-        except Exception as auto_error:
-            print(f"ERROR in auto_schedule_matches: {auto_error}")
-            print(f"Auto-schedule error type: {type(auto_error)}")
-            import traceback
-            print("Auto-schedule traceback:")
-            traceback.print_exc()
-            raise auto_error
-        
-        # Check if the match is now scheduled by querying the database
-        print(f"Re-checking match status after scheduling attempt...")
-        updated_match = db.get_match(match_id)
-        if updated_match:
-            print(f"Updated match status:")
-            print(f"  facility_id: {updated_match.facility_id}")
-            print(f"  date: {updated_match.date}")
-            print(f"  time: {updated_match.time}")
-            print(f"  is_scheduled: {updated_match.is_scheduled()}")
+        if success:
+            # Get updated match to return current status
+            updated_match = db.get_match(match_id)
+            enhanced_match = enhance_match_for_template(updated_match)
             
-            if updated_match.is_scheduled():
-                print("✓ Match successfully scheduled!")
-                return jsonify({
-                    'success': True,
-                    'message': f'Match {match_id} has been automatically scheduled',
-                    'details': result
-                })
-            else:
-                print("✗ Match is still unscheduled after attempt")
-                return jsonify({
-                    'error': 'Could not find suitable scheduling option for this match',
-                    'details': result
-                }), 400
+            return jsonify({
+                'success': True,
+                'message': f'Match {match_id} scheduled successfully',
+                'match': enhanced_match
+            })
         else:
-            print("ERROR: Could not retrieve updated match")
-            return jsonify({'error': 'Could not verify match scheduling status'}), 500
+            return jsonify({'error': 'Could not find suitable scheduling slot'}), 400
             
-    except ValueError as e:
-        print(f"ValueError in schedule_match: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': str(e)}), 400
     except Exception as e:
-        print(f"Exception in schedule_match: {e}")
-        print(f"Exception type: {type(e)}")
+        print(f"ERROR scheduling match: {e}")
         import traceback
-        print("Full traceback:")
         traceback.print_exc()
-        return jsonify({'error': f'Failed to auto-schedule match: {e}'}), 500
-    finally:
-        print("=== SCHEDULE MATCH DEBUG END ===\n")
-
+        return jsonify({'error': f'Scheduling failed: {str(e)}'}), 500
 
 # Fix for tennis_web_app.py - Update the schedule-all route
 
@@ -2676,43 +2795,29 @@ def schedule_all_matches():
         
         # Use auto-scheduling
         try:
-            if league_id:
-                # Try league-specific scheduling if the method exists
-                result = db.auto_schedule_league_matches(league_id, dry_run=dry_run)
-            else:
-                # Use general match scheduling
-                result = db.auto_schedule_matches(unscheduled_matches, dry_run=dry_run)
+            # Use general match scheduling
+            result = db.auto_schedule_matches(unscheduled_matches)
         except AttributeError:
             # If auto-scheduling methods don't exist, we can't schedule
             return jsonify({
                 'error': 'Auto-scheduling functionality not available in this database backend'
             }), 500
         
-        if not dry_run:
-            # Re-fetch matches to count how many are now scheduled
-            if league_id:
-                current_matches = db.list_matches(league_id=league_id, include_unscheduled=True)
-            else:
-                current_matches = db.list_matches(include_unscheduled=True)
-            
-            current_unscheduled = [match for match in current_matches if not match.is_scheduled()]
-            scheduled_count = initial_unscheduled_count - len(current_unscheduled)
-            failed_count = len(current_unscheduled)
+
+        # Re-fetch matches to count how many are now scheduled
+        if league_id:
+            current_matches = db.list_matches(league_id=league_id, include_unscheduled=True)
         else:
-            # For dry run, extract from result if possible
-            if isinstance(result, dict):
-                scheduled_count = result.get('scheduled_count', 0)
-                failed_count = result.get('failed_count', 0)
-            else:
-                scheduled_count = 0
-                failed_count = 0
+            current_matches = db.list_matches(include_unscheduled=True)
+        
+        current_unscheduled = [match for match in current_matches if not match.is_scheduled()]
+        scheduled_count = initial_unscheduled_count - len(current_unscheduled)
+        failed_count = len(current_unscheduled)
+
         
         total_count = initial_unscheduled_count
         
-        if dry_run:
-            message = f"Dry run completed for {scope}: {scheduled_count} of {total_count} matches could be scheduled"
-        else:
-            message = f"Scheduled {scheduled_count} of {total_count} matches in {scope}"
+        message = f"Scheduled {scheduled_count} of {total_count} matches in {scope}"
             
         if failed_count > 0:
             message += f" ({failed_count} failed)"
@@ -2832,7 +2937,7 @@ def migrate_teams_to_facility_names():
 # Add utility route to find teams by facility
 @app.route('/api/teams/by-facility/<facility_name>')
 def api_teams_by_facility_name(facility_name):
-    """API endpoint to get teams by facility name"""
+    """API endpoint to get teams by facility name - optimized"""
     db = get_db()
     if db is None:
         return jsonify({'error': 'No database connected'}), 500
@@ -2841,16 +2946,18 @@ def api_teams_by_facility_name(facility_name):
         exact_match = request.args.get('exact', 'true').lower() == 'true'
         teams_list = db.team_manager.get_teams_by_facility_name(facility_name, exact_match=exact_match)
         
-        teams_data = []
-        for team in teams_list:
-            teams_data.append({
+        # Direct object access instead of manual field extraction
+        teams_data = [
+            {
                 'id': team.id,
                 'name': team.name,
-                'captain': team.captain,
-                'home_facility': team.home_facility,
+                'captain': getattr(team, 'captain', ''),
+                'home_facility': team.home_facility.name if hasattr(team, 'home_facility') and team.home_facility else '',
                 'league_name': team.league.name,
                 'league_id': team.league.id
-            })
+            }
+            for team in teams_list
+        ]
         
         return jsonify({
             'facility_name': facility_name,
@@ -2864,107 +2971,76 @@ def api_teams_by_facility_name(facility_name):
 
 @app.route('/api/generate-matches/<int:league_id>')
 def api_generate_matches(league_id):
-    """API endpoint to generate matches and return JSON with deterministic ID preservation"""
+    """API endpoint to generate matches - FIXED to ensure proper object loading"""
     db = get_db()
     if db is None:
         return jsonify({'error': 'No database connected'}), 500
     
     try:
-        # Get league and teams
+        # Get league with full object loading
         league = db.get_league(league_id)
         if not league:
-            return jsonify({'error': f'League with ID {league_id} not found'}), 404
+            return jsonify({'error': f'League {league_id} not found'}), 404
         
-        teams = db.list_teams(league_id=league_id)
+        # Get teams for this league
+        teams = db.list_teams(league)
         if len(teams) < 2:
-            return jsonify({'error': f'Need at least 2 teams, found {len(teams)}'}), 400
+            return jsonify({'error': 'Need at least 2 teams to generate matches'}), 400
         
-        # Generate matches using League.generate_matches()
+        # Generate matches using the league's algorithm
         matches = league.generate_matches(teams)
         
-        # Process matches with deterministic ID preservation
+        # Process the generated matches
         created_matches = []
         updated_matches = []
         failed_matches = []
+
+        print(f"GENERATED {len(matches)} MATCHES")
         
         for match in matches:
             try:
-                # Check if match already exists with this deterministic ID
+                # Check if match already exists
                 existing_match = db.get_match(match.id)
                 
                 if existing_match:
-                    # Update existing match - preserve deterministic ID
+                    # Update existing match
                     db.update_match(match)
                     updated_matches.append({
                         'match_id': match.id,
-                        'home_team_id': match.home_team_id,
-                        'home_team_name': next(team.name for team in teams if team.id == match.home_team_id),
-                        'visitor_team_id': match.visitor_team_id,
-                        'visitor_team_name': next(team.name for team in teams if team.id == match.visitor_team_id),
-                        'facility_id': match.facility_id,
-                        'action': 'updated'
+                        'home_team': match.home_team.name,
+                        'visitor_team': match.visitor_team.name,
+                        'facility_id': match.facility_id
                     })
                 else:
-                    # Create new match with deterministic ID
+                    # Create new match
                     db.add_match(match)
                     created_matches.append({
                         'match_id': match.id,
-                        'home_team_id': match.home_team_id,
-                        'home_team_name': next(team.name for team in teams if team.id == match.home_team_id),
-                        'visitor_team_id': match.visitor_team_id,
-                        'visitor_team_name': next(team.name for team in teams if team.id == match.visitor_team_id),
-                        'facility_id': match.facility_id,
-                        'action': 'created'
+                        'home_team': match.home_team.name,
+                        'visitor_team': match.visitor_team.name,
+                        'facility_id': match.facility_id
                     })
                     
             except Exception as e:
                 failed_matches.append({
-                    'match_id': match.id,
+                    'match_id': getattr(match, 'id', 'unknown'),
                     'error': str(e)
                 })
-        
-        # Format results
-        all_matches = created_matches + updated_matches
-        
-        results = {
-            'league': {
-                'id': league.id,
-                'name': league.name,
-                'num_matches': league.num_matches,
-                'num_lines_per_match': league.num_lines_per_match
-            },
-            'teams_count': len(teams),
-            'total_matches_processed': len(all_matches),
+                
+        print(f"GEN MATCHES SUCCEEDED")
+
+        return jsonify({
+            'success': True,
             'created_count': len(created_matches),
             'updated_count': len(updated_matches),
             'failed_count': len(failed_matches),
-            'matches': [
-                {
-                    'match_id': match['match_id'],
-                    'match_number': i + 1,
-                    'home_team_id': match['home_team_id'],
-                    'home_team_name': match['home_team_name'],
-                    'visitor_team_id': match['visitor_team_id'],
-                    'visitor_team_name': match['visitor_team_name'],
-                    'facility_id': match['facility_id'],
-                    'action': match['action']
-                }
-                for i, match in enumerate(all_matches)
-            ],
-            'deterministic_ids': True,  # Indicate that IDs are deterministic
-            'message': f"Processed {len(all_matches)} matches: {len(created_matches)} created, {len(updated_matches)} updated"
-        }
+            'created_matches': created_matches,
+            'updated_matches': updated_matches,
+            'failed_matches': failed_matches if failed_matches else None
+        })
         
-        if failed_matches:
-            results['failed_matches'] = failed_matches
-            results['warning'] = f"{len(failed_matches)} matches failed to process"
-        
-        return jsonify(results)
-        
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
     except Exception as e:
-        return jsonify({'error': f'Internal server error: {e}'}), 500
+        return jsonify({'error': f'Failed to generate matches: {e}'}), 500
 
 # ==================== HELPER FUNCTIONS ====================
 
@@ -2997,7 +3073,7 @@ def constants():
 
 @app.route('/stats')
 def stats():
-    """Database statistics page"""
+    """Database statistics page - FIXED to use League objects"""
     db = get_db()
     if db is None:
         flash('No database connection', 'error')
@@ -3007,18 +3083,19 @@ def stats():
         stats_data = {
             'facilities_count': len(db.list_facilities()),
             'leagues_count': len(db.list_leagues()),
-            'teams_count': len(db.list_teams()),
-            'matches_count': len(db.list_matches()),
+            'teams_count': len(db.list_teams()),  # No league parameter = all teams
+            'matches_count': len(db.list_matches()),  # No league parameter = all matches
             'db_path': str(db_config['connection_params'])
         }
         
-        # League breakdown
+        # League breakdown - FIXED to pass League objects
         leagues_list = db.list_leagues()
         league_stats = []
         for league in leagues_list:
             try:
-                teams_in_league = len(db.list_teams(league_id=league.id))
-                matches_in_league = len(db.list_matches(league_id=league.id))
+                # Pass the League object, not league.id
+                teams_in_league = len(db.list_teams(league))
+                matches_in_league = len(db.list_matches(league))
                 league_stats.append({
                     'league': league,
                     'teams_count': teams_in_league,
@@ -3042,310 +3119,105 @@ def stats():
 
 @app.route('/schedule')
 def schedule():
-    """View matches organized by date in a schedule format with search functionality"""
-    print("=== SCHEDULE ROUTE DEBUG START ===")
-    
+    """Schedule page - FIXED to use League objects"""
     db = get_db()
     if db is None:
-        print("ERROR: No database connection")
-        flash('No database connection', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('connect'))
     
+    # Get filter parameters
     league_id = request.args.get('league_id', type=int)
-    start_date = request.args.get('start_date', '')
-    end_date = request.args.get('end_date', '')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
     search_query = request.args.get('search', '').strip()
     
-    print(f"Request parameters:")
-    print(f"  - league_id: {league_id} (type: {type(league_id)})")
-    print(f"  - start_date: '{start_date}'")
-    print(f"  - end_date: '{end_date}'")
-    print(f"  - search_query: '{search_query}'")
-    
     try:
-        # Get all scheduled matches (only those with dates)
-        print("\n--- Getting matches from database ---")
-        all_matches = db.list_matches(league_id=league_id, include_unscheduled=False)
-        print(f"Retrieved {len(all_matches)} matches from database")
-        
-        leagues_list = db.list_leagues()  # For filter dropdown
-        print(f"Retrieved {len(leagues_list)} leagues for dropdown")
-        
-        # Filter matches that have dates
-        scheduled_matches = [match for match in all_matches if match.date]
-        print(f"Filtered to {len(scheduled_matches)} scheduled matches (with dates)")
-        
-        # Apply date range filter if provided
-        if start_date:
-            before_filter = len(scheduled_matches)
-            scheduled_matches = [match for match in scheduled_matches if match.date >= start_date]
-            print(f"After start_date filter: {len(scheduled_matches)} matches (was {before_filter})")
-        if end_date:
-            before_filter = len(scheduled_matches)
-            scheduled_matches = [match for match in scheduled_matches if match.date <= end_date]
-            print(f"After end_date filter: {len(scheduled_matches)} matches (was {before_filter})")
-        
-        # Get selected league info if filtering
+        # Get selected league if filtering
         selected_league = None
         if league_id:
-            print(f"\n--- Getting league info for ID {league_id} ---")
             selected_league = db.get_league(league_id)
-            if selected_league:
-                print(f"Selected league: {selected_league.name}")
-            else:
-                print(f"WARNING: League with ID {league_id} not found")
         
-        # Enhance matches with team and facility names
-        print(f"\n--- Enhancing {len(scheduled_matches)} matches ---")
-        enhanced_matches = []
+        # Get only scheduled matches (those with dates) - FIXED to pass League object
+        matches_list = db.list_matches(selected_league, include_unscheduled=False)
         
-        for i, match in enumerate(scheduled_matches):
-            print(f"\nProcessing match {i+1}/{len(scheduled_matches)} (ID: {match.id})")
-            
-            enhanced_match = {
-                'id': match.id,
-                'league_id': match.league_id,
-                'home_team_id': match.home_team_id,
-                'visitor_team_id': match.visitor_team_id,
-                'facility_id': match.facility_id,
-                'date': match.date,
-                'time': match.time,
-                'home_team_name': 'Unknown',
-                'visitor_team_name': 'Unknown',
-                'facility_name': 'Unknown',
-                'league_name': 'Unknown',
-                'status': match.get_status()
-            }
-            
-            # Get home team
-            try:
-                home_team = db.get_team(match.home_team_id)
-                if home_team:
-                    enhanced_match['home_team_name'] = home_team.name
-                    enhanced_match['home_team_captain'] = getattr(home_team, 'captain', '')
-                    enhanced_match['home_team_contact'] = getattr(home_team, 'contact_email', '')
-            except Exception as e:
-                print(f"    ERROR getting home team {match.home_team_id}: {e}")
-            
-            # Get visitor team
-            try:
-                visitor_team = db.get_team(match.visitor_team_id)
-                if visitor_team:
-                    enhanced_match['visitor_team_name'] = visitor_team.name
-                    enhanced_match['visitor_team_captain'] = getattr(visitor_team, 'captain', '')
-                    enhanced_match['visitor_team_contact'] = getattr(visitor_team, 'contact_email', '')
-            except Exception as e:
-                print(f"    ERROR getting visitor team {match.visitor_team_id}: {e}")
-            
-            # Get facility - use home team's facility if match facility_id is not set
-            try:
-                facility_id_to_use = match.facility_id
-                facility_source = "match"
-                
-                # If match facility_id is None, try to use home team's facility
-                if match.facility_id is None:
-                    try:
-                        home_team = db.get_team(match.home_team_id) if 'home_team_name' not in enhanced_match else home_team
-                        
-                        if home_team and hasattr(home_team, 'home_facility') and home_team.home_facility:
-                            if hasattr(home_team.home_facility, 'id'):
-                                facility_id_to_use = home_team.home_facility.id
-                                facility_source = "home team facility object"
-                            elif isinstance(home_team.home_facility, str):
-                                facilities = db.list_facilities()
-                                for fac in facilities:
-                                    if fac.name == home_team.home_facility or (fac.short_name and fac.short_name == home_team.home_facility):
-                                        facility_id_to_use = fac.id
-                                        facility_source = "home team facility name lookup"
-                                        break
-                    except Exception as e:
-                        print(f"    ERROR getting home team's facility: {e}")
-                
-                # Now try to get the facility
-                if facility_id_to_use is None:
-                    enhanced_match['facility_name'] = 'No Facility Assigned'
-                else:
-                    facility = db.get_facility(facility_id_to_use)
-                    if facility:
-                        enhanced_match['facility_name'] = facility.name
-                        enhanced_match['facility_location'] = getattr(facility, 'location', '')
-                    else:
-                        enhanced_match['facility_name'] = f'Facility ID {facility_id_to_use} (Not Found)'
-                        
-            except Exception as e:
-                print(f"    ERROR getting facility: {e}")
-                enhanced_match['facility_name'] = f'Error: {str(e)}'
-            
-            # Get league
-            try:
-                if match.league_id:
-                    league = db.get_league(match.league_id)
-                    if league:
-                        enhanced_match['league_name'] = league.name
-                        enhanced_match['league_division'] = getattr(league, 'division', '')
-                        enhanced_match['league_year'] = getattr(league, 'year', '')
-            except Exception as e:
-                print(f"    ERROR getting league {match.league_id}: {e}")
-            
-            enhanced_matches.append(enhanced_match)
+        # Filter to only matches with actual dates
+        scheduled_matches = [m for m in matches_list if m.date]
         
-        # Apply search filter if provided
-        if search_query:
-            print(f"\n--- Applying search filter for '{search_query}' ---")
-            before_search = len(enhanced_matches)
-            enhanced_matches = filter_schedule_matches_by_search(enhanced_matches, search_query)
-            print(f"After search filter: {len(enhanced_matches)} matches (was {before_search})")
+        # Apply additional filters
+        if start_date or end_date or search_query:
+            scheduled_matches = filter_matches(scheduled_matches, start_date, end_date, search_query)
         
-        print(f"\n--- Grouping {len(enhanced_matches)} enhanced matches by date ---")
+        # Sort by date
+        scheduled_matches.sort(key=lambda x: x.date if x.date else datetime.min.date())
         
-        # Group matches by date
-        from collections import defaultdict
-        from datetime import datetime
-        
-        matches_by_date = defaultdict(list)
-        for match in enhanced_matches:
-            matches_by_date[match['date']].append(match)
-        
-        print(f"Grouped into {len(matches_by_date)} different dates:")
-        for date_str, matches in matches_by_date.items():
-            print(f"  {date_str}: {len(matches)} matches")
-        
-        # Sort matches within each date by time
-        for date_key in matches_by_date:
-            matches_by_date[date_key].sort(key=lambda x: x['time'] or '00:00')
-        
-        # Convert to sorted list of (date, day_name, matches) tuples
+        # Convert to display format for schedule
         schedule_data = []
-        for date_str in sorted(matches_by_date.keys()):
-            try:
-                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-                day_name = date_obj.strftime('%A')  # Full day name
-                formatted_date = date_obj.strftime('%B %d, %Y')  # "January 15, 2025"
-            except ValueError:
-                day_name = 'Unknown'
-                formatted_date = date_str
-            
-            schedule_data.append({
-                'date_str': date_str,
-                'day_name': day_name,
-                'formatted_date': formatted_date,
-                'matches': matches_by_date[date_str]
-            })
+        for match in scheduled_matches:
+            schedule_item = {
+                'id': match.id,
+                'date': match.date,
+                'time': ', '.join(match.scheduled_times) if match.scheduled_times else 'TBD',
+                'home_team': match.home_team.name if match.home_team else 'Unknown',
+                'visitor_team': match.visitor_team.name if match.visitor_team else 'Unknown',
+                'facility': match.facility.name if match.facility else 'TBD',
+                'league': match.league.name if match.league else 'Unknown',
+                'status': match.get_status() if hasattr(match, 'get_status') else 'Scheduled'
+            }
+            schedule_data.append(schedule_item)
         
-        print(f"\nFinal schedule_data contains {len(schedule_data)} date entries")
-        print(f"Total enhanced matches: {len(enhanced_matches)}")
+        # Get leagues for filter dropdown
+        leagues_list = db.list_leagues()
         
-        print("=== SCHEDULE ROUTE DEBUG END ===\n")
-        
-        return render_template('schedule.html', 
-                             schedule_data=schedule_data,
+        return render_template('schedule.html',
+                             schedule=schedule_data,
                              leagues=leagues_list,
                              selected_league=selected_league,
+                             search_query=search_query,
                              start_date=start_date,
-                             end_date=end_date,
-                             total_matches=len(enhanced_matches))
-    
-    except Exception as e:
-        print(f"\n!!! CRITICAL ERROR in schedule route: {e}")
-        print(f"Exception type: {type(e)}")
-        import traceback
-        print("Full traceback:")
-        traceback.print_exc()
-        print("=== SCHEDULE ROUTE DEBUG END (ERROR) ===\n")
+                             end_date=end_date)
         
+    except Exception as e:
         flash(f'Error loading schedule: {e}', 'error')
         return redirect(url_for('index'))
 
 
-def filter_schedule_matches_by_search(matches_list, search_query):
-    """
-    Filter schedule matches based on search query
-    Searches across: team names, captains, facility name/location, league name/division, dates, times
-    """
+
+def filter_schedule_by_search(matches_by_date, search_query):
+    """Filter schedule matches by search query"""
     if not search_query:
-        return matches_list
+        return matches_by_date
     
-    # Split search query into individual terms for more flexible matching
     search_terms = [term.lower().strip() for term in search_query.split() if term.strip()]
     if not search_terms:
-        return matches_list
+        return matches_by_date
     
-    filtered_matches = []
+    filtered_by_date = {}
     
-    for match in matches_list:
-        # Collect all searchable text for this match
-        searchable_text = []
+    for date, matches in matches_by_date.items():
+        filtered_matches = []
         
-        # Team names
-        if match.get('home_team_name') and match['home_team_name'] != 'Unknown':
-            searchable_text.append(match['home_team_name'].lower())
-        if match.get('visitor_team_name') and match['visitor_team_name'] != 'Unknown':
-            searchable_text.append(match['visitor_team_name'].lower())
+        for match_data in matches:
+            match = match_data['match']
+            
+            # Build searchable content from match objects
+            searchable_text = ' '.join([
+                match.home_team.name,
+                match.visitor_team.name,
+                match.league.name,
+                match.facility.name if match.facility else '',
+                getattr(match.facility, 'location', '') if match.facility else '',
+                ' '.join(match.scheduled_times)
+            ]).lower()
+            
+            if all(term in searchable_text for term in search_terms):
+                filtered_matches.append(match_data)
         
-        # Team captains
-        if match.get('home_team_captain'):
-            searchable_text.append(match['home_team_captain'].lower())
-        if match.get('visitor_team_captain'):
-            searchable_text.append(match['visitor_team_captain'].lower())
-        
-        # Team contact emails
-        if match.get('home_team_contact'):
-            searchable_text.append(match['home_team_contact'].lower())
-        if match.get('visitor_team_contact'):
-            searchable_text.append(match['visitor_team_contact'].lower())
-        
-        # Facility information
-        if match.get('facility_name') and match['facility_name'] not in ['Unknown', 'No Facility Assigned']:
-            searchable_text.append(match['facility_name'].lower())
-        if match.get('facility_location'):
-            searchable_text.append(match['facility_location'].lower())
-        
-        # League information
-        if match.get('league_name') and match['league_name'] != 'Unknown':
-            searchable_text.append(match['league_name'].lower())
-        if match.get('league_division'):
-            searchable_text.append(match['league_division'].lower())
-        if match.get('league_year'):
-            searchable_text.append(str(match['league_year']).lower())
-        
-        # Match scheduling information
-        if match.get('date'):
-            searchable_text.append(str(match['date']).lower())
-            # Also add formatted date components for easier searching
-            try:
-                from datetime import datetime
-                date_obj = datetime.strptime(str(match['date']), '%Y-%m-%d')
-                searchable_text.append(date_obj.strftime('%A').lower())  # Day name
-                searchable_text.append(date_obj.strftime('%B').lower())  # Month name
-                searchable_text.append(date_obj.strftime('%Y'))  # Year
-                searchable_text.append(date_obj.strftime('%m'))  # Month number
-                searchable_text.append(date_obj.strftime('%d'))  # Day number
-            except ValueError:
-                pass
-        
-        if match.get('time'):
-            searchable_text.append(str(match['time']).lower())
-        
-        # Match status
-        if match.get('status'):
-            searchable_text.append(match['status'].lower())
-        
-        # Match ID
-        searchable_text.append(str(match['id']))
-        
-        # Combine all searchable text
-        combined_text = ' '.join(searchable_text)
-        
-        # Check if all search terms are found in the combined text
-        matches_all_terms = all(
-            any(term in text_field for text_field in searchable_text)
-            for term in search_terms
-        )
-        
-        if matches_all_terms:
-            filtered_matches.append(match)
+        if filtered_matches:
+            filtered_by_date[date] = filtered_matches
     
-    return filtered_matches
+    return filtered_by_date
+    
+
+
 
 
 def search_schedule_matches_advanced(matches_list, search_query):

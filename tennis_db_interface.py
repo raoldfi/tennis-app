@@ -1,12 +1,11 @@
 """
-Tennis Database Interface
+Tennis Database Interface - Updated without Line class
 
 Clean abstract interface for tennis database backends.
 This interface is backend-agnostic and defines the contract
 that all database implementations must follow.
 
-This file has no dependencies on USTA classes to avoid circular imports.
-Type hints use TYPE_CHECKING to avoid runtime import issues.
+Updated to remove Line class support and focus on Match-based scheduling.
 """
 
 from abc import ABC, abstractmethod
@@ -14,7 +13,7 @@ from typing import List, Dict, Optional, Tuple, Any, TYPE_CHECKING
 
 # Use TYPE_CHECKING to avoid circular imports for type hints
 if TYPE_CHECKING:
-    from usta import Team, League, Match, Facility, Line
+    from usta import Team, League, Match, Facility
 
 
 class TennisDBInterface(ABC):
@@ -22,6 +21,9 @@ class TennisDBInterface(ABC):
     Abstract interface for tennis database backends.
     This interface is backend-agnostic and defines the contract
     that all database implementations must follow.
+    
+    Updated to remove Line class - scheduling is now handled at the Match level
+    with scheduled_times arrays.
     """
 
     # ========== Connection Management ==========
@@ -43,165 +45,159 @@ class TennisDBInterface(ABC):
     # ========== Team Management ==========
     @abstractmethod
     def add_team(self, team: 'Team') -> None:
+        """Add a new team to the database"""
         pass
 
     @abstractmethod
     def get_team(self, team_id: int) -> Optional['Team']:
+        """Get a team by ID"""
         pass
 
     @abstractmethod
-    def list_teams(self, league_id: Optional[int] = None) -> List['Team']:
+    def list_teams(self, league: Optional['League'] = None) -> List['Team']:
+        """List teams, optionally filtered by league"""
         pass
 
     @abstractmethod
     def update_team(self, team: 'Team') -> None:
+        """Update an existing team"""
         pass
 
     @abstractmethod
-    def delete_team(self, team_id: int) -> None:
+    def delete_team(self, team: 'Team') -> None:
+        """Delete a team"""
         pass
+
 
     # ========== League Management ==========
     @abstractmethod
     def add_league(self, league: 'League') -> None:
+        """Add a new league to the database"""
         pass
 
     @abstractmethod
     def get_league(self, league_id: int) -> Optional['League']:
+        """Get a league by ID"""
         pass
 
     @abstractmethod
     def list_leagues(self) -> List['League']:
+        """List all leagues"""
         pass
 
     @abstractmethod
     def update_league(self, league: 'League') -> None:
+        """Update an existing league"""
         pass
 
     @abstractmethod
-    def delete_league(self, league_id: int) -> None:
+    def delete_league(self, league: 'League') -> None:
+        """Delete a league"""
         pass
 
     # ========== Match Management ==========
     @abstractmethod
     def add_match(self, match: 'Match') -> None:
+        """Add a new match to the database"""
         pass
 
     @abstractmethod
     def get_match(self, match_id: int) -> Optional['Match']:
+        """Get a match by ID with full object references"""
         pass
 
     @abstractmethod
-    def get_match_with_lines(self, match_id: int) -> Optional['Match']:
-        pass
-
-    @abstractmethod
-    def list_matches(self, league_id: Optional[int] = None, include_unscheduled: bool = False) -> List['Match']:
-        pass
-
-    @abstractmethod
-    def list_matches_with_lines(self, league_id: Optional[int] = None, include_unscheduled: bool = False) -> List['Match']:
+    def list_matches(self, league: Optional['League'] = None, include_unscheduled: bool = True) -> List['Match']:
+        """List matches, optionally filtered by league and scheduling status"""
         pass
 
     @abstractmethod
     def update_match(self, match: 'Match') -> None:
+        """Update an existing match"""
         pass
 
     @abstractmethod
-    def delete_match(self, match_id: int) -> None:
+    def delete_match(self, match: 'Match') -> None:
+        """Delete a match"""
+        pass
+
+    @abstractmethod
+    def get_matches_on_date(self, date: str) -> List['Match']:
+        """Get all matches scheduled on a specific date, optionally at a specific facility"""
         pass
 
     # ========== Facility Management ==========
     @abstractmethod
     def add_facility(self, facility: 'Facility') -> None:
+        """Add a new facility to the database"""
         pass
 
     @abstractmethod
     def get_facility(self, facility_id: int) -> Optional['Facility']:
+        """Get a facility by ID"""
         pass
 
     @abstractmethod
     def list_facilities(self) -> List['Facility']:
+        """List all facilities"""
         pass
 
     @abstractmethod
     def update_facility(self, facility: 'Facility') -> None:
+        """Update an existing facility"""
         pass
 
     @abstractmethod
-    def delete_facility(self, facility_id: int) -> None:
-        pass
-
-    # ========== Line Management ==========
-    @abstractmethod
-    def add_line(self, line: 'Line') -> None:
+    def delete_facility(self, facility: 'Facility') -> None:
+        """Delete a facility"""
         pass
 
     @abstractmethod
-    def get_line(self, line_id: int) -> Optional['Line']:
+    def get_facility_availability(self, facility: 'Facility', date: str) -> Dict[str, Any]:
+        """Get facility availability information for a specific date"""
         pass
 
-    @abstractmethod
-    def list_lines(self, match_id: Optional[int] = None, 
-                   facility_id: Optional[int] = None,
-                   date: Optional[str] = None) -> List['Line']:
-        pass
 
+    # ========== Match Scheduling Operations ==========
     @abstractmethod
-    def update_line(self, line: 'Line') -> None:
-        pass
-
-    @abstractmethod
-    def delete_line(self, line_id: int) -> None:
-        pass
-
-    # ========== Scheduling Operations ==========
-    @abstractmethod
-    def schedule_match_all_lines_same_time(self, match_id: int, facility_id: int, date: str, time: str) -> bool:
-        pass
-
-    @abstractmethod
-    def schedule_match_split_lines(self, match_id: int, date: str, 
-                                 scheduling_plan: List[Tuple[str, int, int]]) -> bool:
-        pass
-
-    @abstractmethod
-    def unschedule_match(self, match_id: int) -> None:
-        pass
-
-    @abstractmethod
-    def check_court_availability(self, facility_id: int, date: str, time: str, courts_needed: int) -> bool:
-        pass
-
-    @abstractmethod
-    def get_available_courts_count(self, facility_id: int, date: str, time: str) -> int:
-        pass
-
-    # ========== Enhanced Scheduling Methods ==========
-    
-    @abstractmethod
-    def get_unscheduled_matches(self, league_id: Optional[int] = None) -> List['Match']:
-        """Get all unscheduled matches, optionally filtered by league"""
-        pass
-
-    @abstractmethod
-    def find_scheduling_options_for_match(self, match_id: int, preferred_dates: List[str], 
-                                        facility_ids: Optional[List[int]] = None) -> Dict[str, List[Dict]]:
+    def schedule_match_all_lines_same_time(self, match: 'Match', 
+                                           date: str, time: str, 
+                                           facility: Optional['Facility'] = None) -> bool:
         """
-        Find all possible scheduling options for a match
+        Schedule all lines of a match at the same facility, date, and time
         
         Args:
-            match_id: Match to schedule
-            preferred_dates: List of preferred dates to check
-            facility_ids: Optional list of facility IDs to check (if None, checks all)
+            match_id: ID of the match to schedule
+            facility_id: Facility where match will be played
+            date: Date in YYYY-MM-DD format
+            time: Time in HH:MM format
             
         Returns:
-            Dictionary mapping dates to scheduling options
+            True if successful, False if there are conflicts or other issues
         """
         pass
 
     @abstractmethod
-    def auto_schedule_match(self, match_id: int, preferred_dates: List[str], 
+    def schedule_match_sequential_times(self, match: 'Match', 
+                                        date: str, start_time: str, interval_minutes: int = 180, 
+                                        facility: Optional['Facility'] = None) -> bool:
+        """
+        Schedule match lines sequentially with specified interval between start times
+        
+        Args:
+            match_id: ID of the match to schedule
+            facility_id: Facility where match will be played
+            date: Date in YYYY-MM-DD format
+            start_time: Start time for first line in HH:MM format
+            interval_minutes: Minutes between line start times
+            
+        Returns:
+            True if successful, False if there are conflicts or other issues
+        """
+        pass
+
+    @abstractmethod
+    def auto_schedule_match(self, match: 'Match', 
                           prefer_home_facility: bool = True) -> bool:
         """
         Attempt to automatically schedule a single match
@@ -211,13 +207,14 @@ class TennisDBInterface(ABC):
             preferred_dates: List of dates to try (in order of preference)
             prefer_home_facility: Whether to prefer the home team's facility
             
-        Returns:
+        Returns: 
             True if match was successfully scheduled
         """
         pass
 
+    
     @abstractmethod
-    def auto_schedule_matches(self, matches: List['Match'], dry_run: bool = False) -> Dict[str, Any]:
+    def auto_schedule_matches(self, matches: List['Match']) -> Dict[str, Any]:
         """
         Attempt to automatically schedule a list of matches
         
@@ -230,90 +227,61 @@ class TennisDBInterface(ABC):
         """
         pass
 
+
+
+
     @abstractmethod
-    def auto_schedule_league_matches(self, league_id: int, dry_run: bool = False) -> Dict[str, Any]:
+    def unschedule_match(self, match: 'Match') -> None:
         """
-        Attempt to automatically schedule all unscheduled matches in a league
+        Unschedule a match (remove facility, date, and all scheduled times)
         
         Args:
-            league_id: League to schedule matches for
-            dry_run: If True, don't actually schedule, just report what would happen
-            
-        Returns:
-            Dictionary with scheduling results and statistics
+            match_id: ID of the match to unschedule
         """
         pass
 
     @abstractmethod
-    def get_optimal_scheduling_dates(self, match: 'Match', 
-                                   start_date: Optional[str] = None,
-                                   end_date: Optional[str] = None,
-                                   num_dates: int = 20) -> List[str]:
+    def check_time_availability(self, facility: 'Facility', date: str, time: str, courts_needed: int = 1) -> bool:
         """
-        Find optimal dates for scheduling a specific match, prioritizing team preferences
+        Check if a specific time slot is available at a facility
         
         Args:
-            match: Match to find dates for
-            start_date: Start date for search (defaults to league start_date)
-            end_date: End date for search (defaults to league end_date)  
-            num_dates: Number of dates to return
+            facility_id: Facility to check
+            date: Date in YYYY-MM-DD format
+            time: Time in HH:MM format
+            courts_needed: Number of courts needed
             
         Returns:
-            List of date strings in YYYY-MM-DD format, ordered by preference
-            (team preferred days first, then league preferred days, then backup days)
+            True if available, False otherwise
         """
         pass
 
     @abstractmethod
-    def validate_league_scheduling_feasibility(self, league_id: int) -> Dict[str, Any]:
+    def get_available_times_at_facility(self, facility: 'Facility', date: str, courts_needed: int = 1) -> List[str]:
         """
-        Analyze whether it's feasible to schedule all matches in a league
+        Get all available time slots at a facility for the specified number of courts
         
         Args:
-            league_id: League to analyze
+            facility_id: Facility to check
+            date: Date in YYYY-MM-DD format
+            courts_needed: Number of courts needed
             
         Returns:
-            Dictionary with feasibility analysis
+            List of available time strings in HH:MM format
         """
         pass
 
+    # ========== Advanced Scheduling Operations ==========
     @abstractmethod
-    def get_facility_utilization_detailed(self, facility_id: int, date: str) -> Dict[str, Any]:
+    def get_team_conflicts(self, team: 'Team', date: str, time: str, duration_hours: int = 3) -> List[Dict]:
         """
-        Get detailed utilization for a facility on a specific date
+        Check for scheduling conflicts for a team at a specific date/time
         
         Args:
-            facility_id: Facility to analyze
-            date: Date to check (YYYY-MM-DD format)
-            
-        Returns:
-            Dictionary with detailed utilization information
-        """
-        pass
-
-    @abstractmethod
-    def get_facility_availability_forecast(self, facility_id: int, 
-                                         start_date: str, end_date: str) -> Dict[str, Dict]:
-        """
-        Get availability forecast for a facility over a date range
-        
-        Args:
-            facility_id: Facility to analyze
-            start_date: Start date (YYYY-MM-DD)
-            end_date: End date (YYYY-MM-DD)
-            
-        Returns:
-            Dictionary mapping dates to utilization info
-        """
-        pass
-
-    @abstractmethod
-    def get_scheduling_conflicts(self, line_id: int) -> List[Dict]:
-        """
-        Check if a line has any scheduling conflicts with other lines
-        
-        Args:
-            line_id: Line to check for conflicts
+            team_id: Team to check
+            date: Date in YYYY-MM-DD format
+            time: Time in HH:MM format
+            duration_hours: Duration of the event in hours
             
         Returns:
             List of conflict descriptions
@@ -321,24 +289,119 @@ class TennisDBInterface(ABC):
         pass
 
     @abstractmethod
-    def get_lines_by_time_slot(self, facility_id: int, date: str, time: str) -> List['Line']:
-        """Get all lines scheduled at a facility on a specific date and time"""
+    def get_facility_conflicts(self, facility: 'Facility', date: str, time: str, duration_hours: int = 3, 
+                             exclude_match_id: Optional[int] = None) -> List[Dict]:
+        """
+        Check for scheduling conflicts at a facility
+        
+        Args:
+            facility_id: Facility to check
+            date: Date in YYYY-MM-DD format
+            time: Time in HH:MM format
+            duration_hours: Duration of the event in hours
+            exclude_match_id: Match ID to exclude from conflict checking
+            
+        Returns:
+            List of conflict descriptions
+        """
         pass
 
-    # ========== Analytics ==========
+
     @abstractmethod
-    def get_league_scheduling_status(self, league_id: int) -> Dict[str, int]:
+    def get_scheduling_summary(self, league: Optional['League'] = None) -> Dict[str, Any]:
+        """
+        Get scheduling summary statistics
+        
+        Args:
+            league_id: Optional league to filter by
+            
+        Returns:
+            Dictionary with scheduling statistics
+        """
+        pass
+
+    # ========== Statistics and Reporting ==========
+    @abstractmethod
+    def get_match_statistics(self, league: Optional['League'] = None) -> Dict[str, Any]:
+        """
+        Get statistics about matches
+        
+        Args:
+            league_id: Optional league to filter by
+            
+        Returns:
+            Dictionary with match statistics
+        """
         pass
 
     @abstractmethod
-    def get_facility_utilization(self, facility_id: int, start_date: str, end_date: str) -> Dict[str, float]:
+    def get_facility_usage_report(self, facility: 'Facility', start_date: str, end_date: str) -> Dict[str, Any]:
+        """
+        Get facility usage report for a date range
+        
+        Args:
+            facility_id: Facility to analyze
+            start_date: Start date in YYYY-MM-DD format
+            end_date: End date in YYYY-MM-DD format
+            
+        Returns:
+            Dictionary with usage statistics
+        """
         pass
 
-    # ========== Bulk Operations ==========
     @abstractmethod
-    def bulk_create_matches_with_lines(self, league_id: int, teams: List['Team']) -> List['Match']:
+    def get_scheduling_conflicts(self, facility: 'Facility', date: str) -> List[Dict[str, Any]]:
+        """
+        Find potential scheduling conflicts at a facility on a specific date
+        
+        Args:
+            facility_id: Facility to check
+            date: Date in YYYY-MM-DD format
+            
+        Returns:
+            List of conflict descriptions
+        """
+        pass
+
+
+    # ========== Import/Export ==========
+    @abstractmethod
+    def export_to_yaml(self, filename: str) -> None:
+        """
+        Export database to YAML file
+        
+        Args:
+            filename: Path to output YAML file
+        """
         pass
 
     @abstractmethod
-    def create_lines_for_match(self, match_id: int, league: 'League') -> List['Line']:
+    def import_from_yaml(self, filename: str) -> None:
+        """
+        Import data from YAML file
+        
+        Args:
+            filename: Path to input YAML file
+        """
+        pass
+
+    # ========== USTA Constants ==========
+    @abstractmethod
+    def list_sections(self) -> List[str]:
+        """List valid USTA sections"""
+        pass
+
+    @abstractmethod
+    def list_regions(self) -> List[str]:
+        """List valid USTA regions"""
+        pass
+
+    @abstractmethod
+    def list_age_groups(self) -> List[str]:
+        """List valid USTA age groups"""
+        pass
+
+    @abstractmethod
+    def list_divisions(self) -> List[str]:
+        """List valid USTA divisions"""
         pass

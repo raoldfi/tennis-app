@@ -3,6 +3,8 @@ League Management Helper for SQLite Tennis Database
 
 Handles all league-related database operations including CRUD operations,
 league configuration, and league validation.
+
+Updated to work without Line class references.
 """
 
 import sqlite3
@@ -343,10 +345,11 @@ class SQLLeagueManager:
             raise RuntimeError(f"Database error getting active leagues: {e}")
 
     def get_league_scheduling_status(self, league_id: int) -> dict:
-        """Get scheduling statistics for a league"""
+        """Get scheduling statistics for a league (updated for match-based scheduling)"""
         try:
             # Verify league exists
-            if not self.get_league(league_id):
+            league = self.get_league(league_id)
+            if not league:
                 raise ValueError(f"League with ID {league_id} does not exist")
             
             # Get match counts
@@ -358,47 +361,48 @@ class SQLLeagueManager:
             
             unscheduled_matches = total_matches - scheduled_matches
             
-            # Get line counts
-            self.cursor.execute("""
-                SELECT COUNT(*) as count 
-                FROM lines l 
-                JOIN matches m ON l.match_id = m.id 
-                WHERE m.league_id = ?
-            """, (league_id,))
-            total_lines = self.cursor.fetchone()['count']
+            # Get scheduled times statistics
+            import json
+            total_scheduled_times = 0
+            partially_scheduled_matches = 0
+            fully_scheduled_matches = 0
             
             self.cursor.execute("""
-                SELECT COUNT(*) as count 
-                FROM lines l 
-                JOIN matches m ON l.match_id = m.id 
-                WHERE m.league_id = ? AND l.facility_id IS NOT NULL
+                SELECT scheduled_times 
+                FROM matches 
+                WHERE league_id = ? AND scheduled_times IS NOT NULL
             """, (league_id,))
-            scheduled_lines = self.cursor.fetchone()['count']
             
-            unscheduled_lines = total_lines - scheduled_lines
+            for row in self.cursor.fetchall():
+                if row['scheduled_times']:
+                    try:
+                        times = json.loads(row['scheduled_times'])
+                        if isinstance(times, list):
+                            num_times = len(times)
+                            total_scheduled_times += num_times
+                            
+                            # Check if match is fully or partially scheduled
+                            expected_lines = league.num_lines_per_match
+                            if num_times == expected_lines:
+                                fully_scheduled_matches += 1
+                            elif 0 < num_times < expected_lines:
+                                partially_scheduled_matches += 1
+                    except (json.JSONDecodeError, TypeError):
+                        continue
             
-            # Get partially scheduled matches
-            self.cursor.execute("""
-                SELECT COUNT(DISTINCT m.id) as count
-                FROM matches m
-                WHERE m.league_id = ? 
-                AND m.id IN (
-                    SELECT match_id FROM lines WHERE facility_id IS NOT NULL
-                )
-                AND m.id IN (
-                    SELECT match_id FROM lines WHERE facility_id IS NULL
-                )
-            """, (league_id,))
-            partially_scheduled_matches = self.cursor.fetchone()['count']
+            expected_total_times = total_matches * league.num_lines_per_match
             
             return {
+                'league_id': league_id,
+                'league_name': league.name,
                 'total_matches': total_matches,
                 'scheduled_matches': scheduled_matches,
                 'unscheduled_matches': unscheduled_matches,
-                'total_lines': total_lines,
-                'scheduled_lines': scheduled_lines,
-                'unscheduled_lines': unscheduled_lines,
-                'partially_scheduled_matches': partially_scheduled_matches
+                'fully_scheduled_matches': fully_scheduled_matches,
+                'partially_scheduled_matches': partially_scheduled_matches,
+                'total_scheduled_times': total_scheduled_times,
+                'expected_total_times': expected_total_times,
+                'scheduling_completion_percentage': round((total_scheduled_times / expected_total_times * 100) if expected_total_times > 0 else 0, 2)
             }
             
         except sqlite3.Error as e:

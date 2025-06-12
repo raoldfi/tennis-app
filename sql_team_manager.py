@@ -1,9 +1,10 @@
 """
 Team Management Helper for SQLite Tennis Database
 
-Updated to handle home_facility as a string name instead of facility_id.
 Handles all team-related database operations including CRUD operations,
 team preferences, and team validation.
+
+Updated to work with the new match-based scheduling system.
 """
 
 import sqlite3
@@ -49,7 +50,7 @@ class SQLTeamManager:
                 raise ValueError(f"Facility with ID {team.home_facility.id} does not exist")
             
             # Convert preferred_days list to comma-separated string for storage
-            preferred_days_str = ','.join(team.preferred_days)
+            preferred_days_str = ','.join(team.preferred_days) if team.preferred_days else ''
             
             self.cursor.execute("""
                 INSERT INTO teams (id, name, league_id, home_facility_id, captain, preferred_days)
@@ -58,7 +59,7 @@ class SQLTeamManager:
                 team.id,
                 team.name,
                 team.league.id,
-                team.home_facility.id,  # CHANGED: use facility.id
+                team.home_facility.id,
                 team.captain,
                 preferred_days_str
             ))
@@ -100,14 +101,12 @@ class SQLTeamManager:
                 id=team_data['id'],
                 name=team_data['name'],
                 league=league,
-                home_facility=facility,  # CHANGED: pass Facility object
+                home_facility=facility,
                 captain=team_data.get('captain'),
                 preferred_days=preferred_days
             )
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error getting team {team_id}: {e}")
-
-    
 
     def list_teams(self, league_id: Optional[int] = None) -> List[Team]:
         """List all teams, optionally filtered by league"""
@@ -147,7 +146,7 @@ class SQLTeamManager:
                     id=team_data['id'],
                     name=team_data['name'],
                     league=league,
-                    home_facility=facility,  # Pass Facility object
+                    home_facility=facility,
                     captain=team_data.get('captain'),
                     preferred_days=preferred_days
                 ))
@@ -155,8 +154,6 @@ class SQLTeamManager:
             return teams
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error listing teams: {e}")
-
-    
 
     def update_team(self, team: Team) -> None:
         """Update an existing team in the database"""
@@ -178,7 +175,7 @@ class SQLTeamManager:
                 raise ValueError(f"Facility with ID {team.home_facility.id} does not exist")
             
             # Convert preferred_days list to comma-separated string for storage
-            preferred_days_str = ','.join(team.preferred_days)
+            preferred_days_str = ','.join(team.preferred_days) if team.preferred_days else ''
             
             self.cursor.execute("""
                 UPDATE teams 
@@ -187,7 +184,7 @@ class SQLTeamManager:
             """, (
                 team.name,
                 team.league.id,
-                team.home_facility.id,  # CHANGED: use facility.id
+                team.home_facility.id,
                 team.captain,
                 preferred_days_str,
                 team.id
@@ -201,7 +198,6 @@ class SQLTeamManager:
             raise ValueError(f"Database integrity error updating team: {e}")
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error updating team: {e}")
-
 
     def delete_team(self, team_id: int) -> None:
         """Delete a team from the database"""
@@ -233,8 +229,6 @@ class SQLTeamManager:
                 
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error deleting team {team_id}: {e}")
-
-
 
     def get_teams_by_facility(self, facility_id: int) -> List[Team]:
         """Get all teams that use a specific facility as their home"""
@@ -268,6 +262,36 @@ class SQLTeamManager:
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error getting teams by facility: {e}")
 
+    def get_teams_by_facility_name(self, facility_name: str, exact_match: bool = True) -> List[Team]:
+        """Get all teams that use a specific facility name as their home"""
+        if not isinstance(facility_name, str) or not facility_name.strip():
+            raise ValueError("Facility name must be a non-empty string")
+        
+        try:
+            # Get facilities that match the name
+            facilities = self.db.facility_manager.get_facilities_by_name(facility_name, exact_match)
+            
+            if not facilities:
+                return []
+            
+            # Get teams for all matching facilities
+            all_teams = []
+            for facility in facilities:
+                teams = self.get_teams_by_facility(facility.id)
+                all_teams.extend(teams)
+            
+            # Remove duplicates (in case a team somehow matches multiple facilities)
+            seen_ids = set()
+            unique_teams = []
+            for team in all_teams:
+                if team.id not in seen_ids:
+                    unique_teams.append(team)
+                    seen_ids.add(team.id)
+            
+            return sorted(unique_teams, key=lambda t: t.name)
+            
+        except Exception as e:
+            raise RuntimeError(f"Database error getting teams by facility name: {e}")
 
     def check_team_date_conflict(self, team_id: int, date: str, exclude_match_id: Optional[int] = None) -> bool:
         """
@@ -316,7 +340,7 @@ class SQLTeamManager:
         """
         try:
             query = """
-                SELECT m.id, m.time, m.facility_id, f.name as facility_name,
+                SELECT m.id, m.scheduled_times, m.facility_id, f.name as facility_name,
                        ht.name as home_team_name, vt.name as visitor_team_name,
                        CASE WHEN m.home_team_id = ? THEN 'home' ELSE 'visitor' END as team_role
                 FROM matches m
@@ -338,6 +362,19 @@ class SQLTeamManager:
             conflicts = []
             for row in self.cursor.fetchall():
                 conflict_data = self._dictify(row)
+                
+                # Parse scheduled times
+                scheduled_times = []
+                if conflict_data.get('scheduled_times'):
+                    try:
+                        import json
+                        times = json.loads(conflict_data['scheduled_times'])
+                        if isinstance(times, list):
+                            scheduled_times = times
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                
+                conflict_data['scheduled_times_list'] = scheduled_times
                 conflicts.append(conflict_data)
             
             return conflicts
@@ -366,10 +403,10 @@ class SQLTeamManager:
                 WHERE (m.home_team_id = ? OR m.visitor_team_id = ?)
                 AND m.date = ?
                 AND m.status = 'scheduled'
-                AND (f.name IS NOT NULL AND f.name != ?)
+                AND (f.name IS NOT NULL AND f.name != ? AND f.short_name != ?)
             """
             
-            self.cursor.execute(query, (team_id, team_id, date, facility_name))
+            self.cursor.execute(query, (team_id, team_id, date, facility_name, facility_name))
             count = self.cursor.fetchone()['count']
             return count > 0
             
