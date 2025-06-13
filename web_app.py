@@ -5,7 +5,6 @@ import web_facilities
 import web_leagues
 import web_teams
 import web_matches
-import web_schedule
 from web_database import close_db, db_config, init_db
 
 app = Flask(__name__)
@@ -17,7 +16,6 @@ web_facilities.register_routes(app)
 web_leagues.register_routes(app)
 web_teams.register_routes(app)
 web_matches.register_routes(app)
-web_schedule.register_routes(app)
 
 # Database cleanup
 app.teardown_appcontext(close_db)

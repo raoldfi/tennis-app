@@ -11,8 +11,12 @@
     </h1>
     <div class="d-flex gap-2">
         <span class="badge badge-match fs-6">{{ matches|length }} matches</span>
+        <!-- Auto Schedule Button -->
+        <button class="btn btn-warning" onclick="autoScheduleMatches()" id="autoScheduleBtn">
+            <i class="fas fa-magic"></i> Auto Schedule
+        </button>
         <a href="{{ url_for('leagues') }}" class="btn btn-success">
-            <i class="fas fa-magic"></i> Generate Matches
+            <i class="fas fa-plus"></i> Generate Matches
         </a>
     </div>
 </div>
@@ -34,44 +38,48 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-lg-4 col-md-5 mb-2">
-                <label for="search_query" class="form-label">Search Matches</label>
-                <div class="input-group">
-                    <input type="text" 
-                           class="form-control" 
-                           id="search_query" 
-                           name="search" 
-                           value="{{ request.args.get('search', '') }}"
-                           placeholder="Search by teams, facility, date...">
-                    <button type="submit" class="btn btn-outline-secondary">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </div>
-                <div class="form-text">Search across team names, facilities, dates, and match details</div>
+            
+            <div class="col-lg-2 col-md-3 mb-2">
+                <label for="start_date" class="form-label">
+                    <i class="fas fa-calendar"></i> Start Date
+                </label>
+                <input type="date" class="form-control" id="start_date" name="start_date" 
+                       value="{{ start_date or '' }}" onchange="this.form.submit()">
             </div>
+            
+            <div class="col-lg-2 col-md-3 mb-2">
+                <label for="end_date" class="form-label">
+                    <i class="fas fa-calendar-check"></i> End Date
+                </label>
+                <input type="date" class="form-control" id="end_date" name="end_date" 
+                       value="{{ end_date or '' }}" onchange="this.form.submit()">
+            </div>
+            
+            <div class="col-lg-3 col-md-4 mb-2">
+                <label for="search" class="form-label">
+                    <i class="fas fa-search"></i> Search Teams/Facilities
+                </label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       placeholder="Search matches..." value="{{ search_query or '' }}">
+            </div>
+            
             <div class="col-lg-2 col-md-3 mb-2">
                 <div class="form-check mt-4">
-                    <input class="form-check-input" 
-                           type="checkbox" 
-                           name="show_unscheduled" 
-                           id="show_unscheduled" 
-                           value="true"
-                           {% if show_unscheduled %}checked{% endif %}
-                           onchange="this.form.submit()">
+                    <input class="form-check-input" type="checkbox" id="show_unscheduled" name="show_unscheduled" 
+                           value="true" {% if show_unscheduled %}checked{% endif %} onchange="this.form.submit()">
                     <label class="form-check-label" for="show_unscheduled">
-                        Include Unscheduled
+                        Show Unscheduled
                     </label>
                 </div>
             </div>
-            <div class="col-lg-3 col-md-12 mb-2">
+            
+            <div class="col-12 mt-2">
                 <div class="d-flex gap-2">
-                    {% if request.args.get('search') or request.args.get('league_id') %}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Filter
+                    </button>
                     <a href="{{ url_for('matches') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-times"></i> Clear Filters
-                    </a>
-                    {% endif %}
-                    <a href="{{ url_for('schedule') }}" class="btn btn-outline-info">
-                        <i class="fas fa-calendar-week"></i> View Schedule
+                        <i class="fas fa-times"></i> Clear
                     </a>
                 </div>
             </div>
@@ -79,22 +87,73 @@
     </div>
 </div>
 
-<!-- Search Help -->
-{% if request.args.get('search') %}
-<div class="alert alert-info">
-    <strong>Search Tips:</strong>
-    <ul class="mb-0">
-        <li><strong>Team:</strong> <code>home:lightning</code> or <code>visitor:eagles</code></li>
-        <li><strong>Facility:</strong> <code>facility:club</code></li>
-        <li><strong>Time:</strong> <code>time:09:00</code> (searches all scheduled times)</li>
-        <li><strong>Time Range:</strong> <code>time:morning</code>, <code>time:afternoon</code>, <code>time:evening</code></li>
-        <li><strong>Date:</strong> <code>date:2025-06</code></li>
-        <li><strong>Status:</strong> <code>status:scheduled</code> or <code>status:partial</code></li>
-        <li><strong>General:</strong> Type any text to search across all fields</li>
-    </ul>
-    <small class="text-muted">
-        Time searches will find matches across all scheduled line times.
-    </small>
+<!-- Auto Schedule Progress Modal -->
+<div class="modal fade" id="autoScheduleModal" tabindex="-1" aria-labelledby="autoScheduleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="autoScheduleModalLabel">
+                    <i class="fas fa-magic"></i> Auto Scheduling Matches
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center">
+                    <div class="spinner-border text-warning mb-3" role="status" id="schedulingSpinner">
+                        <span class="visually-hidden">Scheduling...</span>
+                    </div>
+                    <div id="schedulingStatus">
+                        <p class="mb-2">Finding optimal scheduling for unscheduled matches...</p>
+                        <p class="text-muted small">This may take a moment for large numbers of matches.</p>
+                    </div>
+                </div>
+                <div id="schedulingResults" style="display: none;">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle"></i> Scheduling Complete</h6>
+                        <p id="schedulingMessage" class="mb-0"></p>
+                    </div>
+                    <div id="schedulingDetails"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="modalCloseBtn">Close</button>
+                <button type="button" class="btn btn-primary" onclick="window.location.reload()" id="refreshBtn" style="display: none;">
+                    <i class="fas fa-refresh"></i> Refresh Page
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+{% if matches %}
+{% set unscheduled_count = matches | selectattr('is_scheduled', 'false') | list | length %}
+{% set scheduled_count = matches | length - unscheduled_count %}
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <h3 class="text-success">{{ scheduled_count }}</h3>
+                <p class="card-text">Scheduled Matches</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <h3 class="text-warning">{{ unscheduled_count }}</h3>
+                <p class="card-text">Unscheduled Matches</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <h3 class="text-info">{{ matches|length }}</h3>
+                <p class="card-text">Total Matches</p>
+            </div>
+        </div>
+    </div>
 </div>
 {% endif %}
 
@@ -145,44 +204,39 @@
                                     <small class="text-muted">{{ match.league_name }}</small>
                                 </div>
                             </td>
-                            <td>
-                                <div class="team-cell">
-                                    <strong>{{ match.home_team_name }}</strong>
-                                    <div class="small text-muted">Home</div>
-                                </div>
+                            <td class="team-cell">
+                                <strong>{{ match.home_team_name }}</strong>
                             </td>
-                            <td>
-                                <div class="team-cell">
-                                    <strong>{{ match.visitor_team_name }}</strong>
-                                    <div class="small text-muted">Visitor</div>
-                                </div>
+                            <td class="team-cell">
+                                <strong>{{ match.visitor_team_name }}</strong>
                             </td>
                             <td class="text-center">
                                 <div class="facility-cell">
-                                    {% if match.facility_id %}
-                                        <span class="badge bg-info">{{ match.facility_name }}</span>
+                                    {% if match.facility_name and match.facility_name != 'Unscheduled' %}
+                                        <span class="badge bg-info text-dark">{{ match.facility_name }}</span>
+                                        {% if match.facility_location %}
+                                            <div class="small text-muted">{{ match.facility_location }}</div>
+                                        {% endif %}
                                     {% else %}
                                         <span class="text-muted">Not assigned</span>
                                     {% endif %}
                                 </div>
                             </td>
                             <td class="text-center">
-                                <div class="date-cell">
-                                    {% if match.date %}
-                                        <span class="badge bg-primary">{{ match.date }}</span>
-                                    {% else %}
-                                        <span class="text-muted">Not scheduled</span>
-                                    {% endif %}
-                                </div>
+                                {% if match.date %}
+                                    <span class="badge bg-light text-dark">{{ match.date }}</span>
+                                {% else %}
+                                    <span class="text-muted">Not set</span>
+                                {% endif %}
                             </td>
                             <td class="text-center">
                                 <div class="time-cell">
                                     {% if match.scheduled_times %}
-                                        {% if match.scheduled_times|length == 1 %}
-                                            <span class="badge bg-success">{{ match.scheduled_times[0] }}</span>
-                                        {% else %}
-                                            <span class="badge bg-success">{{ match.scheduled_times[0] }}</span>
-                                            <br><small class="text-muted">+{{ match.scheduled_times|length - 1 }} more</small>
+                                        {% for time in match.scheduled_times[:2] %}
+                                            <span class="badge bg-primary mb-1">{{ time }}</span>
+                                        {% endfor %}
+                                        {% if match.scheduled_times|length > 2 %}
+                                            <small class="text-muted">+{{ match.scheduled_times|length - 2 }} more</small>
                                         {% endif %}
                                     {% else %}
                                         <span class="text-muted">Not scheduled</span>
@@ -223,7 +277,7 @@
                                             <i class="fas fa-calendar-alt"></i>
                                         </button>
                                     {% endif %}
-                                    <button class="btn btn-sm btn-outline-info" 
+                                    <button class="btn btn-sm btn-outline-info ms-1" 
                                             onclick="viewMatch({{ match.id }})"
                                             title="View match details">
                                         <i class="fas fa-eye"></i>
@@ -238,19 +292,19 @@
         </div>
 
         <!-- Mobile Card View -->
-        <div class="d-md-none">
+        <div class="d-block d-md-none">
             {% for match in matches %}
-            <div class="card mb-3 match-card">
+            <div class="card mb-3 match-card" data-match-id="{{ match.id }}">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h6 class="mb-0">Match {{ match.id }}</h6>
-                        {% if match.is_fully_scheduled %}
-                            <span class="badge bg-success">Fully Scheduled</span>
-                        {% elif match.is_partially_scheduled %}
-                            <span class="badge bg-warning text-dark">Partial</span>
-                        {% else %}
-                            <span class="badge bg-danger">{{ match.status }}</span>
-                        {% endif %}
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <small class="text-muted">Match ID</small>
+                            <div><span class="badge bg-secondary">{{ match.id }}</span></div>
+                        </div>
+                        <div class="col-6 text-end">
+                            <small class="text-muted">League</small>
+                            <div class="small">{{ match.league_name }}</div>
+                        </div>
                     </div>
                     
                     <div class="row mb-2">
@@ -262,50 +316,54 @@
                     
                     <div class="row mb-2">
                         <div class="col-6">
-                            <small class="text-muted">League</small>
-                            <div>{{ match.league_name }}</div>
+                            <small class="text-muted">Facility</small>
+                            <div>
+                                {% if match.facility_name and match.facility_name != 'Unscheduled' %}
+                                    <span class="badge bg-info text-dark">{{ match.facility_name }}</span>
+                                {% else %}
+                                    <span class="text-muted">Not assigned</span>
+                                {% endif %}
+                            </div>
                         </div>
                         <div class="col-6">
-                            <small class="text-muted">Facility</small>
-                            <div>{{ match.facility_name or 'Not assigned' }}</div>
+                            <small class="text-muted">Date</small>
+                            <div>
+                                {% if match.date %}
+                                    <span class="badge bg-light text-dark">{{ match.date }}</span>
+                                {% else %}
+                                    <span class="text-muted">Not set</span>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                     
                     <div class="row mb-2">
                         <div class="col-6">
-                            <small class="text-muted">Date</small>
-                            <div>{{ match.date or 'Not scheduled' }}</div>
-                        </div>
-                        <div class="col-6">
                             <small class="text-muted">Times</small>
                             <div>
                                 {% if match.scheduled_times %}
-                                    {% for time in match.scheduled_times %}
-                                        <span class="badge bg-success me-1 mb-1">{{ time }}</span>
+                                    {% for time in match.scheduled_times[:2] %}
+                                        <span class="badge bg-primary mb-1">{{ time }}</span>
                                     {% endfor %}
+                                    {% if match.scheduled_times|length > 2 %}
+                                        <small class="text-muted">+{{ match.scheduled_times|length - 2 }} more</small>
+                                    {% endif %}
                                 {% else %}
-                                    Not scheduled
+                                    <span class="text-muted">Not scheduled</span>
                                 {% endif %}
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Scheduling Progress -->
-                    <div class="row mb-2">
-                        <div class="col-12">
-                            <small class="text-muted">Scheduling Progress</small>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <small>{{ match.num_scheduled_lines }}/{{ match.expected_lines }} lines</small>
-                                {% set progress_percent = (match.num_scheduled_lines / match.expected_lines * 100) if match.expected_lines > 0 else 0 %}
-                                <small>{{ "%.0f"|format(progress_percent) }}%</small>
-                            </div>
-                            <div class="progress" style="height: 6px;">
+                        <div class="col-6">
+                            <small class="text-muted">Status</small>
+                            <div>
                                 {% if match.is_fully_scheduled %}
-                                    <div class="progress-bar bg-success" style="width: 100%"></div>
+                                    <span class="badge bg-success">Fully Scheduled</span>
                                 {% elif match.is_partially_scheduled %}
-                                    <div class="progress-bar bg-warning" style="width: {{ progress_percent }}%"></div>
+                                    <span class="badge bg-warning text-dark">Partial</span>
+                                {% elif match.facility_id and match.date %}
+                                    <span class="badge bg-info text-dark">Location Set</span>
                                 {% else %}
-                                    <div class="progress-bar bg-danger" style="width: 0%"></div>
+                                    <span class="badge bg-danger">Unscheduled</span>
                                 {% endif %}
                             </div>
                         </div>
@@ -366,68 +424,48 @@
                     {% endif %}
                 {% endfor %}
                 
-                <div class="mb-2">
-                    <div class="d-flex justify-content-between">
-                        <span>Fully Scheduled:</span>
-                        <strong class="text-success">{{ ns.fully_scheduled }}</strong>
+                <div class="progress mb-2">
+                    <div class="progress-bar bg-success" role="progressbar" 
+                         style="width: {{ (ns.fully_scheduled / matches|length * 100)|round(1) }}%">
+                        {{ ns.fully_scheduled }}
                     </div>
-                    <div class="d-flex justify-content-between">
-                        <span>Partially Scheduled:</span>
-                        <strong class="text-warning">{{ ns.partially_scheduled }}</strong>
+                    <div class="progress-bar bg-warning" role="progressbar" 
+                         style="width: {{ (ns.partially_scheduled / matches|length * 100)|round(1) }}%">
+                        {{ ns.partially_scheduled }}
                     </div>
-                    <div class="d-flex justify-content-between">
-                        <span>Unscheduled:</span>
-                        <strong class="text-danger">{{ ns.unscheduled }}</strong>
+                    <div class="progress-bar bg-danger" role="progressbar" 
+                         style="width: {{ (ns.unscheduled / matches|length * 100)|round(1) }}%">
+                        {{ ns.unscheduled }}
                     </div>
+                </div>
+                
+                <div class="small">
+                    <span class="text-success">■</span> Fully Scheduled ({{ ns.fully_scheduled }})<br>
+                    <span class="text-warning">■</span> Partially Scheduled ({{ ns.partially_scheduled }})<br>
+                    <span class="text-danger">■</span> Unscheduled ({{ ns.unscheduled }})
                 </div>
             </div>
             
+            {% if ns.unscheduled > 0 %}
             <div class="col-md-4">
-                <h6><i class="fas fa-calendar text-warning"></i> Scheduling Progress</h6>
-                {% set total_matches = matches|length %}
-                {% set completion_rate = (ns.fully_scheduled / total_matches * 100) if total_matches > 0 else 0 %}
-                
-                <div class="mb-2">
-                    <div class="d-flex justify-content-between">
-                        <span>Completion Rate:</span>
-                        <strong>{{ "%.1f"|format(completion_rate) }}%</strong>
-                    </div>
-                    <div class="progress" style="height: 8px;">
-                        <div class="progress-bar bg-success" style="width: {{ completion_rate }}%"></div>
-                    </div>
-                </div>
-                
-                {% if ns.unscheduled + ns.partially_scheduled > 0 %}
-                <div class="alert alert-warning p-2 small">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    {{ ns.unscheduled + ns.partially_scheduled }} matches need attention
-                </div>
-                {% else %}
-                <div class="alert alert-success p-2 small">
-                    <i class="fas fa-check-circle"></i>
-                    All matches are fully scheduled!
-                </div>
-                {% endif %}
+                <h6><i class="fas fa-exclamation-triangle text-warning"></i> Scheduling Needed</h6>
+                <p class="mb-2">{{ ns.unscheduled }} matches need scheduling</p>
+                <button class="btn btn-warning btn-sm" onclick="autoScheduleMatches()">
+                    <i class="fas fa-magic"></i> Auto Schedule Unscheduled
+                </button>
             </div>
+            {% endif %}
             
             <div class="col-md-4">
-                <h6><i class="fas fa-clock text-info"></i> Line Scheduling</h6>
-                {% set total_lines_needed = matches|sum(attribute='expected_lines') %}
-                {% set total_lines_scheduled = matches|sum(attribute='num_scheduled_lines') %}
-                {% set line_completion = (total_lines_scheduled / total_lines_needed * 100) if total_lines_needed > 0 else 0 %}
-                
-                <div class="mb-2">
-                    <div class="d-flex justify-content-between">
-                        <span>Lines Scheduled:</span>
-                        <strong>{{ total_lines_scheduled }}/{{ total_lines_needed }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <span>Line Completion:</span>
-                        <strong>{{ "%.1f"|format(line_completion) }}%</strong>
-                    </div>
-                    <div class="progress" style="height: 8px;">
-                        <div class="progress-bar bg-info" style="width: {{ line_completion }}%"></div>
-                    </div>
+                <h6><i class="fas fa-info-circle text-info"></i> Quick Actions</h6>
+                <div class="d-flex flex-column gap-2">
+                    <a href="{{ url_for('schedule') }}{% if selected_league %}?league_id={{ selected_league.id }}{% endif %}" 
+                       class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-calendar"></i> View Schedule
+                    </a>
+                    <a href="{{ url_for('leagues') }}" class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-plus"></i> Generate More Matches
+                    </a>
                 </div>
             </div>
         </div>
@@ -436,7 +474,7 @@
 {% endif %}
 
 {% else %}
-<!-- No Matches Display -->
+<!-- No Matches -->
 <div class="card">
     <div class="card-body text-center">
         <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
@@ -446,33 +484,31 @@
         {% elif selected_league %}
         <h5>No Matches Found</h5>
         <p class="text-muted">No matches found for league: <strong>{{ selected_league.name }}</strong></p>
-        {% else %}
+        {% elif start_date or end_date %}
         <h5>No Matches Found</h5>
+        <p class="text-muted">No matches found in the specified date range.</p>
+        {% else %}
+        <h5>No Matches Yet</h5>
         <p class="text-muted">No matches have been created yet.</p>
         {% endif %}
         
-        <div class="mt-4">
-            <div class="d-flex gap-2 justify-content-center flex-wrap">
-                <a href="{{ url_for('leagues') }}" class="btn btn-success">
-                    <i class="fas fa-magic"></i> Generate Matches
-                </a>
-                <a href="{{ url_for('leagues') }}" class="btn btn-outline-success">
-                    <i class="fas fa-trophy"></i> View Leagues
-                </a>
-                <a href="{{ url_for('teams') }}" class="btn btn-outline-info">
-                    <i class="fas fa-users"></i> View Teams
-                </a>
-                <a href="{{ url_for('facilities') }}" class="btn btn-outline-primary">
-                    <i class="fas fa-building"></i> View Facilities
-                </a>
-            </div>
+        <div class="d-flex gap-2 justify-content-center">
+            {% if request.args.get('search') %}
+            <a href="{{ url_for('matches') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-times"></i> Clear Search
+            </a>
+            {% endif %}
+            <a href="{{ url_for('leagues') }}" class="btn btn-success">
+                <i class="fas fa-magic"></i> Generate Matches
+            </a>
+        </div>
+        
+        <div class="alert alert-info mt-3">
+            <i class="fas fa-info-circle"></i>
+            <strong>Getting Started:</strong> To create matches, go to the Leagues page and click "Generate Matches" for your leagues.
             
-            <div class="alert alert-info mt-3">
-                <i class="fas fa-info-circle"></i>
-                <strong>Getting Started:</strong> To create matches, you need leagues with teams.
-                <div class="mt-2">
-                    <strong>Process:</strong> Add leagues and teams, then use the Leagues page to generate fair match schedules instantly!
-                </div>
+            <div class="mt-2">
+                <strong>Process:</strong> Add leagues and teams, then use the Leagues page to generate fair match schedules instantly!
             </div>
         </div>
     </div>
@@ -482,6 +518,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // Match scheduling functions
 async function scheduleMatch(matchId) {
@@ -514,6 +551,79 @@ function rescheduleMatch(matchId) {
 
 function viewMatch(matchId) {
     window.location.href = `/matches/${matchId}`;
+}
+
+// Auto schedule matches function
+async function autoScheduleMatches() {
+    // Get current league filter if any
+    const urlParams = new URLSearchParams(window.location.search);
+    const leagueId = urlParams.get('league_id');
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('autoScheduleModal'));
+    modal.show();
+    
+    // Reset modal state
+    document.getElementById('schedulingSpinner').style.display = 'block';
+    document.getElementById('schedulingStatus').style.display = 'block';
+    document.getElementById('schedulingResults').style.display = 'none';
+    document.getElementById('refreshBtn').style.display = 'none';
+    
+    const autoScheduleBtn = document.getElementById('autoScheduleBtn');
+    const originalBtnText = autoScheduleBtn.innerHTML;
+    autoScheduleBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scheduling...';
+    autoScheduleBtn.disabled = true;
+    
+    try {
+        const response = await fetch('/matches/auto-schedule', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                league_id: leagueId ? parseInt(leagueId) : null
+            })
+        });
+        
+        const data = await response.json();
+        
+        // Hide loading elements
+        document.getElementById('schedulingSpinner').style.display = 'none';
+        document.getElementById('schedulingStatus').style.display = 'none';
+        document.getElementById('schedulingResults').style.display = 'block';
+        document.getElementById('refreshBtn').style.display = 'inline-block';
+        
+        if (data.success) {
+            document.getElementById('schedulingMessage').textContent = data.message;
+            
+            // Show details if available
+            if (data.details && data.details.length > 0) {
+                let detailsHtml = '<div class="mt-3"><h6>Scheduling Details:</h6><ul class="list-group list-group-flush">';
+                data.details.forEach(detail => {
+                    detailsHtml += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>${detail.home_team} vs ${detail.visitor_team}</span>
+                        <span class="badge bg-${detail.status === 'scheduled' ? 'success' : 'secondary'}">${detail.status}</span>
+                    </li>`;
+                });
+                detailsHtml += '</ul></div>';
+                document.getElementById('schedulingDetails').innerHTML = detailsHtml;
+            }
+        } else {
+            document.getElementById('schedulingMessage').textContent = `Error: ${data.error}`;
+            document.querySelector('#schedulingResults .alert').className = 'alert alert-danger';
+        }
+        
+    } catch (error) {
+        document.getElementById('schedulingSpinner').style.display = 'none';
+        document.getElementById('schedulingStatus').style.display = 'none';
+        document.getElementById('schedulingResults').style.display = 'block';
+        document.getElementById('schedulingMessage').textContent = `Error: ${error.message}`;
+        document.querySelector('#schedulingResults .alert').className = 'alert alert-danger';
+    } finally {
+        // Reset button
+        autoScheduleBtn.innerHTML = originalBtnText;
+        autoScheduleBtn.disabled = false;
+    }
 }
 
 // Enhanced table styling
@@ -575,6 +685,15 @@ document.addEventListener('DOMContentLoaded', function() {
         .badge-match {
             background-color: #6c757d;
             color: white;
+        }
+        
+        .btn-warning {
+            border-color: #ffc107;
+        }
+        
+        .btn-warning:hover {
+            background-color: #e0a800;
+            border-color: #d39e00;
         }
     `;
     document.head.appendChild(enhancedMatchStyles);

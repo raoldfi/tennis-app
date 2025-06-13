@@ -162,7 +162,13 @@ class SQLMatchManager:
             # Parse scheduled times from JSON
             if match_data.get('scheduled_times'):
                 try:
-                    match_data['scheduled_times'] = json.loads(match_data['scheduled_times'])
+                    parsed_times = json.loads(match_data['scheduled_times'])
+                    # Ensure it's always a list
+                    if isinstance(parsed_times, list):
+                        match_data['scheduled_times'] = parsed_times
+                    else:
+                        # Convert single value to list
+                        match_data['scheduled_times'] = [parsed_times] if parsed_times is not None else []
                 except (json.JSONDecodeError, TypeError):
                     match_data['scheduled_times'] = []
             else:

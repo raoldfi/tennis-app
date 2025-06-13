@@ -53,62 +53,58 @@
                        onchange="this.form.submit()">
             </div>
             <div class="col-lg-4 col-md-6 mb-2">
-                <label for="search_query" class="form-label">Search Schedule</label>
+                <label for="search_query" class="form-label">
+                    <i class="fas fa-search"></i> Search
+                </label>
                 <div class="input-group">
                     <input type="text" 
                            class="form-control" 
                            id="search_query" 
                            name="search" 
-                           value="{{ request.args.get('search', '') }}"
-                           placeholder="Search teams, facilities, times...">
-                    <button type="submit" class="btn btn-outline-secondary">
+                           value="{{ search_query or '' }}" 
+                           placeholder="Search teams, facilities, dates...">
+                    <button class="btn btn-outline-secondary" type="submit">
                         <i class="fas fa-search"></i>
                     </button>
                 </div>
             </div>
-            <div class="col-lg-2 col-md-6 mb-2">
+            <div class="col-lg-2 col-md-3 mb-2">
                 <div class="d-flex gap-2">
-                    {% if request.args.get('search') or request.args.get('league_id') or start_date or end_date %}
+                    <button type="submit" class="btn btn-primary flex-fill">
+                        <i class="fas fa-filter"></i> Filter
+                    </button>
                     <a href="{{ url_for('schedule') }}" class="btn btn-outline-secondary">
                         <i class="fas fa-times"></i> Clear
                     </a>
-                    {% endif %}
-                    <button type="button" class="btn btn-outline-success" onclick="exportSchedule()">
-                        <i class="fas fa-download"></i> Export
-                    </button>
                 </div>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Schedule Summary -->
-{% if schedule_data %}
+<!-- Statistics Cards -->
 <div class="card mb-4">
     <div class="card-header">
-        <i class="fas fa-chart-line"></i> Schedule Summary
-        {% if request.args.get('search') %}
-        <small class="text-muted">- Search Results</small>
-        {% endif %}
+        <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Schedule Overview</h5>
     </div>
     <div class="card-body">
-        <div class="row">
+        <div class="row text-center">
             <div class="col-md-3">
                 <div class="text-center">
-                    <h3 class="text-primary">{{ schedule_data|length }}</h3>
-                    <small class="text-muted">Days with matches</small>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="text-center">
-                    <h3 class="text-success">{{ total_matches }}</h3>
+                    <h3 class="text-primary">{{ total_matches }}</h3>
                     <small class="text-muted">Total matches</small>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="text-center">
+                    <h3 class="text-success">{{ schedule_data|length }}</h3>
+                    <small class="text-muted">Days with matches</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
                     <h3 class="text-info">
-                        {% if schedule_data %}
+                        {% if schedule_data|length > 0 %}
                         {{ "%.1f"|format(total_matches / schedule_data|length) }}
                         {% else %}
                         0
@@ -119,7 +115,7 @@
             </div>
             <div class="col-md-3">
                 <div class="text-center">
-                    {% set total_lines = schedule_data|sum(attribute='matches')|sum(attribute='num_scheduled_lines') %}
+                    <!-- FIXED: Use total_lines passed from Python instead of calculating in template -->
                     <h3 class="text-warning">{{ total_lines or 0 }}</h3>
                     <small class="text-muted">Total lines</small>
                 </div>
@@ -206,53 +202,50 @@
                                             {% if match.scheduled_times %}
                                                 {% if match.scheduled_times|length == 1 %}
                                                     <span class="badge bg-success">{{ match.scheduled_times[0] }}</span>
-                                                {% elif match.scheduled_times|length <= 3 %}
-                                                    <!-- Show all times if 3 or fewer -->
-                                                    <div class="d-flex flex-column gap-1">
-                                                        {% for time in match.scheduled_times %}
-                                                            <span class="badge bg-success">{{ time }}</span>
-                                                        {% endfor %}
-                                                    </div>
                                                 {% else %}
-                                                    <!-- Show first time + count for many times -->
-                                                    <span class="badge bg-success">{{ match.scheduled_times[0] }}</span>
-                                                    <br><small class="text-muted">+{{ match.scheduled_times|length - 1 }} more</small>
+                                                    {% for time in match.scheduled_times %}
+                                                        <span class="badge bg-success mb-1 d-block">{{ time }}</span>
+                                                    {% endfor %}
                                                 {% endif %}
                                             {% else %}
-                                                <span class="badge bg-warning text-dark">No Times</span>
+                                                <span class="badge bg-secondary">No time</span>
                                             {% endif %}
                                         </div>
                                     </td>
                                     <td>
                                         <div class="teams-cell">
-                                            <div class="d-flex align-items-center mb-1">
-                                                <span class="badge bg-primary me-2" style="min-width: 45px;">HOME</span>
-                                                <strong class="text-truncate">{{ match.home_team_name }}</strong>
+                                            <div class="mb-1">
+                                                <span class="badge bg-primary me-1">Home</span>
+                                                <strong>{{ match.home_team_name }}</strong>
                                             </div>
-                                            <div class="d-flex align-items-center">
-                                                <span class="badge bg-secondary me-2" style="min-width: 45px;">AWAY</span>
-                                                <strong class="text-truncate">{{ match.visitor_team_name }}</strong>
+                                            <div>
+                                                <span class="badge bg-secondary me-1">Visitor</span>
+                                                <strong>{{ match.visitor_team_name }}</strong>
                                             </div>
                                         </div>
                                     </td>
                                     <td class="text-center">
                                         <div class="facility-cell">
-                                            <span class="badge bg-info text-wrap">{{ match.facility_name }}</span>
+                                            <span class="badge bg-info text-truncate" title="{{ match.facility_name }}">
+                                                {{ match.facility_name }}
+                                            </span>
                                         </div>
                                     </td>
                                     <td class="text-center">
                                         <div class="league-cell">
-                                            <div class="small text-muted">{{ match.league_name }}</div>
+                                            <span class="badge bg-outline-dark text-truncate" title="{{ match.league_name }}">
+                                                {{ match.league_name|truncate(15) }}
+                                            </span>
                                         </div>
                                     </td>
                                     <td class="text-center">
                                         <div class="lines-cell">
-                                            <span class="badge bg-outline-secondary">{{ match.num_scheduled_lines }}/{{ match.expected_lines }}</span>
+                                            <span class="badge">{{ match.num_scheduled_lines }}/{{ match.expected_lines }}</span>
                                         </div>
                                     </td>
                                     <td class="text-center">
                                         <div class="match-id-cell">
-                                            <span class="badge bg-secondary">#{{ match.id }}</span>
+                                            <code class="small">{{ match.id }}</code>
                                         </div>
                                     </td>
                                 </tr>
@@ -261,23 +254,12 @@
                         </table>
                     </div>
                 </div>
-
+                
                 <!-- Mobile Card View -->
                 <div class="d-md-none">
                     {% for match in day_data.matches %}
-                    <div class="card mb-3 schedule-match-card">
+                    <div class="card mb-3 schedule-match-card" data-match-id="{{ match.id }}">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h6 class="mb-0">Match {{ match.id }}</h6>
-                                {% if match.is_fully_scheduled %}
-                                    <span class="badge bg-success">Fully Scheduled</span>
-                                {% elif match.is_partially_scheduled %}
-                                    <span class="badge bg-warning text-dark">Partial</span>
-                                {% else %}
-                                    <span class="badge bg-danger">{{ match.status }}</span>
-                                {% endif %}
-                            </div>
-                            
                             <!-- Time slots display -->
                             <div class="row mb-2">
                                 <div class="col-8">
@@ -333,55 +315,40 @@
     {% endfor %}
 </div>
 
-{% else %}
-<!-- No Schedule Data -->
-<div class="card">
-    <div class="card-body text-center">
-        <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
-        {% if request.args.get('search') %}
-        <h5>No Matches Found</h5>
-        <p class="text-muted">No scheduled matches match your search for "<strong>{{ request.args.get('search') }}</strong>".</p>
-        <div class="d-flex gap-2 justify-content-center">
-            <a href="{{ url_for('schedule') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-times"></i> Clear Search
-            </a>
-            <a href="{{ url_for('matches') }}" class="btn btn-primary">
-                <i class="fas fa-calendar-alt"></i> View All Matches
-            </a>
-        </div>
-        {% elif selected_league %}
-        <h5>No Scheduled Matches Found</h5>
-        <p class="text-muted">No scheduled matches found for league: <strong>{{ selected_league.name }}</strong></p>
-        {% elif start_date or end_date %}
-        <h5>No Scheduled Matches Found</h5>
-        <p class="text-muted">No scheduled matches found in the specified date range.</p>
+{% if not schedule_data %}
+<div class="text-center mt-5">
+    <i class="fas fa-calendar-times fa-5x text-muted mb-4"></i>
+    <h3>No scheduled matches found</h3>
+    <p class="text-muted">
+        {% if selected_league %}
+        No matches are currently scheduled for the selected league.
         {% else %}
-        <h5>No Scheduled Matches Found</h5>
-        <p class="text-muted">No matches have been scheduled yet.</p>
+        No matches are currently scheduled. Try adjusting your filters or check back later.
         {% endif %}
-        
-        {% if not request.args.get('search') %}
-        <div class="d-flex gap-2 justify-content-center">
-            <a href="{{ url_for('matches') }}" class="btn btn-primary">
-                <i class="fas fa-calendar-alt"></i> View All Matches
-            </a>
-            <a href="{{ url_for('leagues') }}" class="btn btn-success">
-                <i class="fas fa-magic"></i> Generate Matches
-            </a>
-        </div>
+    </p>
+    <div class="mt-4">
+        <a href="{{ url_for('matches') }}" class="btn btn-primary me-2">
+            <i class="fas fa-calendar-alt"></i> View All Matches
+        </a>
+        {% if selected_league %}
+        <a href="{{ url_for('schedule') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-globe"></i> View All Leagues
+        </a>
         {% endif %}
-        
-        <div class="alert alert-info mt-3">
-            <i class="fas fa-info-circle"></i>
-            <strong>Note:</strong> This page only shows matches that have been scheduled with specific dates and times.
-            Unscheduled matches are not displayed here.
-            
-            <div class="mt-2">
-                <strong>To see unscheduled matches:</strong> Visit the 
-                <a href="{{ url_for('matches') }}?show_unscheduled=true">Matches page</a> 
-                and check "Include Unscheduled".
-            </div>
-        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Export Options -->
+{% if schedule_data %}
+<div class="d-flex justify-content-center mt-4 mb-3">
+    <div class="btn-group" role="group">
+        <button type="button" class="btn btn-outline-info" onclick="exportScheduleCSV()">
+            <i class="fas fa-file-csv"></i> Export CSV
+        </button>
+        <button type="button" class="btn btn-outline-info" onclick="window.print()">
+            <i class="fas fa-print"></i> Print Schedule
+        </button>
     </div>
 </div>
 {% endif %}
@@ -390,73 +357,35 @@
 
 {% block scripts %}
 <script>
-// Export schedule functionality
-function exportSchedule() {
-    const csvData = [
-        ['Date', 'Day', 'Times', 'Home Team', 'Visitor Team', 'Facility', 'League', 'Lines', 'Match ID']
-    ];
+// Export schedule to CSV
+function exportScheduleCSV() {
+    const rows = [];
+    rows.push(['Date', 'Day', 'Time', 'Home Team', 'Visitor Team', 'Facility', 'League', 'Lines', 'Match ID']);
     
-    // Get all schedule data from the DOM
-    document.querySelectorAll('.schedule-day-card').forEach(dayCard => {
-        const dayDate = dayCard.getAttribute('data-day');
-        const dayName = dayCard.querySelector('h4').textContent.split('\n')[1].trim();
-        
-        dayCard.querySelectorAll('.schedule-match-row, .schedule-match-card').forEach(matchRow => {
-            const matchId = matchRow.getAttribute('data-match-id');
-            
-            // Extract match data differently for desktop vs mobile
-            if (matchRow.classList.contains('schedule-match-row')) {
-                // Desktop table row
-                const cells = matchRow.querySelectorAll('td');
-                if (cells.length >= 6) {
-                    const times = cells[0].textContent.trim().replace(/\s+/g, ' ');
-                    const teamsText = cells[1].textContent.trim();
-                    const homeTeam = teamsText.match(/HOME\s*(.+?)\s*AWAY/)?.[1]?.trim() || '';
-                    const visitorTeam = teamsText.match(/AWAY\s*(.+?)$/)?.[1]?.trim() || '';
-                    const facility = cells[2].textContent.trim();
-                    const league = cells[3].textContent.trim();
-                    const lines = cells[4].textContent.trim();
-                    
-                    csvData.push([
-                        dayDate,
-                        dayName,
-                        times,
-                        homeTeam,
-                        visitorTeam,
-                        facility,
-                        league,
-                        lines,
-                        matchId
-                    ]);
-                }
-            } else {
-                // Mobile card
-                const teamsText = matchRow.querySelector('.row:nth-child(3) div:nth-child(1) div').textContent;
-                const [homeTeam, visitorTeam] = teamsText.split(' vs ').map(s => s.trim());
-                const times = Array.from(matchRow.querySelectorAll('.badge.bg-success'))
-                    .map(badge => badge.textContent.trim()).join(', ');
-                const facility = matchRow.querySelector('.row:last-child .col-6:first-child div:last-child').textContent.trim();
-                const league = matchRow.querySelector('.row:last-child .col-6:last-child div:last-child').textContent.trim();
-                const lines = matchRow.querySelector('.row:nth-child(2) .col-4 div strong').textContent.trim();
-                
-                csvData.push([
-                    dayDate,
-                    dayName,
-                    times,
-                    homeTeam,
-                    visitorTeam,
-                    facility,
-                    league,
-                    lines,
-                    matchId
-                ]);
-            }
-        });
+    {% for day_data in schedule_data %}
+    {% for match in day_data.matches %}
+    const times = {% if match.scheduled_times %}{{ match.scheduled_times|tojson }}{% else %}['No time']{% endif %};
+    times.forEach(time => {
+        rows.push([
+            '{{ day_data.date_str }}',
+            '{{ day_data.day_name }}',
+            time,
+            '{{ match.home_team_name|replace("'", "\\'")|replace('"', '\\"') }}',
+            '{{ match.visitor_team_name|replace("'", "\\'")|replace('"', '\\"') }}',
+            '{{ match.facility_name|replace("'", "\\'")|replace('"', '\\"') }}',
+            '{{ match.league_name|replace("'", "\\'")|replace('"', '\\"') }}',
+            '{{ match.num_scheduled_lines }}/{{ match.expected_lines }}',
+            '{{ match.id }}'
+        ]);
     });
+    {% endfor %}
+    {% endfor %}
     
-    const csvContent = csvData.map(row => row.map(field => 
-        '"' + String(field).replace(/"/g, '""') + '"'
-    ).join(',')).join('\n');
+    const csvContent = rows.map(row => 
+        row.map(field => 
+            typeof field === 'string' && field.includes(',') ? `"${field}"` : field
+        ).join(',')
+    ).join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');

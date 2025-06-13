@@ -554,16 +554,57 @@ def filter_matches(matches_list, start_date, end_date, search_query):
     if start_date:
         try:
             start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
-            filtered_matches = [m for m in filtered_matches 
-                              if m.date and m.date >= start_date_obj]
+            filtered_matches = []
+            for m in filtered_matches:
+                if m.date:
+                    # Convert match date to date object if it's a string
+                    if isinstance(m.date, str):
+                        try:
+                            match_date = datetime.strptime(m.date, '%Y-%m-%d').date()
+                        except ValueError:
+                            # Try other common date formats
+                            try:
+                                match_date = datetime.strptime(m.date, '%m/%d/%Y').date()
+                            except ValueError:
+                                continue  # Skip if we can't parse the date
+                    elif hasattr(m.date, 'date'):
+                        # Handle datetime objects
+                        match_date = m.date.date()
+                    else:
+                        # Assume it's already a date object
+                        match_date = m.date
+                    
+                    if match_date >= start_date_obj:
+                        filtered_matches.append(m)
         except ValueError:
             pass  # Invalid date format, skip filter
     
     if end_date:
         try:
             end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
-            filtered_matches = [m for m in filtered_matches 
-                              if m.date and m.date <= end_date_obj]
+            new_filtered_matches = []
+            for m in filtered_matches:
+                if m.date:
+                    # Convert match date to date object if it's a string
+                    if isinstance(m.date, str):
+                        try:
+                            match_date = datetime.strptime(m.date, '%Y-%m-%d').date()
+                        except ValueError:
+                            # Try other common date formats
+                            try:
+                                match_date = datetime.strptime(m.date, '%m/%d/%Y').date()
+                            except ValueError:
+                                continue  # Skip if we can't parse the date
+                    elif hasattr(m.date, 'date'):
+                        # Handle datetime objects
+                        match_date = m.date.date()
+                    else:
+                        # Assume it's already a date object
+                        match_date = m.date
+                    
+                    if match_date <= end_date_obj:
+                        new_filtered_matches.append(m)
+            filtered_matches = new_filtered_matches
         except ValueError:
             pass  # Invalid date format, skip filter
     
@@ -572,7 +613,6 @@ def filter_matches(matches_list, start_date, end_date, search_query):
         filtered_matches = filter_matches_by_search(filtered_matches, search_query)
     
     return filtered_matches
-
 
 def filter_matches_by_search(matches_list, search_query):
     """
