@@ -11,6 +11,7 @@ import sqlite3
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, timedelta
 from usta import Match, League, Team
+import utils
 
 
 class SQLSchedulingManager:
@@ -309,7 +310,7 @@ class SQLSchedulingManager:
                     continue
                 
                 # Get optimal dates for this specific match (prioritizing team preferences)
-                optimal_dates = match.get_optimal_scheduling_dates()
+                optimal_dates = utils.get_optimal_scheduling_dates(match)
                 
                 results['matches_attempted'].append({
                     'match_id': match.id,

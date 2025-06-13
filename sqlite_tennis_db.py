@@ -3,6 +3,8 @@ Updated SQLite Tennis Database Implementation - Updated for Object-Based Interfa
 
 This version updates the implementation to match the new TennisDBInterface
 that uses actual object instances instead of IDs for many operations.
+
+Added get_available_dates API for finding available dates at facilities.
 """
 
 import sqlite3
@@ -264,6 +266,29 @@ class SQLiteTennisDB(TennisDBInterface):
     def get_facility_availability(self, facility: Facility, date: str) -> Dict[str, Any]:
         return self.facility_manager.get_facility_availability(facility.id, date)
 
+    def get_available_dates(self, facility: Facility, num_lines: int, 
+                           allow_split_lines: bool = False, 
+                           start_date: Optional[str] = None,
+                           end_date: Optional[str] = None,
+                           max_dates: int = 50) -> List[str]:
+        """
+        Get available dates for a facility that can accommodate the required number of lines
+        
+        Args:
+            facility: Facility object to check availability for
+            num_lines: Number of lines (courts) needed
+            allow_split_lines: Whether lines can be split across different time slots
+            start_date: Start date for search (YYYY-MM-DD format). If None, uses today's date
+            end_date: End date for search (YYYY-MM-DD format). If None, searches 16 weeks from start
+            max_dates: Maximum number of dates to return
+            
+        Returns:
+            List of available date strings in YYYY-MM-DD format, ordered by preference
+        """
+        return self.facility_manager.get_available_dates(
+            facility, num_lines, allow_split_lines, start_date, end_date, max_dates
+        )
+
     # ========== Match Management ==========
     
     def add_match(self, match: Match) -> None:
@@ -289,36 +314,37 @@ class SQLiteTennisDB(TennisDBInterface):
     def schedule_match_all_lines_same_time(self, match: Match, 
                                            date: str, time: str, 
                                            facility: Optional[Facility] = None) -> bool:
-        facility_id = facility.id if facility else None
+        facility_to_use = facility or match.home_team.home_facility
         return self.match_manager.schedule_match_all_lines_same_time(
-            match.id, facility_id, date, time
+            match, facility_to_use, date, time
         )
     
     def schedule_match_sequential_times(self, match: Match, 
                                         date: str, start_time: str, interval_minutes: int = 180, 
                                         facility: Optional[Facility] = None) -> bool:
-        facility_id = facility.id if facility else None
+        facility_to_use = facility or match.home_team.home_facility
         return self.match_manager.schedule_match_sequential_times(
-            match.id, facility_id, date, start_time, interval_minutes
+            match, facility_to_use, date, start_time, interval_minutes
         )
 
+    def auto_schedule_match(self, match: Match, 
+                          prefer_home_facility: bool = True) -> bool:
+        # Get optimal dates for this match
+        import utils
+        optimal_dates = utils.get_optimal_scheduling_dates(match)
+        return self.scheduling_manager.auto_schedule_match(match, optimal_dates, prefer_home_facility)
 
-    def auto_schedule_match(self, match: Match, preferred_dates: List[str], 
-                          prefer_home_facility: bool = True):
-        return self.scheduling_manager.auto_schedule_match(match, preferred_dates, prefer_home_facility)
-
-    
     def auto_schedule_matches(self, matches: List['Match']) -> Dict[str, Any]:
         return self.scheduling_manager.auto_schedule_matches(matches)
 
     def unschedule_match(self, match: Match) -> None:
-        return self.match_manager.unschedule_match(match.id)
+        return self.match_manager.unschedule_match(match)
     
     def check_time_availability(self, facility: Facility, date: str, time: str, courts_needed: int = 1) -> bool:
-        return self.match_manager.check_time_availability(facility.id, date, time, courts_needed)
+        return self.match_manager.check_time_availability(facility, date, time, courts_needed)
     
     def get_available_times_at_facility(self, facility: Facility, date: str, courts_needed: int = 1) -> List[str]:
-        return self.match_manager.get_available_times_at_facility(facility.id, date, courts_needed)
+        return self.match_manager.get_available_times_at_facility(facility, date, courts_needed)
 
     # ========== Advanced Scheduling Operations ==========
     
@@ -342,10 +368,10 @@ class SQLiteTennisDB(TennisDBInterface):
         return self.match_manager.get_match_statistics(league_id)
     
     def get_facility_usage_report(self, facility: Facility, start_date: str, end_date: str) -> Dict[str, Any]:
-        return self.match_manager.get_facility_usage_report(facility.id, start_date, end_date)
+        return self.match_manager.get_facility_usage_report(facility, start_date, end_date)
     
     def get_scheduling_conflicts(self, facility: Facility, date: str) -> List[Dict[str, Any]]:
-        return self.match_manager.get_scheduling_conflicts(facility.id, date)
+        return self.match_manager.get_scheduling_conflicts(facility, date)
 
     # ========== Import/Export Methods ==========
     
@@ -466,6 +492,24 @@ if __name__ == "__main__":
     # Test basic functionality
     leagues = db.list_leagues()
     print(f"✓ Found {len(leagues)} leagues")
+    
+    # Test get_available_dates if we have facilities
+    facilities = db.list_facilities()
+    if facilities:
+        facility = facilities[0]
+        print(f"✓ Testing get_available_dates for {facility.name}")
+        
+        # Test with 3 lines, no split lines allowed
+        available_dates = db.get_available_dates(facility, 3, allow_split_lines=False, max_dates=10)
+        print(f"✓ Found {len(available_dates)} available dates (no split lines)")
+        if available_dates:
+            print(f"✓ Sample dates: {available_dates[:3]}")
+        
+        # Test with split lines allowed
+        available_dates_split = db.get_available_dates(facility, 3, allow_split_lines=True, max_dates=10)
+        print(f"✓ Found {len(available_dates_split)} available dates (split lines allowed)")
+        if available_dates_split:
+            print(f"✓ Sample dates: {available_dates_split[:3]}")
     
     db.disconnect()
     print("✓ Database disconnected successfully")

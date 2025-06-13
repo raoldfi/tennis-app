@@ -1,9 +1,11 @@
 """
-Updated Match Class - No Line Class
+Updated Match Class - No Line Class with Immutable Core Fields
 
 The Match class now contains an array of scheduled times instead of Line objects.
 All lines for a match are scheduled on the same day at the same facility, but can
 have different start times representing different time slots.
+
+Core fields (id, league, home_team, visitor_team) are immutable after creation.
 """
 
 from __future__ import annotations
@@ -27,17 +29,34 @@ class Match:
     
     The match contains an array of scheduled times instead of Line objects.
     All lines are assumed to be at the same facility and date, but can have different start times.
+    
+    Core fields (id, league, home_team, visitor_team) are immutable after creation.
     """
     id: int
-    league: 'League'  # Direct League object reference
-    home_team: 'Team'  # Direct Team object reference  
-    visitor_team: 'Team'  # Direct Team object reference
-    facility: Optional['Facility'] = None  # Direct Facility object reference (None if unscheduled)
-    date: Optional[str] = None  # YYYY-MM-DD format (None if unscheduled)
-    scheduled_times: List[str] = field(default_factory=list)  # Array of HH:MM times for each line
+    league: 'League'  # Direct League object reference (IMMUTABLE)
+    home_team: 'Team'  # Direct Team object reference (IMMUTABLE)
+    visitor_team: 'Team'  # Direct Team object reference (IMMUTABLE)
+    facility: Optional['Facility'] = None  # Direct Facility object reference (mutable)
+    date: Optional[str] = None  # YYYY-MM-DD format (mutable)
+    scheduled_times: List[str] = field(default_factory=list)  # Array of HH:MM times (mutable)
+    
+    # Private storage for immutable fields - use different names to avoid conflicts
+    _immutable_id: Optional[int] = field(init=False, repr=False, default=None)
+    _immutable_league: Optional['League'] = field(init=False, repr=False, default=None)
+    _immutable_home_team: Optional['Team'] = field(init=False, repr=False, default=None)
+    _immutable_visitor_team: Optional['Team'] = field(init=False, repr=False, default=None)
+    _initialized: bool = field(init=False, repr=False, default=False)
     
     def __post_init__(self):
-        """Validate match data"""
+        """Validate match data and set up immutable fields"""
+        
+        # Store immutable values in private fields
+        self._immutable_id = self.id
+        self._immutable_league = self.league
+        self._immutable_home_team = self.home_team
+        self._immutable_visitor_team = self.visitor_team
+        
+        # Validation
         if not isinstance(self.id, int) or self.id <= 0:
             raise ValueError(f"Match ID must be a positive integer, got: {self.id}")
         
@@ -71,6 +90,76 @@ class Match:
                     raise ValueError("Invalid time values")
             except (ValueError, IndexError):
                 raise ValueError(f"Invalid time format: '{time_str}'. Expected HH:MM format")
+        
+        # Mark as initialized
+        self._initialized = True
+
+    # ========== IMMUTABLE PROPERTY PROTECTION ==========
+    
+    def get_id(self) -> int:
+        """Get the match ID (immutable)"""
+        return self._immutable_id if self._initialized else self.id
+    
+    def get_league(self) -> 'League':
+        """Get the league object (immutable)"""
+        return self._immutable_league if self._initialized else self.league
+    
+    def get_home_team(self) -> 'Team':
+        """Get the home team object (immutable)"""
+        return self._immutable_home_team if self._initialized else self.home_team
+    
+    def get_visitor_team(self) -> 'Team':
+        """Get the visitor team object (immutable)"""
+        return self._immutable_visitor_team if self._initialized else self.visitor_team
+    
+    def __setattr__(self, name, value):
+        """Override setattr to protect immutable fields after initialization"""
+        if hasattr(self, '_initialized') and self._initialized:
+            if name in ('id', 'league', 'home_team', 'visitor_team'):
+                raise AttributeError(f"Match {name} is immutable and cannot be changed after creation")
+        super().__setattr__(name, value)
+
+    # ========== IMMUTABILITY VERIFICATION METHODS ==========
+    
+    def verify_immutable_fields(self) -> bool:
+        """Verify that immutable fields haven't been tampered with"""
+        try:
+            return (
+                self._immutable_id == self.id and
+                self._immutable_league is self.league and
+                self._immutable_home_team is self.home_team and
+                self._immutable_visitor_team is self.visitor_team
+            )
+        except AttributeError:
+            return False
+    
+    def get_immutable_field_info(self) -> Dict[str, Any]:
+        """Get information about immutable fields for debugging"""
+        return {
+            'id': {
+                'value': self._immutable_id,
+                'type': type(self._immutable_id).__name__,
+                'is_protected': self._initialized
+            },
+            'league': {
+                'value': getattr(self._immutable_league, 'name', 'Unknown') if self._immutable_league else None,
+                'id': getattr(self._immutable_league, 'id', None) if self._immutable_league else None,
+                'type': type(self._immutable_league).__name__ if self._immutable_league else None,
+                'is_protected': self._initialized
+            },
+            'home_team': {
+                'value': getattr(self._immutable_home_team, 'name', 'Unknown') if self._immutable_home_team else None,
+                'id': getattr(self._immutable_home_team, 'id', None) if self._immutable_home_team else None,
+                'type': type(self._immutable_home_team).__name__ if self._immutable_home_team else None,
+                'is_protected': self._initialized
+            },
+            'visitor_team': {
+                'value': getattr(self._immutable_visitor_team, 'name', 'Unknown') if self._immutable_visitor_team else None,
+                'id': getattr(self._immutable_visitor_team, 'id', None) if self._immutable_visitor_team else None,
+                'type': type(self._immutable_visitor_team).__name__ if self._immutable_visitor_team else None,
+                'is_protected': self._initialized
+            }
+        }
 
     # ========== Match Scheduling Status ==========
     
@@ -232,97 +321,6 @@ class Match:
         self.date = None
         self.scheduled_times.clear()
 
-
-    def get_optimal_scheduling_dates(self, start_date: Optional[str] = None,
-                                   end_date: Optional[str] = None,
-                                   num_dates: int = 20) -> List[str]:
-        """
-        Find optimal dates for scheduling a specific match, prioritizing team preferences
-        Updated to work with Match objects directly.
-        
-        Args:
-            match: Match object to find dates for
-            start_date: Start date for search (defaults to league start_date)
-            end_date: End date for search (defaults to league end_date)  
-            num_dates: Number of dates to return
-            
-        Returns:
-            List of date strings in YYYY-MM-DD format, ordered by preference
-            (team preferred days first, then league preferred days, then backup days)
-        """
-        print(f"DEBUG: Getting optimal dates for match {self.id}")
-        print(f"DEBUG: League start_date: {self.league.start_date}")
-        print(f"DEBUG: League end_date: {self.league.end_date}")
-        print(f"DEBUG: League preferred_days: {self.league.preferred_days}")
-        print(f"DEBUG: League backup_days: {self.league.backup_days}")
-        print(f"DEBUG: Home team preferred_days: {getattr(self.home_team, 'preferred_days', 'NOT_SET')}")
-        print(f"DEBUG: Visitor team preferred_days: {getattr(self.visitor_team, 'preferred_days', 'NOT_SET')}")
-
-
-        try:
-
-            
-            # Use league dates or reasonable defaults
-            search_start = start_date or self.league.start_date or datetime.now().strftime('%Y-%m-%d')
-            search_end = end_date or self.league.end_date
-            
-            if not search_end:
-                # Default to 16 weeks from start
-                start_dt = datetime.strptime(search_start, '%Y-%m-%d')
-                end_dt = start_dt + timedelta(weeks=16)
-                search_end = end_dt.strftime('%Y-%m-%d')
-            
-            # Generate candidate dates with priority system
-            start_dt = datetime.strptime(search_start, '%Y-%m-%d')
-            end_dt = datetime.strptime(search_end, '%Y-%m-%d')
-            
-            candidate_dates = []
-            current = start_dt
-            
-            # Create combined team preferred days (intersection is highest priority)
-            home_preferred = set(self.home_team.preferred_days)
-            visitor_preferred = set(self.visitor_team.preferred_days)
-            
-            # Priority levels:
-            # 1 = Both teams prefer this day
-            # 2 = One team prefers this day
-            # 3 = League prefers this day (but no team preference)
-            # 4 = League backup day (but no team preference)
-            # 5 = Day is allowed but not preferred by anyone
-            
-            while current <= end_dt:
-                day_name = current.strftime('%A')
-                date_str = current.strftime('%Y-%m-%d')
-                
-                # Skip days that the league doesn't allow
-                if day_name not in self.league.preferred_days and day_name not in self.league.backup_days:
-                    current += timedelta(days=1)
-                    continue
-                
-                # Determine priority based on team and league preferences
-                priority = 5  # Default: allowed but not preferred
-                
-                if day_name in home_preferred and day_name in visitor_preferred:
-                    priority = 1  # Both teams prefer this day
-                elif day_name in home_preferred or day_name in visitor_preferred:
-                    priority = 2  # One team prefers this day
-                elif day_name in match.league.preferred_days:
-                    priority = 3  # League prefers this day
-                elif day_name in match.league.backup_days:
-                    priority = 4  # League backup day
-                
-                candidate_dates.append((date_str, priority))
-                current += timedelta(days=1)
-            
-            # Sort by priority (lower number = higher priority)
-            # For same priority, maintain chronological order
-            candidate_dates.sort(key=lambda x: (x[1], x[0]))
-            
-            # Return the requested number of dates
-            return [date for date, _ in candidate_dates[:num_dates]]
-            
-        except Exception as e:
-            raise RuntimeError(f"Error getting optimal scheduling dates for match {match.id}: {e}")
     # ========== Convenience Properties ==========
     
     @property
@@ -378,7 +376,3 @@ class Match:
             'num_scheduled_lines': self.get_num_scheduled_lines(),
             'expected_lines': self.get_expected_lines()
         }
-
-
-
-    

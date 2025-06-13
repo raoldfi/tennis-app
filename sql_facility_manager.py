@@ -5,6 +5,7 @@ Handles all facility-related database operations including CRUD operations,
 facility schedules, availability, and utilization tracking.
 
 Updated to work without Line class - uses match scheduled_times instead.
+Added get_available_dates API for finding available dates for matches.
 """
 
 import sqlite3
@@ -321,6 +322,125 @@ class SQLFacilityManager:
             return facilities
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error getting facilities by name: {e}")
+
+    def get_available_dates(self, facility: Facility, num_lines: int, 
+                           allow_split_lines: bool = False, 
+                           start_date: Optional[str] = None,
+                           end_date: Optional[str] = None,
+                           max_dates: int = 50) -> List[str]:
+        """
+        Get available dates for a facility that can accommodate the required number of lines
+        
+        Args:
+            facility: Facility object to check availability for
+            num_lines: Number of lines (courts) needed
+            allow_split_lines: Whether lines can be split across different time slots
+            start_date: Start date for search (YYYY-MM-DD format). If None, uses today's date
+            end_date: End date for search (YYYY-MM-DD format). If None, searches 16 weeks from start
+            max_dates: Maximum number of dates to return
+            
+        Returns:
+            List of available date strings in YYYY-MM-DD format, ordered by preference
+        """
+        try:
+            # Set default date range if not provided
+            if start_date is None:
+                start_date = datetime.now().strftime('%Y-%m-%d')
+            
+            if end_date is None:
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                end_dt = start_dt + timedelta(weeks=16)
+                end_date = end_dt.strftime('%Y-%m-%d')
+            
+            # Validate date range
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+            
+            if start_dt > end_dt:
+                raise ValueError("Start date must be before or equal to end date")
+            
+            available_dates = []
+            current_dt = start_dt
+            
+            while current_dt <= end_dt and len(available_dates) < max_dates:
+                date_str = current_dt.strftime('%Y-%m-%d')
+                
+                # Check if facility is available on this date
+                if not facility.is_available_on_date(date_str):
+                    current_dt += timedelta(days=1)
+                    continue
+                
+                # Get day of week
+                day_name = current_dt.strftime('%A')
+                
+                # Get day schedule
+                try:
+                    day_schedule = facility.schedule.get_day_schedule(day_name)
+                except ValueError:
+                    # Invalid day name or no schedule for this day
+                    current_dt += timedelta(days=1)
+                    continue
+                
+                # Check if this date can accommodate the required lines
+                if self._can_accommodate_lines_on_date(facility, date_str, day_schedule, num_lines, allow_split_lines):
+                    available_dates.append(date_str)
+                
+                current_dt += timedelta(days=1)
+            
+            return available_dates
+            
+        except Exception as e:
+            raise RuntimeError(f"Error getting available dates for facility {facility.id}: {e}")
+    
+    def _can_accommodate_lines_on_date(self, facility: Facility, date_str: str, 
+                                     day_schedule: DaySchedule, num_lines: int, 
+                                     allow_split_lines: bool) -> bool:
+        """
+        Check if a facility can accommodate the required lines on a specific date
+        
+        Args:
+            facility: Facility object
+            date_str: Date string in YYYY-MM-DD format
+            day_schedule: DaySchedule for the day of week
+            num_lines: Number of lines needed
+            allow_split_lines: Whether lines can be split across time slots
+            
+        Returns:
+            True if the facility can accommodate the lines
+        """
+        try:
+            # Get scheduled times at this facility on this date
+            scheduled_times = self.get_scheduled_times_at_facility(facility.id, date_str)
+            
+            if not allow_split_lines:
+                # All lines must be at the same time - check each time slot individually
+                for time_slot in day_schedule.start_times:
+                    time = time_slot.time
+                    available_courts = time_slot.available_courts
+                    used_courts = scheduled_times.count(time)
+                    remaining_courts = available_courts - used_courts
+                    
+                    if remaining_courts >= num_lines:
+                        return True
+                
+                return False
+            
+            else:
+                # Lines can be split - check if total available courts across all time slots >= num_lines
+                total_available = 0
+                
+                for time_slot in day_schedule.start_times:
+                    time = time_slot.time
+                    available_courts = time_slot.available_courts
+                    used_courts = scheduled_times.count(time)
+                    remaining_courts = max(0, available_courts - used_courts)
+                    total_available += remaining_courts
+                
+                return total_available >= num_lines
+            
+        except Exception as e:
+            logger.error(f"Error checking line accommodation for facility {facility.id} on {date_str}: {e}")
+            return False
 
     def _insert_facility_schedule(self, facility_id: int, schedule: WeeklySchedule) -> None:
         """Insert facility schedule data into the database"""

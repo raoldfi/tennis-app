@@ -1,11 +1,11 @@
 """
-Tennis Database Interface - Updated without Line class
+Tennis Database Interface - Updated with get_available_dates API
 
 Clean abstract interface for tennis database backends.
 This interface is backend-agnostic and defines the contract
 that all database implementations must follow.
 
-Updated to remove Line class support and focus on Match-based scheduling.
+Updated to include get_available_dates API for facility availability checking.
 """
 
 from abc import ABC, abstractmethod
@@ -157,6 +157,37 @@ class TennisDBInterface(ABC):
         """Get facility availability information for a specific date"""
         pass
 
+    @abstractmethod
+    def get_available_dates(self, facility: 'Facility', num_lines: int, 
+                           allow_split_lines: bool = False, 
+                           start_date: Optional[str] = None,
+                           end_date: Optional[str] = None,
+                           max_dates: int = 50) -> List[str]:
+        """
+        Get available dates for a facility that can accommodate the required number of lines
+        
+        Args:
+            facility: Facility object to check availability for
+            num_lines: Number of lines (courts) needed
+            allow_split_lines: Whether lines can be split across different time slots
+            start_date: Start date for search (YYYY-MM-DD format). If None, uses today's date
+            end_date: End date for search (YYYY-MM-DD format). If None, searches 16 weeks from start
+            max_dates: Maximum number of dates to return
+            
+        Returns:
+            List of available date strings in YYYY-MM-DD format, ordered by preference
+            
+        Examples:
+            # Find dates for 3 lines at same time
+            dates = db.get_available_dates(facility, 3)
+            
+            # Find dates allowing split lines
+            dates = db.get_available_dates(facility, 3, allow_split_lines=True)
+            
+            # Find dates in specific range
+            dates = db.get_available_dates(facility, 3, start_date="2025-01-01", end_date="2025-03-31")
+        """
+        pass
 
     # ========== Match Scheduling Operations ==========
     @abstractmethod
@@ -226,9 +257,6 @@ class TennisDBInterface(ABC):
             Dictionary with scheduling results and statistics
         """
         pass
-
-
-
 
     @abstractmethod
     def unschedule_match(self, match: 'Match') -> None:

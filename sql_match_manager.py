@@ -1,10 +1,11 @@
 """
-Updated SQLite Match Manager - No Line Class
+Updated SQLite Match Manager - Using Modular Managers
 
 Handles match-related database operations without using a separate Line class.
 Instead, scheduled times are stored as a JSON array in the matches table.
 
-Updated to work with the new object-based interface.
+Updated to use SQLLeagueManager, SQLTeamManager, and SQLFacilityManager
+for all related entity operations instead of direct database access.
 """
 
 import sqlite3
@@ -12,8 +13,6 @@ import json
 from typing import List, Optional, Dict, Any
 from collections import defaultdict
 from usta import Match, Facility
-
-
 
 
 class SQLMatchManager:
@@ -35,34 +34,12 @@ class SQLMatchManager:
         return dict(row) if row else {}
     
     def get_match(self, match_id: int) -> Optional[Match]:
-        """Get a match with all related objects populated"""
+        """Get a match with all related objects populated using modular managers"""
         query = """
         SELECT 
             m.id, m.league_id, m.home_team_id, m.visitor_team_id, 
-            m.facility_id, m.date, m.scheduled_times,
-            -- League fields
-            l.name as league_name, l.year, l.section, l.region, 
-            l.age_group, l.division, l.num_lines_per_match, l.num_matches,
-            -- Home team fields  
-            ht.name as home_team_name, ht.captain as home_team_captain,
-            -- Visitor team fields
-            vt.name as visitor_team_name, vt.captain as visitor_team_captain,
-            -- Home team facility fields
-            htf.id as home_facility_id, htf.name as home_facility_name, 
-            htf.short_name as home_facility_short_name, htf.location as home_facility_location,
-            -- Visitor team facility fields  
-            vtf.id as visitor_facility_id, vtf.name as visitor_facility_name,
-            vtf.short_name as visitor_facility_short_name, vtf.location as visitor_facility_location,
-            -- Match facility fields
-            f.name as facility_name, f.short_name as facility_short_name, 
-            f.location as facility_location, f.total_courts
+            m.facility_id, m.date, m.scheduled_times
         FROM matches m
-        LEFT JOIN leagues l ON m.league_id = l.id
-        LEFT JOIN teams ht ON m.home_team_id = ht.id  
-        LEFT JOIN teams vt ON m.visitor_team_id = vt.id
-        LEFT JOIN facilities htf ON ht.home_facility_id = htf.id
-        LEFT JOIN facilities vtf ON vt.home_facility_id = vtf.id
-        LEFT JOIN facilities f ON m.facility_id = f.id
         WHERE m.id = ?
         """
         
@@ -70,70 +47,34 @@ class SQLMatchManager:
             result = self.cursor.execute(query, (match_id,)).fetchone()
             if not result:
                 return None
-                
-            # Construct League object
-            from usta import League
-            league = League(
-                id=result['league_id'],
-                name=result['league_name'],
-                year=result['year'],
-                section=result['section'],
-                region=result['region'],
-                age_group=result['age_group'],
-                division=result['division'],
-                num_lines_per_match=result['num_lines_per_match'],
-                num_matches=result['num_matches']
-            )
             
-            # Construct home team facility
-            from usta import Facility
-            home_facility = Facility(
-                id=result['home_facility_id'],
-                name=result['home_facility_name'],
-                short_name=result['home_facility_short_name'],
-                location=result['home_facility_location']
-            ) if result['home_facility_id'] else None
+            match_data = self._dictify(result)
             
-            # Construct visitor team facility  
-            visitor_facility = Facility(
-                id=result['visitor_facility_id'],
-                name=result['visitor_facility_name'],
-                short_name=result['visitor_facility_short_name'],
-                location=result['visitor_facility_location']
-            ) if result['visitor_facility_id'] else None
+            # Use managers to get related objects
+            league = self.db.league_manager.get_league(match_data['league_id'])
+            if not league:
+                raise RuntimeError(f"League {match_data['league_id']} not found for match {match_id}")
             
-            # Construct Team objects
-            from usta import Team
-            home_team = Team(
-                id=result['home_team_id'],
-                name=result['home_team_name'],
-                league=league,
-                home_facility=home_facility,
-                captain=result['home_team_captain']
-            )
+            home_team = self.db.team_manager.get_team(match_data['home_team_id'])
+            if not home_team:
+                raise RuntimeError(f"Home team {match_data['home_team_id']} not found for match {match_id}")
             
-            visitor_team = Team(
-                id=result['visitor_team_id'], 
-                name=result['visitor_team_name'],
-                league=league,
-                home_facility=visitor_facility,
-                captain=result['visitor_team_captain']
-            )
+            visitor_team = self.db.team_manager.get_team(match_data['visitor_team_id'])
+            if not visitor_team:
+                raise RuntimeError(f"Visitor team {match_data['visitor_team_id']} not found for match {match_id}")
             
-            # Construct match facility
-            match_facility = Facility(
-                id=result['facility_id'],
-                name=result['facility_name'],
-                short_name=result['facility_short_name'],
-                location=result['facility_location'],
-                total_courts=result['total_courts']
-            ) if result['facility_id'] else None
+            # Get match facility if assigned
+            match_facility = None
+            if match_data['facility_id']:
+                match_facility = self.db.facility_manager.get_facility(match_data['facility_id'])
+                if not match_facility:
+                    raise RuntimeError(f"Facility {match_data['facility_id']} not found for match {match_id}")
             
             # Parse scheduled times from JSON
             scheduled_times = []
-            if result['scheduled_times']:
+            if match_data['scheduled_times']:
                 try:
-                    scheduled_times = json.loads(result['scheduled_times'])
+                    scheduled_times = json.loads(match_data['scheduled_times'])
                     if not isinstance(scheduled_times, list):
                         scheduled_times = []
                 except (json.JSONDecodeError, TypeError):
@@ -141,12 +82,12 @@ class SQLMatchManager:
             
             # Construct Match object
             return Match(
-                id=result['id'],
+                id=match_data['id'],
                 league=league,
                 home_team=home_team,
                 visitor_team=visitor_team,
                 facility=match_facility,
-                date=result['date'],
+                date=match_data['date'],
                 scheduled_times=scheduled_times
             )
         except sqlite3.Error as e:
@@ -169,11 +110,22 @@ class SQLMatchManager:
             visitor_team_id = match.visitor_team.id
             facility_id = match.facility.id if match.facility else None
             
-            # Validate that teams belong to the league
-            if match.home_team.league.id != league_id:
+            # Validate that teams belong to the league using team manager
+            home_team = self.db.team_manager.get_team(home_team_id)
+            visitor_team = self.db.team_manager.get_team(visitor_team_id)
+            
+            if not home_team or home_team.league.id != league_id:
                 raise ValueError("Home team must belong to the match league")
-            if match.visitor_team.league.id != league_id:
+            if not visitor_team or visitor_team.league.id != league_id:
                 raise ValueError("Visitor team must belong to the match league")
+            
+            # Verify related entities exist using managers
+            if not self.db.league_manager.get_league(league_id):
+                raise ValueError(f"League with ID {league_id} does not exist")
+            
+            # Verify facility exists if provided
+            if facility_id and not self.db.facility_manager.get_facility(facility_id):
+                raise ValueError(f"Facility with ID {facility_id} does not exist")
             
             # Serialize scheduled times to JSON
             scheduled_times_json = json.dumps(match.scheduled_times) if match.scheduled_times else None
@@ -221,7 +173,7 @@ class SQLMatchManager:
             raise RuntimeError(f"Database error retrieving match {match_id}: {e}")
 
     def list_matches(self, league: Optional['League'] = None, include_unscheduled: bool = True) -> List[Match]:
-        """List matches with optional filtering"""
+        """List matches with optional filtering using managers for object resolution"""
 
         print(f"Trying to get Matches for League = {league}, include_unscheduled={include_unscheduled}")
         
@@ -250,9 +202,6 @@ class SQLMatchManager:
                 if match:
                     matches.append(match)
 
-            #print(f"Executed query {query}")
-            #print(f"matches returned = {matches}")
-            
             return matches
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error listing matches: {e}")
@@ -274,7 +223,7 @@ class SQLMatchManager:
             visitor_team_id = match.visitor_team.id
             facility_id = match.facility.id if match.facility else None
             
-            # Verify related entities exist
+            # Verify related entities exist using managers
             if not self.db.league_manager.get_league(league_id):
                 raise ValueError(f"League with ID {league_id} does not exist")
             if not self.db.team_manager.get_team(home_team_id):
@@ -350,6 +299,10 @@ class SQLMatchManager:
             if not isinstance(facility, Facility):
                 raise TypeError(f"Expected Facility object, got: {type(facility)}")
             
+            # Verify facility exists using facility manager
+            if not self.db.facility_manager.get_facility(facility.id):
+                raise ValueError(f"Facility with ID {facility.id} does not exist")
+            
             # Schedule all lines at the same time
             match.schedule_all_lines_same_time(facility, date, time)
             
@@ -368,6 +321,10 @@ class SQLMatchManager:
                 raise TypeError(f"Expected Match object, got: {type(match)}")
             if not isinstance(facility, Facility):
                 raise TypeError(f"Expected Facility object, got: {type(facility)}")
+            
+            # Verify facility exists using facility manager
+            if not self.db.facility_manager.get_facility(facility.id):
+                raise ValueError(f"Facility with ID {facility.id} does not exist")
             
             # Schedule lines sequentially
             match.schedule_lines_sequential(facility, date, start_time, interval_minutes)
@@ -388,9 +345,13 @@ class SQLMatchManager:
         self.update_match(match)
     
     def get_scheduled_times_at_facility(self, facility: Facility, date: str) -> List[str]:
-        """Get all scheduled times at a facility on a specific date"""
+        """Get all scheduled times at a facility on a specific date using facility manager for validation"""
         if not isinstance(facility, Facility):
             raise TypeError(f"Expected Facility object, got: {type(facility)}")
+        
+        # Verify facility exists using facility manager
+        if not self.db.facility_manager.get_facility(facility.id):
+            raise ValueError(f"Facility with ID {facility.id} does not exist")
         
         try:
             self.cursor.execute("""
@@ -415,73 +376,20 @@ class SQLMatchManager:
             raise RuntimeError(f"Database error getting scheduled times: {e}")
     
     def check_time_availability(self, facility: Facility, date: str, time: str, courts_needed: int = 1) -> bool:
-        """Check if a specific time slot is available at a facility"""
+        """Check if a specific time slot is available at a facility using facility manager"""
         if not isinstance(facility, Facility):
             raise TypeError(f"Expected Facility object, got: {type(facility)}")
         
-        try:
-            # Get all scheduled times at this facility/date
-            scheduled_times = self.get_scheduled_times_at_facility(facility, date)
-            
-            # Count how many times this specific time is already used
-            times_used = scheduled_times.count(time)
-            
-            # Get day of week and check if time slot exists
-            try:
-                from datetime import datetime
-                date_obj = datetime.strptime(date, '%Y-%m-%d')
-                day_name = date_obj.strftime('%A')
-            except ValueError:
-                return False
-            
-            day_schedule = facility.schedule.get_day_schedule(day_name)
-            
-            # Find the time slot
-            time_slot = None
-            for slot in day_schedule.start_times:
-                if slot.time == time:
-                    time_slot = slot
-                    break
-            
-            if not time_slot:
-                return False  # Time slot not available at this facility
-            
-            # Check if there are enough courts available
-            available_courts = time_slot.available_courts - times_used
-            return available_courts >= courts_needed
-            
-        except Exception as e:
-            return False
+        # Use facility manager to check availability
+        return self.db.facility_manager.check_time_availability(facility.id, date, time, courts_needed)
     
     def get_available_times_at_facility(self, facility: Facility, date: str, courts_needed: int = 1) -> List[str]:
-        """Get all available times at a facility for the specified number of courts"""
+        """Get all available times at a facility for the specified number of courts using facility manager"""
         if not isinstance(facility, Facility):
             raise TypeError(f"Expected Facility object, got: {type(facility)}")
         
-        try:
-            # Check if facility is available on this date
-            if not facility.is_available_on_date(date):
-                return []
-            
-            # Get day of week
-            try:
-                from datetime import datetime
-                date_obj = datetime.strptime(date, '%Y-%m-%d')
-                day_name = date_obj.strftime('%A')
-            except ValueError:
-                return []
-            
-            day_schedule = facility.schedule.get_day_schedule(day_name)
-            
-            available_times = []
-            for time_slot in day_schedule.start_times:
-                if self.check_time_availability(facility, date, time_slot.time, courts_needed):
-                    available_times.append(time_slot.time)
-            
-            return available_times
-            
-        except Exception as e:
-            return []
+        # Use facility manager to get available times
+        return self.db.facility_manager.get_available_times_at_facility(facility.id, date, courts_needed)
 
     # ========== Statistics and Reporting ==========
     
@@ -514,6 +422,13 @@ class SQLMatchManager:
             partially_scheduled_matches = 0
             fully_scheduled_matches = 0
             
+            # Get league info for expected lines per match
+            expected_lines = 3  # Default
+            if league_id:
+                league = self.db.league_manager.get_league(league_id)
+                if league:
+                    expected_lines = league.num_lines_per_match
+            
             for row in self.cursor.fetchall():
                 if row['scheduled_times']:
                     try:
@@ -523,9 +438,6 @@ class SQLMatchManager:
                             total_scheduled_lines += num_lines
                             
                             # Determine if match is fully or partially scheduled
-                            # This would require knowing expected lines per match
-                            # For now, assume 3 lines per match
-                            expected_lines = 3
                             if num_lines == expected_lines:
                                 fully_scheduled_matches += 1
                             elif 0 < num_lines < expected_lines:
@@ -546,9 +458,13 @@ class SQLMatchManager:
             raise RuntimeError(f"Database error getting match statistics: {e}")
     
     def get_facility_usage_report(self, facility: Facility, start_date: str, end_date: str) -> Dict[str, Any]:
-        """Get facility usage report for a date range"""
+        """Get facility usage report for a date range using facility manager for validation"""
         if not isinstance(facility, Facility):
             raise TypeError(f"Expected Facility object, got: {type(facility)}")
+        
+        # Verify facility exists using facility manager
+        if not self.db.facility_manager.get_facility(facility.id):
+            raise ValueError(f"Facility with ID {facility.id} does not exist")
         
         try:
             self.cursor.execute("""
@@ -599,18 +515,24 @@ class SQLMatchManager:
             raise RuntimeError(f"Database error getting facility usage report: {e}")
     
     def get_scheduling_conflicts(self, facility: Facility, date: str) -> List[Dict[str, Any]]:
-        """Find potential scheduling conflicts at a facility on a specific date"""
+        """Find potential scheduling conflicts at a facility on a specific date using facility manager"""
         if not isinstance(facility, Facility):
             raise TypeError(f"Expected Facility object, got: {type(facility)}")
         
+        # Verify facility exists using facility manager
+        if not self.db.facility_manager.get_facility(facility.id):
+            raise ValueError(f"Facility with ID {facility.id} does not exist")
+        
         try:
-            matches = self.get_matches_on_date(date, facility)
+            matches = self.get_matches_on_date(date)
+            # Filter matches for this facility
+            facility_matches = [m for m in matches if m.facility and m.facility.id == facility.id]
             
             conflicts = []
             time_usage = defaultdict(list)
             
             # Group matches by time
-            for match in matches:
+            for match in facility_matches:
                 for time in match.scheduled_times:
                     time_usage[time].append({
                         'match_id': match.id,
@@ -619,9 +541,11 @@ class SQLMatchManager:
                         'league': match.league.name
                     })
             
-            # Find times with multiple matches exceeding court capacity
-            max_courts = facility.total_courts
+            # Use facility manager to get facility capacity information
+            facility_obj = self.db.facility_manager.get_facility(facility.id)
+            max_courts = facility_obj.total_courts if facility_obj else 0
             
+            # Find times with multiple matches exceeding court capacity
             for time, matches_at_time in time_usage.items():
                 if len(matches_at_time) > max_courts:
                     conflicts.append({
@@ -636,4 +560,3 @@ class SQLMatchManager:
             
         except Exception as e:
             raise RuntimeError(f"Error finding scheduling conflicts: {e}")
-

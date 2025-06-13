@@ -9,11 +9,24 @@ Updated to reflect the removal of the Line class - scheduling is now handled at 
 Match level with scheduled_times arrays.
 
 ENHANCED: generate-matches command now supports both single league and bulk operations.
+ENHANCED: auto-schedule command for automatically scheduling unscheduled matches.
 
 Usage examples:
+    # Basic database operations
     # SQLite (default) - will create database if it doesn't exist
     python tennis_cli.py --backend sqlite --db-path tennis.db list leagues
     
+    # List all matches across all leagues
+    python tennis_cli.py --db-path tennis.db list matches
+    
+    # List matches for specific league
+    python tennis_cli.py --db-path tennis.db list matches --league-id 1
+    
+    # List teams, facilities, etc.
+    python tennis_cli.py --db-path tennis.db list teams
+    python tennis_cli.py --db-path tennis.db list facilities
+    
+    # Generate matches for leagues
     # Generate matches for all leagues
     python tennis_cli.py --db-path tennis.db generate-matches
     
@@ -35,10 +48,72 @@ Usage examples:
     # Show progress during bulk generation
     python tennis_cli.py --db-path tennis.db generate-matches --progress
     
+    # Auto-schedule unscheduled matches
+    # Schedule all unscheduled matches in all leagues
+    python tennis_cli.py --db-path tennis.db auto-schedule
+    
+    # Schedule with progress reporting
+    python tennis_cli.py --db-path tennis.db auto-schedule --progress
+    
+    # Schedule specific league
+    python tennis_cli.py --db-path tennis.db auto-schedule --league-id 1
+    
+    # Schedule multiple leagues
+    python tennis_cli.py --db-path tennis.db auto-schedule --league-ids 1,2,3
+    
+    # Test with limited matches
+    python tennis_cli.py --db-path tennis.db auto-schedule --max-matches 5 --progress
+    
+    # Manual match scheduling
+    # Schedule a specific match
+    python tennis_cli.py --db-path tennis.db schedule --match-id 1 --facility-id 1 --date 2025-07-15 --times 09:00 12:00 15:00
+    
+    # Schedule all lines at same time
+    python tennis_cli.py --db-path tennis.db schedule --match-id 1 --facility-id 1 --date 2025-07-15 --times 09:00 --same-time
+    
+    # Unschedule a match
+    python tennis_cli.py --db-path tennis.db unschedule --match-id 1
+    
+    # Check court availability
+    python tennis_cli.py --db-path tennis.db check-availability --facility-id 1 --date 2025-07-15 --time 09:00 --courts-needed 3
+    
+    # Statistics and reporting
+    # Get overall stats
+    python tennis_cli.py --db-path tennis.db stats
+    
+    # Get league-specific stats
+    python tennis_cli.py --db-path tennis.db stats --league-id 1
+    
+    # Get facility usage stats
+    python tennis_cli.py --db-path tennis.db stats --facility-id 1 --start-date 2025-01-01 --end-date 2025-12-31
+    
+    # Data management
+    # Load data from YAML files
+    python tennis_cli.py --db-path tennis.db load facilities facilities.yaml
+    python tennis_cli.py --db-path tennis.db load leagues leagues.yaml
+    python tennis_cli.py --db-path tennis.db load teams teams.yaml
+    
+    # Create individual matches
+    python tennis_cli.py --db-path tennis.db create match --league-id 1 --home-team-id 1 --visitor-team-id 2
+    
+    # Database health and initialization
+    python tennis_cli.py --db-path tennis.db health
+    python tennis_cli.py --db-path tennis.db init
+    
+    # Multi-backend support
     # From environment variables
     export TENNIS_DB_BACKEND=postgresql
     export TENNIS_DB_HOST=localhost
     python tennis_cli.py generate-matches --league-ids 1,2,3
+    
+    # PostgreSQL
+    python tennis_cli.py --backend postgresql --host localhost --database tennis --user tennis_user list leagues
+    
+    # Migration between backends
+    python tennis_cli.py --db-path source.db migrate --target-backend postgresql --target-host localhost --target-database tennis
+    
+    # List available backends
+    python tennis_cli.py list backends
 """
 
 import argparse
@@ -49,11 +124,12 @@ from typing import Dict, Any, Optional, List
 import traceback
 import logging
 
-import usta
+import utils
+from usta import Team
 
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -207,6 +283,19 @@ class TennisCLI:
         schedule_parser.add_argument("--times", nargs='+', required=True, help="Start times (HH:MM) for each line")
         schedule_parser.add_argument("--same-time", action="store_true", help="Schedule all lines at the same time")
 
+        # Auto-schedule command
+        auto_schedule_parser = subparsers.add_parser("auto-schedule", help="Automatically schedule unscheduled matches")
+        auto_schedule_parser.add_argument("--league-id", type=int, 
+                                        help="League ID (if not specified, processes all leagues)")
+        auto_schedule_parser.add_argument("--league-ids", 
+                                        help="Comma-separated list of league IDs (alternative to --league-id)")
+        auto_schedule_parser.add_argument("--prefer-home-facility", action="store_true", default=True,
+                                        help="Prefer home team facilities when scheduling (default: True)")
+        auto_schedule_parser.add_argument("--progress", action="store_true", 
+                                        help="Show progress during scheduling")
+        auto_schedule_parser.add_argument("--max-matches", type=int, 
+                                        help="Maximum number of matches to schedule (for testing)")
+
         # Unschedule command
         unschedule_parser = subparsers.add_parser("unschedule", help="Remove scheduling from matches")
         unschedule_parser.add_argument("--match-id", type=int, required=True, help="Match ID to unschedule")
@@ -313,6 +402,8 @@ class TennisCLI:
                 return self.handle_create_command(args, db)
             elif args.command == "schedule":
                 return self.handle_schedule_command(args, db)
+            elif args.command == "auto-schedule":
+                return self.handle_auto_schedule_command(args, db)
             elif args.command == "unschedule":
                 return self.handle_unschedule_command(args, db)
             elif args.command == "check-availability":
@@ -636,6 +727,161 @@ class TennisCLI:
             print(f"Error scheduling match: {e}", file=sys.stderr)
             return 1
 
+
+
+
+    def handle_auto_schedule_command(self, args, db):
+        """Handle automatic scheduling of unscheduled matches"""
+        try:
+            target_league_ids = None
+            
+            # Parse league IDs if provided
+            if args.league_id:
+                target_league_ids = [args.league_id]
+            elif args.league_ids:
+                try:
+                    target_league_ids = [int(x.strip()) for x in args.league_ids.split(',')]
+                except ValueError:
+                    print("Error: Invalid league IDs format. Use comma-separated integers (e.g., '1,2,3')", file=sys.stderr)
+                    return 1
+            
+            # Get leagues to process
+            if target_league_ids:
+                leagues = []
+                for league_id in target_league_ids:
+                    league = db.get_league(league_id)
+                    if not league:
+                        print(f"Warning: League {league_id} not found, skipping", file=sys.stderr)
+                    else:
+                        leagues.append(league)
+            else:
+                leagues = db.list_leagues()
+            
+            if not leagues:
+                print("No leagues found to process", file=sys.stderr)
+                return 1
+            
+            print(f"Auto-scheduling unscheduled matches for {len(leagues)} league(s)...")
+            print(f"Prefer home facilities: {args.prefer_home_facility}")
+            print("-" * 60)
+            
+            total_processed = 0
+            total_scheduled = 0
+            total_failed = 0
+            
+            results = {
+                'successful': [],
+                'failed': [],
+                'no_matches': []
+            }
+            
+            for i, league in enumerate(leagues):
+                if args.progress:
+                    print(f"[{i+1}/{len(leagues)}] Processing league: {league.name}")
+                
+                try:
+                    # Get unscheduled matches for this league
+                    all_matches = db.list_matches(league, include_unscheduled=True)
+                    unscheduled_matches = [match for match in all_matches if not match.is_scheduled()]
+                    
+                    if not unscheduled_matches:
+                        results['no_matches'].append({
+                            'league_id': league.id,
+                            'league_name': league.name,
+                            'total_matches': len(all_matches)
+                        })
+                        if args.progress:
+                            print(f"  No unscheduled matches found ({len(all_matches)} total matches)")
+                        continue
+                    
+                    # Apply max_matches limit if specified
+                    if args.max_matches and len(unscheduled_matches) > args.max_matches:
+                        unscheduled_matches = unscheduled_matches[:args.max_matches]
+                        if args.progress:
+                            print(f"  Limited to {args.max_matches} matches for testing")
+                    
+                    if args.progress:
+                        print(f"  Found {len(unscheduled_matches)} unscheduled matches")
+                    
+                    # Use the database's auto_schedule_matches method
+                    scheduling_result = db.auto_schedule_matches(unscheduled_matches)
+                    
+                    scheduled_count = scheduling_result.get('scheduled_count', 0)
+                    failed_count = scheduling_result.get('failed_count', 0)
+                    
+                    results['successful'].append({
+                        'league_id': league.id,
+                        'league_name': league.name,
+                        'total_matches': len(unscheduled_matches),
+                        'scheduled_count': scheduled_count,
+                        'failed_count': failed_count,
+                        'details': scheduling_result
+                    })
+                    
+                    total_scheduled += scheduled_count
+                    total_failed += failed_count
+                    total_processed += 1
+                    
+                    if args.progress:
+                        print(f"  SCHEDULED: {scheduled_count}/{len(unscheduled_matches)} matches")
+                        if failed_count > 0:
+                            print(f"  FAILED: {failed_count} matches could not be scheduled")
+                    
+                except Exception as e:
+                    error_msg = str(e)
+                    results['failed'].append({
+                        'league_id': league.id,
+                        'league_name': league.name,
+                        'error': error_msg
+                    })
+                    if args.progress:
+                        print(f"  ERROR: {error_msg}")
+                    continue
+            
+            # Print summary
+            print("-" * 60)
+            print("AUTO-SCHEDULING SUMMARY:")
+            print(f"  Leagues processed: {total_processed}")
+            print(f"  Matches scheduled: {total_scheduled}")
+            print(f"  Matches failed: {total_failed}")
+            print(f"  Leagues with no unscheduled matches: {len(results['no_matches'])}")
+            
+            if results['successful']:
+                print(f"\nSUCCESSFUL LEAGUES ({len(results['successful'])}):")
+                for result in results['successful']:
+                    success_rate = (result['scheduled_count'] / result['total_matches'] * 100) if result['total_matches'] > 0 else 0
+                    print(f"  {result['league_name']}: {result['scheduled_count']}/{result['total_matches']} matches ({success_rate:.1f}%)")
+            
+            if results['no_matches']:
+                print(f"\nLEAGUES WITH NO UNSCHEDULED MATCHES ({len(results['no_matches'])}):")
+                for result in results['no_matches']:
+                    print(f"  {result['league_name']}: {result['total_matches']} total matches (all scheduled)")
+            
+            if results['failed']:
+                print(f"\nFAILED LEAGUES ({len(results['failed'])}):")
+                for result in results['failed']:
+                    print(f"  {result['league_name']}: {result['error']}")
+            
+            # Return appropriate exit code
+            if total_failed > 0 and total_scheduled == 0:
+                return 1  # Complete failure
+            elif total_processed == 0:
+                print("\nNo leagues were processed", file=sys.stderr)
+                return 1
+            else:
+                return 0  # Success or partial success
+            
+        except Exception as e:
+            print(f"Error in auto-scheduling: {e}", file=sys.stderr)
+            if args.verbose:
+                traceback.print_exc()
+            return 1
+
+
+
+
+
+    
     def handle_unschedule_command(self, args, db):
         """Handle match unscheduling commands"""
         try:
@@ -832,7 +1078,7 @@ class TennisCLI:
                         print(f"  GENERATING MATCHES FOR {len(teams)} TEAMS")
                     
                     # Generate matches using USTA generate_matches method
-                    matches = usta.generate_matches(teams)
+                    matches = utils.generate_matches(teams)
                     
                     # Add generated matches to database
                     for match in matches:
