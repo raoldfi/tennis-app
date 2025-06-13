@@ -11,29 +11,49 @@ import traceback
 from web_database import get_db
 from web_utils import enhance_match_for_template, filter_matches
 
+from usta import Match, MatchType, League, Team
+
 
 def register_routes(app):
     """Register match-related routes"""
 
+
+
     @app.route('/matches')
     def matches():
-        """Matches page - FIXED all parameter and template issues"""
+        """Matches page - Updated to use MatchType enum"""
         db = get_db()
         if db is None:
             return redirect(url_for('connect'))
         
-        # Get filter parameters - Handle both parameter names for compatibility
+        # Get filter parameters
         league_id = request.args.get('league_id', type=int)
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         search_query = request.args.get('search', '').strip()
         
-        # FIXED: Handle both 'show_unscheduled' (template) and 'include_unscheduled' (backend)
-        show_unscheduled = request.args.get('show_unscheduled', 'false').lower() == 'true'
-        include_unscheduled = request.args.get('include_unscheduled', 'true').lower() == 'true'
+        # Handle match type filtering - convert from web parameters to enum
+        show_scheduled = request.args.get('show_scheduled', 'true').lower() == 'true'
+        show_unscheduled = request.args.get('show_unscheduled', 'true').lower() == 'true'
         
-        # Use either parameter name - prioritize show_unscheduled since that's what the template uses
-        include_unscheduled = show_unscheduled or include_unscheduled
+        # Determine match type from parameters
+        if show_scheduled and show_unscheduled:
+            match_type = MatchType.ALL
+        elif show_scheduled and not show_unscheduled:
+            match_type = MatchType.SCHEDULED
+        elif not show_scheduled and show_unscheduled:
+            match_type = MatchType.UNSCHEDULED
+        else:
+            match_type = MatchType.ALL  # Default to all if both are false
+        
+        # Alternative: Direct match_type parameter (more explicit)
+        match_type_param = request.args.get('match_type')
+        if match_type_param:
+            try:
+                match_type = MatchType.from_string(match_type_param)
+            except ValueError:
+                flash(f'Invalid match type: {match_type_param}', 'warning')
+                match_type = MatchType.ALL
         
         try:
             # Get selected league if filtering
@@ -44,9 +64,9 @@ def register_routes(app):
                     flash(f'League with ID {league_id} not found', 'warning')
                     return redirect(url_for('matches'))
             
-            # Get matches - Pass League object instead of ID
-            matches_list = db.list_matches(selected_league, include_unscheduled)
-            print(f"Retrieved {len(matches_list)} matches from database")
+            # Get matches using new enum-based function
+            matches_list = db.list_matches(league=selected_league, match_type=match_type)
+            print(f"Retrieved {len(matches_list)} matches from database (type: {match_type})")
             
             # Apply additional filters
             if start_date or end_date or search_query:
@@ -60,32 +80,25 @@ def register_routes(app):
                 enhanced_matches.append(enhanced_match)
             
             # Get leagues for filter dropdown
-            leagues_list = db.list_leagues()
+            leagues = db.list_leagues()
             
             return render_template('matches.html', 
                                  matches=enhanced_matches,
-                                 leagues=leagues_list,
+                                 leagues=leagues,
                                  selected_league=selected_league,
-                                 search_query=search_query,
                                  start_date=start_date,
                                  end_date=end_date,
-                                 show_unscheduled=include_unscheduled,
-                                 include_unscheduled=include_unscheduled)
-            
+                                 search_query=search_query,
+                                 show_scheduled=show_scheduled,
+                                 show_unscheduled=show_unscheduled,
+                                 match_type=match_type.value)  # Pass enum value to template
+        
         except Exception as e:
             print(f"Error in matches route: {str(e)}")
             traceback.print_exc()
             flash(f'Error loading matches: {str(e)}', 'error')
-            return render_template('matches.html', 
-                                 matches=[],
-                                 leagues=[],
-                                 selected_league=None,
-                                 search_query='',
-                                 start_date='',
-                                 end_date='',
-                                 show_unscheduled=False,
-                                 include_unscheduled=True)
-
+            return redirect(url_for('dashboard'))
+    
     @app.route('/match/<int:match_id>')
     def view_match(match_id):
         """View match details - with proper error handling"""
@@ -211,179 +224,307 @@ def register_routes(app):
             
             print(f"Auto-scheduling scope: {scope}, League ID: {league_id}")
             
-            # Get matches to schedule
+            # Get matches to schedule using enum
             if league_id:
                 league = db.get_league(league_id)
                 if not league:
                     return jsonify({'error': f'League with ID {league_id} not found'}), 404
-                
-                all_matches = db.list_matches(league, include_unscheduled=True)
-                scope = f"league '{league.name}'"
-            else:
-                all_matches = db.list_matches(include_unscheduled=True)
-                scope = "all leagues"
-            
-            # Filter to unscheduled matches
-            unscheduled_matches = [match for match in all_matches if not match.is_scheduled()]
+
+            unscheduled_matches = db.list_matches(league, MatchType.UNSCHEDULED)
             
             if not unscheduled_matches:
                 return jsonify({
                     'success': True,
-                    'message': f'No unscheduled matches found in {scope}',
+                    'message': f'No unscheduled matches found in {scope_description}',
                     'scheduled_count': 0,
                     'failed_count': 0,
-                    'total_count': 0
+                    'total_count': 0,
+                    'details': []
                 })
             
             initial_unscheduled_count = len(unscheduled_matches)
             
-            # Use auto-scheduling
+            # Initialize results tracking
+            scheduling_results = {
+                'scheduled_matches': [],
+                'failed_matches': [],
+                'scheduling_details': []
+            }
+            
+            # Auto-schedule matches
+            print(f"Starting auto-scheduling for {initial_unscheduled_count} matches...")
+            
             try:
-                # Use general match scheduling
-                result = db.auto_schedule_matches(unscheduled_matches)
-            except AttributeError:
-                # If auto-scheduling methods don't exist, we can't schedule
-                return jsonify({
-                    'error': 'Auto-scheduling functionality not available in this database backend'
-                }), 500
+                # Check if database has auto-scheduling capability
+                if hasattr(db, 'auto_schedule_matches'):
+                    # Use database's built-in auto-scheduling method
+                    print("Using database auto-scheduling method")
+                    result = db.auto_schedule_matches(
+                        unscheduled_matches,
+                        max_attempts=max_attempts,
+                        allow_split_lines=allow_split_lines
+                    )
+                    scheduling_results.update(result)
+                    
+                else:
+                    # No scheduling methods available
+                    return jsonify({
+                        'error': 'Auto-scheduling functionality not available in this database backend'
+                    }), 500
             
-            # Re-fetch matches to count how many are now scheduled
-            if league_id:
-                current_matches = db.list_matches(league, include_unscheduled=True)
-            else:
-                current_matches = db.list_matches(include_unscheduled=True)
+            except Exception as e:
+                print(f"Auto-scheduling error: {str(e)}")
+                traceback.print_exc()
+                return jsonify({'error': f'Scheduling algorithm failed: {str(e)}'}), 500
             
-            current_unscheduled = [match for match in current_matches if not match.is_scheduled()]
-            scheduled_count = initial_unscheduled_count - len(current_unscheduled)
-            failed_count = len(current_unscheduled)
+            # Re-fetch matches to get current state using MatchType enum
+            print("Re-fetching matches to verify results...")
+            current_all_matches = db.list_matches(league=selected_league, match_type=MatchType.ALL)
+            current_unscheduled = [match for match in current_all_matches if not match.is_scheduled()]
             
+            # Calculate final results
+            final_scheduled_count = initial_unscheduled_count - len(current_unscheduled)
+            final_failed_count = len(current_unscheduled)
             total_count = initial_unscheduled_count
             
-            message = f"Scheduled {scheduled_count} of {total_count} matches in {scope}"
-                
-            if failed_count > 0:
-                message += f" ({failed_count} failed)"
+            # Build response message
+            if final_scheduled_count == total_count:
+                message = f"✅ Successfully scheduled all {final_scheduled_count} matches in {scope_description}"
+            elif final_scheduled_count > 0:
+                message = f"⚠️ Scheduled {final_scheduled_count} of {total_count} matches in {scope_description}"
+                if final_failed_count > 0:
+                    message += f" ({final_failed_count} failed)"
+            else:
+                message = f"❌ Unable to schedule any matches in {scope_description}"
             
-            return jsonify({
+            # Prepare detailed response
+            response_data = {
                 'success': True,
                 'message': message,
-                'scheduled_count': scheduled_count,
-                'failed_count': failed_count,
+                'scheduled_count': final_scheduled_count,
+                'failed_count': final_failed_count,
                 'total_count': total_count,
-                'details': result.get('scheduling_details', [])
-            })
+                'scope': scope_description,
+                'details': scheduling_results.get('scheduling_details', [])
+            }
+            
+            # Add breakdown by status if we have details
+            if scheduling_results.get('scheduling_details'):
+                status_breakdown = {}
+                for detail in scheduling_results['scheduling_details']:
+                    status = detail.get('status', 'unknown')
+                    status_breakdown[status] = status_breakdown.get(status, 0) + 1
+                response_data['status_breakdown'] = status_breakdown
+            
+            print(f"Auto-scheduling complete: {final_scheduled_count} scheduled, {final_failed_count} failed")
+            return jsonify(response_data)
             
         except Exception as e:
-            print(f"Auto-schedule error: {str(e)}")
+            print(f"Auto-schedule route error: {str(e)}")
             traceback.print_exc()
             return jsonify({'error': f'Auto-scheduling failed: {str(e)}'}), 500
 
-    @app.route('/schedule')
-    def schedule():
-        """Schedule page - displays scheduled matches grouped by date"""
+
+    def unschedule_match(match_id):
+        """Unschedule a match (remove facility, date, and all times)"""
         db = get_db()
         if db is None:
-            return redirect(url_for('connect'))
-        
-        # Get filter parameters
-        league_id = request.args.get('league_id', type=int)
-        start_date = request.args.get('start_date', '').strip()
-        end_date = request.args.get('end_date', '').strip()
-        search_query = request.args.get('search', '').strip()
+            return jsonify({'error': 'No database connected'}), 500
         
         try:
-            # Get selected league if filtering
-            selected_league = None
-            if league_id:
-                selected_league = db.get_league(league_id)
+            # Get the match
+            match = db.get_match(match_id)
+            if not match:
+                return jsonify({'error': 'Match not found'}), 404
             
-            # Get ALL matches
-            all_matches = db.list_matches(selected_league, include_unscheduled=True)
+            # Unschedule the match
+            if hasattr(db, 'unschedule_match'):
+                db.unschedule_match(match)
+            elif hasattr(match, 'unschedule'):
+                match.unschedule()
+                db.update_match(match)
+            else:
+                # Fallback: manually clear scheduling fields
+                match.facility = None
+                match.facility_id = None
+                match.date = None
+                match.scheduled_times = []
+                db.update_match(match)
             
-            # FIXED: More flexible filtering - matches with facility and date are considered "scheduled"
-            # Don't require times since some matches might have location/date but no specific times yet
-            scheduled_matches = []
-            for match in all_matches:
-                # Check if match has the essential scheduling information
-                has_facility = hasattr(match, 'facility') and match.facility is not None
-                has_date = hasattr(match, 'date') and match.date is not None
-                
-                # Only require facility and date - times can be optional for display
-                if has_facility and has_date:
-                    scheduled_matches.append(match)
+            return jsonify({
+                'success': True,
+                'message': f'Match {match_id} unscheduled successfully'
+            })
             
-            print(f"Found {len(scheduled_matches)} scheduled matches out of {len(all_matches)} total matches")
-            
-            # Apply date range filters
-            if start_date:
-                try:
-                    start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
-                    scheduled_matches = [m for m in scheduled_matches 
-                                       if convert_to_date(m.date) >= start_date_obj]
-                except ValueError:
-                    print(f"Invalid start_date format: {start_date}")
-            
-            if end_date:
-                try:
-                    end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
-                    scheduled_matches = [m for m in scheduled_matches 
-                                       if convert_to_date(m.date) <= end_date_obj]
-                except ValueError:
-                    print(f"Invalid end_date format: {end_date}")
-            
-            # Apply search filter
-            if search_query:
-                scheduled_matches = search_matches(scheduled_matches, search_query)
-            
-            # Group matches by date
-            schedule_data = build_schedule_data(scheduled_matches)
-            
-            # Calculate total matches for template
-            total_matches = len(scheduled_matches)
-            
-            # SOLUTION 3: Calculate total_lines in Python before template rendering
-            total_lines = 0
-            for match in scheduled_matches:
-                if hasattr(match, 'num_scheduled_lines') and match.num_scheduled_lines is not None:
-                    # Handle both integer and potential list cases
-                    if isinstance(match.num_scheduled_lines, (int, float)):
-                        total_lines += int(match.num_scheduled_lines)
-                    elif isinstance(match.num_scheduled_lines, list):
-                        total_lines += len(match.num_scheduled_lines)
-                    else:
-                        print(f"Warning: Unexpected num_scheduled_lines type for match {match.id}: {type(match.num_scheduled_lines)}")
-            
-            # Convert schedule_data to list format expected by template
-            schedule_data_list = []
-            for date_str, day_data in schedule_data.items():
-                day_data_formatted = {
-                    'date': day_data['date'],
-                    'date_str': date_str,
-                    'day_name': day_data['date'].strftime('%A'),
-                    'formatted_date': day_data['date'].strftime('%A, %B %d, %Y'),
-                    'matches': day_data['matches']
-                }
-                schedule_data_list.append(day_data_formatted)
-            
-            # Get leagues for filter dropdown
-            leagues_list = db.list_leagues()
-            
-            return render_template('schedule.html',
-                                 schedule_data=schedule_data_list,
-                                 total_matches=total_matches,
-                                 total_lines=total_lines,  # Add total_lines to template context
-                                 leagues=leagues_list,
-                                 selected_league=selected_league,
-                                 search_query=search_query,
-                                 start_date=start_date,
-                                 end_date=end_date)
-                                 
         except Exception as e:
-            print(f"Error in schedule route: {str(e)}")
-            traceback.print_exc()
-            flash(f'Error loading schedule: {str(e)}', 'error')
-            return redirect(url_for('matches'))
+            print(f"Error unscheduling match {match_id}: {str(e)}")
+            return jsonify({'error': f'Failed to unschedule match: {str(e)}'}), 500
+    
+    
+    @app.route('/matches/<int:match_id>/delete', methods=['DELETE'])
+    def delete_match(match_id):
+        """Delete a match"""
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connected'}), 500
+        
+        try:
+            # Check if match exists
+            match = db.get_match(match_id)
+            if not match:
+                return jsonify({'error': 'Match not found'}), 404
+            
+            # Delete the match
+            if hasattr(db, 'delete_match'):
+                # If using a method that expects a match object
+                if hasattr(db.delete_match, '__code__') and db.delete_match.__code__.co_argcount > 2:
+                    db.delete_match(match)
+                else:
+                    # If using a method that expects match_id
+                    db.delete_match(match_id)
+            elif hasattr(db, 'match_manager') and hasattr(db.match_manager, 'delete_match'):
+                db.match_manager.delete_match(match_id)
+            else:
+                return jsonify({'error': 'Delete functionality not available'}), 500
+            
+            return jsonify({
+                'success': True,
+                'message': f'Match {match_id} deleted successfully'
+            })
+            
+        except Exception as e:
+            print(f"Error deleting match {match_id}: {str(e)}")
+            return jsonify({'error': f'Failed to delete match: {str(e)}'}), 500
+    
+    
+    @app.route('/matches/bulk/unschedule', methods=['POST'])
+    def bulk_unschedule_matches():
+        """Unschedule multiple matches"""
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connected'}), 500
+        
+        try:
+            data = request.get_json()
+            if not data or 'match_ids' not in data:
+                return jsonify({'error': 'match_ids required'}), 400
+            
+            match_ids = data['match_ids']
+            if not isinstance(match_ids, list) or not match_ids:
+                return jsonify({'error': 'match_ids must be a non-empty list'}), 400
+            
+            unscheduled_count = 0
+            failed_matches = []
+            
+            for match_id in match_ids:
+                try:
+                    match = db.get_match(match_id)
+                    if not match:
+                        failed_matches.append(f"Match {match_id} not found")
+                        continue
+                    
+                    # Unschedule the match
+                    if hasattr(db, 'unschedule_match'):
+                        db.unschedule_match(match)
+                    elif hasattr(match, 'unschedule'):
+                        match.unschedule()
+                        db.update_match(match)
+                    else:
+                        # Fallback: manually clear scheduling fields
+                        match.facility = None
+                        match.facility_id = None
+                        match.date = None
+                        match.scheduled_times = []
+                        db.update_match(match)
+                    
+                    unscheduled_count += 1
+                    
+                except Exception as e:
+                    failed_matches.append(f"Match {match_id}: {str(e)}")
+            
+            result = {
+                'success': True,
+                'unscheduled_count': unscheduled_count,
+                'total_requested': len(match_ids),
+                'message': f'Unscheduled {unscheduled_count} of {len(match_ids)} matches'
+            }
+            
+            if failed_matches:
+                result['failed_matches'] = failed_matches
+                result['message'] += f' ({len(failed_matches)} failed)'
+            
+            return jsonify(result)
+            
+        except Exception as e:
+            print(f"Error in bulk unschedule: {str(e)}")
+            return jsonify({'error': f'Bulk unschedule failed: {str(e)}'}), 500
+    
+    
+    @app.route('/matches/bulk/delete', methods=['DELETE'])
+    def bulk_delete_matches():
+        """Delete multiple matches"""
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connected'}), 500
+        
+        try:
+            data = request.get_json()
+            if not data or 'match_ids' not in data:
+                return jsonify({'error': 'match_ids required'}), 400
+            
+            match_ids = data['match_ids']
+            if not isinstance(match_ids, list) or not match_ids:
+                return jsonify({'error': 'match_ids must be a non-empty list'}), 400
+            
+            deleted_count = 0
+            failed_matches = []
+            
+            for match_id in match_ids:
+                try:
+                    # Check if match exists
+                    match = db.get_match(match_id)
+                    if not match:
+                        failed_matches.append(f"Match {match_id} not found")
+                        continue
+                    
+                    # Delete the match
+                    if hasattr(db, 'delete_match'):
+                        # Check if method expects match object or match_id
+                        if hasattr(db.delete_match, '__code__') and db.delete_match.__code__.co_argcount > 2:
+                            db.delete_match(match)
+                        else:
+                            db.delete_match(match_id)
+                    elif hasattr(db, 'match_manager') and hasattr(db.match_manager, 'delete_match'):
+                        db.match_manager.delete_match(match_id)
+                    else:
+                        failed_matches.append(f"Match {match_id}: Delete functionality not available")
+                        continue
+                    
+                    deleted_count += 1
+                    
+                except Exception as e:
+                    failed_matches.append(f"Match {match_id}: {str(e)}")
+            
+            result = {
+                'success': True,
+                'deleted_count': deleted_count,
+                'total_requested': len(match_ids),
+                'message': f'Deleted {deleted_count} of {len(match_ids)} matches'
+            }
+            
+            if failed_matches:
+                result['failed_matches'] = failed_matches
+                result['message'] += f' ({len(failed_matches)} failed)'
+            
+            return jsonify(result)
+            
+        except Exception as e:
+            print(f"Error in bulk delete: {str(e)}")
+            return jsonify({'error': f'Bulk delete failed: {str(e)}'}), 500
 
+
+
+# ========== Helper Functions ==============
 
 def convert_to_date(date_value):
     """Helper function to convert various date formats to date object"""

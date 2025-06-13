@@ -47,6 +47,23 @@ Usage examples:
     
     # Show progress during bulk generation
     python tennis_cli.py --db-path tennis.db generate-matches --progress
+
+    # Usage examples for delete-matches (only deletes unscheduled matches):
+    # 
+    # Delete a specific unscheduled match
+    # python tennis_cli.py --db-path tennis.db delete-matches --match-id 123
+    # 
+    # Delete all unscheduled matches for a specific league
+    # python tennis_cli.py --db-path tennis.db delete-matches --league-id 1
+    # 
+    # Delete all unscheduled matches for multiple leagues
+    # python tennis_cli.py --db-path tennis.db delete-matches --league-ids 1,2,3
+    # 
+    # Delete ALL unscheduled matches from the entire database
+    # python tennis_cli.py --db-path tennis.db delete-matches
+    # 
+    # Delete with progress reporting and skip confirmation
+    # python tennis_cli.py --db-path tennis.db delete-matches --progress --confirm
     
     # Auto-schedule unscheduled matches
     # Schedule all unscheduled matches in all leagues
@@ -71,8 +88,20 @@ Usage examples:
     # Schedule all lines at same time
     python tennis_cli.py --db-path tennis.db schedule --match-id 1 --facility-id 1 --date 2025-07-15 --times 09:00 --same-time
     
-    # Unschedule a match
-    python tennis_cli.py --db-path tennis.db unschedule --match-id 1
+    # Unschedule a specific match
+    python tennis_cli.py --db-path tennis.db unschedule --match-id 123
+
+    # Unschedule all matches for a league
+    python tennis_cli.py --db-path tennis.db unschedule --league-id 1
+    
+    # Unschedule matches from multiple leagues
+    python tennis_cli.py --db-path tennis.db unschedule --league-ids 1,2,3
+    
+    # Unschedule ALL scheduled matches from entire database
+    python tennis_cli.py --db-path tennis.db unschedule
+    
+    # Unschedule with progress and skip confirmation
+    python tennis_cli.py --db-path tennis.db unschedule --league-id 1 --progress --confirm
     
     # Check court availability
     python tennis_cli.py --db-path tennis.db check-availability --facility-id 1 --date 2025-07-15 --time 09:00 --courts-needed 3
@@ -115,7 +144,7 @@ Usage examples:
     # List available backends
     python tennis_cli.py list backends
 """
-
+import traceback
 import argparse
 import json
 import sys
@@ -125,7 +154,7 @@ import traceback
 import logging
 
 import utils
-from usta import Team
+from usta import Match, MatchType, League, Team, Facility
 
 
 logging.basicConfig(
@@ -242,7 +271,7 @@ class TennisCLI:
         
         # General options
         parser.add_argument('--verbose', '-v', action='store_true', help='Verbose error output')
-        parser.add_argument('--format', choices=['json', 'table'], default='json', help='Output format')
+        parser.add_argument('--format', choices=['json', 'table'], default='table', help='Output format')
 
     def run(self):
         """Main CLI entry point"""
@@ -265,8 +294,10 @@ class TennisCLI:
                                        "regions", "age-groups", "facilities", "divisions", "backends"], 
                                help="Type of entity to list")
         list_parser.add_argument("--league-id", type=int, help="Filter by league ID")
-        list_parser.add_argument("--include-unscheduled", action="store_true", 
-                               help="Include unscheduled matches in results")
+        list_parser.add_argument('--match-type', 
+                       choices=['all', 'scheduled', 'unscheduled'],
+                       default="all",
+                       help='Type of matches to list (default: all)')
 
         # Create command
         create_parser = subparsers.add_parser("create", help="Create new entities")
@@ -296,9 +327,15 @@ class TennisCLI:
         auto_schedule_parser.add_argument("--max-matches", type=int, 
                                         help="Maximum number of matches to schedule (for testing)")
 
-        # Unschedule command
+        # Unschedule command (enhanced with league options)
         unschedule_parser = subparsers.add_parser("unschedule", help="Remove scheduling from matches")
-        unschedule_parser.add_argument("--match-id", type=int, required=True, help="Match ID to unschedule")
+        unschedule_parser.add_argument("--match-id", type=int, help="Unschedule a specific match by ID")
+        unschedule_parser.add_argument("--league-id", type=int, help="Unschedule all scheduled matches for a specific league")
+        unschedule_parser.add_argument("--league-ids", help="Comma-separated list of league IDs to unschedule matches from")
+        unschedule_parser.add_argument("--confirm", action="store_true", 
+                                     help="Skip confirmation prompt (for automated scripts)")
+        unschedule_parser.add_argument("--progress", action="store_true", 
+                                     help="Show progress during unscheduling")
 
         # Check availability command
         check_parser = subparsers.add_parser("check-availability", help="Check court availability")
@@ -330,6 +367,19 @@ class TennisCLI:
                                    help="Delete existing matches before generating new ones")
         generate_parser.add_argument("--progress", action="store_true", 
                                    help="Show progress during generation")
+
+        # Delete matches command
+        delete_parser = subparsers.add_parser("delete-matches", help="Delete matches from the database")
+        delete_parser.add_argument("--match-id", type=int, help="Delete a specific match by ID")
+        delete_parser.add_argument("--league-id", type=int, help="Delete all matches for a specific league")
+        delete_parser.add_argument("--league-ids", help="Comma-separated list of league IDs to delete matches from")
+
+        delete_parser.add_argument("--confirm", action="store_true", 
+                                 help="Skip confirmation prompt (for automated scripts)")
+
+        delete_parser.add_argument("--progress", action="store_true", 
+                                 help="Show progress during deletion")
+        
 
         # Migrate command
         migrate_parser = subparsers.add_parser("migrate", help="Migrate data between backends")
@@ -412,6 +462,10 @@ class TennisCLI:
                 return self.handle_stats_command(args, db)
             elif args.command == "generate-matches":
                 return self.handle_generate_matches_command(args, db)
+
+            elif args.command == "delete-matches":
+                self._handle_delete_matches(args, db)
+            
             elif args.command == "migrate":
                 return self.handle_migrate_command(args, db)
             elif args.command == "load":
@@ -477,9 +531,14 @@ class TennisCLI:
 
     def handle_list_command(self, args, db):
         """Handle list commands for various entities"""
+        logger.debug("Starting handle_list_command: table=%s, league_id=%s, format=%s", 
+                    args.table, getattr(args, 'league_id', None), args.format)
+        
         try:
             if args.table == "teams":
+                logger.debug("Listing teams for league_id: %s", args.league_id)
                 teams = db.list_teams(args.league_id)
+                logger.debug("Found %d teams", len(teams))
                 teams_data = [
                     {
                         'id': team.id,
@@ -495,7 +554,9 @@ class TennisCLI:
                 self._output_data(teams_data, args)
                 
             elif args.table == "leagues":
+                logger.debug("Listing all leagues")
                 leagues = db.list_leagues()
+                logger.debug("Found %d leagues", len(leagues))
                 leagues_data = [
                     {
                         'id': league.id,
@@ -515,7 +576,9 @@ class TennisCLI:
                 self._output_data(leagues_data, args)
                 
             elif args.table == "facilities":
+                logger.debug("Listing all facilities")
                 facilities = db.list_facilities()
+                logger.debug("Found %d facilities", len(facilities))
                 facilities_data = [
                     {
                         'id': facility.id,
@@ -530,23 +593,56 @@ class TennisCLI:
                 self._output_data(facilities_data, args)
                 
             elif args.table == "matches":
-                include_unscheduled = getattr(args, 'include_unscheduled', False)
+                logger.debug("Listing matches with match_type: %s, league_id: %s", 
+                           getattr(args, 'match_type', 'unknown'), getattr(args, 'league_id', None))
                 
-                # MODIFIED: If no league-id provided, get ALL matches from ALL leagues
+                # Check if MatchType is available
+                from usta_match import MatchType
+                
+                try:
+                    logger.debug("MatchType class available: %s", MatchType)
+                    logger.debug("MatchType.ALL: %s", MatchType.ALL)
+                    logger.debug("args.match_type value: %s (type: %s)", args.match_type, type(args.match_type))
+                except NameError as e:
+                    logger.error("MatchType not available: %s", e)
+                    print(f"Error: MatchType class not available: {e}", file=sys.stderr)
+                    return 1
+                
+                # Convert string to enum
+                try:
+                    logger.debug("Converting match_type string '%s' to enum", args.match_type)
+                    match_type = MatchType.from_string(args.match_type)
+                    logger.debug("Successfully converted to MatchType: %s", match_type)
+                except ValueError as e:
+                    logger.error("Failed to convert match_type: %s", e)
+                    print(f"Error: {e}")
+                    return 1
+                except Exception as e:
+                    logger.error("Unexpected error converting match_type: %s", e)
+                    print(f"Unexpected error: {e}")
+                    return 1
+
+                # Get matches based on filters
                 if args.league_id:
+                    logger.debug("Getting matches for specific league: %d", args.league_id)
                     # Original behavior: get matches for specific league
                     league = db.get_league(args.league_id)
                     if not league:
+                        logger.error("League %d not found", args.league_id)
                         print(f"Error: League {args.league_id} not found", file=sys.stderr)
                         return 1
-                    matches = db.list_matches(league, include_unscheduled)
+                    logger.debug("Found league: %s", league.name)
+                    matches = db.list_matches(league=league, match_type=match_type)
+                    logger.debug("Found %d matches for league %s", len(matches), league.name)
                 else:
+                    logger.debug("Getting all matches from all leagues")
                     # NEW: Get all matches from all leagues
-                    matches = db.list_matches(include_unscheduled=include_unscheduled)
+                    matches = db.list_matches(match_type=match_type)
+                    logger.debug("Found %d total matches across all leagues", len(matches))
 
-                
-                # MODIFIED: Use pretty printing instead of _output_data for better readability
+                # Output matches
                 if args.format == 'json':
+                    logger.debug("Outputting matches in JSON format")
                     # Keep JSON format for programmatic use
                     matches_data = [
                         {
@@ -569,31 +665,42 @@ class TennisCLI:
                     ]
                     self._output_data(matches_data, args)
                 else:
+                    logger.debug("Outputting matches in pretty print format")
                     # NEW: Pretty print each match for human readability
                     self._pretty_print_matches(matches, args.league_id)                
                 
             elif args.table == "sections":
+                logger.debug("Listing USTA sections")
                 from usta_constants import USTA_SECTIONS
                 sections_data = [{'name': section} for section in USTA_SECTIONS]
+                logger.debug("Found %d sections", len(sections_data))
                 self._output_data(sections_data, args)
                 
             elif args.table == "regions":
+                logger.debug("Listing USTA regions")
                 from usta_constants import USTA_REGIONS
                 regions_data = [{'name': region} for region in USTA_REGIONS]
+                logger.debug("Found %d regions", len(regions_data))
                 self._output_data(regions_data, args)
                 
             elif args.table == "age-groups":
+                logger.debug("Listing USTA age groups")
                 from usta_constants import USTA_AGE_GROUPS
                 age_groups_data = [{'name': age_group} for age_group in USTA_AGE_GROUPS]
+                logger.debug("Found %d age groups", len(age_groups_data))
                 self._output_data(age_groups_data, args)
                 
             elif args.table == "divisions":
+                logger.debug("Listing USTA divisions")
                 from usta_constants import USTA_DIVISIONS
                 divisions_data = [{'name': division} for division in USTA_DIVISIONS]
+                logger.debug("Found %d divisions", len(divisions_data))
                 self._output_data(divisions_data, args)
                 
             elif args.table == "backends":
+                logger.debug("Listing available backends")
                 available = TennisDBFactory.list_backends()
+                logger.debug("Found %d backends", len(available))
                 backends_data = [
                     {
                         'name': backend.value,
@@ -602,10 +709,17 @@ class TennisCLI:
                     for backend in available
                 ]
                 self._output_data(backends_data, args)
+            
+            else:
+                logger.error("Unknown table type: %s", args.table)
+                print(f"Error: Unknown table type '{args.table}'", file=sys.stderr)
+                return 1
                 
+            logger.debug("Successfully completed handle_list_command for table: %s", args.table)
             return 0
             
         except Exception as e:
+            logger.exception("Exception in handle_list_command: %s", e)
             print(f"Error listing {args.table}: {e}", file=sys.stderr)
             return 1
 
@@ -679,10 +793,6 @@ class TennisCLI:
         print(status_info)
         print()  # Empty line for readability
 
-
-
-    
-
     def handle_schedule_command(self, args, db):
         """Handle match scheduling commands"""
         try:
@@ -726,9 +836,6 @@ class TennisCLI:
         except Exception as e:
             print(f"Error scheduling match: {e}", file=sys.stderr)
             return 1
-
-
-
 
     def handle_auto_schedule_command(self, args, db):
         """Handle automatic scheduling of unscheduled matches"""
@@ -781,17 +888,15 @@ class TennisCLI:
                 
                 try:
                     # Get unscheduled matches for this league
-                    all_matches = db.list_matches(league, include_unscheduled=True)
-                    unscheduled_matches = [match for match in all_matches if not match.is_scheduled()]
+                    unscheduled_matches = db.list_matches(league=league, match_type=MatchType.UNSCHEDULED)
                     
                     if not unscheduled_matches:
                         results['no_matches'].append({
                             'league_id': league.id,
-                            'league_name': league.name,
-                            'total_matches': len(all_matches)
+                            'league_name': league.name
                         })
                         if args.progress:
-                            print(f"  No unscheduled matches found ({len(all_matches)} total matches)")
+                            print(f"  No unscheduled matches found")
                         continue
                     
                     # Apply max_matches limit if specified
@@ -855,7 +960,7 @@ class TennisCLI:
             if results['no_matches']:
                 print(f"\nLEAGUES WITH NO UNSCHEDULED MATCHES ({len(results['no_matches'])}):")
                 for result in results['no_matches']:
-                    print(f"  {result['league_name']}: {result['total_matches']} total matches (all scheduled)")
+                    print(f"  {result['league_name']}: All matches already scheduled")
             
             if results['failed']:
                 print(f"\nFAILED LEAGUES ({len(results['failed'])}):")
@@ -877,52 +982,122 @@ class TennisCLI:
                 traceback.print_exc()
             return 1
 
-
-
-
-
-    
     def handle_unschedule_command(self, args, db):
-        """Handle match unscheduling commands"""
+        """Handle match unscheduling commands - enhanced with league support"""
         try:
-            # Get match to validate it exists
-            match = db.get_match(args.match_id)
-            if not match:
-                print(f"Error: Match {args.match_id} not found", file=sys.stderr)
-                return 1
+            matches_to_unschedule = []
             
-            # Unschedule the match
-            db.unschedule_match(args.match_id)
-            print(f"Unscheduled match {args.match_id}")
-            return 0
-            
-        except Exception as e:
-            print(f"Error unscheduling match: {e}", file=sys.stderr)
-            return 1
+            if args.match_id:
+                # Unschedule specific match
+                match = db.get_match(args.match_id)
+                if not match:
+                    print(f"❌ Match with ID {args.match_id} not found")
+                    return 1
+                if not match.is_scheduled():
+                    print(f"❌ Match {args.match_id} is not scheduled - nothing to unschedule")
+                    return 1
+                matches_to_unschedule.append(match)
+                
+            elif args.league_id or args.league_ids:
+                # Unschedule scheduled matches from specific league(s)
+                league_ids = []
+                if args.league_id:
+                    league_ids = [args.league_id]
+                elif args.league_ids:
+                    try:
+                        league_ids = [int(lid.strip()) for lid in args.league_ids.split(',')]
+                    except ValueError:
+                        print("❌ Error: Invalid league IDs format. Use comma-separated integers.")
+                        return 1
+                
+                # Collect scheduled matches from all specified leagues
+                for league_id in league_ids:
+                    league = db.get_league(league_id)
+                    if not league:
+                        print(f"❌ Warning: League with ID {league_id} not found")
+                        continue
+                    
+                    # Get scheduled matches for this league
+                    league_matches = db.list_matches(league=league, match_type=MatchType.SCHEDULED)
 
-    def handle_check_availability_command(self, args, db):
-        """Handle court availability checking"""
-        try:
-            # Get facility to validate it exists
-            facility = db.get_facility(args.facility_id)
-            if not facility:
-                print(f"Error: Facility {args.facility_id} not found", file=sys.stderr)
+                    if league_matches:
+                        matches_to_unschedule.extend(league_matches)
+            
+            else:
+                # No specific match or league specified - unschedule ALL scheduled matches
+                print("🔍 No specific match or league specified - finding all scheduled matches...")
+                all_matches = db.list_matches(league=None, match_type=MatchType.SCHEDULED)
+
+                if all_matches:
+                    matches_to_unschedule.extend(all_matches)
+            
+            if not matches_to_unschedule:
+                print("📭 No scheduled matches found matching the specified criteria")
+                return 0
+            
+            # Display what will be unscheduled
+            print(f"\n🎯 Found {len(matches_to_unschedule)} scheduled match(es) to unschedule:")
+            print("-" * 60)
+            
+            unscheduled_count = 0
+            
+            for match in matches_to_unschedule:
+                facility_info = f" at {match.facility.name}" if match.facility else ""
+                date_info = f" on {match.date}" if match.date else ""
+                times_info = f" at {', '.join(match.scheduled_times)}" if match.scheduled_times else ""
+                
+                print(f"  Match {match.id}: {match.home_team.name} vs {match.visitor_team.name}")
+                print(f"    League: {match.league.name}")
+                print(f"    Currently: SCHEDULED{facility_info}{date_info}{times_info}")
+            
+            print("-" * 60)
+            print(f"Summary: {len(matches_to_unschedule)} scheduled matches")
+            
+            # Confirmation prompt (unless --confirm is used)
+            if not args.confirm:
+                if args.match_id:
+                    confirmation_msg = f"\n⚠️  This will remove scheduling from match {args.match_id}"
+                elif args.league_id or args.league_ids:
+                    confirmation_msg = f"\n⚠️  This will remove scheduling from {len(matches_to_unschedule)} match(es) in the specified league(s)"
+                else:
+                    confirmation_msg = f"\n⚠️  This will remove scheduling from ALL {len(matches_to_unschedule)} scheduled matches in the database"
+                
+                print(confirmation_msg)
+                response = input("Are you sure you want to continue? (yes/no): ")
+                if response.lower() not in ['yes', 'y']:
+                    print("❌ Operation cancelled")
+                    return 0
+            
+            # Unschedule matches
+            print(f"\n📅 Unscheduling {len(matches_to_unschedule)} match(es)...")
+            
+            for i, match in enumerate(matches_to_unschedule, 1):
+                try:
+                    if args.progress:
+                        print(f"  Unscheduling match {match.id} ({i}/{len(matches_to_unschedule)})")
+                    
+                    # Use the database's unschedule method
+                    db.match_manager.unschedule_match(match)
+                    unscheduled_count += 1
+                    
+                except Exception as e:
+                    print(f"❌ Error unscheduling match {match.id}: {e}")
+            
+            # Final summary
+            print(f"\n✅ Successfully unscheduled {unscheduled_count}/{len(matches_to_unschedule)} match(es)")
+            
+            if unscheduled_count != len(matches_to_unschedule):
+                failed_count = len(matches_to_unschedule) - unscheduled_count
+                print(f"⚠️  {failed_count} match(es) could not be unscheduled")
                 return 1
-            
-            # Check availability
-            available = db.check_court_availability(args.facility_id, args.date, args.time, args.courts_needed)
-            available_count = db.get_available_courts_count(args.facility_id, args.date, args.time)
-            
-            print(f"Facility: {facility.name}")
-            print(f"Date: {args.date}, Time: {args.time}")
-            print(f"Courts needed: {args.courts_needed}")
-            print(f"Available courts: {available_count}")
-            print(f"Availability: {'Yes' if available else 'No'}")
             
             return 0
             
         except Exception as e:
-            print(f"Error checking availability: {e}", file=sys.stderr)
+            print(f"❌ Error during match unscheduling: {e}")
+            if args.verbose:
+                import traceback
+                traceback.print_exc()
             return 1
 
     def handle_stats_command(self, args, db):
@@ -1050,7 +1225,7 @@ class TennisCLI:
                     
                     # Check for existing matches if skip_existing is enabled
                     if args.skip_existing:
-                        existing_matches = db.list_matches(league.id, include_unscheduled=True)
+                        existing_matches = db.list_matches(league=league, match_type=MatchType.ALL)
                         if existing_matches:
                             reason = f"Already has {len(existing_matches)} matches"
                             results['skipped'].append({
@@ -1067,7 +1242,7 @@ class TennisCLI:
                     
                     # Delete existing matches if overwrite is enabled
                     if args.overwrite_existing:
-                        existing_matches = db.list_matches(league.id, include_unscheduled=True)
+                        existing_matches = db.list_matches(league=league)
                         if existing_matches:
                             for match in existing_matches:
                                 db.delete_match(match.id)
@@ -1147,9 +1322,7 @@ class TennisCLI:
             if args.verbose:
                 traceback.print_exc()
             return 1
-    
 
-    
     def handle_create_command(self, args, db):
         """Handle create commands for new entities"""
         try:
@@ -1192,8 +1365,6 @@ class TennisCLI:
             print(f"Error creating {args.entity}: {e}", file=sys.stderr)
             return 1
 
-
-    
     def handle_migrate_command(self, args, db):
         """Handle data migration between backends"""
         try:
@@ -1225,7 +1396,7 @@ class TennisCLI:
             facilities = db.list_facilities()
             leagues = db.list_leagues()
             teams = db.list_teams()
-            matches = db.list_matches(include_unscheduled=True)
+            matches = db.list_matches()
             
             print(f"Source data:")
             print(f"  Facilities: {len(facilities)}")
@@ -1415,7 +1586,7 @@ class TennisCLI:
             leagues = db.list_leagues()
             facilities = db.list_facilities()
             teams = db.list_teams()
-            matches = db.list_matches(include_unscheduled=True)
+            matches = db.list_matches()
             
             print("Database health check: OK")
             print(f"Connection: Active")
@@ -1453,6 +1624,136 @@ class TennisCLI:
             print(f"Error: {e}", file=sys.stderr)
             return 1
 
+    def _handle_delete_matches(self, args, db):
+        """Handle delete-matches command - enhanced to delete all unscheduled matches when no args provided"""    
+        try:
+            matches_to_delete = []
+            
+            if args.match_id:
+                # Delete specific match
+                match = db.get_match(args.match_id)
+                if not match:
+                    print(f"❌ Match with ID {args.match_id} not found")
+                    return
+                
+                # Only delete if it's unscheduled (unless explicitly allowing scheduled matches)
+                if match.is_scheduled():
+                    print(f"❌ Match {args.match_id} is scheduled. Only unscheduled matches can be deleted.")
+                    print("    Use 'unschedule' command first if you want to remove this match.")
+                    return
+                
+                matches_to_delete.append(match)
+                
+            elif args.league_id or args.league_ids:
+                # Delete matches from specific league(s)
+                league_ids = []
+                if args.league_id:
+                    league_ids = [args.league_id]
+                elif args.league_ids:
+                    try:
+                        league_ids = [int(lid.strip()) for lid in args.league_ids.split(',')]
+                    except ValueError:
+                        print("❌ Error: Invalid league IDs format. Use comma-separated integers.")
+                        return
+                
+                # Collect matches from all specified leagues
+                for league_id in league_ids:
+                    league = db.get_league(league_id)
+                    if not league:
+                        print(f"❌ Warning: League with ID {league_id} not found")
+                        continue
+                    
+                    # Get unscheduled matches for this league
+                    league_matches = db.list_matches(league=league, match_type=MatchType.UNSCHEDULED)
+                    matches_to_delete.extend(league_matches)
+            
+            else:
+                # No specific match or league specified - delete ALL UNSCHEDULED matches
+                print("🔍 No specific match or league specified - finding all unscheduled matches...")
+                unscheduled_matches = db.list_matches(match_type=MatchType.UNSCHEDULED)
+                matches_to_delete.extend(unscheduled_matches)
+            
+            if not matches_to_delete:
+                print("📭 No matches found matching the specified criteria")
+                return
+            
+            # Display what will be deleted
+            print(f"\n🎯 Found {len(matches_to_delete)} match(es) to delete:")
+            print("-" * 60)
+            
+            deleted_count = 0
+            scheduled_count = 0
+            unscheduled_count = 0
+            
+            for match in matches_to_delete:
+                status = "SCHEDULED" if match.is_scheduled() else "UNSCHEDULED"
+                facility_info = f" at {match.facility.name}" if match.facility else ""
+                date_info = f" on {match.date}" if match.date else ""
+                
+                print(f"  Match {match.id}: {match.home_team.name} vs {match.visitor_team.name}")
+                print(f"    League: {match.league.name}")
+                print(f"    Status: {status}{facility_info}{date_info}")
+                
+                if match.is_scheduled():
+                    scheduled_count += 1
+                else:
+                    unscheduled_count += 1
+            
+            print("-" * 60)
+            print(f"Summary: {scheduled_count} scheduled, {unscheduled_count} unscheduled")
+            
+            # Confirmation prompt (unless --confirm is used)
+            if not args.confirm:
+                if args.match_id:
+                    confirmation_msg = f"\n⚠️  This will permanently delete match {args.match_id}"
+                elif args.league_id or args.league_ids:
+                    if scheduled_count > 0 and unscheduled_count > 0:
+                        confirmation_msg = f"\n⚠️  This will permanently delete {len(matches_to_delete)} match(es) from the specified league(s)"
+                    elif scheduled_count > 0:
+                        confirmation_msg = f"\n⚠️  This will permanently delete {scheduled_count} scheduled match(es) from the specified league(s)"
+                    else:
+                        confirmation_msg = f"\n⚠️  This will permanently delete {unscheduled_count} unscheduled match(es) from the specified league(s)"
+                else:
+                    if scheduled_count > 0 and unscheduled_count > 0:
+                        confirmation_msg = f"\n⚠️  This will permanently delete ALL {len(matches_to_delete)} matches in the database"
+                    elif scheduled_count > 0:
+                        confirmation_msg = f"\n⚠️  This will permanently delete ALL {scheduled_count} scheduled matches in the database"
+                    else:
+                        confirmation_msg = f"\n⚠️  This will permanently delete ALL {unscheduled_count} unscheduled matches in the database"
+                
+                print(confirmation_msg)
+                response = input("Are you sure you want to continue? (yes/no): ")
+                if response.lower() not in ['yes', 'y']:
+                    print("❌ Operation cancelled")
+                    return
+            
+            # Delete matches
+            print(f"\n🗑️  Deleting {len(matches_to_delete)} match(es)...")
+            
+            for i, match in enumerate(matches_to_delete, 1):
+                try:
+                    if args.progress:
+                        print(f"  Deleting match {match.id} ({i}/{len(matches_to_delete)})")
+                    
+                    db.delete_match(match)
+                    deleted_count += 1
+                    
+                except Exception as e:
+                    print(f"❌ Error deleting match {match.id}: {e}")
+            
+            # Final summary
+            print(f"\n✅ Successfully deleted {deleted_count}/{len(matches_to_delete)} match(es)")
+            
+            if deleted_count != len(matches_to_delete):
+                failed_count = len(matches_to_delete) - deleted_count
+                print(f"⚠️  {failed_count} match(es) could not be deleted")
+            
+        except Exception as e:
+            if args.verbose:
+                import traceback
+                traceback.print_exc()
+            else:
+                print(f"❌ Error during match deletion: {e}")
 
 def main():
     """Main entry point"""

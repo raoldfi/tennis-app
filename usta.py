@@ -23,7 +23,7 @@ from usta_team import Team
 # from usta_line import Line
 
 # Import match last (depends on league, team, facility, and potentially line)
-from usta_match import Match
+from usta_match import Match, MatchType
 
 # Export all classes for easy importing
 __all__ = [
@@ -31,7 +31,7 @@ __all__ = [
     'Facility', 'WeeklySchedule', 'DaySchedule', 'TimeSlot',
     'League',
     'Team',
-    # 'Line',  # Uncomment if you have this class
-    'Match'
+    'Match',
+    'MatchType'
 ]
 

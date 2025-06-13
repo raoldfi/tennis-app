@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any, Tuple, TYPE_CHECKING
 from datetime import date, datetime, timedelta
+from enum import Enum  
 import itertools
 import re
 from collections import defaultdict
@@ -21,6 +22,39 @@ if TYPE_CHECKING:
     from usta_league import League
     from usta_team import Team
     from usta_facility import Facility
+
+
+class MatchType(Enum):
+    """Enumeration of match filtering types for list_matches function"""
+    
+    ALL = "all"
+    SCHEDULED = "scheduled"
+    UNSCHEDULED = "unscheduled"
+    
+    def __str__(self):
+        """String representation returns the value for easy printing"""
+        return self.value
+    
+    @property
+    def description(self):
+        """Human-readable description of the match type"""
+        descriptions = {
+            self.ALL: "All matches (scheduled and unscheduled)",
+            self.SCHEDULED: "Only fully scheduled matches",
+            self.UNSCHEDULED: "Only unscheduled matches"
+        }
+        return descriptions[self]
+    
+    @classmethod
+    def from_string(cls, value: str) -> 'MatchType':
+        """Create MatchType from string value, case-insensitive"""
+        value = value.lower().strip()
+        for match_type in cls:
+            if match_type.value == value:
+                return match_type
+        raise ValueError(f"Invalid match type: '{value}'. Valid options: {[mt.value for mt in cls]}")
+
+
 
 @dataclass
 class Match:
@@ -188,6 +222,14 @@ class Match:
             return False
         expected_lines = self.league.num_lines_per_match
         return len(self.scheduled_times) == expected_lines
+
+
+    def is_split(self):
+        """Check if the match is a split match or if all lines are scheduled for the same time"""
+        if not self.scheduled_times:
+            return True  # An empty list is not split
+        first_time = self.scheduled_times[0]
+        return all(t == first_time for t in self.scheduled_times)
     
     def get_status(self) -> str:
         """Get the scheduling status of the match"""

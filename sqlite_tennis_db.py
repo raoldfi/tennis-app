@@ -15,7 +15,7 @@ from typing import List, Dict, Optional, Tuple, Any
 # Import the interface
 from tennis_db_interface import TennisDBInterface
 
-from usta import League, Team, Match, Facility
+from usta import League, Team, Match, Facility, MatchType
 
 from usta_constants import USTA_SECTIONS, USTA_REGIONS, USTA_AGE_GROUPS, USTA_DIVISIONS
 
@@ -297,8 +297,10 @@ class SQLiteTennisDB(TennisDBInterface):
     def get_match(self, match_id: int) -> Optional[Match]:
         return self.match_manager.get_match(match_id)
     
-    def list_matches(self, league: Optional[League] = None, include_unscheduled: bool = True) -> List[Match]:
-        return self.match_manager.list_matches(league, include_unscheduled)
+    def list_matches(self, 
+                     league: Optional[League] = None, 
+                     match_type : Optional[MatchType] = MatchType.ALL) -> List[Match]:
+        return self.match_manager.list_matches(league=league, match_type=match_type)
 
     def update_match(self, match: Match) -> None:
         return self.match_manager.update_match(match)
