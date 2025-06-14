@@ -1,0 +1,293 @@
+<!-- shared_styles.html - Common CSS styles for all templates -->
+<style>
+/* WORKING TABLE HEADER FIX - Uses the same selectors that worked in debug test */
+.table > thead > tr > th,
+thead.table-light > tr > th,
+thead.table-dark > tr > th,
+.enhanced-table > thead > tr > th,
+.enhanced-table thead.table-light > tr > th,
+.enhanced-table thead.table-dark > tr > th {
+    /* Your specified color: R=44, G=87, B=137 */
+    background: rgb(44, 87, 137) !important;
+    background-color: rgb(44, 87, 137) !important;
+    color: white !important;
+    
+    /* Styling */
+    vertical-align: middle !important;
+    border-bottom: 2px solid #2c5789 !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+/* Enhanced Table Styling */
+.enhanced-table {
+    font-size: 0.9rem;
+    border: 2px solid #2c5789;
+    border-radius: 6px;
+}
+
+.enhanced-table tbody tr {
+    transition: all 0.2s ease;
+}
+
+.enhanced-table tbody tr:hover {
+    background-color: #e8f4fd;
+    transform: scale(1.01);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-left: 4px solid #2c5789;
+}
+
+/* Card Header Styling - Updated to use consistent color */
+.card-header.bg-primary {
+    background: linear-gradient(135deg, #2c5789 0%, #1e3a5a 100%) !important;
+}
+
+.card-header.bg-success {
+    background: linear-gradient(135deg, #198754 0%, #146c43 100%) !important;
+}
+
+.card-header.bg-info {
+    background: linear-gradient(135deg, #0dcaf0 0%, #087990 100%) !important;
+}
+
+.card-header.bg-warning {
+    background: linear-gradient(135deg, #ffc107 0%, #cc9a06 100%) !important;
+}
+
+/* Enhanced Card Styling */
+.enhanced-card {
+    transition: all 0.2s ease;
+    border: 2px solid #2c5789;
+    border-radius: 8px;
+}
+
+.enhanced-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(44,87,137,0.3);
+    border-color: #1e3a5a;
+}
+
+/* Facility-specific styling */
+.facility-info-cell {
+    min-width: 180px;
+}
+
+.location-cell .badge {
+    max-width: 160px;
+    white-space: normal;
+    line-height: 1.2;
+    padding: 0.4rem 0.6rem;
+}
+
+.schedule-cell {
+    min-width: 120px;
+}
+
+.availability-cell .badge {
+    font-size: 0.7rem;
+    padding: 0.4rem 0.6rem;
+}
+
+.action-cell .btn-group .btn {
+    border-radius: 0.25rem !important;
+    margin: 0 0.1rem;
+    font-size: 0.75rem;
+}
+
+/* League-specific styling */
+.league-info-cell {
+    min-width: 180px;
+}
+
+.league-cell {
+    max-width: 160px;
+}
+
+.age-group-cell .badge {
+    font-size: 0.7rem;
+    padding: 0.4rem 0.6rem;
+    min-width: 80px;
+}
+
+.division-cell .badge {
+    font-size: 0.7rem;
+    padding: 0.4rem 0.6rem;
+    min-width: 90px;
+}
+
+.format-cell {
+    min-width: 100px;
+}
+
+.season-cell {
+    min-width: 120px;
+}
+
+/* Team-specific styling */
+.team-info-cell {
+    min-width: 180px;
+}
+
+.captain-cell {
+    min-width: 120px;
+}
+
+.facility-cell {
+    max-width: 160px;
+}
+
+.days-cell .badge {
+    font-size: 0.7rem;
+    margin: 0.1rem;
+}
+
+.facility-cell .fa-check-circle {
+    color: #198754 !important;
+}
+
+.facility-cell .fa-exclamation-triangle {
+    color: #ffc107 !important;
+}
+
+/* Schedule-specific styling */
+.time-cell .badge {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+    min-width: 60px;
+    margin-bottom: 2px;
+}
+
+.teams-cell {
+    min-width: 180px;
+}
+
+.teams-cell .badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.facility-cell .badge {
+    max-width: 120px;
+    white-space: normal;
+    line-height: 1.2;
+    padding: 0.35rem 0.5rem;
+}
+
+.lines-cell .badge {
+    font-size: 0.75rem;
+    color: #6c757d;
+    border: 1px solid #6c757d;
+    background: transparent;
+}
+
+/* Row hover effects */
+.enhanced-table tbody tr {
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.enhanced-table tbody tr:hover {
+    border-left-color: #2c5789;
+    background: linear-gradient(90deg, rgba(44,87,137,0.05) 0%, rgba(255,255,255,1) 10%);
+}
+
+/* Mobile card enhancements */
+.enhanced-card {
+    border-left: 3px solid #2c5789 !important;
+}
+
+.enhanced-card:hover {
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    border-left-color: #1e3a5a !important;
+}
+
+.enhanced-card.border-primary {
+    border-left-color: #2c5789 !important;
+}
+
+.enhanced-card.border-success {
+    border-left-color: #198754 !important;
+}
+
+.enhanced-card.border-info {
+    border-left-color: #0dcaf0 !important;
+}
+
+.enhanced-card.border-warning {
+    border-left-color: #ffc107 !important;
+}
+
+/* Progress Bar Enhancements */
+.progress {
+    height: 8px;
+}
+
+.progress-bar {
+    transition: width 0.3s ease;
+}
+
+/* Responsive improvements */
+@media (max-width: 1200px) {
+    .enhanced-table {
+        font-size: 0.8rem;
+    }
+    
+    .facility-info-cell,
+    .league-info-cell,
+    .team-info-cell {
+        min-width: 160px;
+    }
+    
+    .location-cell .badge,
+    .facility-cell .badge {
+        font-size: 0.7rem;
+        max-width: 140px;
+    }
+}
+
+@media (max-width: 768px) {
+    .action-cell .btn-group .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.7rem;
+    }
+    
+    .enhanced-card {
+        margin-bottom: 0.5rem;
+    }
+    
+    .enhanced-table tbody tr:hover {
+        transform: none;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .enhanced-card {
+        break-inside: avoid;
+        margin-bottom: 20px;
+    }
+    
+    .card-header {
+        background-color: #f8f9fa !important;
+        color: #000 !important;
+    }
+    
+    .enhanced-table {
+        font-size: 11px;
+    }
+    
+    /* Ensure table headers print with your custom color */
+    .table > thead > tr > th,
+    thead.table-light > tr > th,
+    thead.table-dark > tr > th {
+        background-color: rgb(44, 87, 137) !important;
+        color: white !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}
+</style>

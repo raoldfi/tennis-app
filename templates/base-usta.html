@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Tennis Database{% endblock %}</title>
+    <title>{% block title %}Tennis Scheduler{% endblock %}</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -83,14 +83,14 @@
            NAVIGATION - USTA Professional Style
         ======================================== */
         .navbar {
-            background: var(--tennis-white) !important;
+            background: linear-gradient(135deg, var(--usta-navy) 0%, var(--usta-navy-dark) 100%) !important;
             border-bottom: 4px solid var(--tennis-orange) !important;
-            box-shadow: 0 3px 10px rgba(0, 70, 127, 0.2);
+            box-shadow: 0 3px 10px rgba(0, 70, 127, 0.3);
         }
 
         .navbar-brand {
             font-weight: 700;
-            color: var(--usta-navy) !important;
+            color: white !important;
             display: flex;
             align-items: center;
             font-size: 1.3rem;
@@ -107,7 +107,7 @@
         }
 
         .nav-link {
-            color: var(--usta-navy) !important;
+            color: rgba(255, 255, 255, 0.95) !important;
             font-weight: 500;
             transition: all 0.3s ease;
             padding: 0.5rem 1rem !important;

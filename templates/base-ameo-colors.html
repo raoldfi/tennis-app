@@ -8,34 +8,28 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         /* ========================================
-           USTA-INSPIRED TENNIS COLOR SCHEME
+           TENNIS DATABASE COLOR SCHEME
            ========================================
-           USTA Navy Blue:    RGB(0, 70, 127)    - #00467F - Primary brand color
-           Tennis Orange:     RGB(255, 102, 0)   - #FF6600 - USTA accent color
-           Court Blue:        RGB(60, 99, 142)   - #3C638E - US Open court blue
-           Court Green:       RGB(108, 147, 92)  - #6C935C - US Open court green
-           Pure White:        RGB(255, 255, 255) - #FFFFFF - Clean backgrounds
-           Light Gray:        RGB(248, 249, 250) - #F8F9FA - Subtle backgrounds
+           Primary Navy:    RGB(45, 88, 138)  - #2d588a - Headers, Primary Actions
+           Ocean Blue:      RGB(74, 140, 193) - #4a8cc1 - Secondary Elements, Info
+           Golden Yellow:   RGB(232, 182, 84) - #e8b654 - Warnings, Highlights
+           Rose Pink:       RGB(214, 110, 150) - #d66e96 - Success, Accents
         */
 
         :root {
-            --usta-navy: rgb(0, 70, 127);
-            --usta-navy-dark: rgb(0, 50, 97);
-            --usta-navy-light: rgb(20, 90, 147);
-            --tennis-orange: rgb(255, 102, 0);
-            --tennis-orange-dark: rgb(235, 82, 0);
-            --tennis-orange-light: rgb(255, 122, 30);
-            --court-blue: rgb(60, 99, 142);
-            --court-blue-light: rgb(80, 119, 162);
-            --court-green: rgb(108, 147, 92);
-            --court-green-light: rgb(128, 167, 112);
-            --tennis-white: rgb(255, 255, 255);
-            --light-gray: rgb(248, 249, 250);
-            --border-gray: rgb(218, 225, 231);
+            --tennis-navy: rgb(45, 88, 138);
+            --tennis-navy-dark: rgb(35, 68, 108);
+            --tennis-navy-light: rgb(55, 98, 148);
+            --tennis-blue: rgb(74, 140, 193);
+            --tennis-blue-light: rgb(94, 160, 213);
+            --tennis-gold: rgb(232, 182, 84);
+            --tennis-gold-dark: rgb(212, 162, 64);
+            --tennis-rose: rgb(214, 110, 150);
+            --tennis-rose-dark: rgb(194, 90, 130);
         }
 
         /* ========================================
-           TABLE STYLING - USTA Navy Headers
+           TABLE STYLING - Primary Navy Headers
         ======================================== */
         .table > thead > tr > th,
         thead.table-light > tr > th,
@@ -43,11 +37,11 @@
         .enhanced-table > thead > tr > th,
         .enhanced-table thead.table-light > tr > th,
         .enhanced-table thead.table-dark > tr > th {
-            background: var(--usta-navy) !important;
-            background-color: var(--usta-navy) !important;
+            background: var(--tennis-navy) !important;
+            background-color: var(--tennis-navy) !important;
             color: white !important;
             vertical-align: middle !important;
-            border-bottom: 3px solid var(--tennis-orange) !important;
+            border-bottom: 2px solid var(--tennis-navy-dark) !important;
             font-weight: 600 !important;
             font-size: 0.85rem !important;
             text-transform: uppercase !important;
@@ -57,266 +51,201 @@
         /* Enhanced Table Styling */
         .enhanced-table {
             font-size: 0.9rem;
-            border: 2px solid var(--court-blue);
+            border: 2px solid var(--tennis-blue);
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 70, 127, 0.1);
-            background: var(--tennis-white);
+            box-shadow: 0 2px 8px rgba(74, 140, 193, 0.1);
         }
 
         .enhanced-table tbody tr {
             transition: all 0.3s ease;
-            border-bottom: 1px solid var(--border-gray);
         }
 
         .enhanced-table tbody tr:hover {
-            background: linear-gradient(90deg, rgba(60, 99, 142, 0.05) 0%, var(--tennis-white) 15%);
-            transform: scale(1.002);
-            box-shadow: 0 4px 12px rgba(0, 70, 127, 0.15);
-            border-left: 4px solid var(--tennis-orange);
-        }
-
-        .enhanced-table tbody tr:nth-child(even) {
-            background-color: rgba(248, 249, 250, 0.5);
+            background: linear-gradient(90deg, rgba(74, 140, 193, 0.08) 0%, rgba(255, 255, 255, 1) 15%);
+            transform: scale(1.005);
+            box-shadow: 0 4px 12px rgba(45, 88, 138, 0.15);
+            border-left: 4px solid var(--tennis-blue);
         }
 
         /* ========================================
-           NAVIGATION - USTA Professional Style
+           CARD STYLING - Color-Coded by Purpose
         ======================================== */
-        .navbar {
-            background: var(--tennis-white) !important;
-            border-bottom: 4px solid var(--tennis-orange) !important;
-            box-shadow: 0 3px 10px rgba(0, 70, 127, 0.2);
-        }
-
-        .navbar-brand {
-            font-weight: 700;
-            color: var(--usta-navy) !important;
-            display: flex;
-            align-items: center;
-            font-size: 1.3rem;
-        }
-
-        .navbar-brand:hover {
-            color: var(--tennis-orange) !important;
-        }
-
-        .navbar-brand img {
-            height: 48px;
-            margin-right: 12px;
-            filter: brightness(1.1);
-        }
-
-        .nav-link {
-            color: var(--usta-navy) !important;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            padding: 0.5rem 1rem !important;
-            border-radius: 4px;
-            margin: 0 2px;
-        }
-
-        .nav-link:hover {
-            color: var(--tennis-orange) !important;
-            background: rgba(255, 102, 0, 0.1);
-            transform: translateY(-1px);
-        }
-
-        .nav-link.active {
-            background: var(--tennis-orange) !important;
-            color: white !important;
-            font-weight: 600;
-            box-shadow: 0 2px 8px rgba(255, 102, 0, 0.3);
-        }
-
-        .dropdown-menu {
-            border: 2px solid var(--court-blue);
-            box-shadow: 0 6px 20px rgba(0, 70, 127, 0.2);
-            background: var(--tennis-white);
-        }
-
-        .dropdown-item:hover {
-            background: var(--light-gray);
-            color: var(--usta-navy);
-        }
-
-        /* ========================================
-           CARD STYLING - Professional Tennis Look
-        ======================================== */
-        .card {
-            border: 1px solid var(--border-gray);
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 70, 127, 0.08);
-            background: var(--tennis-white);
-        }
-
+        /* Primary Cards - Navy */
         .card-header {
-            background: linear-gradient(135deg, var(--usta-navy) 0%, var(--usta-navy-light) 100%) !important;
+            background: linear-gradient(135deg, var(--tennis-navy) 0%, var(--tennis-navy-dark) 100%) !important;
             color: white !important;
             font-weight: 600 !important;
-            border-bottom: 3px solid var(--tennis-orange) !important;
-            border-radius: 8px 8px 0 0 !important;
+            border-bottom: 3px solid var(--tennis-blue) !important;
         }
 
         .card-header.bg-primary {
-            background: linear-gradient(135deg, var(--usta-navy) 0%, var(--usta-navy-light) 100%) !important;
+            background: linear-gradient(135deg, var(--tennis-navy) 0%, var(--tennis-navy-dark) 100%) !important;
         }
 
-        .card-header.bg-success {
-            background: linear-gradient(135deg, var(--court-green) 0%, var(--court-green-light) 100%) !important;
-            color: white !important;
-        }
-
+        /* Info Cards - Ocean Blue */
         .card-header.bg-info {
-            background: linear-gradient(135deg, var(--court-blue) 0%, var(--court-blue-light) 100%) !important;
+            background: linear-gradient(135deg, var(--tennis-blue) 0%, var(--tennis-blue-light) 100%) !important;
             color: white !important;
         }
 
-        .card-header.bg-warning {
-            background: linear-gradient(135deg, var(--tennis-orange) 0%, var(--tennis-orange-dark) 100%) !important;
+        /* Success Cards - Rose Pink */
+        .card-header.bg-success {
+            background: linear-gradient(135deg, var(--tennis-rose) 0%, var(--tennis-rose-dark) 100%) !important;
             color: white !important;
+        }
+
+        /* Warning Cards - Golden Yellow */
+        .card-header.bg-warning {
+            background: linear-gradient(135deg, var(--tennis-gold) 0%, var(--tennis-gold-dark) 100%) !important;
+            color: var(--tennis-navy) !important;
+            font-weight: 700 !important;
         }
 
         /* Enhanced Card Styling */
         .enhanced-card {
             transition: all 0.3s ease;
-            border: 1px solid var(--border-gray);
-            border-left: 4px solid var(--court-blue);
-            border-radius: 8px;
-            box-shadow: 0 3px 10px rgba(0, 70, 127, 0.08);
-            background: var(--tennis-white);
+            border: 2px solid var(--tennis-blue);
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(74, 140, 193, 0.1);
         }
 
         .enhanced-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 70, 127, 0.15);
-            border-left-color: var(--tennis-orange);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(45, 88, 138, 0.2);
+            border-color: var(--tennis-navy);
         }
 
         /* ========================================
-           BUTTONS - USTA Style Actions
+           NAVIGATION - Navy Theme
         ======================================== */
-        .btn-primary {
-            background: linear-gradient(135deg, var(--usta-navy) 0%, var(--usta-navy-light) 100%);
-            border-color: var(--usta-navy);
+        .navbar {
+            background: linear-gradient(135deg, var(--tennis-navy) 0%, var(--tennis-blue) 100%) !important;
+            border-bottom: 3px solid var(--tennis-gold) !important;
+        }
+
+        .navbar-brand {
+            font-weight: bold;
+            color: white !important;
+            display: flex;
+            align-items: center;
+        }
+
+        .navbar-brand:hover {
+            color: var(--tennis-gold) !important;
+        }
+
+        .navbar-brand img {
+            height: 40px;
+            margin-right: 10px;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.9) !important;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: var(--tennis-gold) !important;
+            transform: translateY(-1px);
+        }
+
+        .nav-link.active {
+            background: var(--tennis-gold) !important;
+            color: var(--tennis-navy) !important;
+            border-radius: 6px;
             font-weight: 600;
-            box-shadow: 0 2px 4px rgba(0, 70, 127, 0.2);
+        }
+
+        .dropdown-menu {
+            border: 2px solid var(--tennis-blue);
+            box-shadow: 0 4px 15px rgba(45, 88, 138, 0.2);
+        }
+
+        /* ========================================
+           BUTTONS - Color-Coded by Action Type
+        ======================================== */
+        /* Primary Actions - Navy */
+        .btn-primary {
+            background: linear-gradient(135deg, var(--tennis-navy) 0%, var(--tennis-navy-dark) 100%);
+            border-color: var(--tennis-navy);
+            font-weight: 600;
         }
 
         .btn-primary:hover {
-            background: linear-gradient(135deg, var(--usta-navy-dark) 0%, var(--usta-navy) 100%);
-            border-color: var(--usta-navy-dark);
+            background: linear-gradient(135deg, var(--tennis-navy-dark) 0%, var(--tennis-navy) 100%);
+            border-color: var(--tennis-navy-dark);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 70, 127, 0.3);
+            box-shadow: 0 4px 12px rgba(45, 88, 138, 0.3);
         }
 
+        /* Success Actions - Rose Pink */
         .btn-success {
-            background: linear-gradient(135deg, var(--court-green) 0%, var(--court-green-light) 100%);
-            border-color: var(--court-green);
-            color: white;
+            background: linear-gradient(135deg, var(--tennis-rose) 0%, var(--tennis-rose-dark) 100%);
+            border-color: var(--tennis-rose);
             font-weight: 600;
         }
 
         .btn-success:hover {
-            background: linear-gradient(135deg, var(--court-green-light) 0%, var(--court-green) 100%);
-            border-color: var(--court-green-light);
-            color: white;
+            background: linear-gradient(135deg, var(--tennis-rose-dark) 0%, var(--tennis-rose) 100%);
+            border-color: var(--tennis-rose-dark);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(108, 147, 92, 0.3);
+            box-shadow: 0 4px 12px rgba(214, 110, 150, 0.3);
         }
 
+        /* Info Actions - Ocean Blue */
         .btn-info {
-            background: linear-gradient(135deg, var(--court-blue) 0%, var(--court-blue-light) 100%);
-            border-color: var(--court-blue);
+            background: linear-gradient(135deg, var(--tennis-blue) 0%, var(--tennis-blue-light) 100%);
+            border-color: var(--tennis-blue);
             color: white;
             font-weight: 600;
         }
 
         .btn-info:hover {
-            background: linear-gradient(135deg, var(--court-blue-light) 0%, var(--court-blue) 100%);
-            border-color: var(--court-blue-light);
+            background: linear-gradient(135deg, var(--tennis-blue-light) 0%, var(--tennis-blue) 100%);
+            border-color: var(--tennis-blue-light);
             color: white;
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(60, 99, 142, 0.3);
+            box-shadow: 0 4px 12px rgba(74, 140, 193, 0.3);
         }
 
+        /* Warning Actions - Golden Yellow */
         .btn-warning {
-            background: linear-gradient(135deg, var(--tennis-orange) 0%, var(--tennis-orange-light) 100%);
-            border-color: var(--tennis-orange);
-            color: white;
+            background: linear-gradient(135deg, var(--tennis-gold) 0%, var(--tennis-gold-dark) 100%);
+            border-color: var(--tennis-gold);
+            color: var(--tennis-navy);
             font-weight: 600;
         }
 
         .btn-warning:hover {
-            background: linear-gradient(135deg, var(--tennis-orange-dark) 0%, var(--tennis-orange) 100%);
-            border-color: var(--tennis-orange-dark);
-            color: white;
+            background: linear-gradient(135deg, var(--tennis-gold-dark) 0%, var(--tennis-gold) 100%);
+            border-color: var(--tennis-gold-dark);
+            color: var(--tennis-navy);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(255, 102, 0, 0.3);
-        }
-
-        .btn-secondary {
-            background: var(--light-gray);
-            border-color: var(--border-gray);
-            color: var(--usta-navy);
-            font-weight: 500;
-        }
-
-        .btn-secondary:hover {
-            background: var(--border-gray);
-            border-color: var(--usta-navy);
-            color: var(--usta-navy);
+            box-shadow: 0 4px 12px rgba(232, 182, 84, 0.3);
         }
 
         /* ========================================
-           BADGES - Tennis Context Colors
+           BADGES - Context-Based Colors
         ======================================== */
-        .badge {
-            font-weight: 600;
-            letter-spacing: 0.3px;
-        }
-
-        .badge-primary,
-        .badge.bg-primary {
-            background: var(--usta-navy) !important;
-            color: white;
-        }
-
-        .badge-success,
-        .badge.bg-success {
-            background: var(--court-green) !important;
-            color: white;
-        }
-
-        .badge-info,
-        .badge.bg-info {
-            background: var(--court-blue) !important;
-            color: white;
-        }
-
-        .badge-warning,
-        .badge.bg-warning {
-            background: var(--tennis-orange) !important;
-            color: white;
-        }
-
         .badge-league {
-            background: var(--usta-navy);
+            background: var(--tennis-navy);
             color: white;
         }
 
         .badge-team {
-            background: var(--court-blue);
+            background: var(--tennis-blue);
             color: white;
         }
 
         .badge-match {
-            background: var(--court-green);
+            background: var(--tennis-rose);
             color: white;
         }
 
         .badge-facility {
-            background: var(--tennis-orange);
-            color: white;
+            background: var(--tennis-gold);
+            color: var(--tennis-navy);
         }
 
         /* ========================================
@@ -332,7 +261,7 @@
             white-space: normal;
             line-height: 1.2;
             padding: 0.4rem 0.6rem;
-            background: var(--court-blue);
+            background: var(--tennis-blue);
             color: white;
         }
 
@@ -346,7 +275,7 @@
         }
 
         .action-cell .btn-group .btn {
-            border-radius: 4px !important;
+            border-radius: 0.25rem !important;
             margin: 0 0.1rem;
             font-size: 0.75rem;
             transition: all 0.2s ease;
@@ -365,7 +294,7 @@
             font-size: 0.7rem;
             padding: 0.4rem 0.6rem;
             min-width: 80px;
-            background: var(--court-blue);
+            background: var(--tennis-blue);
             color: white;
         }
 
@@ -373,8 +302,16 @@
             font-size: 0.7rem;
             padding: 0.4rem 0.6rem;
             min-width: 90px;
-            background: var(--court-green);
+            background: var(--tennis-rose);
             color: white;
+        }
+
+        .format-cell {
+            min-width: 100px;
+        }
+
+        .season-cell {
+            min-width: 120px;
         }
 
         /* Team-specific styling */
@@ -393,16 +330,16 @@
         .days-cell .badge {
             font-size: 0.7rem;
             margin: 0.1rem;
-            background: var(--tennis-orange);
+            background: var(--tennis-rose);
             color: white;
         }
 
         .facility-cell .fa-check-circle {
-            color: var(--court-green) !important;
+            color: var(--tennis-rose) !important;
         }
 
         .facility-cell .fa-exclamation-triangle {
-            color: var(--tennis-orange) !important;
+            color: var(--tennis-gold) !important;
         }
 
         /* Schedule-specific styling */
@@ -411,7 +348,7 @@
             font-size: 0.8rem;
             min-width: 60px;
             margin-bottom: 2px;
-            background: var(--usta-navy);
+            background: var(--tennis-rose);
             color: white;
         }
 
@@ -425,69 +362,23 @@
         }
 
         .teams-cell .badge.bg-primary {
-            background: var(--usta-navy) !important;
+            background: var(--tennis-navy) !important;
         }
 
         .teams-cell .badge.bg-secondary {
-            background: var(--court-blue) !important;
+            background: var(--tennis-blue) !important;
         }
 
         .lines-cell .badge {
             font-size: 0.75rem;
-            color: var(--usta-navy);
-            border: 1px solid var(--usta-navy);
-            background: var(--tennis-white);
+            color: var(--tennis-navy);
+            border: 1px solid var(--tennis-navy);
+            background: transparent;
         }
 
         /* ========================================
-           ALERTS AND NOTIFICATIONS
+           INTERACTIVE ELEMENTS
         ======================================== */
-        .alert {
-            border-radius: 6px;
-            border-width: 1px;
-            border-style: solid;
-        }
-
-        .alert-info {
-            background: linear-gradient(135deg, rgba(60, 99, 142, 0.1) 0%, rgba(60, 99, 142, 0.05) 100%);
-            border-color: var(--court-blue);
-            color: var(--usta-navy);
-        }
-
-        .alert-success {
-            background: linear-gradient(135deg, rgba(108, 147, 92, 0.1) 0%, rgba(108, 147, 92, 0.05) 100%);
-            border-color: var(--court-green);
-            color: var(--usta-navy);
-        }
-
-        .alert-warning {
-            background: linear-gradient(135deg, rgba(255, 102, 0, 0.1) 0%, rgba(255, 102, 0, 0.05) 100%);
-            border-color: var(--tennis-orange);
-            color: var(--usta-navy);
-        }
-
-        .alert-danger {
-            background: linear-gradient(135deg, rgba(220, 53, 69, 0.1) 0%, rgba(220, 53, 69, 0.05) 100%);
-            border-color: #dc3545;
-            color: var(--usta-navy);
-        }
-
-        /* ========================================
-           PROGRESS AND INTERACTIVE ELEMENTS
-        ======================================== */
-        .progress {
-            height: 8px;
-            border-radius: 4px;
-            background-color: var(--light-gray);
-            border: 1px solid var(--border-gray);
-        }
-
-        .progress-bar {
-            transition: width 0.6s ease;
-            background: linear-gradient(90deg, var(--usta-navy) 0%, var(--court-blue) 100%);
-            border-radius: 3px;
-        }
-
         /* Row hover effects */
         .enhanced-table tbody tr {
             cursor: pointer;
@@ -496,38 +387,68 @@
         }
 
         .enhanced-table tbody tr:hover {
-            border-left-color: var(--tennis-orange);
+            border-left-color: var(--tennis-blue);
+            background: linear-gradient(90deg, rgba(74, 140, 193, 0.05) 0%, rgba(255, 255, 255, 1) 10%);
         }
 
         /* Mobile card enhancements */
+        .enhanced-card {
+            border-left: 3px solid var(--tennis-blue) !important;
+        }
+
+        .enhanced-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 6px 20px rgba(45, 88, 138, 0.15);
+            border-left-color: var(--tennis-navy) !important;
+        }
+
         .enhanced-card.border-primary {
-            border-left-color: var(--usta-navy) !important;
+            border-left-color: var(--tennis-navy) !important;
         }
 
         .enhanced-card.border-success {
-            border-left-color: var(--court-green) !important;
+            border-left-color: var(--tennis-rose) !important;
         }
 
         .enhanced-card.border-info {
-            border-left-color: var(--court-blue) !important;
+            border-left-color: var(--tennis-blue) !important;
         }
 
         .enhanced-card.border-warning {
-            border-left-color: var(--tennis-orange) !important;
+            border-left-color: var(--tennis-gold) !important;
+        }
+
+        /* Progress Bar Enhancements */
+        .progress {
+            height: 10px;
+            border-radius: 5px;
+            background-color: rgba(74, 140, 193, 0.1);
+        }
+
+        .progress-bar {
+            transition: width 0.6s ease;
+            background: linear-gradient(90deg, var(--tennis-blue) 0%, var(--tennis-navy) 100%);
         }
 
         /* ========================================
-           FORM STYLING
+           ALERT STYLING
         ======================================== */
-        .form-control:focus,
-        .form-select:focus {
-            border-color: var(--court-blue);
-            box-shadow: 0 0 0 3px rgba(60, 99, 142, 0.25);
+        .alert-info {
+            background: linear-gradient(135deg, rgba(74, 140, 193, 0.1) 0%, rgba(74, 140, 193, 0.05) 100%);
+            border-color: var(--tennis-blue);
+            color: var(--tennis-navy);
         }
 
-        .form-label {
-            color: var(--usta-navy);
-            font-weight: 500;
+        .alert-success {
+            background: linear-gradient(135deg, rgba(214, 110, 150, 0.1) 0%, rgba(214, 110, 150, 0.05) 100%);
+            border-color: var(--tennis-rose);
+            color: var(--tennis-navy);
+        }
+
+        .alert-warning {
+            background: linear-gradient(135deg, rgba(232, 182, 84, 0.1) 0%, rgba(232, 182, 84, 0.05) 100%);
+            border-color: var(--tennis-gold);
+            color: var(--tennis-navy);
         }
 
         /* ========================================
@@ -542,6 +463,12 @@
             .league-info-cell,
             .team-info-cell {
                 min-width: 160px;
+            }
+            
+            .location-cell .badge,
+            .facility-cell .badge {
+                font-size: 0.7rem;
+                max-width: 140px;
             }
         }
 
@@ -564,7 +491,7 @@
             }
 
             .nav-link {
-                padding: 0.5rem 0.75rem !important;
+                padding: 0.5rem 0.75rem;
             }
         }
 
@@ -578,7 +505,7 @@
             }
             
             .card-header {
-                background-color: var(--usta-navy) !important;
+                background-color: var(--tennis-navy) !important;
                 color: white !important;
             }
             
@@ -589,7 +516,7 @@
             .table > thead > tr > th,
             thead.table-light > tr > th,
             thead.table-dark > tr > th {
-                background-color: var(--usta-navy) !important;
+                background-color: var(--tennis-navy) !important;
                 color: white !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
@@ -597,16 +524,17 @@
         }
 
         /* ========================================
-           ACCESSIBILITY AND ANIMATIONS
+           SPECIAL EFFECTS
         ======================================== */
+        /* Subtle animation for page loads */
         .container {
-            animation: fadeInUp 0.4s ease-out;
+            animation: fadeInUp 0.5s ease-out;
         }
 
         @keyframes fadeInUp {
             from {
                 opacity: 0;
-                transform: translateY(15px);
+                transform: translateY(20px);
             }
             to {
                 opacity: 1;
@@ -614,35 +542,36 @@
             }
         }
 
-        /* Footer styling */
-        footer {
-            background: var(--light-gray) !important;
-            border-top: 3px solid var(--usta-navy) !important;
-            color: var(--usta-navy) !important;
+        /* Focus states for accessibility */
+        .btn:focus,
+        .form-control:focus,
+        .form-select:focus {
+            box-shadow: 0 0 0 3px rgba(74, 140, 193, 0.3);
+            border-color: var(--tennis-blue);
         }
 
-        /* Custom scrollbar */
+        /* Custom scrollbar for webkit browsers */
         ::-webkit-scrollbar {
             width: 8px;
         }
 
         ::-webkit-scrollbar-track {
-            background: var(--light-gray);
+            background: rgba(74, 140, 193, 0.1);
         }
 
         ::-webkit-scrollbar-thumb {
-            background: var(--court-blue);
+            background: var(--tennis-blue);
             border-radius: 4px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: var(--usta-navy);
+            background: var(--tennis-navy);
         }
     </style>
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg">
+    <nav class="navbar navbar-expand-lg navbar-light">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
                 <img src="{{ url_for('static', filename='ameo-analytics-logo.png') }}" alt="AMEO Analytics" />
@@ -739,7 +668,7 @@
 
     <!-- Footer -->
     <footer class="bg-light mt-5 py-4 border-top">
-        <div class="container text-center">
+        <div class="container text-center text-muted">
             <small>Tennis Database Management System - Matches generated automatically with interface-based architecture</small>
         </div>
     </footer>

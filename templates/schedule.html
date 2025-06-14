@@ -183,7 +183,7 @@
                 <!-- Desktop Table View -->
                 <div class="d-none d-md-block">
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0 align-middle schedule-table">
+                        <table class="table table-hover mb-0 align-middle enhanced-table">
                             <thead class="table-dark">
                                 <tr>
                                     <th class="text-center" style="width: 120px;">Times</th>
@@ -258,7 +258,7 @@
                 <!-- Mobile Card View -->
                 <div class="d-md-none">
                     {% for match in day_data.matches %}
-                    <div class="card mb-3 schedule-match-card" data-match-id="{{ match.id }}">
+                    <div class="card mb-3 enhanced-card" data-match-id="{{ match.id }}">
                         <div class="card-body">
                             <!-- Time slots display -->
                             <div class="row mb-2">
@@ -400,118 +400,6 @@ function exportScheduleCSV() {
 
 // Enhanced styling and interactions
 document.addEventListener('DOMContentLoaded', function() {
-    const enhancedScheduleStyles = document.createElement('style');
-    enhancedScheduleStyles.textContent = `
-        .schedule-table {
-            font-size: 0.9rem;
-        }
-        
-        .schedule-table thead th {
-            vertical-align: middle;
-            border-bottom: 2px solid #dee2e6;
-            font-weight: 600;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .schedule-table tbody tr {
-            transition: all 0.2s ease;
-        }
-        
-        .schedule-table tbody tr:hover {
-            background-color: #f8f9fa;
-            transform: scale(1.01);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .time-cell .badge {
-            padding: 0.4rem 0.6rem;
-            font-size: 0.8rem;
-            min-width: 60px;
-            margin-bottom: 2px;
-        }
-        
-        .teams-cell {
-            min-width: 180px;
-        }
-        
-        .teams-cell .badge {
-            font-size: 0.7rem;
-            font-weight: 600;
-        }
-        
-        .facility-cell .badge {
-            max-width: 120px;
-            white-space: normal;
-            line-height: 1.2;
-            padding: 0.35rem 0.5rem;
-        }
-        
-        .schedule-match-card {
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        
-        .schedule-match-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        
-        .schedule-day-card .card-header {
-            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-        }
-        
-        .lines-cell .badge {
-            font-size: 0.75rem;
-            color: #6c757d;
-            border: 1px solid #6c757d;
-            background: transparent;
-        }
-        
-        @media print {
-            .schedule-day-card {
-                break-inside: avoid;
-                margin-bottom: 20px;
-            }
-            
-            .card-header {
-                background-color: #f8f9fa !important;
-                color: #000 !important;
-            }
-            
-            .schedule-table {
-                font-size: 11px;
-            }
-        }
-        
-        @media (max-width: 1200px) {
-            .schedule-table {
-                font-size: 0.8rem;
-            }
-            
-            .teams-cell {
-                min-width: 160px;
-            }
-            
-            .facility-cell .badge {
-                font-size: 0.7rem;
-                max-width: 100px;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .teams-cell .badge {
-                font-size: 0.6rem;
-                padding: 0.2rem 0.4rem;
-            }
-            
-            .schedule-match-card {
-                margin-bottom: 0.5rem;
-            }
-        }
-    `;
-    document.head.appendChild(enhancedScheduleStyles);
-    
     // Add keyboard shortcut for search
     document.addEventListener('keydown', function(e) {
         if ((e.ctrlKey || e.metaKey) && e.key === 'f') {

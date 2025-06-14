@@ -179,7 +179,7 @@
         </div>
     </div>
     <div class="table-responsive">
-        <table class="table table-hover league-table mb-0" id="leaguesTable">
+        <table class="table table-hover enhanced-table mb-0" id="leaguesTable">
             <thead class="table-light">
                 <tr>
                     <th>League Information</th>
@@ -273,7 +273,7 @@
 <!-- Mobile Card View -->
 <div class="d-lg-none">
     {% for league in leagues %}
-    <div class="card mb-3 league-card" data-league-id="{{ league.id }}">
+    <div class="card mb-3 enhanced-card" data-league-id="{{ league.id }}">
         <div class="card-header">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
@@ -647,7 +647,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Initialize enhanced styling and interactions
-    setupEnhancedStyling();
     setupLeagueTableInteractions();
 });
 
@@ -658,7 +657,7 @@ function filterLeagues() {
     const ageGroupFilter = document.getElementById('ageGroupFilter')?.value || '';
     
     const tableRows = document.querySelectorAll('.league-row');
-    const cardElements = document.querySelectorAll('.league-card');
+    const cardElements = document.querySelectorAll('.enhanced-card');
     
     // Filter table rows
     tableRows.forEach(row => {
@@ -697,95 +696,6 @@ function clearFilters() {
     document.getElementById('divisionFilter').value = '';
     document.getElementById('ageGroupFilter').value = '';
     filterLeagues();
-}
-
-function setupEnhancedStyling() {
-    // Add enhanced table styles
-    const enhancedLeagueStyles = document.createElement('style');
-    enhancedLeagueStyles.textContent = `
-        /* Enhanced League Table Styling */
-        .league-table {
-            font-size: 0.9rem;
-        }
-        
-        .league-table thead th {
-            vertical-align: middle;
-            border-bottom: 2px solid #dee2e6;
-            font-weight: 600;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .league-table tbody tr {
-            transition: all 0.2s ease;
-        }
-        
-        .league-table tbody tr:hover {
-            background-color: #f8f9fa;
-            transform: scale(1.01);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        /* League-specific cell styling */
-        .league-info-cell {
-            min-width: 180px;
-        }
-        
-        .location-cell {
-            max-width: 160px;
-        }
-        
-        .age-group-cell .badge {
-            font-size: 0.7rem;
-            padding: 0.4rem 0.6rem;
-            min-width: 80px;
-        }
-        
-        .division-cell .badge {
-            font-size: 0.7rem;
-            padding: 0.4rem 0.6rem;
-            min-width: 90px;
-        }
-        
-        .format-cell {
-            min-width: 100px;
-        }
-        
-        .season-cell {
-            min-width: 120px;
-        }
-        
-        .action-cell {
-            min-width: 180px;
-        }
-        
-        /* Mobile card styling */
-        .league-card {
-            transition: all 0.2s ease;
-        }
-        
-        .league-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        
-        /* Bulk generation styling */
-        .progress {
-            height: 8px;
-        }
-        
-        .progress-bar {
-            transition: width 0.3s ease;
-        }
-        
-        /* Filter styling */
-        .form-select:focus, .form-control:focus {
-            border-color: #0d6efd;
-            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
-        }
-    `;
-    document.head.appendChild(enhancedLeagueStyles);
 }
 
 function setupLeagueTableInteractions() {
@@ -841,22 +751,30 @@ function sortLeagueTable(columnIndex) {
     const table = document.getElementById('leaguesTable');
     const tbody = table.querySelector('tbody');
     const rows = Array.from(tbody.querySelectorAll('tr'));
+    const header = table.querySelectorAll('thead th')[columnIndex];
+    const icon = header.querySelector('i');
     
     // Toggle sort direction
     sortDirection[columnIndex] = sortDirection[columnIndex] === 'asc' ? 'desc' : 'asc';
     
-    // Update sort icons
-    const headers = table.querySelectorAll('thead th');
-    headers.forEach((header, index) => {
-        const icon = header.querySelector('i');
-        if (icon && index < headers.length - 1) {
-            if (index === columnIndex) {
-                icon.className = `fas fa-sort-${sortDirection[columnIndex] === 'asc' ? 'up' : 'down'} ms-1`;
-            } else {
-                icon.className = 'fas fa-sort ms-1 opacity-50';
-            }
+    // Reset all other headers
+    table.querySelectorAll('thead th').forEach(th => {
+        th.removeAttribute('data-sort-asc');
+        th.removeAttribute('data-sort-desc');
+        const otherIcon = th.querySelector('i');
+        if (otherIcon) {
+            otherIcon.className = 'fas fa-sort ms-1 opacity-50';
         }
     });
+    
+    // Set current header state
+    if (sortDirection[columnIndex] === 'asc') {
+        header.setAttribute('data-sort-asc', '');
+        icon.className = 'fas fa-sort-up ms-1';
+    } else {
+        header.setAttribute('data-sort-desc', '');
+        icon.className = 'fas fa-sort-down ms-1';
+    }
     
     // Sort rows
     rows.sort((a, b) => {
@@ -874,7 +792,7 @@ function sortLeagueTable(columnIndex) {
     rows.forEach(row => tbody.appendChild(row));
 }
 
-// Import/Export functionality (existing)
+// Import/Export functionality
 function showImportModal() {
     const modal = new bootstrap.Modal(document.getElementById('importModal'));
     modal.show();

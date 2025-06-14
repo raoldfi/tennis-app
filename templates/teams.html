@@ -399,7 +399,7 @@
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle team-table" id="teamsTable">
+            <table class="table table-hover mb-0 align-middle enhanced-table" id="teamsTable">
                 <thead class="table-dark">
                     <tr>
                         <th class="text-center" style="width: 80px;">ID</th>
@@ -521,7 +521,7 @@
         {% endif %}
     </h5>
     {% for enhanced_team in teams %}
-    <div class="card mb-3 border-start border-primary border-3 team-card" data-team-id="{{ enhanced_team.team.id }}">
+    <div class="card mb-3 border-start border-primary border-3 enhanced-card" data-team-id="{{ enhanced_team.team.id }}">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <h6 class="mb-0">{{ enhanced_team.team.name }}</h6>
@@ -842,126 +842,6 @@ function deleteTeam(teamId, teamName) {
 
 // Initialize enhanced styling and interactions
 document.addEventListener('DOMContentLoaded', function() {
-    // Add enhanced table styles
-    const enhancedTeamStyles = document.createElement('style');
-    enhancedTeamStyles.textContent = `
-        /* Enhanced Team Table Styling */
-        .team-table {
-            font-size: 0.9rem;
-        }
-        
-        .team-table thead th {
-            vertical-align: middle;
-            border-bottom: 2px solid #dee2e6;
-            font-weight: 600;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .team-table tbody tr {
-            transition: all 0.2s ease;
-        }
-        
-        .team-table tbody tr:hover {
-            background-color: #f8f9fa;
-            transform: scale(1.01);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        /* Team-specific cell styling */
-        .team-info-cell {
-            min-width: 180px;
-        }
-        
-        .league-cell {
-            max-width: 160px;
-        }
-        
-        .captain-cell {
-            min-width: 120px;
-        }
-        
-        .facility-cell {
-            max-width: 160px;
-        }
-        
-        .days-cell .badge {
-            font-size: 0.7rem;
-            margin: 0.1rem;
-        }
-        
-        .action-cell .btn-group .btn {
-            border-radius: 0.25rem !important;
-            margin: 0 0.1rem;
-            font-size: 0.75rem;
-        }
-        
-        /* Card header styling consistent with schedule */
-        .card-header.bg-primary {
-            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
-        }
-        
-        /* Team row hover effects */
-        .team-row {
-            cursor: pointer;
-            border-left: 3px solid transparent;
-            transition: all 0.3s ease;
-        }
-        
-        .team-row:hover {
-            border-left-color: #6f42c1;
-            background: linear-gradient(90deg, rgba(111,66,193,0.05) 0%, rgba(255,255,255,1) 10%);
-        }
-        
-        /* Facility status styling */
-        .facility-cell .fa-check-circle {
-            color: #198754 !important;
-        }
-        
-        .facility-cell .fa-exclamation-triangle {
-            color: #ffc107 !important;
-        }
-        
-        /* Mobile card enhancements */
-        .team-card {
-            transition: all 0.2s ease;
-            border-left: 3px solid #007bff !important;
-        }
-        
-        .team-card:hover {
-            transform: translateX(5px);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            border-left-color: #6f42c1 !important;
-        }
-        
-        /* Responsive improvements */
-        @media (max-width: 1200px) {
-            .team-table {
-                font-size: 0.8rem;
-            }
-            
-            .team-info-cell {
-                min-width: 160px;
-            }
-            
-            .facility-cell {
-                max-width: 140px;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .action-cell .btn-group .btn {
-                padding: 0.25rem 0.5rem;
-                font-size: 0.7rem;
-            }
-            
-            .team-card {
-                margin-bottom: 0.5rem;
-            }
-        }
-    `;
-    document.head.appendChild(enhancedTeamStyles);
     
     // Setup table interactions
     setupTeamTableInteractions();
