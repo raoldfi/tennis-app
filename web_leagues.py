@@ -10,7 +10,6 @@ import traceback
 import utils
 from usta_league import League
 from web_database import get_db
-from web_utils import get_usta_constants, create_league_dict_fallback, create_league_from_dict_fallback
 
 
 
@@ -831,4 +830,71 @@ def register_routes(app):
             
         except Exception as e:
             return jsonify({'error': f'Failed to generate matches: {e}'}), 500
+
+
+# ================ Helpers ==========
+
+
+def create_league_dict_fallback(league):
+    """Fallback method to convert League object to dictionary"""
+    try:
+        league_dict = {
+            'id': league.id,
+            'name': league.name,
+            'year': league.year,
+            'section': league.section,
+            'region': league.region,
+            'age_group': league.age_group,
+            'division': league.division,
+            'num_matches': league.num_matches,
+            'num_lines_per_match': league.num_lines_per_match,
+            'allow_split_lines': league.allow_split_lines
+        }
+        
+        # Add optional fields if they exist
+        if hasattr(league, 'start_date') and league.start_date:
+            league_dict['start_date'] = league.start_date
+        if hasattr(league, 'end_date') and league.end_date:
+            league_dict['end_date'] = league.end_date
+        if hasattr(league, 'preferred_days') and league.preferred_days:
+            league_dict['preferred_days'] = league.preferred_days
+        
+        return league_dict
+        
+    except Exception as e:
+        print(f"Fallback conversion error: {str(e)}")
+        raise Exception(f"Could not convert league to dictionary: {str(e)}")
+
+
+def create_league_from_dict_fallback(league_data):
+    """Fallback method to create League object from dictionary"""
+    try:
+        # Create League with required fields
+        league = League(
+            id=league_data.get('id'),
+            name=league_data['name'],
+            year=league_data['year'],
+            section=league_data['section'],
+            region=league_data['region'],
+            age_group=league_data['age_group'],
+            division=league_data['division'],
+            num_matches=league_data.get('num_matches', 6),
+            num_lines_per_match=league_data.get('num_lines_per_match', 4),
+            allow_split_lines=league_data.get('allow_split_lines', False)
+        )
+        
+        # Add optional fields if they exist
+        if 'start_date' in league_data:
+            league.start_date = league_data['start_date']
+        if 'end_date' in league_data:
+            league.end_date = league_data['end_date']
+        if 'preferred_days' in league_data:
+            league.preferred_days = league_data['preferred_days']
+        
+        return league
+        
+    except Exception as e:
+        print(f"Fallback creation error: {str(e)}")
+        raise Exception(f"Could not create league from dictionary: {str(e)}")
+
 

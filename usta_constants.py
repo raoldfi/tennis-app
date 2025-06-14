@@ -70,3 +70,13 @@ USTA_DIVISIONS = [
     "10.0 Mixed"
 ]
 
+def get_usta_constants() -> Dict[str, list]:
+    """Get USTA constants from the usta module"""
+    from usta import USTA_SECTIONS, USTA_REGIONS, USTA_AGE_GROUPS, USTA_DIVISIONS
+    return {
+        'sections': USTA_SECTIONS,
+        'regions': USTA_REGIONS,
+        'age_groups': USTA_AGE_GROUPS,
+        'divisions': USTA_DIVISIONS
+    }
+

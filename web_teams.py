@@ -9,22 +9,8 @@ from typing import Optional, Type, Dict, Any
 
 from usta_team import Team
 from web_database import get_db
-from web_utils import (
-    enhance_teams_with_facility_info, 
-    filter_teams_by_search,
-    create_team_dict_fallback,
-    create_team_from_dict_fallback,
-    get_usta_constants
-)
 
 
-from web_utils import (
-    enhance_teams_with_facility_info, 
-    filter_teams_by_search,
-    create_team_dict_fallback,
-    create_team_from_dict_fallback,
-    get_usta_constants
-)
 
 def register_routes(app):
     """Register facility-related routes"""
@@ -547,3 +533,352 @@ def register_routes(app):
             })
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+
+
+# =========== Helpers ==========
+
+# Fix for the teams() route in tennis_web_app.py
+
+def enhance_teams_with_facility_info(teams_list, db):
+    """
+    Enhance teams with facility information for the template
+    This function was missing but is required by the teams.html template
+    """
+    enhanced_teams = []
+    
+    for team in teams_list:
+        # Get facility information
+        facility_name = "No facility assigned"
+        facility_exists = False
+        facility_id = None
+        facility_location = None
+        
+        if hasattr(team, 'home_facility') and team.home_facility:
+            if hasattr(team.home_facility, 'name'):
+                # Team has a Facility object
+                facility_name = team.home_facility.name
+                facility_exists = True
+                facility_id = getattr(team.home_facility, 'id', None)
+                facility_location = getattr(team.home_facility, 'location', None)
+            else:
+                # Team has a facility name string
+                facility_name = str(team.home_facility)
+                # Check if this facility exists in the database
+                facilities = db.list_facilities()
+                for facility in facilities:
+                    if facility.name == facility_name:
+                        facility_exists = True
+                        facility_id = facility.id
+                        facility_location = facility.location
+                        break
+        
+        # Check if team has preferred days
+        has_preferred_days = (hasattr(team, 'preferred_days') and 
+                            team.preferred_days and 
+                            len(team.preferred_days) > 0)
+        
+        # Create enhanced team object
+        enhanced_team = {
+            'team': team,  # This is what the template expects!
+            'facility_name': facility_name,
+            'facility_exists': facility_exists,
+            'facility_id': facility_id,
+            'facility_location': facility_location,
+            'has_preferred_days': has_preferred_days
+        }
+        
+        enhanced_teams.append(enhanced_team)
+    
+    return enhanced_teams
+
+
+
+
+
+def filter_teams_by_search(teams_list, search_query):
+    """
+    Filter teams based on search query
+    Searches across: team name, captain, facility name, contact email, league name
+    """
+    if not search_query:
+        return teams_list
+    
+    # Split search query into individual terms for more flexible matching
+    search_terms = [term.lower().strip() for term in search_query.split() if term.strip()]
+    filtered_teams = []
+    
+    for team in teams_list:
+        # Create searchable text from team attributes
+        searchable_text = []
+        
+        # Team name
+        if hasattr(team, 'name') and team.name:
+            searchable_text.append(team.name.lower())
+        
+        # Captain name
+        if hasattr(team, 'captain') and team.captain:
+            searchable_text.append(team.captain.lower())
+        
+        # Contact email
+        if hasattr(team, 'contact_email') and team.contact_email:
+            searchable_text.append(team.contact_email.lower())
+        
+        # League name
+        if hasattr(team, 'league') and team.league and hasattr(team.league, 'name'):
+            searchable_text.append(team.league.name.lower())
+        
+        # Facility name
+        if hasattr(team, 'home_facility') and team.home_facility:
+            if hasattr(team.home_facility, 'name'):
+                searchable_text.append(team.home_facility.name.lower())
+            else:
+                searchable_text.append(str(team.home_facility).lower())
+        
+        # Join all searchable text
+        full_text = ' '.join(searchable_text)
+        
+        # Check if all search terms are found
+        matches_all_terms = all(term in full_text for term in search_terms)
+        
+        if matches_all_terms:
+            filtered_teams.append(team)
+    
+    return filtered_teams
+
+def search_teams_advanced(teams_list, search_query):
+    """
+    Advanced search with field-specific matching
+    Supports queries like: captain:john facility:club league:3.0
+    """
+    if not search_query:
+        return teams_list
+    
+    # Parse field-specific search terms
+    field_searches = {}
+    general_terms = []
+    
+    # Split by spaces and look for field:value patterns
+    terms = search_query.split()
+    for term in terms:
+        if ':' in term and len(term.split(':', 1)) == 2:
+            field, value = term.split(':', 1)
+            field = field.lower().strip()
+            value = value.lower().strip()
+            if field and value:
+                if field not in field_searches:
+                    field_searches[field] = []
+                field_searches[field].append(value)
+        else:
+            general_terms.append(term.lower().strip())
+    
+    filtered_teams = []
+    
+    for team in teams_list:
+        matches = True
+        
+        # Check field-specific searches
+        for field, values in field_searches.items():
+            field_match = False
+            
+            for value in values:
+                if field in ['name', 'team']:
+                    if hasattr(team, 'name') and team.name and value in team.name.lower():
+                        field_match = True
+                        break
+                elif field in ['captain', 'cap']:
+                    if hasattr(team, 'captain') and team.captain and value in team.captain.lower():
+                        field_match = True
+                        break
+                elif field in ['facility', 'fac']:
+                    if hasattr(team, 'home_facility') and team.home_facility:
+                        facility_name = ""
+                        if hasattr(team.home_facility, 'name'):
+                            facility_name = team.home_facility.name.lower()
+                        elif isinstance(team.home_facility, str):
+                            facility_name = team.home_facility.lower()
+                        if value in facility_name:
+                            field_match = True
+                            break
+                elif field in ['league', 'lg']:
+                    if hasattr(team, 'league') and team.league:
+                        if hasattr(team.league, 'name') and team.league.name and value in team.league.name.lower():
+                            field_match = True
+                            break
+                        if hasattr(team.league, 'division') and team.league.division and value in team.league.division.lower():
+                            field_match = True
+                            break
+                elif field in ['email', 'contact']:
+                    if hasattr(team, 'contact_email') and team.contact_email and value in team.contact_email.lower():
+                        field_match = True
+                        break
+                elif field in ['day', 'days']:
+                    if hasattr(team, 'preferred_days') and team.preferred_days:
+                        for day in team.preferred_days:
+                            if value in day.lower():
+                                field_match = True
+                                break
+                        if field_match:
+                            break
+            
+            if not field_match:
+                matches = False
+                break
+        
+        # Check general search terms (search across all fields)
+        if matches and general_terms:
+            # Use the existing general search logic
+            searchable_text = []
+            
+            if hasattr(team, 'name') and team.name:
+                searchable_text.append(team.name.lower())
+            if hasattr(team, 'captain') and team.captain:
+                searchable_text.append(team.captain.lower())
+            if hasattr(team, 'contact_email') and team.contact_email:
+                searchable_text.append(team.contact_email.lower())
+            if hasattr(team, 'home_facility') and team.home_facility:
+                if hasattr(team.home_facility, 'name') and team.home_facility.name:
+                    searchable_text.append(team.home_facility.name.lower())
+                elif isinstance(team.home_facility, str):
+                    searchable_text.append(team.home_facility.lower())
+            if hasattr(team, 'league') and team.league:
+                if hasattr(team.league, 'name') and team.league.name:
+                    searchable_text.append(team.league.name.lower())
+                if hasattr(team.league, 'division') and team.league.division:
+                    searchable_text.append(team.league.division.lower())
+            
+            combined_text = ' '.join(searchable_text)
+            
+            for term in general_terms:
+                if term not in combined_text:
+                    matches = False
+                    break
+        
+        if matches:
+            filtered_teams.append(team)
+    
+    return filtered_teams
+
+
+
+
+
+
+def create_team_dict_fallback(team):
+    """Fallback method to convert Team object to dictionary"""
+    try:
+        team_dict = {
+            'id': team.id,
+            'name': team.name,
+            'league_id': team.league.id if hasattr(team, 'league') and team.league else None,
+            'captain': team.captain
+        }
+        
+        # Handle home facility - export the facility ID if available
+        if hasattr(team, 'home_facility') and team.home_facility:
+            if hasattr(team.home_facility, 'id') and team.home_facility.id:
+                team_dict['home_facility_id'] = team.home_facility.id
+            # Also include the facility name for reference
+            if hasattr(team.home_facility, 'name'):
+                team_dict['home_facility_name'] = team.home_facility.name
+        elif hasattr(team, 'home_facility_id') and team.home_facility_id:
+            # Fallback if only ID is available
+            team_dict['home_facility_id'] = team.home_facility_id
+        
+        # Add optional fields if they exist
+        if hasattr(team, 'preferred_days') and team.preferred_days:
+            team_dict['preferred_days'] = team.preferred_days
+        if hasattr(team, 'contact_email') and team.contact_email:
+            team_dict['contact_email'] = team.contact_email
+        if hasattr(team, 'notes') and team.notes:
+            team_dict['notes'] = team.notes
+        
+        return team_dict
+        
+    except Exception as e:
+        print(f"Fallback conversion error: {str(e)}")
+        raise Exception(f"Could not convert team to dictionary: {str(e)}")
+
+
+def create_team_from_dict_fallback(team_data, db):
+    """Fallback method to create Team object from dictionary"""
+    try:
+        # Get league object if league_id is provided
+        league = None
+        if 'league_id' in team_data and team_data['league_id']:
+            try:
+                league = db.get_league(team_data['league_id'])
+                if not league:
+                    raise Exception(f"League with ID {team_data['league_id']} not found")
+            except Exception as e:
+                raise Exception(f"Invalid league_id {team_data['league_id']}: {str(e)}")
+        
+        # Handle home facility - get the actual Facility object
+        home_facility = None
+        
+        if 'home_facility_id' in team_data and team_data['home_facility_id']:
+            # Primary method: use facility ID to get Facility object
+            try:
+                home_facility = db.get_facility(team_data['home_facility_id'])
+                if not home_facility:
+                    raise Exception(f"Facility with ID {team_data['home_facility_id']} not found")
+            except Exception as e:
+                raise Exception(f"Invalid home_facility_id {team_data['home_facility_id']}: {str(e)}")
+                
+        elif 'home_facility' in team_data and team_data['home_facility']:
+            # Legacy support: try to find facility by name
+            facility_name = team_data['home_facility']
+            try:
+                facilities = db.list_facilities()
+                for facility in facilities:
+                    if facility.name == facility_name:
+                        home_facility = facility
+                        break
+                
+                if not home_facility:
+                    # Create a minimal facility object for custom names
+                    # This depends on your Facility class constructor
+                    print(f"Warning: Facility '{facility_name}' not found in database, creating custom facility reference")
+                    # You may need to adjust this based on your Facility class constructor
+                    from usta import Facility
+                    home_facility = Facility(
+                        id=None,
+                        name=facility_name,
+                        location='Unknown',
+                        schedule=None  # or create a default schedule
+                    )
+            except Exception as e:
+                print(f"Error looking up facility by name: {str(e)}")
+                # Create minimal facility object as fallback
+                from usta import Facility
+                home_facility = Facility(
+                    id=None,
+                    name=facility_name,
+                    location='Unknown',
+                    schedule=None
+                )
+        
+        # Create Team with required fields
+        team = Team(
+            id=team_data.get('id'),
+            name=team_data['name'],
+            league=league,
+            captain=team_data.get('captain', ''),
+            home_facility=home_facility  # Pass the Facility object
+        )
+        
+        # Add optional fields if they exist
+        if 'preferred_days' in team_data:
+            team.preferred_days = team_data['preferred_days']
+        if 'contact_email' in team_data:
+            team.contact_email = team_data['contact_email']
+        if 'notes' in team_data:
+            team.notes = team_data['notes']
+        
+        return team
+        
+    except Exception as e:
+        print(f"Fallback creation error: {str(e)}")
+        raise Exception(f"Could not create team from dictionary: {str(e)}")
+
+
+

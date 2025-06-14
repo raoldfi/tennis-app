@@ -27,7 +27,7 @@ from usta_match import Match, MatchType
 
 # Export all classes for easy importing
 __all__ = [
-    'USTA_SECTIONS', 'USTA_REGIONS', 'USTA_AGE_GROUPS', 'USTA_DIVISIONS',
+    'USTA_SECTIONS', 'USTA_REGIONS', 'USTA_AGE_GROUPS', 'USTA_DIVISIONS'
     'Facility', 'WeeklySchedule', 'DaySchedule', 'TimeSlot',
     'League',
     'Team',

@@ -503,3 +503,46 @@ def register_routes(app):
                 'error': str(e),
                 'traceback': traceback.format_exc()
             })
+
+
+# ========= Helper Functions ==============
+
+def create_facility_dict_fallback(facility):
+    """Fallback function to create facility dictionary if to_yaml_dict method is missing"""
+    try:
+        # Build schedule dictionary
+        schedule_dict = {}
+        if hasattr(facility, 'schedule') and facility.schedule:
+            for day_name, day_schedule in facility.schedule.get_all_days().items():
+                if hasattr(day_schedule, 'start_times') and day_schedule.start_times:
+                    # Convert start_times list to dictionary format
+                    time_slots = {}
+                    for time_str in day_schedule.start_times:
+                        # Get courts available for this time slot
+                        if hasattr(day_schedule, 'courts_by_time') and day_schedule.courts_by_time:
+                            courts = day_schedule.courts_by_time.get(time_str, facility.total_courts)
+                        else:
+                            courts = facility.total_courts
+                        time_slots[time_str] = courts
+                    schedule_dict[day_name] = time_slots
+        
+        # Build the facility dictionary
+        facility_dict = {
+            'id': facility.id,
+            'name': facility.name,
+            'location': getattr(facility, 'location', ''),
+            'total_courts': getattr(facility, 'total_courts', 0),
+            'schedule': schedule_dict,
+            'unavailable_dates': getattr(facility, 'unavailable_dates', []) or []
+        }
+        
+        # Add short_name if it exists and is different from name
+        if hasattr(facility, 'short_name') and facility.short_name and facility.short_name != facility.name:
+            facility_dict['short_name'] = facility.short_name
+        
+        return facility_dict
+        
+    except Exception as e:
+        print(f"Fallback conversion error: {str(e)}")
+        raise Exception(f"Could not convert facility to dictionary: {str(e)}")
+

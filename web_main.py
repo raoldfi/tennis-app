@@ -105,7 +105,7 @@ def register_routes(app):
             return redirect(url_for('index'))
         
         try:
-            from web_utils import get_usta_constants
+            from usta_constants import get_usta_constants
             constants_data = get_usta_constants()
             return render_template('constants.html', constants=constants_data)
         except Exception as e:

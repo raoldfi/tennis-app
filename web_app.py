@@ -1,3 +1,26 @@
+#!/usr/bin/env python3
+"""
+Tennis Web Application - Main Flask Application Entry Point
+
+This is the main Flask web application for the Tennis Database system.
+It registers all route modules and configures the application context.
+
+Key Features:
+- Modular route registration for different sections (facilities, leagues, teams, matches, etc.)
+- Database connection management with multiple backend support
+- Application context injection for templates
+- Development and production startup configurations
+
+Usage:
+    python web_app.py
+
+The application will start on http://localhost:5000 by default.
+Use the web interface to connect to a database or pre-configure using
+the startup script (start_tennis_app.py) for automated setup.
+
+Author: Tennis App Development Team
+"""
+
 from flask import Flask
 from typing import Optional, Type, Dict, Any
 import web_main
@@ -5,7 +28,8 @@ import web_facilities
 import web_leagues
 import web_teams
 import web_matches
-from web_database import close_db, db_config, init_db
+import web_schedule  # Added missing import
+from web_database import close_db, db_config, init_db, get_db
 
 app = Flask(__name__)
 app.secret_key = 'tennis_db_secret_key_change_in_production'
@@ -15,14 +39,13 @@ web_main.register_routes(app)
 web_facilities.register_routes(app)
 web_leagues.register_routes(app)
 web_teams.register_routes(app)
-web_matches.register_routes(app)
+web_matches.register_routes(app, get_db)  # Pass get_db function
+web_schedule.register_routes(app)
 
 # Database cleanup
 app.teardown_appcontext(close_db)
 
 from tennis_db_interface import TennisDBInterface
-
-
 
 # ==================== APPLICATION CONTEXT ====================
 

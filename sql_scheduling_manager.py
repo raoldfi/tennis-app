@@ -267,13 +267,12 @@ class SQLSchedulingManager:
             raise RuntimeError(f"Error auto-scheduling match {match.id}: {e}")
     
     
-    def auto_schedule_matches(self, matches: List[Match], dry_run: bool = False) -> Dict[str, Any]:
+    def auto_schedule_matches(self, matches: List[Match]) -> Dict[str, Any]:
         """
         Attempt to automatically schedule a list of matches
         
         Args:
             matches: List of Match objects to schedule
-            dry_run: If True, don't actually schedule, just report what would happen
             
         Returns:
             Dictionary with scheduling results and statistics
@@ -291,7 +290,6 @@ class SQLSchedulingManager:
                 'scheduled_successfully': 0,
                 'failed_to_schedule': 0,
                 'scheduling_details': [],
-                'dry_run': dry_run,
                 'matches_attempted': []
             }
             
@@ -327,34 +325,26 @@ class SQLSchedulingManager:
                 if success:
                     results['scheduled_successfully'] += 1
                     # Reload match to get updated scheduling info (if not dry run)
-                    if not dry_run:
-                        updated_match = self.db.match_manager.get_match(match.id)
-                        if updated_match:
-                            results['scheduling_details'].append({
-                                'match_id': match.id,
-                                'status': 'scheduled',
-                                'home_team': match.home_team.name,
-                                'visitor_team': match.visitor_team.name,
-                                'facility': updated_match.facility.name if updated_match.facility else 'Unknown',
-                                'date': updated_match.date,
-                                'times': updated_match.scheduled_times
-                            })
-                        else:
-                            results['scheduling_details'].append({
-                                'match_id': match.id,
-                                'status': 'scheduled',
-                                'home_team': match.home_team.name,
-                                'visitor_team': match.visitor_team.name,
-                                'note': 'Scheduled but unable to reload match details'
-                            })
+                    updated_match = self.db.match_manager.get_match(match.id)
+                    if updated_match:
+                        results['scheduling_details'].append({
+                            'match_id': match.id,
+                            'status': 'scheduled',
+                            'home_team': match.home_team.name,
+                            'visitor_team': match.visitor_team.name,
+                            'facility': updated_match.facility.name if updated_match.facility else 'Unknown',
+                            'date': updated_match.date,
+                            'times': updated_match.scheduled_times
+                        })
                     else:
                         results['scheduling_details'].append({
                             'match_id': match.id,
-                            'status': 'would_schedule',
+                            'status': 'scheduled',
                             'home_team': match.home_team.name,
                             'visitor_team': match.visitor_team.name,
-                            'note': 'Dry run - scheduling options available'
+                            'note': 'Scheduled but unable to reload match details'
                         })
+
                 else:
                     results['failed_to_schedule'] += 1
                     results['scheduling_details'].append({
