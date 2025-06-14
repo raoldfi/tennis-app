@@ -1,6 +1,6 @@
 """
-Refactored web_matches.py - Uses Match.is_scheduled() method consistently
-Removes redundant status calculation logic and consolidates search functionality
+Updated web_matches.py - Includes bulk operations for auto-schedule, unschedule, and delete
+Removes Generate Matches button functionality and adds comprehensive bulk operations
 """
 
 from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
@@ -32,7 +32,7 @@ def register_routes(app, get_db):
             show_unscheduled = request.args.get('show_unscheduled', 'true') == 'true'
 
             
-            # FIX 1: Convert league_id to League object
+            # Convert league_id to League object
             league = None
             if league_id:
                 league = db.get_league(league_id)
@@ -40,7 +40,7 @@ def register_routes(app, get_db):
                     flash(f'League with ID {league_id} not found', 'error')
                     league_id = None  # Reset to show all matches
             
-            # FIXED: Convert match_type string to MatchType enum using from_string()
+            # Convert match_type string to MatchType enum using from_string()
             try:
                 match_type = MatchType.from_string(match_type_str)
             except ValueError as e:
@@ -48,10 +48,10 @@ def register_routes(app, get_db):
                 flash(f'Invalid match type: {match_type_str}', 'error')
                 match_type = MatchType.ALL  # Default to ALL if invalid
             
-            # FIXED: Get matches with proper parameters
+            # Get matches with proper parameters
             matches_list = db.list_matches(
-                league=league,     # ✅ Pass League object, not league_id
-                match_type=match_type  # ✅ Pass MatchType enum, not string
+                league=league,     # Pass League object, not league_id
+                match_type=match_type  # Pass MatchType enum, not string
             )
             
             # Apply filters
@@ -115,7 +115,7 @@ def register_routes(app, get_db):
         db = get_db()
         if db is None:
             return jsonify({'error': 'No database connected'}), 500
-        
+       
         try:
             data = request.get_json()
             facility_id = data.get('facility_id')
@@ -163,9 +163,265 @@ def register_routes(app, get_db):
             traceback.print_exc()
             return jsonify({'error': f'Scheduling failed: {str(e)}'}), 500
 
-    @app.route('/matches/<int:match_id>/unschedule', methods=['POST'])
-    def unschedule_match(match_id):
-        """Unschedule a match (remove facility, date, and all times)"""
+    @app.route('/matches/<int:match_id>/schedule-form')
+    def get_schedule_form(match_id):
+        """Get the schedule form for a specific match"""
+        db = get_db()
+        if db is None:
+            return "Error: No database connected", 500
+        
+        try:
+            match = db.get_match(match_id)
+            if not match:
+                return "Error: Match not found", 404
+            
+            facilities = db.list_facilities()
+            return render_template('schedule_form.html', match=match, facilities=facilities)
+            
+        except Exception as e:
+            print(f"Error loading schedule form for match {match_id}: {str(e)}")
+            return f"Error loading form: {str(e)}", 500
+
+    # ==================== BULK OPERATIONS ====================
+
+    @app.route('/api/bulk-auto-schedule', methods=['POST'])
+    def bulk_auto_schedule():
+        """Bulk auto-schedule matches based on scope using db.auto_schedule_matches"""
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connected'}), 500
+        
+        try:
+            # Get filter parameters to determine scope
+            league_id = request.args.get('league_id', type=int)
+            match_type_str = request.args.get('match_type', 'unscheduled')
+            start_date = request.args.get('start_date')
+            end_date = request.args.get('end_date')
+            search_query = request.args.get('search', '').strip()
+            
+            # Get the league object if specified
+            league = None
+            if league_id:
+                league = db.get_league(league_id)
+                if not league:
+                    return jsonify({'error': f'League with ID {league_id} not found'}), 404
+            
+            # Get unscheduled matches to determine scope
+            try:
+                match_type = MatchType.from_string('unscheduled')
+            except ValueError:
+                match_type = MatchType.UNSCHEDULED
+            
+            matches_list = db.list_matches(league=league, match_type=match_type)
+            
+            # Apply additional filters if this is a "selected" scope operation
+            if any([start_date, end_date, search_query]):
+                matches_list = filter_matches(matches_list, start_date, end_date, search_query)
+            
+            # Filter to only unscheduled matches
+            unscheduled_matches = [m for m in matches_list if not m.is_scheduled()]
+            
+            if not unscheduled_matches:
+                return jsonify({
+                    'success': True,
+                    'scheduled_count': 0,
+                    'message': 'No unscheduled matches found to schedule'
+                })
+            
+            # Use the database's auto_schedule_matches method
+            try:
+                if hasattr(db, 'auto_schedule_matches'):
+                    # Call the database's auto-scheduling method with Match objects
+                    result = db.auto_schedule_matches(matches=unscheduled_matches)
+                    
+                    if isinstance(result, dict):
+                        # Extract results from detailed response
+                        scheduled_count = result.get('scheduled_successfully', 0)
+                        failed_count = result.get('failed_to_schedule', 0)
+                        total_count = result.get('total_matches', len(unscheduled_matches))
+                        message = result.get('message', f'Auto-scheduling completed')
+                        
+                        # Build comprehensive response
+                        response_data = {
+                            'success': True,
+                            'scheduled_count': scheduled_count,
+                            'failed_count': failed_count,
+                            'total_count': total_count,
+                            'message': message
+                        }
+                        
+                        # Add details if available
+                        if 'scheduling_details' in result:
+                            response_data['details'] = result['scheduling_details']
+                        
+                        if 'failed_matches' in result:
+                            response_data['failed_matches'] = result['failed_matches']
+                        
+                        return jsonify(response_data)
+                    else:
+                        # If result is just a count or different format
+                        scheduled_count = result if isinstance(result, int) else len(unscheduled_matches)
+                        return jsonify({
+                            'success': True,
+                            'scheduled_count': scheduled_count,
+                            'total_count': len(unscheduled_matches),
+                            'message': f'Successfully scheduled {scheduled_count} matches'
+                        })
+                else:
+                    return jsonify({
+                        'error': 'Auto-scheduling functionality not available in this database backend'
+                    }), 501
+                    
+            except Exception as auto_schedule_error:
+                print(f"Auto-schedule method error: {str(auto_schedule_error)}")
+                traceback.print_exc()
+                return jsonify({
+                    'error': f'Auto-scheduling failed: {str(auto_schedule_error)}'
+                }), 500
+            
+        except Exception as e:
+            print(f"Bulk auto-schedule error: {str(e)}")
+            traceback.print_exc()
+            return jsonify({'error': f'Bulk scheduling failed: {str(e)}'}), 500
+
+
+    @app.route('/api/bulk-unschedule', methods=['POST'])
+    def bulk_unschedule():
+        """Bulk unschedule matches based on scope"""
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connected'}), 500
+        
+        try:
+            # Get filter parameters to determine scope
+            league_id = request.args.get('league_id', type=int)
+            match_type_str = request.args.get('match_type', 'scheduled')
+            start_date = request.args.get('start_date')
+            end_date = request.args.get('end_date')
+            search_query = request.args.get('search', '').strip()
+            
+            # Get the league object if specified
+            league = None
+            if league_id:
+                league = db.get_league(league_id)
+                if not league:
+                    return jsonify({'error': f'League with ID {league_id} not found'}), 404
+            
+            # Get all matches (we'll filter to scheduled ones)
+            try:
+                match_type = MatchType.from_string('all')
+            except ValueError:
+                match_type = MatchType.ALL
+            
+            matches_list = db.list_matches(league=league, match_type=match_type)
+            
+            # Apply additional filters if this is a "selected" scope operation
+            if any([start_date, end_date, search_query]):
+                matches_list = filter_matches(matches_list, start_date, end_date, search_query)
+            
+            # Filter to only scheduled matches
+            scheduled_matches = [m for m in matches_list if m.is_scheduled()]
+            
+            if not scheduled_matches:
+                return jsonify({
+                    'success': True,
+                    'unscheduled_count': 0,
+                    'message': 'No scheduled matches found to unschedule'
+                })
+            
+            unscheduled_count = 0
+            
+            for match in scheduled_matches:
+                try:
+                    match.unschedule()
+                    db.update_match(match)
+                    unscheduled_count += 1
+                    
+                except Exception as e:
+                    print(f"Error unscheduling match {match.id}: {str(e)}")
+                    continue
+            
+            return jsonify({
+                'success': True,
+                'unscheduled_count': unscheduled_count,
+                'message': f'Successfully unscheduled {unscheduled_count} matches'
+            })
+            
+        except Exception as e:
+            print(f"Bulk unschedule error: {str(e)}")
+            traceback.print_exc()
+            return jsonify({'error': f'Bulk unscheduling failed: {str(e)}'}), 500
+
+    @app.route('/api/bulk-delete', methods=['DELETE'])
+    def bulk_delete():
+        """Bulk delete unscheduled matches based on scope (safety: only unscheduled matches)"""
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connected'}), 500
+        
+        try:
+            # Get filter parameters to determine scope
+            league_id = request.args.get('league_id', type=int)
+            start_date = request.args.get('start_date')
+            end_date = request.args.get('end_date')
+            search_query = request.args.get('search', '').strip()
+            
+            # Get the league object if specified
+            league = None
+            if league_id:
+                league = db.get_league(league_id)
+                if not league:
+                    return jsonify({'error': f'League with ID {league_id} not found'}), 404
+            
+            # Get unscheduled matches only (safety measure)
+            try:
+                match_type = MatchType.from_string('unscheduled')
+            except ValueError:
+                match_type = MatchType.UNSCHEDULED
+            
+            matches_list = db.list_matches(league=league, match_type=match_type)
+            
+            # Apply additional filters if this is a "selected" scope operation
+            if any([start_date, end_date, search_query]):
+                matches_list = filter_matches(matches_list, start_date, end_date, search_query)
+            
+            # Double-check: only delete unscheduled matches for safety
+            unscheduled_matches = [m for m in matches_list if not m.is_scheduled()]
+            
+            if not unscheduled_matches:
+                return jsonify({
+                    'success': True,
+                    'deleted_count': 0,
+                    'message': 'No unscheduled matches found to delete'
+                })
+            
+            deleted_count = 0
+            
+            for match in unscheduled_matches:
+                try:
+                    db.delete_match(match.id)
+                    deleted_count += 1
+                    
+                except Exception as e:
+                    print(f"Error deleting match {match.id}: {str(e)}")
+                    continue
+            
+            return jsonify({
+                'success': True,
+                'deleted_count': deleted_count,
+                'message': f'Successfully deleted {deleted_count} unscheduled matches'
+            })
+            
+        except Exception as e:
+            print(f"Bulk delete error: {str(e)}")
+            traceback.print_exc()
+            return jsonify({'error': f'Bulk deletion failed: {str(e)}'}), 500
+
+    # ==================== INDIVIDUAL MATCH OPERATIONS ====================
+
+    @app.route('/api/matches/<int:match_id>/unschedule', methods=['POST'])
+    def unschedule_single_match(match_id):
+        """Unschedule a single match"""
         db = get_db()
         if db is None:
             return jsonify({'error': 'No database connected'}), 500
@@ -175,17 +431,15 @@ def register_routes(app, get_db):
             if not match:
                 return jsonify({'error': 'Match not found'}), 404
             
-            # Unschedule the match using the Match class method
-            match.unschedule()
+            if not match.is_scheduled():
+                return jsonify({'error': 'Match is not scheduled'}), 400
             
-            # Update in database
+            match.unschedule()
             db.update_match(match)
             
             return jsonify({
                 'success': True,
-                'message': 'Match unscheduled successfully',
-                'is_scheduled': match.is_scheduled(),
-                'status': match.get_status()
+                'message': 'Match unscheduled successfully'
             })
             
         except Exception as e:
@@ -193,102 +447,38 @@ def register_routes(app, get_db):
             traceback.print_exc()
             return jsonify({'error': f'Unscheduling failed: {str(e)}'}), 500
 
-    @app.route('/matches/auto-schedule', methods=['POST'])
-    def auto_schedule_matches():
-        """Auto-schedule matches using intelligent algorithm"""
+    @app.route('/api/matches/<int:match_id>', methods=['DELETE'])
+    def delete_single_match(match_id):
+        """Delete a single match (only if unscheduled for safety)"""
         db = get_db()
         if db is None:
             return jsonify({'error': 'No database connected'}), 500
         
         try:
-            data = request.get_json()
-            league_id = data.get('league_id')
-            facility_id = data.get('facility_id')
+            match = db.get_match(match_id)
+            if not match:
+                return jsonify({'error': 'Match not found'}), 404
             
-            # Determine scope
-            if league_id:
-                matches_to_schedule = [m for m in db.list_matches(league_id=league_id) 
-                                     if not m.is_scheduled()]
-                scope_description = f"league {league_id}"
-            elif facility_id:
-                all_matches = db.list_matches()
-                matches_to_schedule = [m for m in all_matches 
-                                     if not m.is_scheduled() and 
-                                     (not m.facility or m.facility.id == facility_id)]
-                scope_description = f"facility {facility_id}"
-            else:
-                matches_to_schedule = [m for m in db.list_matches() if not m.is_scheduled()]
-                scope_description = "all matches"
+            if match.is_scheduled():
+                return jsonify({'error': 'Cannot delete scheduled match. Unschedule first for safety.'}), 400
             
-            if not matches_to_schedule:
-                return jsonify({
-                    'success': True,
-                    'message': f'No unscheduled matches found for {scope_description}',
-                    'scheduled_count': 0,
-                    'failed_count': 0,
-                    'total_count': 0
-                })
+            db.delete_match(match_id)
             
-            initial_unscheduled_count = len(matches_to_schedule)
-            
-            # Use database auto-scheduling if available
-            if hasattr(db, 'auto_schedule_matches'):
-                scheduling_results = db.auto_schedule_matches(
-                    league_id=league_id,
-                    facility_id=facility_id
-                )
-            else:
-                # Fallback: basic scheduling logic
-                scheduled_count = 0
-                failed_count = 0
-                
-                for match in matches_to_schedule:
-                    try:
-                        # Simple auto-scheduling: use home team facility if available
-                        if match.home_team and match.home_team.home_facility:
-                            match.facility = match.home_team.home_facility
-                            match.date = "2025-07-01"  # Default date
-                            match.add_scheduled_time("09:00")
-                            db.update_match(match)
-                            scheduled_count += 1
-                        else:
-                            failed_count += 1
-                    except Exception as e:
-                        print(f"Failed to schedule match {match.id}: {e}")
-                        failed_count += 1
-                
-                scheduling_results = {
-                    'scheduled_matches': [{'match_id': m.id} for m in matches_to_schedule[:scheduled_count]],
-                    'failed_matches': [{'match_id': m.id, 'error': 'No facility available'} 
-                                     for m in matches_to_schedule[scheduled_count:]],
-                    'scheduling_details': []
-                }
-            
-            final_scheduled_count = len(scheduling_results.get('scheduled_matches', []))
-            final_failed_count = len(scheduling_results.get('failed_matches', []))
-            
-            response_data = {
+            return jsonify({
                 'success': True,
-                'message': f'Auto-scheduling completed for {scope_description}',
-                'scheduled_count': final_scheduled_count,
-                'failed_count': final_failed_count,
-                'total_count': initial_unscheduled_count
-            }
-            
-            if scheduling_results.get('failed_matches'):
-                response_data['failed_matches'] = scheduling_results['failed_matches']
-                response_data['message'] += f' ({final_failed_count} failed)'
-            
-            return jsonify(response_data)
+                'message': 'Match deleted successfully'
+            })
             
         except Exception as e:
-            print(f"Auto-schedule route error: {str(e)}")
+            print(f"Delete match error: {str(e)}")
             traceback.print_exc()
-            return jsonify({'error': f'Auto-scheduling failed: {str(e)}'}), 500
+            return jsonify({'error': f'Deletion failed: {str(e)}'}), 500
 
+
+# ==================== HELPER FUNCTIONS ====================
 
 def convert_match_to_display(match):
-    """Convert a Match object to display format using Match class methods"""
+    """Convert a Match object to display-friendly format for templates"""
     try:
         return {
             'id': match.id,
@@ -296,7 +486,7 @@ def convert_match_to_display(match):
             'visitor_team_name': match.visitor_team.name if match.visitor_team else 'Unknown',
             'home_team_captain': match.home_team.captain if match.home_team else 'Unknown',
             'visitor_team_captain': match.visitor_team.captain if match.visitor_team else 'Unknown',
-            'facility_name': match.facility.name if match.facility else 'Unscheduled',
+            'facility_name': match.facility.name if match.facility else 'No Facility Assigned',
             'facility_id': match.facility.id if match.facility else None,
             'league_name': match.league.name if match.league else 'Unknown',
             'league_id': match.league.id if match.league else None,
@@ -356,47 +546,43 @@ def filter_matches(matches_list, start_date, end_date, search_query):
     return filtered_matches
 
 
-def parse_match_date(match_date):
-    """Parse match date consistently, handling different formats"""
-    if isinstance(match_date, str):
+def parse_match_date(date_value):
+    """Parse match date to datetime.date object"""
+    if isinstance(date_value, date):
+        return date_value
+    elif isinstance(date_value, datetime):
+        return date_value.date()
+    elif isinstance(date_value, str):
         try:
-            return datetime.strptime(match_date, '%Y-%m-%d').date()
+            return datetime.strptime(date_value, '%Y-%m-%d').date()
         except ValueError:
             try:
-                return datetime.strptime(match_date, '%m/%d/%Y').date()
+                return datetime.strptime(date_value, '%m/%d/%Y').date()
             except ValueError:
                 return None
-    elif hasattr(match_date, 'date'):
-        return match_date.date()
-    else:
-        return match_date
+    return None
 
 
 def search_matches(matches_list, search_query):
-    """
-    Unified search functionality with field-specific matching
-    Supports queries like: home:lightning facility:club date:2025-01 status:scheduled
-    """
+    """Enhanced search functionality for matches with field-specific search"""
     if not search_query:
         return matches_list
     
-    # Parse field-specific search terms
+    # Parse search query for field-specific searches (e.g., "team:Smith", "facility:North")
+    search_terms = [term.strip().lower() for term in search_query.split() if term.strip()]
     field_searches = {}
     general_terms = []
     
-    # Split by spaces and look for field:value patterns
-    terms = search_query.split()
-    for term in terms:
-        if ':' in term and len(term.split(':', 1)) == 2:
+    for term in search_terms:
+        if ':' in term:
             field, value = term.split(':', 1)
-            field = field.lower().strip()
-            value = value.lower().strip()
-            if field and value:
-                if field not in field_searches:
-                    field_searches[field] = []
-                field_searches[field].append(value)
+            field = field.strip()
+            value = value.strip()
+            if field not in field_searches:
+                field_searches[field] = []
+            field_searches[field].append(value)
         else:
-            general_terms.append(term.lower().strip())
+            general_terms.append(term)
     
     filtered_matches = []
     
@@ -406,61 +592,25 @@ def search_matches(matches_list, search_query):
         # Check field-specific searches
         for field, values in field_searches.items():
             field_match = False
-            
             for value in values:
-                if field in ['home', 'home_team']:
-                    if match.home_team and value in match.home_team.name.lower():
-                        field_match = True
-                        break
-                elif field in ['visitor', 'visitor_team', 'away']:
-                    if match.visitor_team and value in match.visitor_team.name.lower():
-                        field_match = True
-                        break
-                elif field in ['team', 'teams']:
-                    home_match = match.home_team and value in match.home_team.name.lower()
-                    visitor_match = match.visitor_team and value in match.visitor_team.name.lower()
+                if field in ['team', 'teams']:
+                    # Search both home and visitor teams
+                    home_match = (match.home_team and match.home_team.name and 
+                                value in match.home_team.name.lower())
+                    visitor_match = (match.visitor_team and match.visitor_team.name and 
+                                   value in match.visitor_team.name.lower())
                     if home_match or visitor_match:
                         field_match = True
                         break
-                elif field in ['facility', 'venue']:
-                    if match.facility and value in match.facility.name.lower():
+                elif field in ['facility', 'fac']:
+                    if match.facility and match.facility.name and value in match.facility.name.lower():
                         field_match = True
                         break
-                elif field in ['league', 'lg']:
-                    if match.league and value in match.league.name.lower():
+                elif field in ['league']:
+                    if match.league and match.league.name and value in match.league.name.lower():
                         field_match = True
                         break
-                elif field in ['date', 'day']:
-                    if match.date and value in str(match.date).lower():
-                        field_match = True
-                        break
-                elif field in ['time']:
-                    if match.scheduled_times and any(value in time.lower() for time in match.scheduled_times):
-                        field_match = True
-                        break
-                elif field in ['status']:
-                    # Use Match class status method
-                    if value in match.get_status().lower():
-                        field_match = True
-                        break
-                    # Also check boolean status methods
-                    if value == 'scheduled' and match.is_scheduled():
-                        field_match = True
-                        break
-                    elif value == 'unscheduled' and match.is_unscheduled():
-                        field_match = True
-                        break
-                    elif value == 'partial' and match.is_partially_scheduled():
-                        field_match = True
-                        break
-                    elif value == 'full' and match.is_fully_scheduled():
-                        field_match = True
-                        break
-                elif field in ['id', 'match_id']:
-                    if value in str(match.id):
-                        field_match = True
-                        break
-                elif field in ['captain']:
+                elif field in ['captain', 'cap']:
                     home_captain_match = (match.home_team and match.home_team.captain and 
                                         value in match.home_team.captain.lower())
                     visitor_captain_match = (match.visitor_team and match.visitor_team.captain and 

@@ -1,0 +1,484 @@
+<!-- schedule_form.html - Dynamic form loaded into scheduling modal -->
+<div class="modal-header">
+    <h5 class="modal-title">
+        {% if match.is_scheduled() %}
+        <i class="fas fa-edit"></i> Reschedule Match #{{ match.id }}
+        {% else %}
+        <i class="fas fa-calendar-plus"></i> Schedule Match #{{ match.id }}
+        {% endif %}
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+<div class="modal-body">
+    <!-- Match Information -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-info-circle"></i> Match Details</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-2">
+                        <strong>Teams:</strong><br>
+                        <span class="text-primary">{{ match.home_team.name if match.home_team else 'TBD' }}</span>
+                        <small class="text-muted"> vs </small>
+                        <span class="text-info">{{ match.visitor_team.name if match.visitor_team else 'TBD' }}</span>
+                    </p>
+                    <p class="mb-2">
+                        <strong>League:</strong> 
+                        <span class="badge bg-info">{{ match.league.name if match.league else 'Unknown' }}</span>
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <p class="mb-2">
+                        <strong>Expected Lines:</strong> {{ match.get_expected_lines() }}
+                    </p>
+                    <p class="mb-2">
+                        <strong>Current Status:</strong> 
+                        {% if match.is_fully_scheduled() %}
+                        <span class="badge bg-success">Fully Scheduled</span>
+                        {% elif match.is_partially_scheduled() %}
+                        <span class="badge bg-warning">Partially Scheduled</span>
+                        {% else %}
+                        <span class="badge bg-danger">Unscheduled</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            
+            {% if match.is_scheduled() %}
+            <div class="alert alert-info mt-3">
+                <strong>Current Schedule:</strong><br>
+                <i class="fas fa-map-marker-alt"></i> 
+                {{ match.facility.name if match.facility else 'No facility' }}<br>
+                <i class="fas fa-calendar"></i> 
+                {{ match.date if match.date else 'No date' }}<br>
+                <i class="fas fa-clock"></i> 
+                {% if match.scheduled_times %}
+                {{ match.scheduled_times | join(', ') }}
+                {% else %}
+                No times scheduled
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Scheduling Form -->
+    <form id="scheduleForm">
+        <div class="row g-3">
+            <!-- Facility Selection -->
+            <div class="col-12">
+                <label for="facility_id" class="form-label">
+                    <i class="fas fa-map-marker-alt"></i> Facility <span class="text-danger">*</span>
+                </label>
+                <select class="form-select" id="facility_id" name="facility_id" required>
+                    <option value="">Choose a facility...</option>
+                    {% for facility in facilities %}
+                    <option value="{{ facility.id }}" 
+                            {% if match.facility and match.facility.id == facility.id %}selected{% endif %}>
+                        {{ facility.name }}
+                        {% if facility.location %} - {{ facility.location }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Select the facility where this match will be played.</div>
+            </div>
+
+            <!-- Date Selection -->
+            <div class="col-md-6">
+                <label for="match_date" class="form-label">
+                    <i class="fas fa-calendar"></i> Date <span class="text-danger">*</span>
+                </label>
+                <input type="date" class="form-control" id="match_date" name="date" 
+                       value="{{ match.date if match.date else '' }}" required>
+                <div class="form-text">Choose the date for this match.</div>
+            </div>
+
+            <!-- Number of Lines -->
+            <div class="col-md-6">
+                <label for="num_lines" class="form-label">
+                    <i class="fas fa-list-ol"></i> Number of Lines
+                </label>
+                <select class="form-select" id="num_lines" name="num_lines">
+                    {% for i in range(1, 6) %}
+                    <option value="{{ i }}" 
+                            {% if i == match.get_expected_lines() %}selected{% endif %}>
+                        {{ i }} line{{ 's' if i != 1 else '' }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Expected: {{ match.get_expected_lines() }} lines for this match type.</div>
+            </div>
+
+            <!-- Time Scheduling Options -->
+            <div class="col-12">
+                <label class="form-label">
+                    <i class="fas fa-clock"></i> Time Scheduling
+                </label>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="time_option" 
+                                   id="time_option_auto" value="auto" checked>
+                            <label class="form-check-label" for="time_option_auto">
+                                <strong>Auto-assign times</strong> - System will assign appropriate time slots
+                            </label>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="time_option" 
+                                   id="time_option_same" value="same">
+                            <label class="form-check-label" for="time_option_same">
+                                <strong>All lines at same time</strong> - All lines start simultaneously
+                            </label>
+                            <div class="mt-2" id="same_time_input" style="display: none;">
+                                <input type="time" class="form-control form-control-sm" 
+                                       id="same_time" name="same_time" value="09:00">
+                            </div>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="time_option" 
+                                   id="time_option_custom" value="custom">
+                            <label class="form-check-label" for="time_option_custom">
+                                <strong>Custom times</strong> - Specify individual start times
+                            </label>
+                        </div>
+                        
+                        <!-- Custom Times Section -->
+                        <div id="custom_times_section" style="display: none;">
+                            <div class="row g-2" id="time_inputs">
+                                <!-- Time inputs will be generated dynamically -->
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary mt-2" 
+                                    onclick="addTimeSlot()">
+                                <i class="fas fa-plus"></i> Add Time Slot
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Times Display (for rescheduling) -->
+            {% if match.scheduled_times %}
+            <div class="col-12">
+                <label class="form-label">Current Scheduled Times</label>
+                <div class="alert alert-secondary">
+                    {% for time in match.scheduled_times %}
+                    <span class="badge bg-primary me-1">{{ time }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Additional Options -->
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-cog"></i> Additional Options
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="notify_captains" 
+                                   name="notify_captains" checked>
+                            <label class="form-check-label" for="notify_captains">
+                                Notify team captains of schedule changes
+                            </label>
+                        </div>
+                        
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="check_conflicts" 
+                                   name="check_conflicts" checked>
+                            <label class="form-check-label" for="check_conflicts">
+                                Check for scheduling conflicts
+                            </label>
+                        </div>
+                        
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="partial_schedule" 
+                                   name="partial_schedule">
+                            <label class="form-check-label" for="partial_schedule">
+                                Allow partial scheduling (facility and date without times)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes Section -->
+            <div class="col-12">
+                <label for="schedule_notes" class="form-label">
+                    <i class="fas fa-sticky-note"></i> Scheduling Notes (Optional)
+                </label>
+                <textarea class="form-control" id="schedule_notes" name="notes" rows="2" 
+                          placeholder="Any special notes about this match scheduling..."></textarea>
+            </div>
+        </div>
+    </form>
+
+    <!-- Validation Messages -->
+    <div id="validation_messages" class="mt-3" style="display: none;">
+        <!-- Validation feedback will appear here -->
+    </div>
+</div>
+
+<div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+        <i class="fas fa-times"></i> Cancel
+    </button>
+    
+    {% if match.is_scheduled() %}
+    <button type="button" class="btn btn-warning" onclick="clearSchedule()">
+        <i class="fas fa-calendar-times"></i> Clear Schedule
+    </button>
+    {% endif %}
+    
+    <button type="button" class="btn btn-success" onclick="submitSchedule()">
+        <i class="fas fa-save"></i> 
+        {% if match.is_scheduled() %}Update Schedule{% else %}Schedule Match{% endif %}
+    </button>
+</div>
+
+<script>
+// Time option change handlers
+document.addEventListener('DOMContentLoaded', function() {
+    const timeOptions = document.querySelectorAll('input[name="time_option"]');
+    const sameTimeInput = document.getElementById('same_time_input');
+    const customTimesSection = document.getElementById('custom_times_section');
+    const numLinesSelect = document.getElementById('num_lines');
+    
+    // Handle time option changes
+    timeOptions.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'same') {
+                sameTimeInput.style.display = 'block';
+                customTimesSection.style.display = 'none';
+            } else if (this.value === 'custom') {
+                sameTimeInput.style.display = 'none';
+                customTimesSection.style.display = 'block';
+                generateTimeInputs();
+            } else {
+                sameTimeInput.style.display = 'none';
+                customTimesSection.style.display = 'none';
+            }
+        });
+    });
+    
+    // Handle number of lines change
+    numLinesSelect.addEventListener('change', function() {
+        if (document.getElementById('time_option_custom').checked) {
+            generateTimeInputs();
+        }
+    });
+    
+    // Initialize with current scheduled times if rescheduling
+    {% if match.scheduled_times %}
+    document.getElementById('time_option_custom').checked = true;
+    customTimesSection.style.display = 'block';
+    generateTimeInputs();
+    
+    // Pre-populate with existing times
+    const existingTimes = {{ match.scheduled_times | tojson }};
+    existingTimes.forEach((time, index) => {
+        const input = document.getElementById(`time_${index + 1}`);
+        if (input) {
+            input.value = time;
+        }
+    });
+    {% endif %}
+});
+
+function generateTimeInputs() {
+    const numLines = parseInt(document.getElementById('num_lines').value);
+    const timeInputsContainer = document.getElementById('time_inputs');
+    timeInputsContainer.innerHTML = '';
+    
+    for (let i = 1; i <= numLines; i++) {
+        const col = document.createElement('div');
+        col.className = 'col-md-6 col-lg-4';
+        
+        const label = document.createElement('label');
+        label.className = 'form-label';
+        label.htmlFor = `time_${i}`;
+        label.innerHTML = `<i class="fas fa-clock"></i> Line ${i} Time`;
+        
+        const input = document.createElement('input');
+        input.type = 'time';
+        input.className = 'form-control';
+        input.id = `time_${i}`;
+        input.name = `time_${i}`;
+        
+        // Set default times (staggered by 30 minutes)
+        const hour = 9 + Math.floor((i - 1) * 0.5);
+        const minute = ((i - 1) % 2) * 30;
+        input.value = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        
+        col.appendChild(label);
+        col.appendChild(input);
+        timeInputsContainer.appendChild(col);
+    }
+}
+
+function addTimeSlot() {
+    const timeInputsContainer = document.getElementById('time_inputs');
+    const currentSlots = timeInputsContainer.children.length;
+    const newSlotNum = currentSlots + 1;
+    
+    const col = document.createElement('div');
+    col.className = 'col-md-6 col-lg-4';
+    
+    const label = document.createElement('label');
+    label.className = 'form-label';
+    label.htmlFor = `time_${newSlotNum}`;
+    label.innerHTML = `<i class="fas fa-clock"></i> Line ${newSlotNum} Time`;
+    
+    const inputGroup = document.createElement('div');
+    inputGroup.className = 'input-group';
+    
+    const input = document.createElement('input');
+    input.type = 'time';
+    input.className = 'form-control';
+    input.id = `time_${newSlotNum}`;
+    input.name = `time_${newSlotNum}`;
+    
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn btn-outline-danger';
+    removeBtn.innerHTML = '<i class="fas fa-trash"></i>';
+    removeBtn.onclick = function() {
+        col.remove();
+    };
+    
+    inputGroup.appendChild(input);
+    inputGroup.appendChild(removeBtn);
+    col.appendChild(label);
+    col.appendChild(inputGroup);
+    timeInputsContainer.appendChild(col);
+}
+
+function submitSchedule() {
+    const form = document.getElementById('scheduleForm');
+    const formData = new FormData(form);
+    
+    // Collect times based on selected option
+    const timeOption = document.querySelector('input[name="time_option"]:checked').value;
+    const times = [];
+    
+    if (timeOption === 'auto') {
+        // Let the backend assign times automatically
+        // times array remains empty
+    } else if (timeOption === 'same') {
+        const sameTime = document.getElementById('same_time').value;
+        const numLines = parseInt(document.getElementById('num_lines').value);
+        for (let i = 0; i < numLines; i++) {
+            times.push(sameTime);
+        }
+    } else if (timeOption === 'custom') {
+        // Collect all custom time inputs
+        const timeInputs = document.querySelectorAll('#time_inputs input[type="time"]');
+        timeInputs.forEach(input => {
+            if (input.value) {
+                times.push(input.value);
+            }
+        });
+    }
+    
+    // Validate required fields
+    const facilityId = formData.get('facility_id');
+    const date = formData.get('date');
+    
+    if (!facilityId) {
+        showValidationError('Please select a facility.');
+        return;
+    }
+    
+    if (!date) {
+        showValidationError('Please select a date.');
+        return;
+    }
+    
+    // Prepare data for submission
+    const scheduleData = {
+        facility_id: parseInt(facilityId),
+        date: date,
+        times: times,
+        notify_captains: formData.get('notify_captains') === 'on',
+        check_conflicts: formData.get('check_conflicts') === 'on',
+        partial_schedule: formData.get('partial_schedule') === 'on',
+        notes: formData.get('notes') || ''
+    };
+    
+    // Submit the schedule
+    const submitBtn = document.querySelector('.modal-footer .btn-success');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scheduling...';
+    
+    fetch(`/matches/{{ match.id }}/schedule`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(scheduleData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Match scheduled successfully!');
+            window.location.reload();
+        } else {
+            showValidationError(data.error || 'Scheduling failed');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showValidationError('Error scheduling match');
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-save"></i> {% if match.is_scheduled() %}Update Schedule{% else %}Schedule Match{% endif %}';
+    });
+}
+
+function clearSchedule() {
+    if (!confirm('Are you sure you want to clear the current schedule for this match?')) {
+        return;
+    }
+    
+    fetch(`/api/matches/{{ match.id }}/unschedule`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Match schedule cleared successfully!');
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error clearing schedule');
+    });
+}
+
+function showValidationError(message) {
+    const messagesDiv = document.getElementById('validation_messages');
+    messagesDiv.innerHTML = `
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i> ${message}
+        </div>
+    `;
+    messagesDiv.style.display = 'block';
+    
+    // Scroll to the error message
+    messagesDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+</script>
