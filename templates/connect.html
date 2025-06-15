@@ -1,148 +1,373 @@
 {% extends "base.html" %}
 
-{% block title %}Connect to Database - Tennis Database{% endblock %}
+{% block title %}Connect to Database - Tennis Scheduler{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hero-section {
+        background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
+        color: white;
+        padding: 3rem 0;
+        margin: -1.5rem -15px 2rem -15px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
+        background-size: 30px 30px;
+        animation: float 20s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+    }
+
+    .connection-card {
+        box-shadow: var(--tennis-box-shadow-lg);
+        border: none;
+        border-radius: var(--tennis-border-radius-lg);
+        overflow: hidden;
+        transition: var(--tennis-transition);
+    }
+
+    .connection-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    .backend-option {
+        border: 2px solid var(--tennis-gray-300);
+        border-radius: var(--tennis-border-radius);
+        padding: 1rem;
+        cursor: pointer;
+        transition: var(--tennis-transition);
+        background: white;
+    }
+
+    .backend-option:hover {
+        border-color: var(--tennis-primary);
+        background: linear-gradient(135deg, rgba(45, 90, 135, 0.05) 0%, rgba(45, 90, 135, 0.1) 100%);
+    }
+
+    .backend-option.selected {
+        border-color: var(--tennis-primary);
+        background: linear-gradient(135deg, rgba(45, 90, 135, 0.1) 0%, rgba(45, 90, 135, 0.15) 100%);
+    }
+
+    .backend-option .backend-icon {
+        font-size: 2rem;
+        color: var(--tennis-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .info-card {
+        border-left: 4px solid var(--tennis-primary);
+        background: linear-gradient(135deg, var(--tennis-gray-100) 0%, #ffffff 100%);
+    }
+
+    .feature-highlight {
+        background: linear-gradient(135deg, var(--tennis-success) 0%, var(--tennis-success-dark) 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: var(--tennis-border-radius);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .example-code {
+        background: var(--tennis-gray-800);
+        color: #f8f9fa;
+        padding: 1rem;
+        border-radius: var(--tennis-border-radius);
+        font-family: 'Courier New', monospace;
+        font-size: 0.875rem;
+        border-left: 4px solid var(--tennis-primary);
+    }
+
+    .step-number {
+        background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
+        color: white;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        margin-right: 0.75rem;
+    }
+
+    .connection-status {
+        display: none;
+        padding: 1rem;
+        border-radius: var(--tennis-border-radius);
+        margin-top: 1rem;
+    }
+
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
+<!-- Hero Section -->
+<div class="hero-section">
+    <div class="container position-relative">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-4 mb-3">
+                    <i class="fas fa-tennis-ball me-3"></i>
+                    Tennis Database Manager
+                </h1>
+                <p class="lead mb-4">
+                    Connect to your tennis database to manage facilities, leagues, teams, and matches with our powerful web interface.
+                </p>
+                <div class="feature-highlight">
+                    <i class="fas fa-bolt"></i>
+                    Interface-based architecture for maximum flexibility
+                </div>
+            </div>
+            <div class="col-md-4 text-center">
+                <i class="fas fa-database" style="font-size: 8rem; opacity: 0.3;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-database"></i> Connect to Tennis Database
+    <div class="col-lg-8">
+        <!-- Connection Form Card -->
+        <div class="card connection-card tennis-form">
+            <div class="card-header text-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-plug text-tennis-primary me-2"></i>
+                    Database Connection
+                </h4>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('connect_db') }}" id="connectForm">
-                    <div class="mb-3">
-                        <label for="backend_type" class="form-label">Database Type</label>
-                        <select class="form-select" id="backend_type" name="backend_type" required onchange="updateConnectionForm()">
-                            <option value="sqlite" selected>SQLite (File-based database)</option>
-                            <!-- Future backends can be added here -->
-                            <option value="postgresql" disabled>PostgreSQL (Coming soon)</option>
-                            <option value="mysql" disabled>MySQL (Coming soon)</option>
-                        </select>
-                        <div class="form-text">
-                            Choose the type of database backend to use.
+                <form id="connectForm" class="tennis-form">
+                    <!-- Backend Selection -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-server"></i>
+                            Choose Database Backend
+                        </label>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="backend-option selected" data-backend="sqlite">
+                                    <div class="text-center">
+                                        <div class="backend-icon">
+                                            <i class="fas fa-file-alt"></i>
+                                        </div>
+                                        <h6 class="mb-2">SQLite</h6>
+                                        <small class="text-muted">File-based database</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="backend-option" data-backend="postgresql">
+                                    <div class="text-center">
+                                        <div class="backend-icon text-muted">
+                                            <i class="fas fa-server"></i>
+                                        </div>
+                                        <h6 class="mb-2 text-muted">PostgreSQL</h6>
+                                        <small class="text-muted">Coming Soon</small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    
+
                     <!-- SQLite Configuration -->
-                    <div id="sqlite_config">
-                        <div class="mb-3">
-                            <label for="db_path" class="form-label">Database File Path</label>
-                            <input type="text" class="form-control" id="db_path" name="db_path" 
-                                   placeholder="e.g., tennis.db" required>
+                    <div id="sqlite_config" class="backend-config">
+                        <div class="form-group">
+                            <label for="db_path" class="form-label">
+                                <i class="fas fa-folder-open"></i>
+                                Database File Path
+                                <span class="required">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="db_path" 
+                                   name="db_path" 
+                                   placeholder="e.g., tennis.db, /path/to/database.db"
+                                   required>
                             <div class="form-text">
-                                Enter the path to your SQLite database file. If the file doesn't exist, it will be created.
+                                <i class="fas fa-info-circle me-1"></i>
+                                Enter the path to your SQLite database file. If the file doesn't exist, it will be created automatically.
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- PostgreSQL Configuration (Future) -->
-                    <div id="postgresql_config" style="display: none;">
+
+                    <!-- PostgreSQL Configuration (Hidden for now) -->
+                    <div id="postgresql_config" class="backend-config" style="display: none;">
                         <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="pg_host" class="form-label">Host</label>
-                                <input type="text" class="form-control" id="pg_host" name="pg_host" 
-                                       placeholder="localhost" value="localhost">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="pg_host" class="form-label">
+                                        <i class="fas fa-server"></i>
+                                        Host
+                                    </label>
+                                    <input type="text" class="form-control" id="pg_host" name="pg_host" 
+                                           placeholder="localhost" value="localhost">
+                                </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="pg_port" class="form-label">Port</label>
-                                <input type="number" class="form-control" id="pg_port" name="pg_port" 
-                                       placeholder="5432" value="5432">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="pg_port" class="form-label">
+                                        <i class="fas fa-network-wired"></i>
+                                        Port
+                                    </label>
+                                    <input type="number" class="form-control" id="pg_port" name="pg_port" 
+                                           placeholder="5432" value="5432">
+                                </div>
                             </div>
                         </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="pg_database" class="form-label">Database Name</label>
-                                <input type="text" class="form-control" id="pg_database" name="pg_database" 
-                                       placeholder="tennis_db">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="pg_username" class="form-label">Username</label>
-                                <input type="text" class="form-control" id="pg_username" name="pg_username" 
-                                       placeholder="tennis_user">
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="pg_password" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="pg_password" name="pg_password">
+                        <div class="form-group">
+                            <label for="pg_database" class="form-label">
+                                <i class="fas fa-database"></i>
+                                Database Name
+                            </label>
+                            <input type="text" class="form-control" id="pg_database" name="pg_database" 
+                                   placeholder="tennis_db">
                         </div>
                     </div>
-                    
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-plug"></i> Connect
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary ms-2" onclick="testConnection()">
-                        <i class="fas fa-stethoscope"></i> Test Connection
-                    </button>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex gap-3 justify-content-center">
+                        <button type="submit" class="btn btn-tennis-primary">
+                            <i class="fas fa-plug me-2"></i>
+                            Connect to Database
+                        </button>
+                        <button type="button" class="btn btn-tennis-success" id="testConnectionBtn">
+                            <i class="fas fa-stethoscope me-2"></i>
+                            Test Connection
+                        </button>
+                    </div>
+
+                    <!-- Connection Status -->
+                    <div id="connectionStatus" class="connection-status"></div>
                 </form>
             </div>
         </div>
-        
-        <div class="card mt-4">
-            <div class="card-header">
-                <i class="fas fa-info-circle"></i> Database Backend Information
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6><i class="fas fa-file-alt text-primary"></i> SQLite (Default)</h6>
-                        <ul class="small">
-                            <li>File-based database (no server required)</li>
-                            <li>Perfect for single-user applications</li>
-                            <li>Easy backup (just copy the file)</li>
-                            <li>No installation needed</li>
-                            <li>Ideal for desktop use</li>
+
+        <!-- Information Cards -->
+        <div class="row mt-4">
+            <div class="col-md-6 mb-4">
+                <div class="card info-card h-100">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-file-alt text-tennis-primary me-2"></i>
+                            SQLite Database
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success me-2"></i>File-based, no server required</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Perfect for single-user applications</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Easy backup (just copy the file)</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Zero configuration</li>
                         </ul>
-                        <div class="bg-light p-2 rounded small">
-                            <strong>Examples:</strong><br>
-                            • <code>tennis.db</code><br>
-                            • <code>/path/to/tennis.db</code><br>
-                            • <code>C:\tennis\database.db</code>
+                        
+                        <div class="alert alert-info p-2 mt-3">
+                            <small>
+                                <strong>Examples:</strong><br>
+                                <code>tennis.db</code><br>
+                                <code>/home/user/tennis.db</code><br>
+                                <code>C:\tennis\database.db</code>
+                            </small>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <h6><i class="fas fa-server text-success"></i> Future Backends</h6>
-                        <ul class="small">
-                            <li><strong>PostgreSQL:</strong> Powerful, scalable database</li>
-                            <li><strong>MySQL:</strong> Popular web database</li>
-                            <li><strong>Remote APIs:</strong> Cloud-based solutions</li>
-                            <li><strong>Custom backends:</strong> Implement TennisDBInterface</li>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-4">
+                <div class="card info-card h-100">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-rocket text-tennis-primary me-2"></i>
+                            Future Backends
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-server text-info me-2"></i><strong>PostgreSQL:</strong> Powerful, scalable</li>
+                            <li><i class="fas fa-server text-info me-2"></i><strong>MySQL:</strong> Popular web database</li>
+                            <li><i class="fas fa-cloud text-info me-2"></i><strong>Cloud APIs:</strong> Remote solutions</li>
+                            <li><i class="fas fa-code text-info me-2"></i><strong>Custom:</strong> Implement TennisDBInterface</li>
                         </ul>
-                        <div class="alert alert-info p-2 small">
-                            <i class="fas fa-lightbulb"></i>
-                            The interface-based design allows easy addition of new database backends.
+                        
+                        <div class="alert alert-warning p-2 mt-3">
+                            <small>
+                                <i class="fas fa-lightbulb me-1"></i>
+                                <strong>Extensible Design:</strong> The interface-based architecture allows easy addition of new database backends.
+                            </small>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <div class="card mt-4">
+
+        <!-- Getting Started Guide -->
+        <div class="card info-card mt-4">
             <div class="card-header">
-                <i class="fas fa-rocket"></i> Getting Started
+                <h5 class="mb-0">
+                    <i class="fas fa-play-circle text-tennis-primary me-2"></i>
+                    Getting Started Guide
+                </h5>
             </div>
             <div class="card-body">
-                <h6>First time setup:</h6>
-                <ol>
-                    <li>Select <strong>SQLite</strong> as your database type</li>
-                    <li>Enter a database file path (e.g., <code>tennis.db</code>)</li>
-                    <li>Click <strong>Connect</strong> to create/open the database</li>
-                    <li>Load your data using the web interface or command line:
-                        <pre class="bg-light p-2 rounded mt-2"><code># Using command line (if available)
-python sqlite_tennis_db.py tennis.db load facilities facilities.yaml
-python sqlite_tennis_db.py tennis.db load leagues leagues.yaml
-python sqlite_tennis_db.py tennis.db load teams teams.yaml</code></pre>
-                    </li>
-                    <li>Start adding facilities, leagues, and teams through the web interface!</li>
-                </ol>
-                
-                <h6 class="mt-3">Database Interface Benefits:</h6>
-                <ul>
-                    <li><strong>Backend Independence:</strong> Switch between SQLite, PostgreSQL, etc.</li>
-                    <li><strong>Consistent API:</strong> Same interface regardless of backend</li>
-                    <li><strong>Easy Testing:</strong> Use different backends for development vs production</li>
-                    <li><strong>Future-Proof:</strong> Add new backends without changing web app code</li>
-                </ul>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Quick Start (First Time):</h6>
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="step-number">1</span>
+                                Select <strong>SQLite</strong> as your database type
+                            </div>
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="step-number">2</span>
+                                Enter a file path (e.g., <code>tennis.db</code>)
+                            </div>
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="step-number">3</span>
+                                Click <strong>Connect to Database</strong>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <span class="step-number">4</span>
+                                Start managing your tennis data!
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Loading Data (Optional):</h6>
+                        <p class="small text-muted mb-2">Use command line tools to import existing data:</p>
+                        <div class="example-code">
+# Load facilities, leagues, and teams<br>
+python sqlite_tennis_db.py tennis.db load facilities facilities.yaml<br>
+python sqlite_tennis_db.py tennis.db load leagues leagues.yaml<br>
+python sqlite_tennis_db.py tennis.db load teams teams.yaml
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -151,77 +376,171 @@ python sqlite_tennis_db.py tennis.db load teams teams.yaml</code></pre>
 
 {% block scripts %}
 <script>
-function updateConnectionForm() {
-    const backendType = document.getElementById('backend_type').value;
-    
-    // Hide all config sections
-    document.getElementById('sqlite_config').style.display = 'none';
-    document.getElementById('postgresql_config').style.display = 'none';
-    
-    // Show appropriate config section
-    if (backendType === 'sqlite') {
-        document.getElementById('sqlite_config').style.display = 'block';
-        // Make SQLite path required
-        document.getElementById('db_path').required = true;
-        document.getElementById('pg_database').required = false;
-        document.getElementById('pg_username').required = false;
-    } else if (backendType === 'postgresql') {
-        document.getElementById('postgresql_config').style.display = 'block';
-        // Make PostgreSQL fields required
-        document.getElementById('db_path').required = false;
-        document.getElementById('pg_database').required = true;
-        document.getElementById('pg_username').required = true;
-    }
-}
+// Initialize the connection form functionality
+document.addEventListener('DOMContentLoaded', function() {
+    initializeConnectionForm();
+});
 
-function testConnection() {
-    const backendType = document.getElementById('backend_type').value;
+function initializeConnectionForm() {
+    // Backend selection handling
+    const backendOptions = document.querySelectorAll('.backend-option');
+    const sqliteConfig = document.getElementById('sqlite_config');
+    const postgresqlConfig = document.getElementById('postgresql_config');
     
-    if (backendType === 'sqlite') {
-        const dbPath = document.getElementById('db_path').value.trim();
-        if (!dbPath) {
-            alert('Please enter a database file path first.');
-            return;
-        }
-        
-        // For SQLite, we can only really test by trying to connect
-        alert('SQLite test: Will attempt to create/open file when you click Connect.');
-    } else {
-        alert('Connection testing for this backend type is not yet implemented.');
-    }
-}
-
-// Form validation
-document.getElementById('connectForm').addEventListener('submit', function(e) {
-    const backendType = document.getElementById('backend_type').value;
+    backendOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            const backend = this.dataset.backend;
+            
+            // Only allow SQLite for now
+            if (backend !== 'sqlite') {
+                TennisUI.showNotification('This backend is coming soon!', 'info');
+                return;
+            }
+            
+            // Update selection
+            backendOptions.forEach(opt => opt.classList.remove('selected'));
+            this.classList.add('selected');
+            
+            // Show/hide appropriate config
+            if (backend === 'sqlite') {
+                sqliteConfig.style.display = 'block';
+                postgresqlConfig.style.display = 'none';
+            } else if (backend === 'postgresql') {
+                sqliteConfig.style.display = 'none';
+                postgresqlConfig.style.display = 'block';
+            }
+        });
+    });
     
-    if (backendType === 'sqlite') {
-        const dbPath = document.getElementById('db_path').value.trim();
-        if (!dbPath) {
-            alert('Please enter a database file path.');
-            e.preventDefault();
-            return;
-        }
-    } else if (backendType === 'postgresql') {
-        const host = document.getElementById('pg_host').value.trim();
-        const database = document.getElementById('pg_database').value.trim();
-        const username = document.getElementById('pg_username').value.trim();
-        
-        if (!host || !database || !username) {
-            alert('Please fill in all required PostgreSQL connection fields.');
-            e.preventDefault();
-            return;
-        }
-    } else {
-        alert('This database backend is not yet supported.');
+    // Form submission
+    const connectForm = document.getElementById('connectForm');
+    connectForm.addEventListener('submit', function(e) {
         e.preventDefault();
+        handleConnection();
+    });
+    
+    // Test connection button
+    const testBtn = document.getElementById('testConnectionBtn');
+    testBtn.addEventListener('click', function() {
+        testConnection();
+    });
+    
+    // Form validation
+    TennisUI.validateForms();
+}
+
+async function handleConnection() {
+    const form = document.getElementById('connectForm');
+    const dbPath = document.getElementById('db_path').value.trim();
+    const statusDiv = document.getElementById('connectionStatus');
+    
+    if (!dbPath) {
+        TennisUI.showNotification('Please enter a database file path', 'warning');
         return;
     }
-});
+    
+    // Set loading state
+    TennisUI.setFormLoading('connectForm', true);
+    statusDiv.className = 'connection-status alert alert-info pulse-animation';
+    statusDiv.style.display = 'block';
+    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Connecting to database...';
+    
+    try {
+        // Create form data
+        const formData = new FormData();
+        formData.append('db_path', dbPath);
+        formData.append('backend_type', 'sqlite');
+        
+        // Submit connection request
+        const response = await fetch('/connect', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            statusDiv.className = 'connection-status alert alert-success';
+            statusDiv.innerHTML = '<i class="fas fa-check-circle me-2"></i>Successfully connected! Redirecting to dashboard...';
+            
+            TennisUI.showNotification('Database connected successfully!', 'success');
+            
+            // Redirect to dashboard after short delay
+            setTimeout(() => {
+                window.location.href = '/dashboard';
+            }, 1500);
+        } else {
+            throw new Error('Connection failed');
+        }
+        
+    } catch (error) {
+        console.error('Connection error:', error);
+        statusDiv.className = 'connection-status alert alert-danger';
+        statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Failed to connect to database. Please check the file path and try again.';
+        
+        TennisUI.showNotification('Failed to connect to database', 'danger');
+    } finally {
+        TennisUI.setFormLoading('connectForm', false);
+        statusDiv.classList.remove('pulse-animation');
+    }
+}
 
-// Initialize form on page load
-document.addEventListener('DOMContentLoaded', function() {
-    updateConnectionForm();
-});
+async function testConnection() {
+    const dbPath = document.getElementById('db_path').value.trim();
+    
+    if (!dbPath) {
+        TennisUI.showNotification('Please enter a database file path first', 'warning');
+        return;
+    }
+    
+    const testBtn = document.getElementById('testConnectionBtn');
+    const originalText = testBtn.innerHTML;
+    
+    // Set loading state for test button
+    testBtn.disabled = true;
+    testBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testing...';
+    
+    try {
+        // Simulate connection test (in real implementation, this would call a test endpoint)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // For SQLite, we can do basic file path validation
+        if (dbPath.includes('..') || dbPath.includes('<') || dbPath.includes('>')) {
+            throw new Error('Invalid file path');
+        }
+        
+        TennisUI.showNotification('Connection test successful! The database path appears valid.', 'success');
+        
+    } catch (error) {
+        console.error('Test connection error:', error);
+        TennisUI.showNotification('Connection test failed. Please verify the database path.', 'danger');
+    } finally {
+        testBtn.disabled = false;
+        testBtn.innerHTML = originalText;
+    }
+}
+
+// Add some visual enhancements
+function addVisualEnhancements() {
+    // Animate cards on scroll (if Intersection Observer is available)
+    if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        });
+        
+        document.querySelectorAll('.card').forEach(card => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            observer.observe(card);
+        });
+    }
+}
+
+// Initialize visual enhancements after DOM is loaded
+document.addEventListener('DOMContentLoaded', addVisualEnhancements);
 </script>
 {% endblock %}

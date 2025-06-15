@@ -43,6 +43,54 @@
 }
 
 /* ==========================================================================
+   Navigation Override - Ensure Light Background
+   ========================================================================== */
+.tennis-navbar {
+    background: linear-gradient(135deg, var(--tennis-gray-100) 0%, #ffffff 100%) !important;
+    box-shadow: var(--tennis-box-shadow);
+    border-bottom: 1px solid var(--tennis-gray-300);
+}
+
+.tennis-navbar .navbar-brand,
+.tennis-navbar .navbar-nav .nav-link {
+    color: var(--tennis-gray-800) !important;
+    font-weight: 500;
+    transition: var(--tennis-transition);
+}
+
+.tennis-navbar .navbar-nav .nav-link:hover {
+    color: var(--tennis-primary) !important;
+    transform: translateY(-1px);
+}
+
+.tennis-navbar .navbar-brand:hover {
+    color: var(--tennis-gray-800) !important;
+    transform: scale(1.02);
+}
+
+.tennis-navbar .navbar-toggler {
+    border-color: var(--tennis-gray-300);
+    border-radius: var(--tennis-border-radius);
+}
+
+.tennis-navbar .dropdown-menu {
+    border: none;
+    box-shadow: var(--tennis-box-shadow-lg);
+    border-radius: var(--tennis-border-radius);
+}
+
+.tennis-navbar .dropdown-item {
+    color: var(--tennis-gray-800);
+    transition: var(--tennis-transition);
+}
+
+.tennis-navbar .dropdown-item:hover {
+    background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
+    color: white;
+    transform: translateX(2px);
+}
+
+/* ==========================================================================
    Base Modal Styling
    ========================================================================== */
 .tennis-modal .modal-header {

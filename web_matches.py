@@ -234,8 +234,8 @@ def register_routes(app, get_db):
             return jsonify({'error': f'Deletion failed: {str(e)}'}), 500
 
 
-# ==================== Bulk Operations ====================
-
+    # ==================== Bulk Operations ====================
+    
     @app.route('/api/bulk-auto-schedule', methods=['POST'])
     def bulk_auto_schedule():
         """Bulk auto-schedule matches using db.auto_schedule_matches"""
@@ -251,22 +251,20 @@ def register_routes(app, get_db):
             
             print(f"Bulk auto-schedule scope: {scope}, league_id: {league_id}")
             
-            # Determine which matches to schedule
+            # Determine which matches to schedule - use MatchType.UNSCHEDULED directly
             matches_to_schedule = []
             
             if scope == 'all':
-                # All unscheduled matches
-                all_matches = db.list_matches(match_type=MatchType.ALL)
-                matches_to_schedule = [m for m in all_matches if not m.is_scheduled()]
+                # All unscheduled matches - use MatchType.UNSCHEDULED directly
+                matches_to_schedule = db.list_matches(match_type=MatchType.UNSCHEDULED)
                 
             elif scope == 'league' and league_id:
-                # Specific league only
+                # Specific league only - get unscheduled matches for that league
                 league = db.get_league(league_id)
                 if not league:
                     return jsonify({'error': f'League {league_id} not found'}), 400
                 
-                league_matches = db.list_matches(league=league, match_type=MatchType.ALL)
-                matches_to_schedule = [m for m in league_matches if not m.is_scheduled()]
+                matches_to_schedule = db.list_matches(league=league, match_type=MatchType.UNSCHEDULED)
                 
             elif scope == 'selected':
                 # Apply current filter parameters to get the same matches as displayed
@@ -276,13 +274,13 @@ def register_routes(app, get_db):
                 end_date = request.form.get('end_date')
                 search_query = request.form.get('search', '').strip()
                 
-                # Get filtered matches (same logic as main matches route)
+                # Get filtered matches - if original filter was for unscheduled, use that directly
                 league = db.get_league(league_id_filter) if league_id_filter else None
-                match_type = MatchType.from_string(match_type_str)
                 
-                all_matches = db.list_matches(league=league, match_type=match_type)
-                filtered_matches = filter_matches(all_matches, start_date, end_date, search_query)
-                matches_to_schedule = [m for m in filtered_matches if not m.is_scheduled()]
+                # For selected scope, we want unscheduled matches from the current view
+                # So we use UNSCHEDULED regardless of the original match_type filter
+                all_matches = db.list_matches(league=league, match_type=MatchType.UNSCHEDULED)
+                matches_to_schedule = filter_matches(all_matches, start_date, end_date, search_query)
             
             else:
                 return jsonify({'error': 'Invalid scope or missing parameters'}), 400
@@ -295,7 +293,7 @@ def register_routes(app, get_db):
                     'total_count': 0
                 })
             
-            print(f"Found {len(matches_to_schedule)} matches to auto-schedule")
+            print(f"Found {len(matches_to_schedule)} unscheduled matches to auto-schedule")
             
             # Use the database's auto_schedule_matches method
             try:
@@ -360,38 +358,36 @@ def register_routes(app, get_db):
             
             print(f"Bulk unschedule scope: {scope}, league_id: {league_id}")
             
-            # Determine which matches to unschedule
+            # Determine which matches to unschedule - use MatchType.SCHEDULED directly
             matches_to_unschedule = []
             
             if scope == 'all':
-                # All scheduled matches
-                all_matches = db.list_matches(match_type=MatchType.ALL)
-                matches_to_unschedule = [m for m in all_matches if m.is_scheduled()]
+                # All scheduled matches - use MatchType.SCHEDULED directly
+                matches_to_unschedule = db.list_matches(match_type=MatchType.SCHEDULED)
                 
             elif scope == 'league' and league_id:
-                # Specific league only
+                # Specific league only - get scheduled matches for that league
                 league = db.get_league(league_id)
                 if not league:
                     return jsonify({'error': f'League {league_id} not found'}), 400
                 
-                league_matches = db.list_matches(league=league, match_type=MatchType.ALL)
-                matches_to_unschedule = [m for m in league_matches if m.is_scheduled()]
+                matches_to_unschedule = db.list_matches(league=league, match_type=MatchType.SCHEDULED)
                 
             elif scope == 'selected':
-                # Apply current filter parameters
+                # Apply current filter parameters to get the same matches as displayed
                 league_id_filter = request.form.get('league_id', type=int)
                 match_type_str = request.form.get('match_type', 'all')
                 start_date = request.form.get('start_date')
                 end_date = request.form.get('end_date')
                 search_query = request.form.get('search', '').strip()
                 
-                # Get filtered matches
+                # Get filtered matches - for unscheduling, we want scheduled matches from the current view
                 league = db.get_league(league_id_filter) if league_id_filter else None
-                match_type = MatchType.from_string(match_type_str)
                 
-                all_matches = db.list_matches(league=league, match_type=match_type)
-                filtered_matches = filter_matches(all_matches, start_date, end_date, search_query)
-                matches_to_unschedule = [m for m in filtered_matches if m.is_scheduled()]
+                # For selected scope, we want scheduled matches from the current view
+                # So we use SCHEDULED regardless of the original match_type filter
+                all_matches = db.list_matches(league=league, match_type=MatchType.SCHEDULED)
+                matches_to_unschedule = filter_matches(all_matches, start_date, end_date, search_query)
             
             else:
                 return jsonify({'error': 'Invalid scope or missing parameters'}), 400
@@ -404,7 +400,7 @@ def register_routes(app, get_db):
                     'total_count': 0
                 })
             
-            print(f"Found {len(matches_to_unschedule)} matches to unschedule")
+            print(f"Found {len(matches_to_unschedule)} scheduled matches to unschedule")
             
             # Unschedule each match
             unscheduled_count = 0
@@ -460,13 +456,12 @@ def register_routes(app, get_db):
             
             print(f"Bulk delete scope: {scope}, league_id: {league_id}")
             
-            # Determine which matches to delete (SAFETY: only unscheduled matches)
+            # Determine which matches to delete - use MatchType.UNSCHEDULED directly for safety
             matches_to_delete = []
             
             if scope == 'unscheduled':
-                # All unscheduled matches
-                all_matches = db.list_matches(match_type=MatchType.ALL)
-                matches_to_delete = [m for m in all_matches if not m.is_scheduled()]
+                # All unscheduled matches - use MatchType.UNSCHEDULED directly
+                matches_to_delete = db.list_matches(match_type=MatchType.UNSCHEDULED)
                 
             elif scope == 'league' and league_id:
                 # Unscheduled matches in specific league only
@@ -474,8 +469,7 @@ def register_routes(app, get_db):
                 if not league:
                     return jsonify({'error': f'League {league_id} not found'}), 400
                 
-                league_matches = db.list_matches(league=league, match_type=MatchType.ALL)
-                matches_to_delete = [m for m in league_matches if not m.is_scheduled()]
+                matches_to_delete = db.list_matches(league=league, match_type=MatchType.UNSCHEDULED)
                 
             elif scope == 'selected':
                 # Apply current filter parameters, but only unscheduled
@@ -485,13 +479,13 @@ def register_routes(app, get_db):
                 end_date = request.form.get('end_date')
                 search_query = request.form.get('search', '').strip()
                 
-                # Get filtered matches
+                # Get filtered matches - for deletion, we only want unscheduled matches for safety
                 league = db.get_league(league_id_filter) if league_id_filter else None
-                match_type = MatchType.from_string(match_type_str)
                 
-                all_matches = db.list_matches(league=league, match_type=match_type)
-                filtered_matches = filter_matches(all_matches, start_date, end_date, search_query)
-                matches_to_delete = [m for m in filtered_matches if not m.is_scheduled()]
+                # For selected scope, we only delete unscheduled matches for safety
+                # So we use UNSCHEDULED regardless of the original match_type filter
+                all_matches = db.list_matches(league=league, match_type=MatchType.UNSCHEDULED)
+                matches_to_delete = filter_matches(all_matches, start_date, end_date, search_query)
             
             else:
                 return jsonify({'error': 'Invalid scope or missing parameters'}), 400
@@ -512,7 +506,7 @@ def register_routes(app, get_db):
             
             for match in matches_to_delete:
                 try:
-                    # Double-check it's unscheduled for safety
+                    # Double-check it's unscheduled for safety (though we got them via UNSCHEDULED query)
                     if match.is_scheduled():
                         errors.append(f"Match {match.id} is scheduled - skipped for safety")
                         continue

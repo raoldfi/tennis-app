@@ -287,16 +287,17 @@ class SQLSchedulingManager:
             
             results = {
                 'total_matches': len(matches),
-                'scheduled_successfully': 0,
-                'failed_to_schedule': 0,
-                'scheduling_details': [],
+                'scheduled': 0,
+                'failed': 0,
+                'scheduling_details': [],  # for successful scheduling
+                'errors': [],  # for failed scheduling
                 'matches_attempted': []
             }
             
             for match in matches:
                 # Skip already scheduled matches
                 if match.is_scheduled():
-                    results['scheduling_details'].append({
+                    results['errors'].append({
                         'match_id': match.id,
                         'status': 'already_scheduled',
                         'home_team': match.home_team.name,
@@ -323,7 +324,7 @@ class SQLSchedulingManager:
                 success = self.auto_schedule_match(match, optimal_dates)
                 
                 if success:
-                    results['scheduled_successfully'] += 1
+                    results['scheduled'] += 1
                     # Reload match to get updated scheduling info (if not dry run)
                     updated_match = self.db.match_manager.get_match(match.id)
                     if updated_match:
@@ -347,7 +348,7 @@ class SQLSchedulingManager:
 
                 else:
                     results['failed_to_schedule'] += 1
-                    results['scheduling_details'].append({
+                    results['errors'].append({
                         'match_id': match.id,
                         'status': 'failed',
                         'home_team': match.home_team.name,
@@ -358,7 +359,7 @@ class SQLSchedulingManager:
             # Calculate success rate
             attempted_matches = len([m for m in matches if not m.is_scheduled()])
             if attempted_matches > 0:
-                success_rate = (results['scheduled_successfully'] / attempted_matches) * 100
+                success_rate = (results['scheduled'] / attempted_matches) * 100
                 results['success_rate'] = round(success_rate, 2)
             else:
                 results['success_rate'] = 100.0  # All matches were already scheduled
