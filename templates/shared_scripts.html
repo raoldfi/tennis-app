@@ -15,7 +15,6 @@ class TennisUI {
     static init() {
         this.setupEventListeners();
         this.initializeTooltips();
-        this.setupFormValidation();
         this.autoHideAlerts();
     }
 
@@ -188,6 +187,32 @@ class TennisUI {
     }
 
     /**
+     * Set button loading state
+     * @param {HTMLElement} button - The button element
+     * @param {boolean} loading - Whether button is loading
+     * @param {string} loadingText - Text to show when loading
+     */
+    static setButtonLoading(button, loading, loadingText = 'Loading...') {
+        if (!button) return;
+
+        if (loading) {
+            button.disabled = true;
+            if (!button.dataset.originalText) {
+                button.dataset.originalText = button.innerHTML;
+            }
+            button.innerHTML = `<div class="tennis-spinner tennis-spinner-sm"></div>${loadingText}`;
+            button.classList.add('btn-loading');
+        } else {
+            button.disabled = false;
+            button.classList.remove('btn-loading');
+            if (button.dataset.originalText) {
+                button.innerHTML = button.dataset.originalText;
+                delete button.dataset.originalText;
+            }
+        }
+    }
+
+    /**
      * Validate form fields
      * @param {string} formId - The ID of the form
      * @param {Object} options - Validation options
@@ -210,42 +235,37 @@ class TennisUI {
 
         requiredFields.forEach(field => {
             const value = field.type === 'checkbox' ? field.checked : field.value.trim();
-            
-            if (!value) {
-                field.classList.add('is-invalid');
+            const isEmpty = field.type === 'checkbox' ? !value : !value;
+
+            if (isEmpty) {
                 isValid = false;
-                
                 if (!firstInvalidField) {
                     firstInvalidField = field;
                 }
 
-                // Add invalid feedback if it doesn't exist
-                if (showMessages && !field.parentNode.querySelector('.invalid-feedback')) {
-                    const feedback = document.createElement('div');
-                    feedback.className = 'invalid-feedback';
-                    feedback.textContent = this.getFieldErrorMessage(field);
-                    field.parentNode.appendChild(feedback);
+                if (showMessages) {
+                    field.classList.add('is-invalid');
+                    this.showFieldError(field, 'This field is required');
                 }
             } else {
-                field.classList.add('is-valid');
-                
-                // Remove invalid feedback if it exists
-                const feedback = field.parentNode.querySelector('.invalid-feedback');
-                if (feedback) {
-                    feedback.remove();
+                if (showMessages) {
+                    field.classList.add('is-valid');
                 }
             }
         });
 
-        // Custom validation rules
+        // Email validation
         const emailFields = form.querySelectorAll('input[type="email"]');
         emailFields.forEach(field => {
             if (field.value && !this.isValidEmail(field.value)) {
-                field.classList.add('is-invalid');
                 isValid = false;
-                
                 if (!firstInvalidField) {
                     firstInvalidField = field;
+                }
+
+                if (showMessages) {
+                    field.classList.add('is-invalid');
+                    this.showFieldError(field, 'Please enter a valid email address');
                 }
             }
         });
@@ -253,14 +273,56 @@ class TennisUI {
         // Focus first invalid field
         if (!isValid && firstInvalidField) {
             firstInvalidField.focus();
-            firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         return isValid;
     }
 
     /**
-     * Reset form validation states
+     * Setup form validation for all forms on the page
+     */
+    static setupFormValidation() {
+        // Real-time validation setup
+        document.addEventListener('input', (e) => {
+            const field = e.target;
+            if (field.hasAttribute('required') || field.type === 'email') {
+                this.validateField(field);
+            }
+        });
+
+        document.addEventListener('change', (e) => {
+            const field = e.target;
+            if (field.hasAttribute('required') || field.type === 'email') {
+                this.validateField(field);
+            }
+        });
+    }
+
+    /**
+     * Validate a single field
+     * @param {HTMLElement} field - The field to validate
+     */
+    static validateField(field) {
+        const value = field.type === 'checkbox' ? field.checked : field.value.trim();
+        const isEmpty = field.type === 'checkbox' ? !value : !value;
+
+        // Remove existing validation classes
+        field.classList.remove('is-valid', 'is-invalid');
+        this.removeFieldError(field);
+
+        if (field.hasAttribute('required') && isEmpty) {
+            field.classList.add('is-invalid');
+            this.showFieldError(field, 'This field is required');
+        } else if (field.type === 'email' && value && !this.isValidEmail(value)) {
+            field.classList.add('is-invalid');
+            this.showFieldError(field, 'Please enter a valid email address');
+        } else if (!isEmpty) {
+            field.classList.add('is-valid');
+        }
+    }
+
+    /**
+     * Reset validation state for a form
      * @param {string} formId - The ID of the form
      */
     static resetValidation(formId) {
@@ -270,10 +332,35 @@ class TennisUI {
         const fields = form.querySelectorAll('.is-valid, .is-invalid');
         fields.forEach(field => {
             field.classList.remove('is-valid', 'is-invalid');
+            this.removeFieldError(field);
         });
+    }
 
-        const feedbacks = form.querySelectorAll('.invalid-feedback, .valid-feedback');
-        feedbacks.forEach(feedback => feedback.remove());
+    /**
+     * Show field error message
+     * @param {HTMLElement} field - The field element
+     * @param {string} message - Error message
+     */
+    static showFieldError(field, message) {
+        this.removeFieldError(field);
+        
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'invalid-feedback';
+        errorDiv.textContent = message;
+        errorDiv.setAttribute('data-field-error', field.id || field.name);
+        
+        field.parentNode.appendChild(errorDiv);
+    }
+
+    /**
+     * Remove field error message
+     * @param {HTMLElement} field - The field element
+     */
+    static removeFieldError(field) {
+        const errorDiv = field.parentNode.querySelector(`[data-field-error="${field.id || field.name}"]`);
+        if (errorDiv) {
+            errorDiv.remove();
+        }
     }
 
     /**
@@ -288,191 +375,161 @@ class TennisUI {
         const formData = new FormData(form);
         const data = {};
         
-        for (let [key, value] of formData.entries()) {
-            if (data[key]) {
-                // Handle multiple values (checkboxes, etc.)
-                if (Array.isArray(data[key])) {
-                    data[key].push(value);
-                } else {
-                    data[key] = [data[key], value];
-                }
-            } else {
-                data[key] = value;
-            }
+        for (const [key, value] of formData.entries()) {
+            data[key] = value;
         }
         
         return data;
     }
 
-    /**
-     * Populate form with data
-     * @param {string} formId - The ID of the form
-     * @param {Object} data - Data to populate
-     */
-    static populateForm(formId, data) {
-        const form = document.getElementById(formId);
-        if (!form) return;
+    // ==================== TABLE INTERACTIONS ====================
 
-        Object.keys(data).forEach(key => {
-            const field = form.querySelector(`[name="${key}"]`);
-            if (field) {
-                if (field.type === 'checkbox' || field.type === 'radio') {
-                    field.checked = data[key];
-                } else {
-                    field.value = data[key];
-                }
-            }
+    /**
+     * Setup table interactions for enhanced UX
+     * @param {string} tableId - The ID of the table (optional)
+     */
+    static setupTableInteractions(tableId = null) {
+        const tables = tableId ? [document.getElementById(tableId)] : document.querySelectorAll('.tennis-table');
+        
+        tables.forEach(table => {
+            if (!table) return;
+            
+            // Add hover effects
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                row.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateX(2px)';
+                    this.style.transition = 'transform 0.2s ease';
+                });
+                
+                row.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateX(0)';
+                });
+            });
+            
+            // Add sorting functionality if headers are clickable
+            const headers = table.querySelectorAll('th[data-sort]');
+            headers.forEach(header => {
+                header.style.cursor = 'pointer';
+                header.addEventListener('click', () => {
+                    this.sortTable(table, header.dataset.sort);
+                });
+            });
         });
     }
 
-    // ==================== NOTIFICATION MANAGEMENT ====================
+    /**
+     * Sort table by column
+     * @param {HTMLElement} table - The table element
+     * @param {string} column - Column identifier
+     */
+    static sortTable(table, column) {
+        // Basic table sorting implementation
+        console.log(`Sorting table by column: ${column}`);
+        // Implementation would depend on specific requirements
+    }
+
+    // ==================== NOTIFICATION SYSTEM ====================
 
     /**
-     * Show a notification
-     * @param {string} message - The message to display
-     * @param {string} type - Type: success, danger, warning, info
+     * Show notification to user
+     * @param {string} message - Notification message
+     * @param {string} type - Notification type (success, danger, warning, info)
      * @param {number} duration - Auto-hide duration in ms (0 = no auto-hide)
-     * @param {Object} options - Additional options
      */
-    static showNotification(message, type = 'info', duration = 5000, options = {}) {
+    static showNotification(message, type = 'info', duration = 5000) {
+        // Remove existing notifications
+        const existingNotifications = document.querySelectorAll('.tennis-notification');
+        existingNotifications.forEach(notification => notification.remove());
+
+        // Create notification element
         const notification = document.createElement('div');
-        const notificationId = 'notification-' + Date.now();
-        
-        notification.id = notificationId;
-        notification.className = `alert alert-tennis alert-tennis-${type} alert-dismissible fade show`;
+        notification.className = `tennis-notification alert alert-${type} alert-dismissible`;
         notification.style.cssText = `
             position: fixed;
-            top: ${options.top || '20px'};
-            right: ${options.right || '20px'};
-            z-index: 1060;
-            min-width: 350px;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            min-width: 300px;
             max-width: 500px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        `;
-        
-        const icons = {
-            success: 'check-circle',
-            danger: 'exclamation-triangle',
-            warning: 'exclamation-triangle',
-            info: 'info-circle'
-        };
-        
-        notification.innerHTML = `
-            <i class="fas fa-${icons[type] || 'info-circle'}"></i>
-            <span>${message}</span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            animation: slideInRight 0.3s ease;
         `;
 
+        // Get appropriate icon
+        const icons = {
+            success: 'fas fa-check-circle',
+            danger: 'fas fa-exclamation-triangle',
+            warning: 'fas fa-exclamation-circle',
+            info: 'fas fa-info-circle'
+        };
+
+        notification.innerHTML = `
+            <i class="${icons[type] || icons.info} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        // Add to page
         document.body.appendChild(notification);
 
-        // Auto-hide functionality
+        // Auto-hide if duration is specified
         if (duration > 0) {
             setTimeout(() => {
                 if (notification.parentNode) {
-                    notification.classList.remove('show');
+                    notification.classList.add('fade');
                     setTimeout(() => notification.remove(), 150);
                 }
             }, duration);
         }
 
-        // Stack notifications
-        this.stackNotifications();
-
-        return notificationId;
+        // Add slide-in animation styles if not already present
+        if (!document.getElementById('tennis-notification-styles')) {
+            const styles = document.createElement('style');
+            styles.id = 'tennis-notification-styles';
+            styles.textContent = `
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+            `;
+            document.head.appendChild(styles);
+        }
     }
 
-    /**
-     * Stack multiple notifications properly
-     */
-    static stackNotifications() {
-        const notifications = document.querySelectorAll('.alert[style*="position: fixed"]');
-        notifications.forEach((notification, index) => {
-            notification.style.top = `${20 + (index * 80)}px`;
-        });
-    }
+    // ==================== API UTILITIES ====================
 
     /**
-     * Clear all notifications
-     */
-    static clearNotifications() {
-        const notifications = document.querySelectorAll('.alert[style*="position: fixed"]');
-        notifications.forEach(notification => {
-            notification.classList.remove('show');
-            setTimeout(() => notification.remove(), 150);
-        });
-    }
-
-    // ==================== API CALL MANAGEMENT ====================
-
-    /**
-     * Make a standardized API call
+     * Make API calls with standardized error handling
      * @param {string} url - API endpoint
      * @param {Object} options - Fetch options
-     * @returns {Promise} - API response
+     * @returns {Promise} - Response data
      */
     static async apiCall(url, options = {}) {
-        const defaultOptions = {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-            }
-        };
-
-        // Don't set Content-Type for FormData
-        if (!(options.body instanceof FormData)) {
-            defaultOptions.headers['Content-Type'] = 'application/json';
-        }
-
-        const finalOptions = { ...defaultOptions, ...options };
-
         try {
-            const response = await fetch(url, finalOptions);
+            const defaultHeaders = {};
             
-            // Try to parse as JSON, but handle non-JSON responses
-            let data;
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                data = await response.json();
-            } else {
-                data = { message: await response.text() };
+            // Only add Content-Type for JSON data
+            if (options.body && typeof options.body === 'string') {
+                defaultHeaders['Content-Type'] = 'application/json';
             }
+            
+            const response = await fetch(url, {
+                headers: {
+                    ...defaultHeaders,
+                    ...options.headers
+                },
+                ...options
+            });
 
             if (!response.ok) {
-                throw new Error(data.error || data.message || `HTTP error! status: ${response.status}`);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
+            const data = await response.json();
             return data;
         } catch (error) {
             console.error('API call failed:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Handle API response with standardized error handling
-     * @param {Promise} apiCall - The API call promise
-     * @param {Object} handlers - Success and error handlers
-     */
-    static async handleApiCall(apiCall, handlers = {}) {
-        try {
-            const result = await apiCall;
-            
-            if (handlers.success) {
-                handlers.success(result);
-            } else {
-                // Default success handler
-                this.showNotification(result.message || 'Operation completed successfully!', 'success');
-            }
-            
-            return result;
-        } catch (error) {
-            if (handlers.error) {
-                handlers.error(error);
-            } else {
-                // Default error handler
-                this.showNotification(error.message || 'An error occurred', 'danger');
-            }
-            
             throw error;
         }
     }
@@ -488,14 +545,11 @@ class TennisUI {
      * @param {Function} successCallback - Optional success callback
      */
     static async executeBulkOperation(operation, url, data, modalId, successCallback = null) {
-        const submitBtn = document.querySelector(`#${modalId} .btn-tennis-warning, #${modalId} .btn-tennis-danger, #${modalId} .btn-tennis-success`);
+        const submitBtn = document.querySelector(`#${modalId} .btn-tennis-warning, #${modalId} .btn-tennis-danger, #${modalId} .btn-tennis-success, #${modalId} .btn-primary`);
         
         // Set button loading state
         if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.dataset.originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<div class="tennis-spinner tennis-spinner-sm"></div>Processing...';
-            submitBtn.classList.add('btn-loading');
+            this.setButtonLoading(submitBtn, true, 'Processing...');
         }
 
         try {
@@ -508,6 +562,7 @@ class TennisUI {
                 options.body = data;
             } else if (typeof data === 'object') {
                 options.body = JSON.stringify(data);
+                options.headers = { 'Content-Type': 'application/json' };
             } else {
                 options.body = data;
             }
@@ -532,104 +587,21 @@ class TennisUI {
         } finally {
             // Reset button state
             if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.classList.remove('btn-loading');
-                if (submitBtn.dataset.originalText) {
-                    submitBtn.innerHTML = submitBtn.dataset.originalText;
-                    delete submitBtn.dataset.originalText;
-                }
+                this.setButtonLoading(submitBtn, false);
             }
         }
-    }
-
-    // ==================== FILE MANAGEMENT ====================
-
-    /**
-     * Handle file import with validation
-     * @param {string} fileInputId - ID of file input
-     * @param {Array} allowedTypes - Allowed file extensions
-     * @param {Function} processFile - Function to process the file
-     * @param {Object} options - Additional options
-     */
-    static async handleFileImport(fileInputId, allowedTypes, processFile, options = {}) {
-        const fileInput = document.getElementById(fileInputId);
-        const file = fileInput.files[0];
-
-        if (!file) {
-            this.showNotification('Please select a file', 'warning');
-            return false;
-        }
-
-        // Validate file type
-        const extension = file.name.split('.').pop().toLowerCase();
-        if (!allowedTypes.includes(extension)) {
-            this.showNotification(`File must be one of: ${allowedTypes.join(', ')}`, 'danger');
-            return false;
-        }
-
-        // Validate file size if specified
-        if (options.maxSize && file.size > options.maxSize) {
-            const maxSizeMB = (options.maxSize / 1024 / 1024).toFixed(1);
-            this.showNotification(`File size must be less than ${maxSizeMB}MB`, 'danger');
-            return false;
-        }
-
-        try {
-            await processFile(file);
-            return true;
-        } catch (error) {
-            this.showNotification(`Import failed: ${error.message}`, 'danger');
-            return false;
-        }
-    }
-
-    /**
-     * Download data as file
-     * @param {Object|string} data - Data to download
-     * @param {string} filename - Name of the file
-     * @param {string} type - MIME type
-     */
-    static downloadFile(data, filename, type = 'application/json') {
-        let content;
-        if (typeof data === 'string') {
-            content = data;
-        } else {
-            content = JSON.stringify(data, null, 2);
-        }
-
-        const blob = new Blob([content], { type });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        this.showNotification(`File "${filename}" downloaded successfully`, 'success');
     }
 
     // ==================== UTILITY FUNCTIONS ====================
 
     /**
-     * Get field error message
-     * @param {HTMLElement} field - The form field
-     * @returns {string} - Error message
+     * Initialize tooltips for elements
      */
-    static getFieldErrorMessage(field) {
-        const fieldName = field.getAttribute('name') || field.getAttribute('id') || 'This field';
-        const displayName = fieldName.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        
-        if (field.type === 'email') {
-            return `Please enter a valid email address`;
-        } else if (field.type === 'number') {
-            return `${displayName} must be a valid number`;
-        } else {
-            return `${displayName} is required`;
-        }
+    static initializeTooltips() {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
     }
 
     /**
@@ -676,8 +648,6 @@ class TennisUI {
         };
     }
 
-    // ==================== INITIALIZATION FUNCTIONS ====================
-
     /**
      * Setup global event listeners
      */
@@ -689,72 +659,6 @@ class TennisUI {
                 if (!this.validateForm(form.id, { showMessages: true })) {
                     e.preventDefault();
                     this.showNotification('Please fill in all required fields correctly', 'warning');
-                }
-            }
-        });
-
-        // Bulk operation button handlers
-        document.addEventListener('click', (e) => {
-            if (e.target.matches('[data-bulk-operation]') || e.target.closest('[data-bulk-operation]')) {
-                const button = e.target.matches('[data-bulk-operation]') ? e.target : e.target.closest('[data-bulk-operation]');
-                const operation = button.dataset.bulkOperation;
-                const modalId = button.dataset.modalId;
-                if (modalId) {
-                    this.showModal(modalId);
-                }
-            }
-        });
-
-        // Auto-clear validation on input
-        document.addEventListener('input', (e) => {
-            if (e.target.matches('.is-invalid')) {
-                e.target.classList.remove('is-invalid');
-                const feedback = e.target.parentNode.querySelector('.invalid-feedback');
-                if (feedback) {
-                    feedback.remove();
-                }
-            }
-        });
-
-        // Handle keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            // Escape key to close modals
-            if (e.key === 'Escape') {
-                const openModals = document.querySelectorAll('.modal.show');
-                openModals.forEach(modal => {
-                    const modalInstance = bootstrap.Modal.getInstance(modal);
-                    if (modalInstance) {
-                        modalInstance.hide();
-                    }
-                });
-            }
-        });
-    }
-
-    /**
-     * Initialize tooltips
-     */
-    static initializeTooltips() {
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(tooltipTriggerEl => {
-            return new bootstrap.Tooltip(tooltipTriggerEl, {
-                trigger: 'hover focus'
-            });
-        });
-    }
-
-    /**
-     * Setup form validation
-     */
-    static setupFormValidation() {
-        // Real-time validation for email fields
-        document.addEventListener('blur', (e) => {
-            if (e.target.type === 'email' && e.target.value) {
-                if (!this.isValidEmail(e.target.value)) {
-                    e.target.classList.add('is-invalid');
-                } else {
-                    e.target.classList.remove('is-invalid');
-                    e.target.classList.add('is-valid');
                 }
             }
         });

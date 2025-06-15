@@ -93,8 +93,33 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-tennis alert-tennis-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'info' }} alert-dismissible fade show" role="alert">
-                        <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' }}"></i>
+                    {% set alert_class = 'alert-tennis-' + (
+                        'danger' if category in ['error', 'danger'] else
+                        'success' if category in ['success', 'created', 'updated', 'saved'] else
+                        'warning' if category in ['warning', 'caution', 'attention'] else
+                        'info' if category in ['info', 'message', 'notice'] else
+                        'debug' if category == 'debug' else
+                        'primary' if category in ['primary', 'important'] else
+                        'secondary' if category == 'secondary' else
+                        'light' if category == 'light' else
+                        'dark' if category == 'dark' else
+                        'info'
+                    ) %}
+                    
+                    {% set icon_class = 
+                        'exclamation-triangle' if category in ['error', 'danger', 'warning', 'caution', 'attention'] else
+                        'check-circle' if category in ['success', 'created', 'updated', 'saved'] else
+                        'info-circle' if category in ['info', 'message', 'notice'] else
+                        'bug' if category == 'debug' else
+                        'star' if category in ['primary', 'important'] else
+                        'circle' if category == 'secondary' else
+                        'lightbulb' if category == 'light' else
+                        'moon' if category == 'dark' else
+                        'info-circle'
+                    %}
+                    
+                    <div class="alert alert-tennis {{ alert_class }} alert-dismissible fade show" role="alert">
+                        <i class="fas fa-{{ icon_class }}"></i>
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
