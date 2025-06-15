@@ -243,6 +243,16 @@ class Match:
             return "over_scheduled"  # More lines than expected
 
     # ========== Match Line Management ==========
+
+    def get_scheduled_times(self) -> List[str]:
+        """
+        Get the list of scheduled times for this match.
+        
+        Returns:
+            List of scheduled time strings in HH:MM format, sorted chronologically.
+            Returns empty list if no times are scheduled.
+        """
+        return self.scheduled_times if self.scheduled_times else []
     
     def get_num_scheduled_lines(self) -> int:
         """Get the number of scheduled lines (times)"""

@@ -1,0 +1,794 @@
+<script>
+/**
+ * Tennis App - Standardized JavaScript Functions
+ * Version 1.0 - Complete UI Management System
+ * 
+ * This script provides a unified interface for all modal, form, and UI interactions
+ * across the Tennis Database Web Application.
+ */
+
+class TennisUI {
+    
+    /**
+     * Initialize the Tennis UI system
+     */
+    static init() {
+        this.setupEventListeners();
+        this.initializeTooltips();
+        this.setupFormValidation();
+        this.autoHideAlerts();
+    }
+
+    // ==================== MODAL MANAGEMENT ====================
+
+    /**
+     * Show a modal with standardized behavior
+     * @param {string} modalId - The ID of the modal to show
+     * @param {Object} options - Optional configuration
+     * @returns {bootstrap.Modal} - The modal instance
+     */
+    static showModal(modalId, options = {}) {
+        const modalElement = document.getElementById(modalId);
+        if (!modalElement) {
+            console.error(`Modal with ID '${modalId}' not found`);
+            return null;
+        }
+
+        const modal = new bootstrap.Modal(modalElement, {
+            backdrop: options.backdrop || 'static',
+            keyboard: options.keyboard !== false,
+            focus: options.focus !== false
+        });
+        
+        modal.show();
+        
+        // Add event listeners for this modal instance
+        modalElement.addEventListener('shown.bs.modal', () => {
+            // Focus first input field when modal opens
+            const firstInput = modalElement.querySelector('input:not([type="hidden"]), select, textarea');
+            if (firstInput) {
+                firstInput.focus();
+            }
+        });
+
+        return modal;
+    }
+
+    /**
+     * Hide a modal
+     * @param {string} modalId - The ID of the modal to hide
+     */
+    static hideModal(modalId) {
+        const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+        if (modal) {
+            modal.hide();
+        }
+    }
+
+    /**
+     * Set modal content dynamically
+     * @param {string} modalId - The ID of the modal
+     * @param {string} contentElementId - The ID of the content container
+     * @param {string} content - HTML content to set
+     */
+    static setModalContent(modalId, contentElementId, content) {
+        const contentElement = document.querySelector(`#${modalId} #${contentElementId}`);
+        if (contentElement) {
+            contentElement.innerHTML = content;
+        } else {
+            console.warn(`Content element '${contentElementId}' not found in modal '${modalId}'`);
+        }
+    }
+
+    /**
+     * Set modal title
+     * @param {string} modalId - The ID of the modal
+     * @param {string} title - New title with icon (HTML allowed)
+     */
+    static setModalTitle(modalId, title) {
+        const titleElement = document.querySelector(`#${modalId} .modal-title`);
+        if (titleElement) {
+            titleElement.innerHTML = title;
+        }
+    }
+
+    /**
+     * Get data from modal form
+     * @param {string} modalId - The ID of the modal
+     * @param {string} formId - The ID of the form (optional)
+     * @returns {Object} - Form data as object
+     */
+    static getModalFormData(modalId, formId = null) {
+        const modal = document.getElementById(modalId);
+        const form = formId ? document.getElementById(formId) : modal.querySelector('form');
+        
+        if (!form) {
+            console.warn(`No form found in modal '${modalId}'`);
+            return {};
+        }
+
+        return this.serializeForm(form.id);
+    }
+
+    // ==================== FORM MANAGEMENT ====================
+
+    /**
+     * Set form loading state
+     * @param {string} formId - The ID of the form
+     * @param {boolean} loading - Whether form is loading
+     * @param {string} buttonSelector - CSS selector for the submit button
+     */
+    static setFormLoading(formId, loading, buttonSelector = 'button[type="submit"], .btn-tennis-success, .btn-tennis-primary') {
+        const form = document.getElementById(formId);
+        if (!form) {
+            console.error(`Form with ID '${formId}' not found`);
+            return;
+        }
+
+        const button = form.querySelector(buttonSelector);
+        
+        if (loading) {
+            form.classList.add('tennis-loading');
+            
+            // Create loading overlay
+            let overlay = document.getElementById(`${formId}-loading`);
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.className = 'tennis-loading-overlay';
+                overlay.innerHTML = '<div class="tennis-spinner"></div>';
+                overlay.id = `${formId}-loading`;
+                form.appendChild(overlay);
+            }
+            
+            // Disable and update submit button
+            if (button) {
+                button.disabled = true;
+                if (!button.dataset.originalText) {
+                    button.dataset.originalText = button.innerHTML;
+                }
+                button.innerHTML = '<div class="tennis-spinner tennis-spinner-sm"></div>Processing...';
+                button.classList.add('btn-loading');
+            }
+
+            // Disable all form inputs
+            const inputs = form.querySelectorAll('input, select, textarea, button');
+            inputs.forEach(input => {
+                if (!input.hasAttribute('data-loading-disabled')) {
+                    input.disabled = true;
+                    input.setAttribute('data-loading-disabled', 'true');
+                }
+            });
+
+        } else {
+            form.classList.remove('tennis-loading');
+            
+            // Remove loading overlay
+            const overlay = document.getElementById(`${formId}-loading`);
+            if (overlay) {
+                overlay.remove();
+            }
+            
+            // Re-enable submit button
+            if (button) {
+                button.disabled = false;
+                button.classList.remove('btn-loading');
+                if (button.dataset.originalText) {
+                    button.innerHTML = button.dataset.originalText;
+                    delete button.dataset.originalText;
+                }
+            }
+
+            // Re-enable form inputs
+            const inputs = form.querySelectorAll('[data-loading-disabled]');
+            inputs.forEach(input => {
+                input.disabled = false;
+                input.removeAttribute('data-loading-disabled');
+            });
+        }
+    }
+
+    /**
+     * Validate form fields
+     * @param {string} formId - The ID of the form
+     * @param {Object} options - Validation options
+     * @returns {boolean} - True if form is valid
+     */
+    static validateForm(formId, options = {}) {
+        const form = document.getElementById(formId);
+        if (!form) {
+            console.error(`Form with ID '${formId}' not found`);
+            return false;
+        }
+
+        const showMessages = options.showMessages !== false;
+        const requiredFields = form.querySelectorAll('[required]');
+        let isValid = true;
+        let firstInvalidField = null;
+
+        // Clear previous validation states
+        this.resetValidation(formId);
+
+        requiredFields.forEach(field => {
+            const value = field.type === 'checkbox' ? field.checked : field.value.trim();
+            
+            if (!value) {
+                field.classList.add('is-invalid');
+                isValid = false;
+                
+                if (!firstInvalidField) {
+                    firstInvalidField = field;
+                }
+
+                // Add invalid feedback if it doesn't exist
+                if (showMessages && !field.parentNode.querySelector('.invalid-feedback')) {
+                    const feedback = document.createElement('div');
+                    feedback.className = 'invalid-feedback';
+                    feedback.textContent = this.getFieldErrorMessage(field);
+                    field.parentNode.appendChild(feedback);
+                }
+            } else {
+                field.classList.add('is-valid');
+                
+                // Remove invalid feedback if it exists
+                const feedback = field.parentNode.querySelector('.invalid-feedback');
+                if (feedback) {
+                    feedback.remove();
+                }
+            }
+        });
+
+        // Custom validation rules
+        const emailFields = form.querySelectorAll('input[type="email"]');
+        emailFields.forEach(field => {
+            if (field.value && !this.isValidEmail(field.value)) {
+                field.classList.add('is-invalid');
+                isValid = false;
+                
+                if (!firstInvalidField) {
+                    firstInvalidField = field;
+                }
+            }
+        });
+
+        // Focus first invalid field
+        if (!isValid && firstInvalidField) {
+            firstInvalidField.focus();
+            firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        return isValid;
+    }
+
+    /**
+     * Reset form validation states
+     * @param {string} formId - The ID of the form
+     */
+    static resetValidation(formId) {
+        const form = document.getElementById(formId);
+        if (!form) return;
+
+        const fields = form.querySelectorAll('.is-valid, .is-invalid');
+        fields.forEach(field => {
+            field.classList.remove('is-valid', 'is-invalid');
+        });
+
+        const feedbacks = form.querySelectorAll('.invalid-feedback, .valid-feedback');
+        feedbacks.forEach(feedback => feedback.remove());
+    }
+
+    /**
+     * Serialize form data to object
+     * @param {string} formId - The ID of the form
+     * @returns {Object} - Form data as object
+     */
+    static serializeForm(formId) {
+        const form = document.getElementById(formId);
+        if (!form) return {};
+
+        const formData = new FormData(form);
+        const data = {};
+        
+        for (let [key, value] of formData.entries()) {
+            if (data[key]) {
+                // Handle multiple values (checkboxes, etc.)
+                if (Array.isArray(data[key])) {
+                    data[key].push(value);
+                } else {
+                    data[key] = [data[key], value];
+                }
+            } else {
+                data[key] = value;
+            }
+        }
+        
+        return data;
+    }
+
+    /**
+     * Populate form with data
+     * @param {string} formId - The ID of the form
+     * @param {Object} data - Data to populate
+     */
+    static populateForm(formId, data) {
+        const form = document.getElementById(formId);
+        if (!form) return;
+
+        Object.keys(data).forEach(key => {
+            const field = form.querySelector(`[name="${key}"]`);
+            if (field) {
+                if (field.type === 'checkbox' || field.type === 'radio') {
+                    field.checked = data[key];
+                } else {
+                    field.value = data[key];
+                }
+            }
+        });
+    }
+
+    // ==================== NOTIFICATION MANAGEMENT ====================
+
+    /**
+     * Show a notification
+     * @param {string} message - The message to display
+     * @param {string} type - Type: success, danger, warning, info
+     * @param {number} duration - Auto-hide duration in ms (0 = no auto-hide)
+     * @param {Object} options - Additional options
+     */
+    static showNotification(message, type = 'info', duration = 5000, options = {}) {
+        const notification = document.createElement('div');
+        const notificationId = 'notification-' + Date.now();
+        
+        notification.id = notificationId;
+        notification.className = `alert alert-tennis alert-tennis-${type} alert-dismissible fade show`;
+        notification.style.cssText = `
+            position: fixed;
+            top: ${options.top || '20px'};
+            right: ${options.right || '20px'};
+            z-index: 1060;
+            min-width: 350px;
+            max-width: 500px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        `;
+        
+        const icons = {
+            success: 'check-circle',
+            danger: 'exclamation-triangle',
+            warning: 'exclamation-triangle',
+            info: 'info-circle'
+        };
+        
+        notification.innerHTML = `
+            <i class="fas fa-${icons[type] || 'info-circle'}"></i>
+            <span>${message}</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+
+        document.body.appendChild(notification);
+
+        // Auto-hide functionality
+        if (duration > 0) {
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.classList.remove('show');
+                    setTimeout(() => notification.remove(), 150);
+                }
+            }, duration);
+        }
+
+        // Stack notifications
+        this.stackNotifications();
+
+        return notificationId;
+    }
+
+    /**
+     * Stack multiple notifications properly
+     */
+    static stackNotifications() {
+        const notifications = document.querySelectorAll('.alert[style*="position: fixed"]');
+        notifications.forEach((notification, index) => {
+            notification.style.top = `${20 + (index * 80)}px`;
+        });
+    }
+
+    /**
+     * Clear all notifications
+     */
+    static clearNotifications() {
+        const notifications = document.querySelectorAll('.alert[style*="position: fixed"]');
+        notifications.forEach(notification => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 150);
+        });
+    }
+
+    // ==================== API CALL MANAGEMENT ====================
+
+    /**
+     * Make a standardized API call
+     * @param {string} url - API endpoint
+     * @param {Object} options - Fetch options
+     * @returns {Promise} - API response
+     */
+    static async apiCall(url, options = {}) {
+        const defaultOptions = {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+            }
+        };
+
+        // Don't set Content-Type for FormData
+        if (!(options.body instanceof FormData)) {
+            defaultOptions.headers['Content-Type'] = 'application/json';
+        }
+
+        const finalOptions = { ...defaultOptions, ...options };
+
+        try {
+            const response = await fetch(url, finalOptions);
+            
+            // Try to parse as JSON, but handle non-JSON responses
+            let data;
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                data = { message: await response.text() };
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || data.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return data;
+        } catch (error) {
+            console.error('API call failed:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Handle API response with standardized error handling
+     * @param {Promise} apiCall - The API call promise
+     * @param {Object} handlers - Success and error handlers
+     */
+    static async handleApiCall(apiCall, handlers = {}) {
+        try {
+            const result = await apiCall;
+            
+            if (handlers.success) {
+                handlers.success(result);
+            } else {
+                // Default success handler
+                this.showNotification(result.message || 'Operation completed successfully!', 'success');
+            }
+            
+            return result;
+        } catch (error) {
+            if (handlers.error) {
+                handlers.error(error);
+            } else {
+                // Default error handler
+                this.showNotification(error.message || 'An error occurred', 'danger');
+            }
+            
+            throw error;
+        }
+    }
+
+    // ==================== BULK OPERATIONS ====================
+
+    /**
+     * Execute a bulk operation with standardized UI updates
+     * @param {string} operation - Operation name (for logging)
+     * @param {string} url - API endpoint
+     * @param {FormData|Object} data - Data to send
+     * @param {string} modalId - Modal to close on success
+     * @param {Function} successCallback - Optional success callback
+     */
+    static async executeBulkOperation(operation, url, data, modalId, successCallback = null) {
+        const submitBtn = document.querySelector(`#${modalId} .btn-tennis-warning, #${modalId} .btn-tennis-danger, #${modalId} .btn-tennis-success`);
+        
+        // Set button loading state
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.dataset.originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<div class="tennis-spinner tennis-spinner-sm"></div>Processing...';
+            submitBtn.classList.add('btn-loading');
+        }
+
+        try {
+            const options = {
+                method: 'POST'
+            };
+
+            // Handle different data types
+            if (data instanceof FormData) {
+                options.body = data;
+            } else if (typeof data === 'object') {
+                options.body = JSON.stringify(data);
+            } else {
+                options.body = data;
+            }
+
+            const result = await this.apiCall(url, options);
+
+            // Close modal
+            this.hideModal(modalId);
+
+            // Show success message
+            this.showNotification(result.message || `${operation} completed successfully!`, 'success');
+
+            // Execute callback or reload page
+            if (successCallback) {
+                successCallback(result);
+            } else {
+                setTimeout(() => location.reload(), 1500);
+            }
+
+        } catch (error) {
+            this.showNotification(`${operation} failed: ${error.message}`, 'danger');
+        } finally {
+            // Reset button state
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('btn-loading');
+                if (submitBtn.dataset.originalText) {
+                    submitBtn.innerHTML = submitBtn.dataset.originalText;
+                    delete submitBtn.dataset.originalText;
+                }
+            }
+        }
+    }
+
+    // ==================== FILE MANAGEMENT ====================
+
+    /**
+     * Handle file import with validation
+     * @param {string} fileInputId - ID of file input
+     * @param {Array} allowedTypes - Allowed file extensions
+     * @param {Function} processFile - Function to process the file
+     * @param {Object} options - Additional options
+     */
+    static async handleFileImport(fileInputId, allowedTypes, processFile, options = {}) {
+        const fileInput = document.getElementById(fileInputId);
+        const file = fileInput.files[0];
+
+        if (!file) {
+            this.showNotification('Please select a file', 'warning');
+            return false;
+        }
+
+        // Validate file type
+        const extension = file.name.split('.').pop().toLowerCase();
+        if (!allowedTypes.includes(extension)) {
+            this.showNotification(`File must be one of: ${allowedTypes.join(', ')}`, 'danger');
+            return false;
+        }
+
+        // Validate file size if specified
+        if (options.maxSize && file.size > options.maxSize) {
+            const maxSizeMB = (options.maxSize / 1024 / 1024).toFixed(1);
+            this.showNotification(`File size must be less than ${maxSizeMB}MB`, 'danger');
+            return false;
+        }
+
+        try {
+            await processFile(file);
+            return true;
+        } catch (error) {
+            this.showNotification(`Import failed: ${error.message}`, 'danger');
+            return false;
+        }
+    }
+
+    /**
+     * Download data as file
+     * @param {Object|string} data - Data to download
+     * @param {string} filename - Name of the file
+     * @param {string} type - MIME type
+     */
+    static downloadFile(data, filename, type = 'application/json') {
+        let content;
+        if (typeof data === 'string') {
+            content = data;
+        } else {
+            content = JSON.stringify(data, null, 2);
+        }
+
+        const blob = new Blob([content], { type });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        this.showNotification(`File "${filename}" downloaded successfully`, 'success');
+    }
+
+    // ==================== UTILITY FUNCTIONS ====================
+
+    /**
+     * Get field error message
+     * @param {HTMLElement} field - The form field
+     * @returns {string} - Error message
+     */
+    static getFieldErrorMessage(field) {
+        const fieldName = field.getAttribute('name') || field.getAttribute('id') || 'This field';
+        const displayName = fieldName.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        
+        if (field.type === 'email') {
+            return `Please enter a valid email address`;
+        } else if (field.type === 'number') {
+            return `${displayName} must be a valid number`;
+        } else {
+            return `${displayName} is required`;
+        }
+    }
+
+    /**
+     * Validate email format
+     * @param {string} email - Email to validate
+     * @returns {boolean} - True if valid
+     */
+    static isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
+    /**
+     * Format date for display
+     * @param {string|Date} date - Date to format
+     * @param {Object} options - Formatting options
+     * @returns {string} - Formatted date
+     */
+    static formatDate(date, options = {}) {
+        const dateObj = typeof date === 'string' ? new Date(date) : date;
+        const defaultOptions = {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        };
+        return dateObj.toLocaleDateString('en-US', { ...defaultOptions, ...options });
+    }
+
+    /**
+     * Debounce function calls
+     * @param {Function} func - Function to debounce
+     * @param {number} wait - Wait time in ms
+     * @returns {Function} - Debounced function
+     */
+    static debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // ==================== INITIALIZATION FUNCTIONS ====================
+
+    /**
+     * Setup global event listeners
+     */
+    static setupEventListeners() {
+        // Form submission handling
+        document.addEventListener('submit', (e) => {
+            const form = e.target;
+            if (form.classList.contains('tennis-form')) {
+                if (!this.validateForm(form.id, { showMessages: true })) {
+                    e.preventDefault();
+                    this.showNotification('Please fill in all required fields correctly', 'warning');
+                }
+            }
+        });
+
+        // Bulk operation button handlers
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('[data-bulk-operation]') || e.target.closest('[data-bulk-operation]')) {
+                const button = e.target.matches('[data-bulk-operation]') ? e.target : e.target.closest('[data-bulk-operation]');
+                const operation = button.dataset.bulkOperation;
+                const modalId = button.dataset.modalId;
+                if (modalId) {
+                    this.showModal(modalId);
+                }
+            }
+        });
+
+        // Auto-clear validation on input
+        document.addEventListener('input', (e) => {
+            if (e.target.matches('.is-invalid')) {
+                e.target.classList.remove('is-invalid');
+                const feedback = e.target.parentNode.querySelector('.invalid-feedback');
+                if (feedback) {
+                    feedback.remove();
+                }
+            }
+        });
+
+        // Handle keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Escape key to close modals
+            if (e.key === 'Escape') {
+                const openModals = document.querySelectorAll('.modal.show');
+                openModals.forEach(modal => {
+                    const modalInstance = bootstrap.Modal.getInstance(modal);
+                    if (modalInstance) {
+                        modalInstance.hide();
+                    }
+                });
+            }
+        });
+    }
+
+    /**
+     * Initialize tooltips
+     */
+    static initializeTooltips() {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(tooltipTriggerEl => {
+            return new bootstrap.Tooltip(tooltipTriggerEl, {
+                trigger: 'hover focus'
+            });
+        });
+    }
+
+    /**
+     * Setup form validation
+     */
+    static setupFormValidation() {
+        // Real-time validation for email fields
+        document.addEventListener('blur', (e) => {
+            if (e.target.type === 'email' && e.target.value) {
+                if (!this.isValidEmail(e.target.value)) {
+                    e.target.classList.add('is-invalid');
+                } else {
+                    e.target.classList.remove('is-invalid');
+                    e.target.classList.add('is-valid');
+                }
+            }
+        });
+    }
+
+    /**
+     * Auto-hide alert messages
+     */
+    static autoHideAlerts() {
+        const alerts = document.querySelectorAll('.alert:not([data-persistent]):not([style*="position: fixed"])');
+        alerts.forEach(alert => {
+            if (!alert.classList.contains('alert-tennis')) {
+                setTimeout(() => {
+                    if (alert.parentNode) {
+                        alert.classList.remove('show');
+                        setTimeout(() => alert.remove(), 150);
+                    }
+                }, 5000);
+            }
+        });
+    }
+}
+
+// ==================== INITIALIZATION ====================
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    TennisUI.init();
+    
+    // Make TennisUI globally available
+    window.TennisUI = TennisUI;
+    
+    console.log('Tennis UI system initialized successfully');
+});
+
+console.log('Tennis App shared scripts loaded successfully');
+</script>

@@ -12,6 +12,17 @@ def register_routes(app):
         if db_config['backend_class'] is None:
             return render_template('connect.html')
         
+        # If connected, redirect to dashboard
+        return redirect(url_for('dashboard'))
+
+    @app.route('/dashboard')
+    def dashboard():
+        """Dashboard page - main overview when connected to database"""
+        from web_database import db_config
+        if db_config['backend_class'] is None:
+            flash('No database connection', 'error')
+            return redirect(url_for('index'))
+        
         connection_info = str(db_config['connection_params'])
         return render_template('dashboard.html', db_path=connection_info)
 
@@ -36,6 +47,7 @@ def register_routes(app):
             
             if init_db(backend_class, **connection_params):
                 flash(f'Successfully connected to {db_path}', 'success')
+                return redirect(url_for('dashboard'))  # Redirect to dashboard after successful connection
             else:
                 flash(f'Failed to connect to {db_path}', 'error')
         
@@ -62,7 +74,7 @@ def register_routes(app):
         db = get_db()
         if db is None:
             flash('No database connection', 'error')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
         
         try:
             from web_database import db_config
@@ -94,7 +106,7 @@ def register_routes(app):
             return render_template('stats.html', stats=stats_data)
         except Exception as e:
             flash(f'Error loading statistics: {e}', 'error')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
 
     @app.route('/constants')
     def constants():
@@ -102,7 +114,7 @@ def register_routes(app):
         db = get_db()
         if db is None:
             flash('No database connection', 'error')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
         
         try:
             from usta_constants import get_usta_constants
@@ -110,5 +122,4 @@ def register_routes(app):
             return render_template('constants.html', constants=constants_data)
         except Exception as e:
             flash(f'Error loading constants: {e}', 'error')
-            return redirect(url_for('index'))
-
+            return redirect(url_for('dashboard'))

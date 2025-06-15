@@ -1,293 +1,627 @@
-<!-- shared_styles.html - Common CSS styles for all templates -->
 <style>
-/* WORKING TABLE HEADER FIX - Uses the same selectors that worked in debug test */
-.table > thead > tr > th,
-thead.table-light > tr > th,
-thead.table-dark > tr > th,
-.enhanced-table > thead > tr > th,
-.enhanced-table thead.table-light > tr > th,
-.enhanced-table thead.table-dark > tr > th {
-    /* Your specified color: R=44, G=87, B=137 */
-    background: rgb(44, 87, 137) !important;
-    background-color: rgb(44, 87, 137) !important;
-    color: white !important;
+/* ==========================================================================
+   Tennis App - Standardized Form & Modal Styles
+   Version 1.0 - Complete Standardization
+   ========================================================================== */
+
+/* ==========================================================================
+   CSS Custom Properties (Variables)
+   ========================================================================== */
+:root {
+    /* Primary Tennis App Colors */
+    --tennis-primary: #2d5a87;
+    --tennis-primary-dark: #1e3a5f;
+    --tennis-primary-darker: #0f1c2e;
     
-    /* Styling */
-    vertical-align: middle !important;
-    border-bottom: 2px solid #2c5789 !important;
-    font-weight: 600 !important;
-    font-size: 0.85rem !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.5px !important;
+    /* Semantic Colors */
+    --tennis-success: #28a745;
+    --tennis-success-dark: #20893a;
+    --tennis-danger: #dc3545;
+    --tennis-danger-dark: #c82333;
+    --tennis-warning: #ffc107;
+    --tennis-warning-dark: #e0a800;
+    --tennis-info: #007bff;
+    --tennis-info-dark: #0056b3;
+    
+    /* Neutral Colors */
+    --tennis-gray-100: #f8f9fa;
+    --tennis-gray-200: #e9ecef;
+    --tennis-gray-300: #dee2e6;
+    --tennis-gray-600: #6c757d;
+    --tennis-gray-700: #495057;
+    --tennis-gray-800: #343a40;
+    
+    /* Spacing */
+    --tennis-border-radius: 0.375rem;
+    --tennis-border-radius-lg: 0.5rem;
+    --tennis-box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    --tennis-box-shadow-lg: 0 4px 8px rgba(0,0,0,0.15);
+    
+    /* Transitions */
+    --tennis-transition: all 0.2s ease;
+    --tennis-transition-fast: all 0.15s ease;
 }
 
-/* Enhanced Table Styling */
-.enhanced-table {
-    font-size: 0.9rem;
-    border: 2px solid #2c5789;
-    border-radius: 6px;
+/* ==========================================================================
+   Base Modal Styling
+   ========================================================================== */
+.tennis-modal .modal-header {
+    background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
+    color: white;
+    border-bottom: none;
+    border-radius: var(--tennis-border-radius) var(--tennis-border-radius) 0 0;
+    padding: 1rem 1.25rem;
 }
 
-.enhanced-table tbody tr {
-    transition: all 0.2s ease;
+.tennis-modal .modal-header .btn-close {
+    filter: brightness(0) invert(1);
+    opacity: 0.8;
+    transition: var(--tennis-transition-fast);
 }
 
-.enhanced-table tbody tr:hover {
-    background-color: #e8f4fd;
-    transform: scale(1.01);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    border-left: 4px solid #2c5789;
+.tennis-modal .modal-header .btn-close:hover {
+    opacity: 1;
+    transform: scale(1.1);
 }
 
-/* Card Header Styling - Updated to use consistent color */
-.card-header.bg-primary {
-    background: linear-gradient(135deg, #2c5789 0%, #1e3a5a 100%) !important;
+.tennis-modal .modal-title {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.1rem;
+    margin-bottom: 0;
 }
 
-.card-header.bg-success {
-    background: linear-gradient(135deg, #198754 0%, #146c43 100%) !important;
+.tennis-modal .modal-title i {
+    font-size: 1rem;
+    opacity: 0.9;
 }
 
-.card-header.bg-info {
-    background: linear-gradient(135deg, #0dcaf0 0%, #087990 100%) !important;
+.tennis-modal .modal-content {
+    border: none;
+    border-radius: var(--tennis-border-radius);
+    box-shadow: var(--tennis-box-shadow-lg);
 }
 
-.card-header.bg-warning {
-    background: linear-gradient(135deg, #ffc107 0%, #cc9a06 100%) !important;
+.tennis-modal .modal-body {
+    padding: 1.5rem 1.25rem;
 }
 
-/* Enhanced Card Styling */
-.enhanced-card {
-    transition: all 0.2s ease;
-    border: 2px solid #2c5789;
-    border-radius: 8px;
+.tennis-modal .modal-footer {
+    border-top: 1px solid var(--tennis-gray-200);
+    background-color: var(--tennis-gray-100);
+    padding: 1rem 1.25rem;
+    border-radius: 0 0 var(--tennis-border-radius) var(--tennis-border-radius);
 }
 
-.enhanced-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 16px rgba(44,87,137,0.3);
-    border-color: #1e3a5a;
+/* ==========================================================================
+   Form Styling
+   ========================================================================== */
+.tennis-form .form-label {
+    font-weight: 500;
+    color: var(--tennis-gray-700);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
 }
 
-/* Facility-specific styling */
-.facility-info-cell {
-    min-width: 180px;
+.tennis-form .form-label i {
+    color: var(--tennis-primary);
+    width: 14px;
+    flex-shrink: 0;
 }
 
-.location-cell .badge {
-    max-width: 160px;
-    white-space: normal;
-    line-height: 1.2;
-    padding: 0.4rem 0.6rem;
-}
-
-.schedule-cell {
-    min-width: 120px;
-}
-
-.availability-cell .badge {
-    font-size: 0.7rem;
-    padding: 0.4rem 0.6rem;
-}
-
-.action-cell .btn-group .btn {
-    border-radius: 0.25rem !important;
-    margin: 0 0.1rem;
-    font-size: 0.75rem;
-}
-
-/* League-specific styling */
-.league-info-cell {
-    min-width: 180px;
-}
-
-.league-cell {
-    max-width: 160px;
-}
-
-.age-group-cell .badge {
-    font-size: 0.7rem;
-    padding: 0.4rem 0.6rem;
-    min-width: 80px;
-}
-
-.division-cell .badge {
-    font-size: 0.7rem;
-    padding: 0.4rem 0.6rem;
-    min-width: 90px;
-}
-
-.format-cell {
-    min-width: 100px;
-}
-
-.season-cell {
-    min-width: 120px;
-}
-
-/* Team-specific styling */
-.team-info-cell {
-    min-width: 180px;
-}
-
-.captain-cell {
-    min-width: 120px;
-}
-
-.facility-cell {
-    max-width: 160px;
-}
-
-.days-cell .badge {
-    font-size: 0.7rem;
-    margin: 0.1rem;
-}
-
-.facility-cell .fa-check-circle {
-    color: #198754 !important;
-}
-
-.facility-cell .fa-exclamation-triangle {
-    color: #ffc107 !important;
-}
-
-/* Schedule-specific styling */
-.time-cell .badge {
-    padding: 0.4rem 0.6rem;
-    font-size: 0.8rem;
-    min-width: 60px;
-    margin-bottom: 2px;
-}
-
-.teams-cell {
-    min-width: 180px;
-}
-
-.teams-cell .badge {
-    font-size: 0.7rem;
+.tennis-form .form-label .required {
+    color: var(--tennis-danger);
     font-weight: 600;
 }
 
-.facility-cell .badge {
-    max-width: 120px;
-    white-space: normal;
-    line-height: 1.2;
-    padding: 0.35rem 0.5rem;
+.tennis-form .form-control,
+.tennis-form .form-select {
+    border: 1px solid var(--tennis-gray-300);
+    border-radius: var(--tennis-border-radius);
+    transition: var(--tennis-transition);
+    font-size: 0.925rem;
 }
 
-.lines-cell .badge {
-    font-size: 0.75rem;
-    color: #6c757d;
-    border: 1px solid #6c757d;
-    background: transparent;
+.tennis-form .form-control:focus,
+.tennis-form .form-select:focus {
+    border-color: var(--tennis-primary);
+    box-shadow: 0 0 0 0.2rem rgba(45, 90, 135, 0.25);
 }
 
-/* Row hover effects */
-.enhanced-table tbody tr {
-    cursor: pointer;
-    border-left: 3px solid transparent;
-    transition: all 0.3s ease;
+.tennis-form .form-control:hover:not(:focus),
+.tennis-form .form-select:hover:not(:focus) {
+    border-color: var(--tennis-gray-600);
 }
 
-.enhanced-table tbody tr:hover {
-    border-left-color: #2c5789;
-    background: linear-gradient(90deg, rgba(44,87,137,0.05) 0%, rgba(255,255,255,1) 10%);
+.tennis-form .form-text {
+    font-size: 0.875rem;
+    color: var(--tennis-gray-600);
+    margin-top: 0.25rem;
 }
 
-/* Mobile card enhancements */
-.enhanced-card {
-    border-left: 3px solid #2c5789 !important;
+.tennis-form .form-check-input:checked {
+    background-color: var(--tennis-primary);
+    border-color: var(--tennis-primary);
 }
 
-.enhanced-card:hover {
-    transform: translateX(5px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    border-left-color: #1e3a5a !important;
+.tennis-form .form-check-input:focus {
+    box-shadow: 0 0 0 0.2rem rgba(45, 90, 135, 0.25);
 }
 
-.enhanced-card.border-primary {
-    border-left-color: #2c5789 !important;
+/* Form Groups */
+.tennis-form .form-group {
+    margin-bottom: 1.5rem;
 }
 
-.enhanced-card.border-success {
-    border-left-color: #198754 !important;
+.tennis-form .form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
 }
 
-.enhanced-card.border-info {
-    border-left-color: #0dcaf0 !important;
+.tennis-form .form-row .form-group {
+    flex: 1;
+    margin-bottom: 0;
 }
 
-.enhanced-card.border-warning {
-    border-left-color: #ffc107 !important;
+/* ==========================================================================
+   Button Standardization
+   ========================================================================== */
+.btn-tennis-primary {
+    background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
+    border: none;
+    color: white;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: var(--tennis-border-radius);
+    transition: var(--tennis-transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
-/* Progress Bar Enhancements */
-.progress {
-    height: 8px;
+.btn-tennis-primary:hover {
+    background: linear-gradient(135deg, var(--tennis-primary-dark) 0%, var(--tennis-primary-darker) 100%);
+    transform: translateY(-1px);
+    box-shadow: var(--tennis-box-shadow-lg);
+    color: white;
 }
 
-.progress-bar {
-    transition: width 0.3s ease;
+.btn-tennis-primary:active {
+    transform: translateY(0);
 }
 
-/* Responsive improvements */
-@media (max-width: 1200px) {
-    .enhanced-table {
-        font-size: 0.8rem;
-    }
-    
-    .facility-info-cell,
-    .league-info-cell,
-    .team-info-cell {
-        min-width: 160px;
-    }
-    
-    .location-cell .badge,
-    .facility-cell .badge {
-        font-size: 0.7rem;
-        max-width: 140px;
-    }
+.btn-tennis-success {
+    background: linear-gradient(135deg, var(--tennis-success) 0%, var(--tennis-success-dark) 100%);
+    border: none;
+    color: white;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: var(--tennis-border-radius);
+    transition: var(--tennis-transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
+.btn-tennis-success:hover {
+    background: linear-gradient(135deg, var(--tennis-success-dark) 0%, #155724 100%);
+    transform: translateY(-1px);
+    color: white;
+}
+
+.btn-tennis-danger {
+    background: linear-gradient(135deg, var(--tennis-danger) 0%, var(--tennis-danger-dark) 100%);
+    border: none;
+    color: white;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: var(--tennis-border-radius);
+    transition: var(--tennis-transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-tennis-danger:hover {
+    background: linear-gradient(135deg, var(--tennis-danger-dark) 0%, #a71e2a 100%);
+    transform: translateY(-1px);
+    color: white;
+}
+
+.btn-tennis-warning {
+    background: linear-gradient(135deg, var(--tennis-warning) 0%, var(--tennis-warning-dark) 100%);
+    border: none;
+    color: #212529;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: var(--tennis-border-radius);
+    transition: var(--tennis-transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-tennis-warning:hover {
+    background: linear-gradient(135deg, var(--tennis-warning-dark) 0%, #d39e00 100%);
+    transform: translateY(-1px);
+    color: #212529;
+}
+
+/* Button sizes */
+.btn-tennis-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.btn-tennis-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1.1rem;
+}
+
+/* Disabled state for all tennis buttons */
+.btn-tennis-primary:disabled,
+.btn-tennis-success:disabled,
+.btn-tennis-danger:disabled,
+.btn-tennis-warning:disabled {
+    opacity: 0.6;
+    transform: none !important;
+    cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Alert Standardization
+   ========================================================================== */
+.alert-tennis {
+    border: none;
+    border-radius: var(--tennis-border-radius-lg);
+    box-shadow: var(--tennis-box-shadow);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.alert-tennis i {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.alert-tennis-success {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    color: #155724;
+    border-left: 4px solid var(--tennis-success);
+}
+
+.alert-tennis-danger {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    color: #721c24;
+    border-left: 4px solid var(--tennis-danger);
+}
+
+.alert-tennis-warning {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    color: #856404;
+    border-left: 4px solid var(--tennis-warning);
+}
+
+.alert-tennis-info {
+    background: linear-gradient(135deg, #cce7ff 0%, #b8daff 100%);
+    color: #004085;
+    border-left: 4px solid var(--tennis-info);
+}
+
+/* Alert close button styling */
+.alert-tennis .btn-close {
+    margin-left: auto;
+    opacity: 0.6;
+    transition: var(--tennis-transition-fast);
+}
+
+.alert-tennis .btn-close:hover {
+    opacity: 1;
+}
+
+/* ==========================================================================
+   Loading States
+   ========================================================================== */
+.tennis-loading {
+    position: relative;
+}
+
+.tennis-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+    border-radius: var(--tennis-border-radius);
+    backdrop-filter: blur(1px);
+}
+
+.tennis-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 3px solid var(--tennis-gray-200);
+    border-top: 3px solid var(--tennis-primary);
+    border-radius: 50%;
+    animation: tennis-spin 1s linear infinite;
+}
+
+.tennis-spinner-sm {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-width: 2px;
+}
+
+.tennis-spinner-lg {
+    width: 3rem;
+    height: 3rem;
+    border-width: 4px;
+}
+
+@keyframes tennis-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Button loading state */
+.btn-loading {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.btn-loading .tennis-spinner {
+    width: 1rem;
+    height: 1rem;
+    border-width: 2px;
+    margin-right: 0.5rem;
+}
+
+/* ==========================================================================
+   Validation States
+   ========================================================================== */
+.tennis-form .is-valid {
+    border-color: var(--tennis-success) !important;
+    background-image: none;
+}
+
+.tennis-form .is-invalid {
+    border-color: var(--tennis-danger) !important;
+    background-image: none;
+}
+
+.tennis-form .valid-feedback {
+    color: var(--tennis-success);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.tennis-form .invalid-feedback {
+    color: var(--tennis-danger);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.tennis-form .valid-feedback::before {
+    content: "\f00c";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+}
+
+.tennis-form .invalid-feedback::before {
+    content: "\f00d";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+}
+
+/* ==========================================================================
+   Card Enhancements
+   ========================================================================== */
+.tennis-card {
+    border: none;
+    border-radius: var(--tennis-border-radius-lg);
+    box-shadow: var(--tennis-box-shadow);
+    transition: var(--tennis-transition);
+    overflow: hidden;
+}
+
+.tennis-card:hover {
+    box-shadow: var(--tennis-box-shadow-lg);
+    transform: translateY(-2px);
+}
+
+.tennis-card .card-header {
+    background: linear-gradient(135deg, var(--tennis-gray-100) 0%, var(--tennis-gray-200) 100%);
+    border-bottom: 1px solid var(--tennis-gray-300);
+    font-weight: 600;
+    color: var(--tennis-gray-700);
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tennis-card .card-header i {
+    color: var(--tennis-primary);
+}
+
+.tennis-card .card-body {
+    padding: 1.25rem;
+}
+
+.tennis-card .card-footer {
+    background: var(--tennis-gray-100);
+    border-top: 1px solid var(--tennis-gray-200);
+    padding: 1rem 1.25rem;
+}
+
+/* ==========================================================================
+   Table Enhancements
+   ========================================================================== */
+.tennis-table {
+    border-radius: var(--tennis-border-radius);
+    overflow: hidden;
+    box-shadow: var(--tennis-box-shadow);
+}
+
+.tennis-table th {
+    background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
+    color: white;
+    font-weight: 600;
+    border: none;
+    padding: 1rem 0.75rem;
+}
+
+.tennis-table th i {
+    opacity: 0.8;
+    margin-right: 0.5rem;
+}
+
+.tennis-table td {
+    padding: 0.75rem;
+    border-color: var(--tennis-gray-200);
+    vertical-align: middle;
+}
+
+.tennis-table tbody tr:hover {
+    background-color: rgba(45, 90, 135, 0.05);
+}
+
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+.text-tennis-primary {
+    color: var(--tennis-primary) !important;
+}
+
+.bg-tennis-primary {
+    background-color: var(--tennis-primary) !important;
+}
+
+.border-tennis-primary {
+    border-color: var(--tennis-primary) !important;
+}
+
+.shadow-tennis {
+    box-shadow: var(--tennis-box-shadow) !important;
+}
+
+.shadow-tennis-lg {
+    box-shadow: var(--tennis-box-shadow-lg) !important;
+}
+
+.rounded-tennis {
+    border-radius: var(--tennis-border-radius) !important;
+}
+
+.rounded-tennis-lg {
+    border-radius: var(--tennis-border-radius-lg) !important;
+}
+
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
 @media (max-width: 768px) {
-    .action-cell .btn-group .btn {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.7rem;
+    .tennis-modal .modal-dialog {
+        margin: 1rem;
     }
     
-    .enhanced-card {
+    .tennis-form .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    .tennis-form .form-row .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .btn-tennis-primary,
+    .btn-tennis-success,
+    .btn-tennis-danger,
+    .btn-tennis-warning {
+        width: 100%;
+        justify-content: center;
         margin-bottom: 0.5rem;
     }
     
-    .enhanced-table tbody tr:hover {
-        transform: none;
+    .tennis-card {
+        margin-bottom: 1rem;
     }
 }
 
-/* Print Styles */
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
 @media print {
-    .enhanced-card {
-        break-inside: avoid;
-        margin-bottom: 20px;
+    .tennis-modal,
+    .alert-tennis,
+    .btn-tennis-primary,
+    .btn-tennis-success,
+    .btn-tennis-danger,
+    .btn-tennis-warning {
+        display: none !important;
     }
     
-    .card-header {
-        background-color: #f8f9fa !important;
-        color: #000 !important;
+    .tennis-card {
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+}
+
+/* ==========================================================================
+   Accessibility Enhancements
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
     }
     
-    .enhanced-table {
-        font-size: 11px;
+    .tennis-spinner {
+        animation: none;
+        border-top-color: transparent;
     }
-    
-    /* Ensure table headers print with your custom color */
-    .table > thead > tr > th,
-    thead.table-light > tr > th,
-    thead.table-dark > tr > th {
-        background-color: rgb(44, 87, 137) !important;
+}
+
+/* Focus indicators for keyboard navigation */
+.tennis-form .form-control:focus,
+.tennis-form .form-select:focus,
+.btn-tennis-primary:focus,
+.btn-tennis-success:focus,
+.btn-tennis-danger:focus,
+.btn-tennis-warning:focus {
+    outline: 2px solid var(--tennis-primary);
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .tennis-modal .modal-header,
+    .btn-tennis-primary,
+    .btn-tennis-success,
+    .btn-tennis-danger,
+    .btn-tennis-warning {
+        background: var(--tennis-gray-800) !important;
         color: white !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
+        border: 2px solid white !important;
     }
 }
 </style>

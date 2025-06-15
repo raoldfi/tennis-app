@@ -227,21 +227,6 @@ class TennisDBInterface(ABC):
         """
         pass
 
-    @abstractmethod
-    def auto_schedule_match(self, match: 'Match', 
-                          prefer_home_facility: bool = True) -> bool:
-        """
-        Attempt to automatically schedule a single match
-        
-        Args:
-            match_id: Match to schedule
-            preferred_dates: List of dates to try (in order of preference)
-            prefer_home_facility: Whether to prefer the home team's facility
-            
-        Returns: 
-            True if match was successfully scheduled
-        """
-        pass
 
     
     @abstractmethod

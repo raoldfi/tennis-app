@@ -329,12 +329,6 @@ class SQLiteTennisDB(TennisDBInterface):
             match, facility_to_use, date, start_time, interval_minutes
         )
 
-    def auto_schedule_match(self, match: Match, 
-                          prefer_home_facility: bool = True) -> bool:
-        # Get optimal dates for this match
-        import utils
-        optimal_dates = utils.get_optimal_scheduling_dates(match)
-        return self.scheduling_manager.auto_schedule_match(match, optimal_dates, prefer_home_facility)
 
     def auto_schedule_matches(self, matches: List['Match']) -> Dict[str, Any]:
         return self.scheduling_manager.auto_schedule_matches(matches)
