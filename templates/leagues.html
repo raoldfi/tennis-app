@@ -2,376 +2,346 @@
 
 {% block title %}Leagues{% endblock %}
 
+{% block extra_css %}
+<!-- Page-specific styles that build on shared styles -->
+<style>
+.league-row {
+    transition: all 0.2s ease;
+}
+
+.league-row:hover {
+    background-color: var(--tennis-hover-bg, rgba(0, 123, 255, 0.05));
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-group .btn {
+    border-radius: 0;
+}
+
+.btn-group .btn:first-child {
+    border-top-left-radius: 0.375rem;
+    border-bottom-left-radius: 0.375rem;
+}
+
+.btn-group .btn:last-child {
+    border-top-right-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
+}
+
+.filter-section {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 0.5rem;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}
+
 {% block content %}
+<!-- Header Section -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h1><i class="fas fa-trophy text-warning"></i> Leagues</h1>
-        <p class="text-muted mb-0">Manage tennis league competitions and divisions</p>
+        <h2><i class="fas fa-trophy"></i> Leagues</h2>
+        <p class="text-muted mb-0">Manage tennis leagues and their configurations</p>
     </div>
-    <div class="d-flex gap-2 flex-wrap">
-        <!-- Import/Export Buttons -->
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-info dropdown-toggle" data-bs-toggle="dropdown">
-                <i class="fas fa-file-import"></i> Import/Export
-            </button>
-            <ul class="dropdown-menu">
-                <li>
-                    <button class="dropdown-item" data-action="show-import">
-                        <i class="fas fa-file-upload"></i> Import YAML
-                    </button>
-                </li>
-                <li>
-                    <button class="dropdown-item" data-action="export-all" data-format="yaml">
-                        <i class="fas fa-file-download"></i> Export All to YAML
-                    </button>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                    <button class="dropdown-item" data-action="export-all" data-format="json">
-                        <i class="fas fa-file-code"></i> Export All to JSON
-                    </button>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                    <button class="dropdown-item" data-action="show-help">
-                        <i class="fas fa-question-circle"></i> Help & Examples
-                    </button>
-                </li>
-            </ul>
-        </div>
-        <a href="{{ url_for('add_league') }}" class="btn btn-success">
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('add_league') }}" class="btn btn-tennis-primary">
             <i class="fas fa-plus"></i> Add League
         </a>
+        <button type="button" class="btn btn-outline-secondary" onclick="TennisLeagues.importYAML()">
+            <i class="fas fa-upload"></i> Import YAML
+        </button>
     </div>
 </div>
 
-<!-- Bulk Match Generation Section -->
-{% if leagues %}
-<div class="card mb-4 border-primary">
-    <div class="card-header bg-primary text-white">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h5 class="mb-0">
-                    <i class="fas fa-magic"></i> Bulk Match Generation
-                </h5>
-                <small class="text-light">Generate matches for multiple leagues at once</small>
-            </div>
-            <div class="text-end">
-                <small class="text-light">
-                    <i class="fas fa-info-circle"></i> 
-                    {{ leagues|length }} league{% if leagues|length != 1 %}s{% endif %} available
-                </small>
-            </div>
-        </div>
-    </div>
+<!-- Search and Filter Section -->
+<div class="card tennis-card mb-4 filter-section">
     <div class="card-body">
         <div class="row align-items-center">
-            <div class="col-md-8">
-                <div class="d-flex gap-3 align-items-center">
-                    <button type="button" class="btn btn-primary btn-lg" data-action="bulk-generate">
-                        <i class="fas fa-magic"></i> Generate Matches for All Leagues
-                    </button>
-                    <div class="vr d-none d-md-block"></div>
-                    <div class="text-muted small">
-                        <i class="fas fa-info-circle"></i>
-                        This will generate matches for all leagues that have sufficient teams
-                    </div>
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="search" 
+                           class="form-control" 
+                           id="leagueSearch" 
+                           placeholder="Search leagues by name, year, or division..."
+                           value="">
                 </div>
             </div>
-            <div class="col-md-4 text-end">
-                <div class="small text-muted">
-                    <div><i class="fas fa-check-circle text-success"></i> Instant generation</div>
-                    <div><i class="fas fa-balance-scale text-info"></i> Fair distribution</div>
-                    <div><i class="fas fa-calendar-alt text-warning"></i> Ready for scheduling</div>
-                </div>
+            <div class="col-md-2">
+                <select class="form-select" id="yearFilter">
+                    <option value="">All Years</option>
+                    <!-- Populated by JavaScript -->
+                </select>
             </div>
-        </div>
-        
-        <!-- Progress indicator (initially hidden) -->
-        <div id="bulkGenerationProgress" class="mt-3" style="display: none;">
-            <div class="progress mb-2">
-                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                     role="progressbar" style="width: 0%"></div>
+            <div class="col-md-2">
+                <select class="form-select" id="divisionFilter">
+                    <option value="">All Divisions</option>
+                    <!-- Populated by JavaScript -->
+                </select>
             </div>
-            <div id="progressText" class="small text-muted text-center">
-                Initializing...
-            </div>
-        </div>
-        
-        <!-- Results summary (initially hidden) -->
-        <div id="bulkGenerationResults" class="mt-3" style="display: none;">
-            <!-- Results will be populated by JavaScript -->
-        </div>
-    </div>
-</div>
-{% endif %}
-
-<!-- League Search and Filters -->
-{% if leagues %}
-<div class="card mb-4">
-    <div class="card-header">
-        <div class="row align-items-center">
-            <div class="col-md-6">
-                <h6><i class="fas fa-table"></i> Leagues Overview</h6>
-            </div>
-            <div class="col-auto">
-                <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" class="btn btn-outline-secondary" data-action="export-visible" data-format="yaml">
-                        <i class="fas fa-download"></i> Export Visible
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" data-action="clear-filters">
-                        <i class="fas fa-times"></i> Clear Filters
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="table-responsive">
-        <table class="table table-hover tennis-table mb-0" id="leaguesTable">
-            <thead>
-                <tr>
-                    <th><i class="fas fa-trophy"></i> League Information</th>
-                    <th><i class="fas fa-map-marker-alt"></i> Location</th>
-                    <th class="text-center"><i class="fas fa-users"></i> Age Group</th>
-                    <th class="text-center"><i class="fas fa-medal"></i> Division</th>
-                    <th class="text-center"><i class="fas fa-table-tennis"></i> Format</th>
-                    <th class="text-center"><i class="fas fa-calendar"></i> Season</th>
-                    <th class="text-center"><i class="fas fa-cogs"></i> Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for league in leagues %}
-                <tr class="league-row" data-league-id="{{ league.id }}">
-                    <td class="league-info-cell">
-                        <div class="fw-bold text-primary">{{ league.name }}</div>
-                        <div class="small text-muted">
-                            <strong>{{ league.year }}</strong> • {{ league.section or 'No Section' }}
-                        </div>
-                    </td>
-                    <td class="location-cell">
-                        <div class="small">
-                            <i class="fas fa-map-marker-alt text-muted"></i>
-                            {{ league.region or 'No Region' }}
-                        </div>
-                    </td>
-                    <td class="text-center age-group-cell">
-                        <span class="badge bg-info">{{ league.age_group }}</span>
-                    </td>
-                    <td class="text-center division-cell">
-                        <span class="badge bg-secondary">{{ league.division }}</span>
-                    </td>
-                    <td class="text-center format-cell">
-                        <div class="small">
-                            <div><strong>{{ league.num_matches }}</strong> matches/team</div>
-                            <div><strong>{{ league.num_lines_per_match }}</strong> lines/match</div>
-                            {% if league.allow_split_lines %}
-                            <span class="badge bg-warning text-dark mt-1">Split OK</span>
-                            {% endif %}
-                        </div>
-                    </td>
-                    <td class="text-center season-cell">
-                        {% if league.start_date and league.end_date %}
-                        <div class="small">
-                            <i class="fas fa-calendar"></i>
-                            {{ league.start_date }} to {{ league.end_date }}
-                        </div>
-                        {% elif league.start_date %}
-                        <div class="small">
-                            <i class="fas fa-play"></i>
-                            Starts: {{ league.start_date }}
-                        </div>
-                        {% elif league.end_date %}
-                        <div class="small">
-                            <i class="fas fa-stop"></i>
-                            Ends: {{ league.end_date }}
-                        </div>
-                        {% else %}
-                        <span class="text-muted small">No dates set</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-center action-cell">
-                        <div class="btn-group" role="group">
-                            <a href="{{ url_for('teams', league_id=league.id) }}" 
-                               class="btn btn-sm btn-outline-info" title="View teams">
-                                <i class="fas fa-users"></i>
-                            </a>
-                            <a href="{{ url_for('edit_league', league_id=league.id) }}" 
-                               class="btn btn-sm btn-outline-warning" title="Edit league">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <button class="btn btn-sm btn-primary" 
-                                    data-action="generate-matches" 
-                                    data-league-id="{{ league.id }}" 
-                                    data-league-name="{{ league.name }}"
-                                    title="Generate matches">
-                                <i class="fas fa-magic"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-secondary" 
-                                    data-action="export-league" 
-                                    data-league-id="{{ league.id }}" 
-                                    data-league-name="{{ league.name }}"
-                                    title="Export league">
-                                <i class="fas fa-download"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Enhanced Card View (Alternative Layout) -->
-<div class="d-none" id="cardView">
-    {% for league in leagues %}
-    <div class="card tennis-card mb-3 enhanced-card" data-league-id="{{ league.id }}">
-        <div class="card-header">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>{{ league.name }}</strong>
-                    <small class="text-muted ms-2">{{ league.year }}</small>
-                </div>
-                <div class="text-end">
-                    <span class="badge bg-info">{{ league.age_group }}</span>
-                    <span class="badge bg-secondary ms-1">{{ league.division }}</span>
-                </div>
-            </div>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-2">
-                        <small class="text-muted">Location</small>
-                        <div>
-                            <i class="fas fa-map-marker-alt text-muted"></i>
-                            {{ league.section or 'No Section' }} • {{ league.region or 'No Region' }}
-                        </div>
-                    </div>
-                    
-                    <div class="mb-2">
-                        <small class="text-muted">Match Format</small>
-                        <div>
-                            <strong>{{ league.num_matches }}</strong> matches/team • 
-                            <strong>{{ league.num_lines_per_match }}</strong> lines/match
-                            {% if league.allow_split_lines %}
-                            <span class="badge bg-warning text-dark ms-1">Split OK</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="col-md-6">
-                    {% if league.start_date or league.end_date %}
-                    <div class="mb-2">
-                        <small class="text-muted">Season</small>
-                        <div>
-                            {% if league.start_date and league.end_date %}
-                            <i class="fas fa-calendar"></i> {{ league.start_date }} to {{ league.end_date }}
-                            {% elif league.start_date %}
-                            <i class="fas fa-play"></i> Starts: {{ league.start_date }}
-                            {% elif league.end_date %}
-                            <i class="fas fa-stop"></i> Ends: {{ league.end_date }}
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    {% if league.preferred_days %}
-                    <div class="mb-2">
-                        <small class="text-muted">Preferred Days</small>
-                        <div>
-                            {% for day in league.preferred_days %}
-                            <span class="badge bg-success">{{ day[:3] }}</span>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            
-            <div class="d-flex gap-2 flex-wrap mt-3">
-                <a href="{{ url_for('teams', league_id=league.id) }}" 
-                   class="btn btn-sm btn-info">
-                    <i class="fas fa-users"></i> Teams
-                </a>
-                <a href="{{ url_for('edit_league', league_id=league.id) }}" 
-                   class="btn btn-sm btn-warning">
-                    <i class="fas fa-edit"></i> Edit
-                </a>
-                <button class="btn btn-sm btn-primary" 
-                        data-action="generate-matches" 
-                        data-league-id="{{ league.id }}" 
-                        data-league-name="{{ league.name }}">
-                    <i class="fas fa-magic"></i> Generate
-                </button>
-                <button class="btn btn-sm btn-secondary" 
-                        data-action="export-league" 
-                        data-league-id="{{ league.id }}" 
-                        data-league-name="{{ league.name }}">
-                    <i class="fas fa-download"></i> Export
+            <div class="col-md-2">
+                <button class="btn btn-outline-secondary" onclick="TennisLeagues.clearFilters()">
+                    <i class="fas fa-times"></i> Clear Filters
                 </button>
             </div>
+            <div class="col-md-2 text-end">
+                <span class="text-muted" id="resultCount">{{ leagues|length }} leagues</span>
+            </div>
         </div>
     </div>
-    {% endfor %}
 </div>
 
-{% else %}
+<!-- Leagues Table -->
 <div class="card tennis-card">
-    <div class="card-body text-center">
-        <i class="fas fa-trophy fa-4x text-muted mb-3"></i>
-        <h5>No Leagues Found</h5>
-        <p class="text-muted">No leagues are currently registered in the database.</p>
-        <div class="d-flex gap-2 justify-content-center flex-wrap">
-            <a href="{{ url_for('add_league') }}" class="btn btn-success">
-                <i class="fas fa-plus"></i> Add Your First League
-            </a>
-            <button class="btn btn-outline-info" data-action="show-import">
-                <i class="fas fa-file-import"></i> Import from YAML
-            </button>
-            <button class="btn btn-outline-secondary" data-action="show-help">
-                <i class="fas fa-question-circle"></i> Help
-            </button>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-list"></i> All Leagues</span>
+        <div class="d-flex gap-2 align-items-center">
+            <span class="badge bg-primary" id="tableResultCount">{{ leagues|length }}</span>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if leagues %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle" id="leaguesTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="text-center" style="width: 60px;">ID</th>
+                        <th style="width: 250px;">League Name</th>
+                        <th class="text-center" style="width: 80px;">Year</th>
+                        <th class="text-center" style="width: 120px;">Division</th>
+                        <th class="text-center" style="width: 100px;">Section</th>
+                        <th class="text-center" style="width: 120px;">Age Group</th>
+                        <th class="text-center" style="width: 80px;">Teams</th>
+                        <th class="text-center" style="width: 80px;">Matches</th>
+                        <th class="text-center" style="width: 200px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="leaguesTableBody">
+                    {% for league in leagues %}
+                    <tr class="league-row" 
+                        data-league-name="{{ league.name|lower }}" 
+                        data-league-year="{{ league.year }}" 
+                        data-league-division="{{ league.division|lower }}"
+                        data-league-section="{{ league.section|lower }}"
+                        data-league-age-group="{{ league.age_group|lower }}">
+                        
+                        <td class="text-center">
+                            <span class="badge bg-secondary">{{ league.id }}</span>
+                        </td>
+                        
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-trophy text-tennis-primary me-2"></i>
+                                <div>
+                                    <strong>{{ league.name }}</strong>
+                                    <div class="small text-muted">{{ league.region }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        
+                        <td class="text-center">
+                            <span class="badge bg-info">{{ league.year }}</span>
+                        </td>
+                        
+                        <td class="text-center">
+                            <span class="badge bg-success">{{ league.division }}</span>
+                        </td>
+                        
+                        <td class="text-center">
+                            <small class="text-muted">{{ league.section }}</small>
+                        </td>
+                        
+                        <td class="text-center">
+                            <small class="text-muted">{{ league.age_group }}</small>
+                        </td>
+                        
+                        <td class="text-center">
+                            <a href="{{ url_for('teams', league_id=league.id) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-users"></i> 
+                                <span class="badge bg-primary ms-1">{{ league.teams_count or 0 }}</span>
+                            </a>
+                        </td>
+                        
+                        <td class="text-center">
+                            <a href="{{ url_for('matches', league_id=league.id) }}" 
+                               class="btn btn-sm btn-outline-info">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span class="badge bg-info ms-1">{{ league.matches_count or 0 }}</span>
+                            </a>
+                        </td>
+                        
+                        <td class="text-center">
+                            <div class="btn-group" role="group">
+                                <!-- View Action -->
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-primary" 
+                                        onclick="TennisLeagues.viewLeague({{ league.id }})"
+                                        title="View League Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                
+                                <!-- Edit Action -->
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-warning" 
+                                        onclick="TennisLeagues.editLeague({{ league.id }})"
+                                        title="Edit League">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                
+                                <!-- Generate Matches Action -->
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-success" 
+                                        onclick="TennisLeagues.generateMatches({{ league.id }}, '{{ league.name|e }}')"
+                                        title="Generate Matches">
+                                    <i class="fas fa-magic"></i>
+                                </button>
+                                
+                                <!-- Dropdown for additional actions -->
+                                <div class="btn-group" role="group">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                                            data-bs-toggle="dropdown" 
+                                            title="More Actions">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('teams', league_id=league.id) }}">
+                                                <i class="fas fa-users"></i> View Teams
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('matches', league_id=league.id) }}">
+                                                <i class="fas fa-calendar-alt"></i> View Matches
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item text-danger" href="#" onclick="TennisLeagues.deleteLeague({{ league.id }}, '{{ league.name|e }}')">
+                                                <i class="fas fa-trash"></i> Delete League
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
         
-        <div class="alert alert-info mt-3">
-            <i class="fas fa-info-circle"></i>
-            <strong>Note:</strong> Leagues organize teams into competitive groups by skill level and format.
-            Start by adding a league or importing league data from a YAML file.
+        <!-- No Results Message -->
+        <div id="noResults" class="text-center py-4" style="display: none;">
+            <i class="fas fa-search fa-2x text-muted mb-3"></i>
+            <h6 class="text-muted">No leagues found</h6>
+            <p class="text-muted">Try adjusting your search terms or filters</p>
+        </div>
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-trophy fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No Leagues Yet</h5>
+            <p class="text-muted">Create your first league to get started with match generation</p>
+            <a href="{{ url_for('add_league') }}" class="btn btn-tennis-primary">
+                <i class="fas fa-plus"></i> Create First League
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Statistics Section -->
+{% if leagues %}
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card tennis-card text-center">
+            <div class="card-body">
+                <i class="fas fa-trophy fa-2x text-tennis-primary mb-2"></i>
+                <h4 class="mb-0">{{ leagues|length }}</h4>
+                <small class="text-muted">Total Leagues</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card tennis-card text-center">
+            <div class="card-body">
+                <i class="fas fa-calendar fa-2x text-tennis-success mb-2"></i>
+                <h4 class="mb-0">{{ leagues|map(attribute='year')|unique|list|length }}</h4>
+                <small class="text-muted">Active Years</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card tennis-card text-center">
+            <div class="card-body">
+                <i class="fas fa-layer-group fa-2x text-tennis-info mb-2"></i>
+                <h4 class="mb-0">{{ leagues|map(attribute='division')|unique|list|length }}</h4>
+                <small class="text-muted">Divisions</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card tennis-card text-center">
+            <div class="card-body">
+                <i class="fas fa-users fa-2x text-tennis-warning mb-2"></i>
+                <h4 class="mb-0">{{ leagues|sum(attribute='teams_count') or 0 }}</h4>
+                <small class="text-muted">Total Teams</small>
+            </div>
         </div>
     </div>
 </div>
 {% endif %}
 
-<!-- Import Modal -->
-<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+<!-- Generate Matches Modal -->
+<div class="modal fade" id="generateMatchesModal" tabindex="-1">
+    <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="importModalLabel">
-                    <i class="fas fa-upload"></i> Import Leagues
+                <h5 class="modal-title">
+                    <i class="fas fa-magic"></i> Generate Matches
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="importForm" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label for="yamlFile" class="form-label">Select YAML File</label>
-                        <input type="file" class="form-control" id="yamlFile" name="yaml_file" accept=".yaml,.yml" required>
-                        <div class="form-text">Upload a YAML file containing league data.</div>
-                    </div>
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
-                        <strong>Import Process:</strong> The file will be validated and processed. 
-                        Existing leagues with matching IDs will be updated.
-                    </div>
-                </form>
+                <p>Are you sure you want to generate matches for <strong id="generateLeagueName"></strong>?</p>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    This will create all match pairings automatically using the league's configuration.
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" data-action="submit-import">
-                    <i class="fas fa-upload"></i> Import Leagues
+                <form method="POST" action="{{ url_for('generate_matches') }}" style="display: inline;">
+                    <input type="hidden" name="league_id" id="generateLeagueId">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-magic"></i> Generate Matches
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View League Modal -->
+<div class="modal fade" id="viewLeagueModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-eye"></i> League Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="viewLeagueContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="editLeagueFromView()">
+                    <i class="fas fa-edit"></i> Edit League
                 </button>
             </div>
         </div>
@@ -380,551 +350,271 @@
 
 {% endblock %}
 
+{% block init_js %}
+// Initialize the leagues page using TennisUI
+TennisLeagues.init();
+{% endblock %}
+
 {% block scripts %}
 <script>
 /**
- * Leagues Page - Specialized functionality for league management
- * Uses TennisUI from shared_scripts.html as the foundation
+ * Tennis Leagues Management - Uses shared TennisUI components
  */
-class LeaguesPage {
-    // Global variables for tracking bulk generation
-    static bulkGenerationActive = false;
-    static bulkGenerationResults = {
-        successful: [],
-        failed: [],
-        skipped: []
-    };
-
+class TennisLeagues {
+    static currentLeagueId = null;
+    
     /**
      * Initialize the leagues page functionality
      */
     static init() {
-        // Set up event listeners using the shared TennisUI utilities
-        TennisUI.setupTableInteractions('leaguesTable');
-        TennisUI.setupFormValidation();
-        
-        // Initialize league-specific functionality
-        this.setupEventListeners();
-        this.setupFiltering();
-        this.setupModalHandlers();
-        
-        console.log('Leagues page initialized successfully');
+        this.setupSearch();
+        this.setupFilters();
+        this.populateFilterOptions();
+        console.log('Tennis Leagues initialized');
     }
 
     /**
-     * Set up event listeners for league actions
+     * Set up search functionality using TennisUI
      */
-    static setupEventListeners() {
-        // Use event delegation for all league actions
-        document.addEventListener('click', (e) => {
-            const action = e.target.closest('[data-action]')?.dataset.action;
-            if (!action) return;
-
-            const button = e.target.closest('[data-action]');
-            const leagueId = button.dataset.leagueId;
-            const leagueName = button.dataset.leagueName;
-            const format = button.dataset.format;
-
-            switch (action) {
-                case 'bulk-generate':
-                    this.generateMatchesForAllLeagues();
-                    break;
-                case 'generate-matches':
-                    this.generateMatches(leagueId, leagueName);
-                    break;
-                case 'export-league':
-                    this.exportSingleLeague(leagueId, leagueName);
-                    break;
-                case 'export-visible':
-                    this.exportVisible(format || 'yaml');
-                    break;
-                case 'export-all':
-                    this.exportLeagues(format || 'yaml');
-                    break;
-                case 'clear-filters':
-                    this.clearFilters();
-                    break;
-                case 'show-import':
-                    this.showImportModal();
-                    break;
-                case 'show-help':
-                    this.showImportExportHelp();
-                    break;
-                case 'submit-import':
-                    this.submitImport();
-                    break;
-                case 'hide-results':
-                    this.hideBulkResults();
-                    break;
-            }
-        });
-    }
-
-    /**
-     * Set up filtering and search functionality
-     */
-    static setupFiltering() {
-        const searchInput = document.getElementById('searchInput');
-        const filters = ['yearFilter', 'divisionFilter', 'ageGroupFilter'];
-        
+    static setupSearch() {
+        const searchInput = document.getElementById('leagueSearch');
         if (searchInput) {
-            searchInput.addEventListener('input', this.filterLeagues.bind(this));
-        }
-        
-        filters.forEach(filterId => {
-            const filter = document.getElementById(filterId);
-            if (filter) {
-                filter.addEventListener('change', this.filterLeagues.bind(this));
-            }
-        });
-    }
-
-    /**
-     * Set up modal event handlers
-     */
-    static setupModalHandlers() {
-        // Use TennisUI modal utilities if available
-        if (window.TennisUI && TennisUI.setupModalHandlers) {
-            TennisUI.setupModalHandlers();
+            searchInput.addEventListener('input', () => this.filterTable());
         }
     }
 
     /**
-     * Filter leagues based on search and filter criteria
+     * Set up filter dropdowns
      */
-    static filterLeagues() {
-        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-        const yearFilter = document.getElementById('yearFilter')?.value || '';
-        const divisionFilter = document.getElementById('divisionFilter')?.value || '';
-        const ageGroupFilter = document.getElementById('ageGroupFilter')?.value || '';
+    static setupFilters() {
+        const yearFilter = document.getElementById('yearFilter');
+        const divisionFilter = document.getElementById('divisionFilter');
         
-        const tableRows = document.querySelectorAll('.league-row');
-        const cardElements = document.querySelectorAll('.enhanced-card');
+        if (yearFilter) {
+            yearFilter.addEventListener('change', () => this.filterTable());
+        }
         
-        // Filter table rows
-        tableRows.forEach(row => {
-            const text = row.textContent.toLowerCase();
-            const matchesSearch = searchTerm === '' || text.includes(searchTerm);
-            const matchesYear = yearFilter === '' || text.includes(yearFilter);
-            const matchesDivision = divisionFilter === '' || text.includes(divisionFilter);
-            const matchesAgeGroup = ageGroupFilter === '' || text.includes(ageGroupFilter);
+        if (divisionFilter) {
+            divisionFilter.addEventListener('change', () => this.filterTable());
+        }
+    }
+
+    /**
+     * Populate filter dropdown options based on available data
+     */
+    static populateFilterOptions() {
+        const rows = document.querySelectorAll('.league-row');
+        const years = new Set();
+        const divisions = new Set();
+        
+        rows.forEach(row => {
+            const year = row.dataset.leagueYear;
+            const division = row.dataset.leagueDivision;
             
-            const shouldShow = matchesSearch && matchesYear && matchesDivision && matchesAgeGroup;
-            row.style.display = shouldShow ? '' : 'none';
+            if (year) years.add(year);
+            if (division) divisions.add(division);
         });
         
-        // Filter card elements
-        cardElements.forEach(card => {
-            const text = card.textContent.toLowerCase();
-            const matchesSearch = searchTerm === '' || text.includes(searchTerm);
-            const matchesYear = yearFilter === '' || text.includes(yearFilter);
-            const matchesDivision = divisionFilter === '' || text.includes(divisionFilter);
-            const matchesAgeGroup = ageGroupFilter === '' || text.includes(ageGroupFilter);
+        // Populate year filter
+        const yearFilter = document.getElementById('yearFilter');
+        if (yearFilter) {
+            Array.from(years).sort().forEach(year => {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearFilter.appendChild(option);
+            });
+        }
+        
+        // Populate division filter
+        const divisionFilter = document.getElementById('divisionFilter');
+        if (divisionFilter) {
+            Array.from(divisions).sort().forEach(division => {
+                const option = document.createElement('option');
+                option.value = division;
+                option.textContent = division.charAt(0).toUpperCase() + division.slice(1);
+                divisionFilter.appendChild(option);
+            });
+        }
+    }
+
+    /**
+     * Filter table based on search and filter criteria
+     */
+    static filterTable() {
+        const searchTerm = document.getElementById('leagueSearch').value.toLowerCase();
+        const yearFilter = document.getElementById('yearFilter').value;
+        const divisionFilter = document.getElementById('divisionFilter').value.toLowerCase();
+        
+        const rows = document.querySelectorAll('.league-row');
+        let visibleCount = 0;
+        
+        rows.forEach(row => {
+            const name = row.dataset.leagueName;
+            const year = row.dataset.leagueYear;
+            const division = row.dataset.leagueDivision;
+            const section = row.dataset.leagueSection;
+            const ageGroup = row.dataset.leagueAgeGroup;
             
-            const shouldShow = matchesSearch && matchesYear && matchesDivision && matchesAgeGroup;
-            card.style.display = shouldShow ? '' : 'none';
+            const matchesSearch = !searchTerm || 
+                name.includes(searchTerm) || 
+                year.includes(searchTerm) ||
+                division.includes(searchTerm) ||
+                section.includes(searchTerm) ||
+                ageGroup.includes(searchTerm);
+            
+            const matchesYear = !yearFilter || year === yearFilter;
+            const matchesDivision = !divisionFilter || division === divisionFilter;
+            
+            const isVisible = matchesSearch && matchesYear && matchesDivision;
+            
+            row.style.display = isVisible ? '' : 'none';
+            if (isVisible) visibleCount++;
         });
-    }
-
-    /**
-     * Clear all filters
-     */
-    static clearFilters() {
-        const inputs = ['searchInput', 'yearFilter', 'divisionFilter', 'ageGroupFilter'];
-        inputs.forEach(inputId => {
-            const input = document.getElementById(inputId);
-            if (input) {
-                input.value = '';
-            }
-        });
-        this.filterLeagues();
         
-        // Show success notification using shared TennisUI
-        if (window.TennisUI) {
-            TennisUI.showNotification('Filters cleared successfully', 'success');
+        // Update result counts
+        document.getElementById('resultCount').textContent = `${visibleCount} leagues`;
+        document.getElementById('tableResultCount').textContent = visibleCount;
+        
+        // Show/hide no results message using TennisUI
+        const noResults = document.getElementById('noResults');
+        const tableBody = document.getElementById('leaguesTableBody');
+        
+        if (visibleCount === 0) {
+            noResults.style.display = 'block';
+            tableBody.style.display = 'none';
+        } else {
+            noResults.style.display = 'none';
+            tableBody.style.display = '';
         }
     }
 
     /**
-     * Generate matches for all leagues (bulk operation)
+     * View league details using TennisUI modal management
      */
-    static async generateMatchesForAllLeagues() {
-        if (this.bulkGenerationActive) {
-            TennisUI.showNotification('Bulk generation is already in progress. Please wait for it to complete.', 'warning');
-            return;
-        }
+    static viewLeague(leagueId) {
+        this.currentLeagueId = leagueId;
         
-        const leagues = {{ leagues|map(attribute='id')|list|tojson }};
-        const leagueNames = {{ leagues|map(attribute='name')|list|tojson }};
+        // Use TennisUI modal utilities
+        TennisUI.showModal('viewLeagueModal');
+        TennisUI.setModalContent('viewLeagueModal', 'viewLeagueContent', `
+            <div class="text-center">
+                <div class="tennis-spinner mb-3"></div>
+                <p>Loading league details...</p>
+            </div>
+        `);
         
-        if (leagues.length === 0) {
-            TennisUI.showNotification('No leagues available for match generation.', 'warning');
-            return;
-        }
-        
-        const confirmed = confirm(
-            `Generate matches for all ${leagues.length} leagues?\n\n` +
-            'This will create matches for each league that has sufficient teams. ' +
-            'Leagues without enough teams will be skipped.\n\n' +
-            'This operation may take a few moments to complete.'
-        );
-        
-        if (!confirmed) return;
-        
-        this.bulkGenerationActive = true;
-        this.bulkGenerationResults = { successful: [], failed: [], skipped: [] };
-        
-        // Show progress indicator
-        const progressContainer = document.getElementById('bulkGenerationProgress');
-        const progressBar = document.getElementById('progressBar');
-        const progressText = document.getElementById('progressText');
-        const resultsContainer = document.getElementById('bulkGenerationResults');
-        
-        progressContainer.style.display = 'block';
-        resultsContainer.style.display = 'none';
-        
-        try {
-            for (let i = 0; i < leagues.length; i++) {
-                const leagueId = leagues[i];
-                const leagueName = leagueNames[i];
-                
-                // Update progress
-                const progress = ((i / leagues.length) * 100);
-                progressBar.style.width = `${progress}%`;
-                progressText.textContent = `Processing ${leagueName}... (${i + 1}/${leagues.length})`;
-                
-                try {
-                    const response = await fetch(`/api/generate-matches/${leagueId}`);
-                    const data = await response.json();
-                    
-                    if (data.error) {
-                        if (data.error.includes('insufficient teams') || data.error.includes('need at least')) {
-                            this.bulkGenerationResults.skipped.push({
-                                name: leagueName,
-                                reason: data.error
-                            });
-                        } else {
-                            this.bulkGenerationResults.failed.push({
-                                name: leagueName,
-                                error: data.error
-                            });
-                        }
-                    } else {
-                        this.bulkGenerationResults.successful.push({
-                            name: leagueName,
-                            matches: data.created_count || 0
-                        });
-                    }
-                } catch (error) {
-                    this.bulkGenerationResults.failed.push({
-                        name: leagueName,
-                        error: `Network error: ${error.message}`
-                    });
-                }
-                
-                // Small delay to show progress
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-            
-            // Final progress update
-            progressBar.style.width = '100%';
-            progressText.textContent = 'Completed!';
-            
-            // Show results after a brief delay
-            setTimeout(() => {
-                this.showBulkGenerationResults();
-            }, 500);
-            
-        } catch (error) {
-            TennisUI.showNotification(`Bulk generation failed: ${error.message}`, 'danger');
-        } finally {
-            this.bulkGenerationActive = false;
-        }
-    }
-
-    /**
-     * Display bulk generation results
-     */
-    static showBulkGenerationResults() {
-        const resultsContainer = document.getElementById('bulkGenerationResults');
-        const progressContainer = document.getElementById('bulkGenerationProgress');
-        const { successful, failed, skipped } = this.bulkGenerationResults;
-        
-        progressContainer.style.display = 'none';
-        
-        let resultsHTML = '<div class="row">';
-        
-        // Successful leagues
-        if (successful.length > 0) {
-            resultsHTML += `
-                <div class="col-md-4">
-                    <div class="alert alert-success">
-                        <h6><i class="fas fa-check-circle"></i> Successfully Generated (${successful.length})</h6>
-                        <ul class="mb-0">
-                            ${successful.map(league => 
-                                `<li><strong>${league.name}</strong> - ${league.matches} matches created</li>`
-                            ).join('')}
-                        </ul>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // Skipped leagues
-        if (skipped.length > 0) {
-            resultsHTML += `
-                <div class="col-md-4">
-                    <div class="alert alert-warning">
-                        <h6><i class="fas fa-exclamation-triangle"></i> Skipped (${skipped.length})</h6>
-                        <ul class="mb-0">
-                            ${skipped.map(league => 
-                                `<li><strong>${league.name}</strong> - ${league.reason}</li>`
-                            ).join('')}
-                        </ul>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // Failed leagues
-        if (failed.length > 0) {
-            resultsHTML += `
-                <div class="col-md-4">
+        // Fetch league details using TennisUI API utilities
+        TennisUI.apiCall(`/api/leagues/${leagueId}`)
+            .then(data => {
+                const content = this.buildLeagueDetailContent(data);
+                TennisUI.setModalContent('viewLeagueModal', 'viewLeagueContent', content);
+            })
+            .catch(error => {
+                TennisUI.setModalContent('viewLeagueModal', 'viewLeagueContent', `
                     <div class="alert alert-danger">
-                        <h6><i class="fas fa-times-circle"></i> Failed (${failed.length})</h6>
-                        <ul class="mb-0">
-                            ${failed.map(league => 
-                                `<li><strong>${league.name}</strong> - ${league.error}</li>`
-                            ).join('')}
-                        </ul>
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Error loading league details: ${error.message}
                     </div>
+                `);
+            });
+    }
+
+    /**
+     * Build league detail content for modal
+     */
+    static buildLeagueDetailContent(league) {
+        return `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6><i class="fas fa-info-circle"></i> Basic Information</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Name:</strong></td><td>${league.name}</td></tr>
+                        <tr><td><strong>Year:</strong></td><td><span class="badge bg-info">${league.year}</span></td></tr>
+                        <tr><td><strong>Division:</strong></td><td><span class="badge bg-success">${league.division}</span></td></tr>
+                        <tr><td><strong>Section:</strong></td><td>${league.section}</td></tr>
+                        <tr><td><strong>Region:</strong></td><td>${league.region}</td></tr>
+                        <tr><td><strong>Age Group:</strong></td><td>${league.age_group}</td></tr>
+                    </table>
                 </div>
-            `;
-        }
-        
-        resultsHTML += '</div>';
-        
-        resultsHTML += `
-            <div class="text-center mt-3">
-                <button class="btn btn-outline-secondary" data-action="hide-results">
-                    <i class="fas fa-times"></i> Hide Results
-                </button>
-                <a href="{{ url_for('matches') }}" class="btn btn-primary ms-2">
-                    <i class="fas fa-calendar-alt"></i> View Generated Matches
-                </a>
+                <div class="col-md-6">
+                    <h6><i class="fas fa-chart-bar"></i> Statistics</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Teams:</strong></td><td><span class="badge bg-primary">${league.teams_count}</span></td></tr>
+                        <tr><td><strong>Total Matches:</strong></td><td><span class="badge bg-info">${league.matches_count}</span></td></tr>
+                        <tr><td><strong>Scheduled:</strong></td><td><span class="badge bg-success">${league.scheduled_matches}</span></td></tr>
+                        <tr><td><strong>Unscheduled:</strong></td><td><span class="badge bg-warning">${league.unscheduled_matches}</span></td></tr>
+                        <tr><td><strong>Matches per Team:</strong></td><td>${league.num_matches || 'Not set'}</td></tr>
+                        <tr><td><strong>Lines per Match:</strong></td><td>${league.num_lines_per_match || 'Not set'}</td></tr>
+                    </table>
+                </div>
             </div>
         `;
-        
-        resultsContainer.innerHTML = resultsHTML;
-        resultsContainer.style.display = 'block';
-        
-        // Show summary notification
-        const total = successful.length + skipped.length + failed.length;
-        const message = `Bulk generation completed: ${successful.length} successful, ${skipped.length} skipped, ${failed.length} failed out of ${total} leagues.`;
-        TennisUI.showNotification(message, successful.length > 0 ? 'success' : 'info');
     }
 
     /**
-     * Hide bulk generation results
+     * Edit league
      */
-    static hideBulkResults() {
-        document.getElementById('bulkGenerationResults').style.display = 'none';
+    static editLeague(leagueId) {
+        window.location.href = `/leagues/${leagueId}/edit`;
     }
 
     /**
-     * Generate matches for a single league
+     * Edit league from view modal
+     */
+    static editLeagueFromView() {
+        if (this.currentLeagueId) {
+            this.editLeague(this.currentLeagueId);
+        }
+    }
+
+    /**
+     * Generate matches for a league using TennisUI
      */
     static generateMatches(leagueId, leagueName) {
-        if (!confirm(`Generate matches for league "${leagueName}"?\n\nThis will create all round-robin matches for teams in this league.`)) {
-            return;
-        }
+        document.getElementById('generateLeagueId').value = leagueId;
+        document.getElementById('generateLeagueName').textContent = leagueName;
         
-        // Show loading state using TennisUI utilities
-        const button = event.target.closest('button');
-        TennisUI.setButtonLoading(button, true);
-        
-        fetch(`/api/generate-matches/${leagueId}`)
-            .then(response => response.json())
-            .then(data => {
-                TennisUI.setButtonLoading(button, false);
-                
-                if (data.error) {
-                    TennisUI.showNotification(`Error: ${data.error}`, 'danger');
-                } else {
-                    TennisUI.showNotification(`Success! Generated ${data.created_count} new matches for league "${leagueName}".`, 'success');
-                }
-            })
-            .catch(error => {
-                TennisUI.setButtonLoading(button, false);
-                TennisUI.showNotification(`Error generating matches: ${error.message}`, 'danger');
-            });
+        TennisUI.showModal('generateMatchesModal');
     }
 
     /**
-     * Export single league data
+     * Delete league using TennisUI confirmation
      */
-    static exportSingleLeague(leagueId, leagueName) {
-        // Implementation for exporting single league
-        const url = `/api/export-league/${leagueId}?format=yaml`;
-        
-        fetch(url)
-            .then(response => {
-                if (!response.ok) throw new Error('Export failed');
-                return response.blob();
-            })
-            .then(blob => {
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${leagueName.replace(/[^a-zA-Z0-9]/g, '_')}_league.yaml`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                
-                TennisUI.showNotification(`League "${leagueName}" exported successfully`, 'success');
-            })
-            .catch(error => {
-                TennisUI.showNotification(`Export failed: ${error.message}`, 'danger');
-            });
-    }
-
-    /**
-     * Export visible leagues
-     */
-    static exportVisible(format = 'yaml') {
-        const visibleRows = Array.from(document.querySelectorAll('.league-row'))
-            .filter(row => row.style.display !== 'none');
-        
-        if (visibleRows.length === 0) {
-            TennisUI.showNotification('No visible leagues to export', 'warning');
-            return;
-        }
-        
-        const leagueIds = visibleRows.map(row => row.dataset.leagueId);
-        const url = `/api/export-leagues?format=${format}&ids=${leagueIds.join(',')}`;
-        
-        fetch(url)
-            .then(response => {
-                if (!response.ok) throw new Error('Export failed');
-                return response.blob();
-            })
-            .then(blob => {
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `visible_leagues.${format}`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                
-                TennisUI.showNotification(`${visibleRows.length} leagues exported successfully`, 'success');
-            })
-            .catch(error => {
-                TennisUI.showNotification(`Export failed: ${error.message}`, 'danger');
-            });
-    }
-
-    /**
-     * Show import modal
-     */
-    static showImportModal() {
-        const modal = new bootstrap.Modal(document.getElementById('importModal'));
-        modal.show();
-    }
-
-    /**
-     * Submit import form
-     */
-    static submitImport() {
-        const form = document.getElementById('importForm');
-        const fileInput = document.getElementById('yamlFile');
-        
-        if (!fileInput.files[0]) {
-            TennisUI.showNotification('Please select a file to import', 'warning');
-            return;
-        }
-        
-        const formData = new FormData();
-        formData.append('yaml_file', fileInput.files[0]);
-        
-        // Show loading state
-        const submitBtn = event.target;
-        TennisUI.setButtonLoading(submitBtn, true);
-        
-        fetch('/api/import-leagues', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            TennisUI.setButtonLoading(submitBtn, false);
-            
-            if (data.error) {
-                TennisUI.showNotification(`Import failed: ${data.error}`, 'danger');
-            } else {
-                TennisUI.showNotification(`Import successful: ${data.imported_count} leagues imported`, 'success');
-                // Close modal and refresh page
-                bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
-                setTimeout(() => window.location.reload(), 1000);
+    static deleteLeague(leagueId, leagueName) {
+        TennisUI.confirmAction(
+            `Delete league "${leagueName}"?`,
+            `This action cannot be undone and will also delete all associated teams and matches.`,
+            'danger',
+            () => {
+                // Perform deletion
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/leagues/${leagueId}/delete`;
+                document.body.appendChild(form);
+                form.submit();
             }
-        })
-        .catch(error => {
-            TennisUI.setButtonLoading(submitBtn, false);
-            TennisUI.showNotification(`Import failed: ${error.message}`, 'danger');
-        });
+        );
     }
 
     /**
-     * Export all leagues
+     * Clear all filters using TennisUI utilities
      */
-    static exportLeagues(format) {
-        const url = `/api/export-leagues?format=${format}`;
+    static clearFilters() {
+        document.getElementById('leagueSearch').value = '';
+        document.getElementById('yearFilter').value = '';
+        document.getElementById('divisionFilter').value = '';
+        this.filterTable();
         
-        fetch(url)
-            .then(response => {
-                if (!response.ok) throw new Error('Export failed');
-                return response.blob();
-            })
-            .then(blob => {
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `all_leagues.${format}`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                
-                TennisUI.showNotification(`All leagues exported successfully as ${format.toUpperCase()}`, 'success');
-            })
-            .catch(error => {
-                TennisUI.showNotification(`Export failed: ${error.message}`, 'danger');
-            });
+        TennisUI.showNotification('Filters cleared', 'info', 2000);
+    }
+
+    /**
+     * Import YAML functionality using TennisUI
+     */
+    static importYAML() {
+        TennisUI.showNotification('YAML import functionality would be implemented here.', 'info');
     }
 }
-
-// Initialize the leagues page when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Wait for TennisUI to be available from shared_scripts
-    if (window.TennisUI) {
-        LeaguesPage.init();
-    } else {
-        // Fallback: wait a bit for shared_scripts to load
-        setTimeout(() => {
-            if (window.TennisUI) {
-                LeaguesPage.init();
-            } else {
-                console.warn('TennisUI not available, using fallback initialization');
-                // Basic fallback initialization without TennisUI
-                LeaguesPage.setupEventListeners();
-                LeaguesPage.setupFiltering();
-            }
-        }, 100);
-    }
-});
-
-console.log('Leagues page scripts loaded successfully');
 </script>
 {% endblock %}

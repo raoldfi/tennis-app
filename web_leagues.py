@@ -1,6 +1,7 @@
 """
-Tennis Web App - League Management Routes
-Modern API endpoints compatible with TennisUI frontend
+Complete Tennis Web App - League Management Routes v2
+Enhanced with table view actions: view, edit, delete, and generate_matches
+Full implementation with error handling and modern API endpoints
 """
 
 from flask import render_template, request, redirect, url_for, flash, jsonify, make_response
@@ -18,13 +19,13 @@ from web_database import get_db
 
 
 def register_routes(app):
-    """Register league-related routes with modern API endpoints"""
+    """Register league-related routes with enhanced table actions"""
 
     # ==================== MAIN LEAGUES PAGE ====================
     
     @app.route('/leagues')
     def leagues():
-        """Main leagues page - display all leagues"""
+        """Main leagues page - display all leagues in table format"""
         db = get_db()
         if db is None:
             flash('No database connection', 'error')
@@ -32,10 +33,351 @@ def register_routes(app):
         
         try:
             leagues_list = db.list_leagues()
-            return render_template('leagues.html', leagues=leagues_list)
+            
+            # Enhance leagues with additional data for table display
+            enhanced_leagues = []
+            for league in leagues_list:
+                enhanced_league = league.__dict__.copy() if hasattr(league, '__dict__') else dict(league)
+                
+                # Add team and match counts
+                try:
+                    teams = db.list_teams(league)
+                    enhanced_league['teams_count'] = len(teams) if teams else 0
+                except Exception as e:
+                    print(f"Error getting teams for league {league.id}: {e}")
+                    enhanced_league['teams_count'] = 0
+                
+                try:
+                    matches = db.list_matches(league)
+                    enhanced_league['matches_count'] = len(matches) if matches else 0
+                except Exception as e:
+                    print(f"Error getting matches for league {league.id}: {e}")
+                    enhanced_league['matches_count'] = 0
+                
+                enhanced_leagues.append(enhanced_league)
+            
+            return render_template('leagues.html', leagues=enhanced_leagues)
         except Exception as e:
             flash(f'Error loading leagues: {e}', 'error')
             return redirect(url_for('index'))
+
+    # ==================== ADD LEAGUE ====================
+    
+    @app.route('/leagues/add', methods=['GET', 'POST'])
+    def add_league():
+        """Add a new league"""
+        db = get_db()
+        if db is None:
+            flash('No database connection', 'error')
+            return redirect(url_for('index'))
+        
+        if request.method == 'POST':
+            try:
+                # Extract form data
+                league_data = {
+                    'name': request.form.get('name', '').strip(),
+                    'year': request.form.get('year', type=int),
+                    'section': request.form.get('section', '').strip(),
+                    'region': request.form.get('region', '').strip(),
+                    'age_group': request.form.get('age_group', '').strip(),
+                    'division': request.form.get('division', '').strip(),
+                    'num_matches': request.form.get('num_matches', type=int) or 12,
+                    'num_lines_per_match': request.form.get('num_lines_per_match', type=int) or 3,
+                    'allow_split_lines': bool(request.form.get('allow_split_lines', type=int)),
+                    'start_date': request.form.get('start_date') or None,
+                    'end_date': request.form.get('end_date') or None
+                }
+                
+                # Validate required fields
+                if not league_data['name']:
+                    flash('League name is required', 'error')
+                    return render_template('add_league.html')
+                
+                if not league_data['year'] or league_data['year'] < 2000:
+                    flash('Valid year is required', 'error')
+                    return render_template('add_league.html')
+                
+                # Create League object
+                league = League(
+                    name=league_data['name'],
+                    year=league_data['year'],
+                    section=league_data['section'],
+                    region=league_data['region'],
+                    age_group=league_data['age_group'],
+                    division=league_data['division']
+                )
+                
+                # Add optional fields
+                league.num_matches = league_data['num_matches']
+                league.num_lines_per_match = league_data['num_lines_per_match']
+                league.allow_split_lines = league_data['allow_split_lines']
+                league.start_date = league_data['start_date']
+                league.end_date = league_data['end_date']
+                
+                # Add to database
+                if db.add_league(league):
+                    flash(f'League "{league.name}" created successfully', 'success')
+                    return redirect(url_for('leagues'))
+                else:
+                    flash('Failed to create league', 'error')
+                    
+            except Exception as e:
+                flash(f'Error creating league: {str(e)}', 'error')
+        
+        return render_template('add_league.html')
+
+    # ==================== VIEW LEAGUE ACTION ====================
+    
+    @app.route('/leagues/<int:league_id>')
+    @app.route('/leagues/<int:league_id>/view')
+    def view_league(league_id):
+        """View detailed information about a specific league"""
+        db = get_db()
+        if db is None:
+            flash('No database connection', 'error')
+            return redirect(url_for('index'))
+        
+        try:
+            league = db.get_league(league_id)
+            if not league:
+                flash(f'League {league_id} not found', 'error')
+                return redirect(url_for('leagues'))
+            
+            # Get additional league data
+            teams = db.list_teams(league)
+            matches = db.list_matches(league)
+            
+            # Calculate statistics
+            league_stats = {
+                'teams_count': len(teams) if teams else 0,
+                'matches_count': len(matches) if matches else 0,
+                'scheduled_matches': len([m for m in (matches or []) if hasattr(m, 'date') and m.date]),
+                'unscheduled_matches': len([m for m in (matches or []) if not (hasattr(m, 'date') and m.date)])
+            }
+            
+            return render_template('view_league.html', 
+                                 league=league, 
+                                 teams=teams, 
+                                 matches=matches,
+                                 league_stats=league_stats)
+        except Exception as e:
+            flash(f'Error loading league details: {e}', 'error')
+            return redirect(url_for('leagues'))
+
+    # ==================== EDIT LEAGUE ACTION ====================
+    
+    @app.route('/leagues/<int:league_id>/edit', methods=['GET', 'POST'])
+    def edit_league(league_id):
+        """Edit league information"""
+        db = get_db()
+        if db is None:
+            flash('No database connection', 'error')
+            return redirect(url_for('index'))
+        
+        try:
+            league = db.get_league(league_id)
+            if not league:
+                flash(f'League {league_id} not found', 'error')
+                return redirect(url_for('leagues'))
+            
+            if request.method == 'POST':
+                # Handle form submission for editing league
+                try:
+                    # Extract form data
+                    updated_data = {
+                        'name': request.form.get('name', '').strip(),
+                        'year': request.form.get('year', type=int),
+                        'section': request.form.get('section', '').strip(),
+                        'region': request.form.get('region', '').strip(),
+                        'age_group': request.form.get('age_group', '').strip(),
+                        'division': request.form.get('division', '').strip(),
+                        'num_matches': request.form.get('num_matches', type=int),
+                        'num_lines_per_match': request.form.get('num_lines_per_match', type=int),
+                        'allow_split_lines': bool(request.form.get('allow_split_lines', type=int)),
+                        'start_date': request.form.get('start_date') or None,
+                        'end_date': request.form.get('end_date') or None
+                    }
+                    
+                    # Validate required fields
+                    if not updated_data['name']:
+                        flash('League name is required', 'error')
+                        return render_template('edit_league.html', league=league)
+                    
+                    if not updated_data['year'] or updated_data['year'] < 2000:
+                        flash('Valid year is required', 'error')
+                        return render_template('edit_league.html', league=league)
+                    
+                    # Update league object
+                    league.name = updated_data['name']
+                    league.year = updated_data['year']
+                    league.section = updated_data['section']
+                    league.region = updated_data['region']
+                    league.age_group = updated_data['age_group']
+                    league.division = updated_data['division']
+                    league.num_matches = updated_data['num_matches']
+                    league.num_lines_per_match = updated_data['num_lines_per_match']
+                    league.allow_split_lines = updated_data['allow_split_lines']
+                    league.start_date = updated_data['start_date']
+                    league.end_date = updated_data['end_date']
+                    
+                    # Update league in database
+                    success = db.update_league(league)
+                    
+                    if success:
+                        flash(f'League "{league.name}" updated successfully', 'success')
+                        return redirect(url_for('view_league', league_id=league_id))
+                    else:
+                        flash('Failed to update league', 'error')
+                        
+                except Exception as e:
+                    flash(f'Error updating league: {str(e)}', 'error')
+            
+            return render_template('edit_league.html', league=league)
+            
+        except Exception as e:
+            flash(f'Error loading league for editing: {e}', 'error')
+            return redirect(url_for('leagues'))
+
+    # ==================== DELETE LEAGUE ACTION ====================
+    
+    @app.route('/leagues/<int:league_id>/delete', methods=['POST'])
+    def delete_league(league_id):
+        """Delete a league and all associated data"""
+        db = get_db()
+        if db is None:
+            flash('No database connection', 'error')
+            return redirect(url_for('index'))
+        
+        try:
+            league = db.get_league(league_id)
+            if not league:
+                flash(f'League {league_id} not found', 'error')
+                return redirect(url_for('leagues'))
+            
+            league_name = league.name
+            
+            # Delete league and associated data
+            success = db.delete_league(league_id)
+            
+            if success:
+                flash(f'League "{league_name}" and all associated data deleted successfully', 'success')
+            else:
+                flash(f'Failed to delete league "{league_name}"', 'error')
+                
+        except Exception as e:
+            flash(f'Error deleting league: {str(e)}', 'error')
+        
+        return redirect(url_for('leagues'))
+
+    # ==================== GENERATE MATCHES ROUTES ====================
+    
+    @app.route('/generate-matches', methods=['GET', 'POST'])
+    def generate_matches():
+        """Generate matches page - handles both display and form submission"""
+        db = get_db()
+        if db is None:
+            flash('No database connection', 'error')
+            return redirect(url_for('index'))
+        
+        if request.method == 'POST':
+            # Handle form submission
+            try:
+                league_id = request.form.get('league_id', type=int)
+                if not league_id:
+                    flash('Please select a league', 'error')
+                    return redirect(url_for('generate_matches'))
+                
+                # Get league
+                league = db.get_league(league_id)
+                if not league:
+                    flash(f'League {league_id} not found', 'error')
+                    return redirect(url_for('generate_matches'))
+                
+                # Get teams for this league
+                teams = db.list_teams(league)
+                if len(teams) < 2:
+                    flash(f'Need at least 2 teams to generate matches. League "{league.name}" has only {len(teams)} team(s).', 'error')
+                    return redirect(url_for('generate_matches'))
+                
+                # Check for existing matches
+                existing_matches = db.list_matches(league)
+                if existing_matches:
+                    flash(f'League "{league.name}" already has {len(existing_matches)} matches. Delete existing matches first if you want to regenerate.', 'warning')
+                    return redirect(url_for('generate_matches'))
+                
+                # Generate matches using the utils function
+                generated_matches = utils.generate_matches(teams)
+                
+                if generated_matches and len(generated_matches) > 0:
+                    # Save matches to database
+                    try: 
+                        for match in generated_matches:
+                            db.add_match(match)
+                            
+                    except Exception as e:
+                        flash(f'Failed to save generated matches to database: {str(e)}','error')
+                        raise
+                    
+
+                    flash(f'Successfully generated {len(generated_matches)} matches for league "{league.name}"', 'success')
+
+                else:
+                    flash('No matches were generated', 'error')
+                    
+            except Exception as e:
+                flash(f'Failed to generate matches: {str(e)}', 'error')
+                return redirect(url_for('generate_matches'))
+        
+        # Handle GET request - show the form
+        try:
+            # leagues_list = db.list_leagues()
+            # return render_template('generate_matches.html', leagues=leagues_list)
+            return redirect(url_for('leagues'))
+        except Exception as e:
+            flash(f'Error loading leagues: {e}', 'error')
+            return redirect(url_for('index'))
+
+    # ==================== AJAX API ENDPOINTS ====================
+    
+    @app.route('/api/leagues/<int:league_id>')
+    def api_get_league(league_id):
+        """API endpoint to get league details as JSON"""
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connection'}), 500
+        
+        try:
+            league = db.get_league(league_id)
+            if not league:
+                return jsonify({'error': 'League not found'}), 404
+            
+            # Get additional data
+            teams = db.list_teams(league)
+            matches = db.list_matches(league)
+            
+            league_data = {
+                'id': league.id,
+                'name': league.name,
+                'year': league.year,
+                'section': league.section,
+                'region': league.region,
+                'age_group': league.age_group,
+                'division': league.division,
+                'num_matches': getattr(league, 'num_matches', 0),
+                'num_lines_per_match': getattr(league, 'num_lines_per_match', 0),
+                'allow_split_lines': getattr(league, 'allow_split_lines', False),
+                'start_date': getattr(league, 'start_date', None),
+                'end_date': getattr(league, 'end_date', None),
+                'teams_count': len(teams) if teams else 0,
+                'matches_count': len(matches) if matches else 0,
+                'scheduled_matches': len([m for m in (matches or []) if hasattr(m, 'date') and m.date]),
+                'unscheduled_matches': len([m for m in (matches or []) if not (hasattr(m, 'date') and m.date)])
+            }
+            
+            return jsonify(league_data)
+            
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
     # ==================== MODERN API ENDPOINTS ====================
 
@@ -62,436 +404,178 @@ def register_routes(app):
             try:
                 yaml_content = file.read().decode('utf-8')
                 data = yaml.safe_load(yaml_content)
+            except UnicodeDecodeError:
+                return jsonify({'error': 'File must be valid UTF-8 text'}), 400
             except yaml.YAMLError as e:
                 return jsonify({'error': f'Invalid YAML format: {str(e)}'}), 400
-            except UnicodeDecodeError:
-                return jsonify({'error': 'File must be UTF-8 encoded'}), 400
 
             # Validate data structure
-            if not isinstance(data, dict):
-                return jsonify({'error': 'Invalid file format: Root element must be a dictionary'}), 400
+            if not isinstance(data, list):
+                return jsonify({'error': 'YAML must contain a list of leagues'}), 400
 
-            if 'leagues' not in data:
-                return jsonify({'error': 'Invalid file format: Missing "leagues" key'}), 400
-
-            leagues_data = data['leagues']
-            if not isinstance(leagues_data, list):
-                return jsonify({'error': 'Invalid file format: "leagues" must be a list'}), 400
-
-            # Process leagues
+            # Import leagues
             imported_count = 0
-            updated_count = 0
             errors = []
-
-            for i, league_data in enumerate(leagues_data):
+            
+            for i, league_data in enumerate(data):
                 try:
-                    # Validate required fields
-                    required_fields = ['id', 'name', 'year']
-                    for field in required_fields:
-                        if field not in league_data:
-                            errors.append(f'League {i+1}: Missing required field "{field}"')
-                            continue
-
                     # Create League object
                     league = League(
-                        id=league_data['id'],
-                        name=league_data['name'],
-                        year=league_data['year'],
+                        name=league_data.get('name', ''),
+                        year=league_data.get('year'),
                         section=league_data.get('section', ''),
                         region=league_data.get('region', ''),
                         age_group=league_data.get('age_group', ''),
-                        division=league_data.get('division', ''),
-                        num_lines_per_match=league_data.get('num_lines_per_match', 3),
-                        num_matches=league_data.get('num_matches', 10),
-                        allow_split_lines=league_data.get('allow_split_lines', False),
-                        start_date=league_data.get('start_date'),
-                        end_date=league_data.get('end_date'),
-                        preferred_days=league_data.get('preferred_days', [])
+                        division=league_data.get('division', '')
                     )
-
-                    # Check if league exists
-                    existing_league = db.get_league(league.id)
-                    if existing_league:
-                        db.update_league(league)
-                        updated_count += 1
-                    else:
-                        db.add_league(league)
+                    
+                    # Add optional fields
+                    if 'num_matches' in league_data:
+                        league.num_matches = league_data['num_matches']
+                    if 'num_lines_per_match' in league_data:
+                        league.num_lines_per_match = league_data['num_lines_per_match']
+                    if 'allow_split_lines' in league_data:
+                        league.allow_split_lines = league_data['allow_split_lines']
+                    if 'start_date' in league_data:
+                        league.start_date = league_data['start_date']
+                    if 'end_date' in league_data:
+                        league.end_date = league_data['end_date']
+                    
+                    # Add to database
+                    if db.add_league(league):
                         imported_count += 1
-
+                    else:
+                        errors.append(f'Failed to add league at index {i}')
+                        
                 except Exception as e:
-                    errors.append(f'League {i+1} ({league_data.get("name", "Unknown")}): {str(e)}')
+                    errors.append(f'Error processing league at index {i}: {str(e)}')
 
-            # Prepare response
             result = {
                 'imported_count': imported_count,
-                'updated_count': updated_count,
-                'total_processed': imported_count + updated_count,
-                'error_count': len(errors)
+                'total_count': len(data),
+                'errors': errors
             }
-
-            if errors:
-                result['errors'] = errors[:10]  # Limit to first 10 errors
-                if len(errors) > 10:
-                    result['additional_errors'] = len(errors) - 10
-
-            if imported_count > 0 or updated_count > 0:
-                result['message'] = f'Successfully processed {imported_count + updated_count} leagues'
-                return jsonify(result)
+            
+            if imported_count > 0:
+                result['message'] = f'Successfully imported {imported_count} out of {len(data)} leagues'
+                if errors:
+                    result['message'] += f' ({len(errors)} errors)'
+                return jsonify(result), 200
             else:
-                result['error'] = 'No leagues were imported successfully'
+                result['message'] = 'No leagues were imported'
                 return jsonify(result), 400
 
         except Exception as e:
-            return jsonify({
-                'error': f'Import failed: {str(e)}',
-                'traceback': traceback.format_exc() if app.debug else None
-            }), 500
+            return jsonify({'error': f'Import failed: {str(e)}'}), 500
 
-    @app.route('/api/export-leagues')
-    def api_export_leagues():
-        """Modern API endpoint for exporting leagues"""
-        db = get_db()
-        if db is None:
-            return jsonify({'error': 'No database connection'}), 500
-
-        try:
-            export_format = request.args.get('format', 'yaml').lower()
-            league_ids = request.args.get('ids')
-            
-            # Get leagues to export
-            if league_ids:
-                # Export specific leagues
-                league_id_list = [int(id) for id in league_ids.split(',')]
-                leagues_list = []
-                for league_id in league_id_list:
-                    league = db.get_league(league_id)
-                    if league:
-                        leagues_list.append(league)
-            else:
-                # Export all leagues
-                leagues_list = db.list_leagues()
-
-            if not leagues_list:
-                return jsonify({'error': 'No leagues found to export'}), 404
-
-            # Convert to export format
-            leagues_data = []
-            for league in leagues_list:
-                if hasattr(league, 'to_yaml_dict'):
-                    leagues_data.append(league.to_yaml_dict())
-                else:
-                    # Fallback for older league objects
-                    leagues_data.append({
-                        'id': league.id,
-                        'name': league.name,
-                        'year': league.year,
-                        'section': getattr(league, 'section', ''),
-                        'region': getattr(league, 'region', ''),
-                        'age_group': getattr(league, 'age_group', ''),
-                        'division': getattr(league, 'division', ''),
-                        'num_lines_per_match': getattr(league, 'num_lines_per_match', 3),
-                        'num_matches': getattr(league, 'num_matches', 10),
-                        'allow_split_lines': getattr(league, 'allow_split_lines', False),
-                        'start_date': getattr(league, 'start_date', None),
-                        'end_date': getattr(league, 'end_date', None),
-                        'preferred_days': getattr(league, 'preferred_days', [])
-                    })
-
-            # Create response
-            if export_format == 'json':
-                response_data = {'leagues': leagues_data}
-                response = make_response(json.dumps(response_data, indent=2))
-                response.headers['Content-Type'] = 'application/json'
-                response.headers['Content-Disposition'] = 'attachment; filename=leagues.json'
-            else:  # YAML format
-                response_data = {'leagues': leagues_data}
-                yaml_content = yaml.dump(response_data, default_flow_style=False, allow_unicode=True)
-                response = make_response(yaml_content)
-                response.headers['Content-Type'] = 'application/x-yaml'
-                response.headers['Content-Disposition'] = 'attachment; filename=leagues.yaml'
-
-            return response
-
-        except Exception as e:
-            return jsonify({
-                'error': f'Export failed: {str(e)}',
-                'traceback': traceback.format_exc() if app.debug else None
-            }), 500
-
-    @app.route('/api/export-league/<int:league_id>')
-    def api_export_single_league(league_id):
-        """Export a single league"""
-        db = get_db()
-        if db is None:
-            return jsonify({'error': 'No database connection'}), 500
-
-        try:
-            league = db.get_league(league_id)
-            if not league:
-                return jsonify({'error': f'League {league_id} not found'}), 404
-
-            export_format = request.args.get('format', 'yaml').lower()
-            
-            # Convert to export format
-            if hasattr(league, 'to_yaml_dict'):
-                league_data = league.to_yaml_dict()
-            else:
-                league_data = {
-                    'id': league.id,
-                    'name': league.name,
-                    'year': league.year,
-                    'section': getattr(league, 'section', ''),
-                    'region': getattr(league, 'region', ''),
-                    'age_group': getattr(league, 'age_group', ''),
-                    'division': getattr(league, 'division', ''),
-                    'num_lines_per_match': getattr(league, 'num_lines_per_match', 3),
-                    'num_matches': getattr(league, 'num_matches', 10),
-                    'allow_split_lines': getattr(league, 'allow_split_lines', False),
-                    'start_date': getattr(league, 'start_date', None),
-                    'end_date': getattr(league, 'end_date', None),
-                    'preferred_days': getattr(league, 'preferred_days', [])
-                }
-
-            # Create filename-safe league name
-            safe_name = "".join(c for c in league.name if c.isalnum() or c in (' ', '-', '_')).rstrip()
-            safe_name = safe_name.replace(' ', '_')
-
-            if export_format == 'json':
-                response_data = {'leagues': [league_data]}
-                response = make_response(json.dumps(response_data, indent=2))
-                response.headers['Content-Type'] = 'application/json'
-                response.headers['Content-Disposition'] = f'attachment; filename={safe_name}_league.json'
-            else:  # YAML format
-                response_data = {'leagues': [league_data]}
-                yaml_content = yaml.dump(response_data, default_flow_style=False, allow_unicode=True)
-                response = make_response(yaml_content)
-                response.headers['Content-Type'] = 'application/x-yaml'
-                response.headers['Content-Disposition'] = f'attachment; filename={safe_name}_league.yaml'
-
-            return response
-
-        except Exception as e:
-            return jsonify({'error': f'Export failed: {str(e)}'}), 500
-
-    @app.route('/api/generate-matches/<int:league_id>')
+    @app.route('/api/leagues/<int:league_id>/generate-matches', methods=['POST'])
     def api_generate_matches(league_id):
-        """Modern API endpoint for generating matches"""
+        """API endpoint to generate matches for a specific league"""
         db = get_db()
         if db is None:
-            return jsonify({'error': 'No database connected'}), 500
-
+            return jsonify({'error': 'No database connection'}), 500
+        
         try:
-            # Get league
             league = db.get_league(league_id)
             if not league:
-                return jsonify({'error': f'League {league_id} not found'}), 404
-
-            # Get teams for this league
+                return jsonify({'error': 'League not found'}), 404
+            
             teams = db.list_teams(league)
             if len(teams) < 2:
                 return jsonify({
-                    'error': f'Need at least 2 teams to generate matches. League "{league.name}" has only {len(teams)} team(s).'
+                    'error': f'Need at least 2 teams to generate matches. League has only {len(teams)} team(s).'
                 }), 400
-
+            
             # Check for existing matches
             existing_matches = db.list_matches(league)
-            overwrite_existing = request.args.get('overwrite', 'false').lower() == 'true'
-            
-            if existing_matches and not overwrite_existing:
+            if existing_matches:
                 return jsonify({
-                    'error': f'League "{league.name}" already has {len(existing_matches)} matches. Use overwrite option to replace them.'
+                    'error': f'League already has {len(existing_matches)} matches. Delete existing matches first.'
                 }), 400
-
+            
             # Generate matches
-            new_matches = utils.generate_matches(teams)
-
+            generated_matches = utils.generate_matches(teams)
+            
+            if not generated_matches:
+                return jsonify({'error': 'No matches were generated'}), 400
+            
             # Save matches to database
             saved_count = 0
-            
-            if overwrite_existing and existing_matches:
-                # Delete existing matches first
-                for existing_match in existing_matches:
-                    db.delete_match(existing_match.id)
-
-            # Add new matches
-            for match in new_matches:
-                try:
-                    db.add_match(match)
+            for match in generated_matches:
+                if db.add_match(match):
                     saved_count += 1
-                except Exception as e:
-                    app.logger.error(f"Error saving match: {e}")
-
-            return jsonify({
-                'created_count': saved_count,
-                'message': f'Generated {saved_count} matches for league "{league.name}"'
-            })
-
-        except Exception as e:
-            return jsonify({'error': f'Failed to generate matches: {str(e)}'}), 500
-
-    # ==================== LEAGUE CRUD OPERATIONS ====================
-
-    @app.route('/leagues/add', methods=['GET', 'POST'])
-    def add_league():
-        """Add a new league"""
-        db = get_db()
-        if db is None:
-            flash('No database connection', 'error')
-            return redirect(url_for('index'))
-
-        if request.method == 'POST':
-            try:
-                # Extract form data
-                league_data = {
-                    'id': int(request.form.get('id')),
-                    'name': request.form.get('name', '').strip(),
-                    'year': int(request.form.get('year')),
-                    'section': request.form.get('section', '').strip(),
-                    'region': request.form.get('region', '').strip(),
-                    'age_group': request.form.get('age_group', '').strip(),
-                    'division': request.form.get('division', '').strip(),
-                    'num_lines_per_match': int(request.form.get('num_lines_per_match', 3)),
-                    'num_matches': int(request.form.get('num_matches', 10)),
-                    'allow_split_lines': bool(request.form.get('allow_split_lines')),
-                    'start_date': request.form.get('start_date') or None,
-                    'end_date': request.form.get('end_date') or None,
-                    'preferred_days': request.form.getlist('preferred_days')
-                }
-
-                # Validate required fields
-                if not league_data['name']:
-                    flash('League name is required', 'error')
-                    return render_template('add_league.html')
-
-                # Create League object
-                league = League(**league_data)
-
-                # Check if league ID already exists
-                if db.get_league(league.id):
-                    flash(f'League with ID {league.id} already exists', 'error')
-                    return render_template('add_league.html')
-
-                # Add to database
-                db.add_league(league)
-                flash(f'League "{league.name}" added successfully!', 'success')
-                return redirect(url_for('leagues'))
-
-            except ValueError as e:
-                flash(f'Invalid input: {e}', 'error')
-            except Exception as e:
-                flash(f'Error adding league: {e}', 'error')
-
-        return render_template('add_league.html')
-
-    @app.route('/leagues/<int:league_id>/edit', methods=['GET', 'POST'])
-    def edit_league(league_id):
-        """Edit an existing league"""
-        db = get_db()
-        if db is None:
-            flash('No database connection', 'error')
-            return redirect(url_for('index'))
-
-        league = db.get_league(league_id)
-        if not league:
-            flash(f'League {league_id} not found', 'error')
-            return redirect(url_for('leagues'))
-
-        if request.method == 'POST':
-            try:
-                # Update league properties
-                league.name = request.form.get('name', '').strip()
-                league.year = int(request.form.get('year'))
-                league.section = request.form.get('section', '').strip()
-                league.region = request.form.get('region', '').strip()
-                league.age_group = request.form.get('age_group', '').strip()
-                league.division = request.form.get('division', '').strip()
-                league.num_lines_per_match = int(request.form.get('num_lines_per_match', 3))
-                league.num_matches = int(request.form.get('num_matches', 10))
-                league.allow_split_lines = bool(request.form.get('allow_split_lines'))
-                league.start_date = request.form.get('start_date') or None
-                league.end_date = request.form.get('end_date') or None
-                league.preferred_days = request.form.getlist('preferred_days')
-
-                # Validate
-                if not league.name:
-                    flash('League name is required', 'error')
-                    return render_template('edit_league.html', league=league)
-
-                # Update in database
-                db.update_league(league)
-                flash(f'League "{league.name}" updated successfully!', 'success')
-                return redirect(url_for('leagues'))
-
-            except ValueError as e:
-                flash(f'Invalid input: {e}', 'error')
-            except Exception as e:
-                flash(f'Error updating league: {e}', 'error')
-
-        return render_template('edit_league.html', league=league)
-
-    @app.route('/leagues/<int:league_id>/delete', methods=['POST'])
-    def delete_league(league_id):
-        """Delete a league"""
-        db = get_db()
-        if db is None:
-            flash('No database connection', 'error')
-            return redirect(url_for('index'))
-
-        try:
-            league = db.get_league(league_id)
-            if not league:
-                flash(f'League {league_id} not found', 'error')
-                return redirect(url_for('leagues'))
-
-            # Check for dependent data
-            teams = db.list_teams(league)
-            matches = db.list_matches(league)
             
-            if teams or matches:
-                flash(f'Cannot delete league "{league.name}": it has {len(teams)} teams and {len(matches)} matches. Delete those first.', 'error')
-                return redirect(url_for('leagues'))
-
-            # Delete league
-            db.delete_league(league_id)
-            flash(f'League "{league.name}" deleted successfully!', 'success')
-
+            return jsonify({
+                'message': f'Successfully generated {saved_count} matches',
+                'matches_count': saved_count,
+                'league_id': league_id,
+                'league_name': league.name
+            })
+            
         except Exception as e:
-            flash(f'Error deleting league: {e}', 'error')
+            return jsonify({'error': str(e)}), 500
 
-        return redirect(url_for('leagues'))
-
-    # ==================== UTILITY ENDPOINTS ====================
-
-    @app.route('/api/leagues')
+    @app.route('/api/leagues', methods=['GET'])
     def api_list_leagues():
-        """API endpoint to list all leagues"""
+        """API endpoint to list all leagues with statistics"""
         db = get_db()
         if db is None:
             return jsonify({'error': 'No database connection'}), 500
-
+        
         try:
             leagues_list = db.list_leagues()
-            leagues_data = []
+            enhanced_leagues = []
             
             for league in leagues_list:
-                league_dict = {
+                # Get team and match counts
+                teams = db.list_teams(league)
+                matches = db.list_matches(league)
+                
+                league_data = {
                     'id': league.id,
                     'name': league.name,
                     'year': league.year,
-                    'section': getattr(league, 'section', ''),
-                    'region': getattr(league, 'region', ''),
-                    'age_group': getattr(league, 'age_group', ''),
-                    'division': getattr(league, 'division', ''),
-                    'num_lines_per_match': getattr(league, 'num_lines_per_match', 3),
-                    'num_matches': getattr(league, 'num_matches', 10),
-                    'allow_split_lines': getattr(league, 'allow_split_lines', False),
-                    'start_date': getattr(league, 'start_date', None),
-                    'end_date': getattr(league, 'end_date', None),
-                    'preferred_days': getattr(league, 'preferred_days', [])
+                    'section': league.section,
+                    'region': league.region,
+                    'age_group': league.age_group,
+                    'division': league.division,
+                    'teams_count': len(teams) if teams else 0,
+                    'matches_count': len(matches) if matches else 0,
+                    'scheduled_matches': len([m for m in (matches or []) if hasattr(m, 'date') and m.date]),
+                    'unscheduled_matches': len([m for m in (matches or []) if not (hasattr(m, 'date') and m.date)])
                 }
-                leagues_data.append(league_dict)
-
-            return jsonify(leagues_data)
-
+                enhanced_leagues.append(league_data)
+            
+            return jsonify({
+                'leagues': enhanced_leagues,
+                'total_count': len(enhanced_leagues)
+            })
+            
         except Exception as e:
-            return jsonify({'error': f'Failed to list leagues: {str(e)}'}), 500
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/leagues/<int:league_id>', methods=['DELETE'])
+    def api_delete_league(league_id):
+        """API endpoint to delete a league"""
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connection'}), 500
+        
+        try:
+            league = db.get_league(league_id)
+            if not league:
+                return jsonify({'error': 'League not found'}), 404
+            
+            league_name = league.name
+            success = db.delete_league(league_id)
+            
+            if success:
+                return jsonify({
+                    'message': f'League "{league_name}" deleted successfully',
+                    'league_id': league_id
+                })
+            else:
+                return jsonify({'error': f'Failed to delete league "{league_name}"'}), 500
+                
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
