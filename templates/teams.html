@@ -2,10 +2,40 @@
 
 {% block title %}Teams{% endblock %}
 
+{% block extra_css %}
+<!-- Page-specific styles that build on shared styles -->
+<style>
+.team-row {
+    transition: all 0.2s ease;
+}
+
+.team-row:hover {
+    background-color: var(--tennis-hover-bg, rgba(45, 90, 135, 0.05));
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.enhanced-card {
+    transition: all 0.2s ease;
+}
+
+.enhanced-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.filter-section {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 0.5rem;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h1><i class="fas fa-users text-primary"></i> Teams</h1>
+        <h1><i class="fas fa-users text-tennis-primary"></i> Teams</h1>
         <p class="text-muted mb-0">Manage team rosters and league assignments</p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
@@ -16,198 +46,53 @@
             </button>
             <ul class="dropdown-menu">
                 <li>
-                    <button class="dropdown-item" onclick="showImportModal()">
+                    <button class="dropdown-item" onclick="TeamsManager.showImportModal()">
                         <i class="fas fa-file-upload"></i> Import YAML
                     </button>
                 </li>
                 <li>
-                    <button class="dropdown-item" onclick="exportTeams('yaml')">
+                    <button class="dropdown-item" onclick="TeamsManager.exportTeams('yaml')">
                         <i class="fas fa-file-download"></i> Export All to YAML
                     </button>
                 </li>
                 <li><hr class="dropdown-divider"></li>
                 <li>
-                    <button class="dropdown-item" onclick="exportTeams('json')">
+                    <button class="dropdown-item" onclick="TeamsManager.exportTeams('json')">
                         <i class="fas fa-file-code"></i> Export All to JSON
                     </button>
                 </li>
                 {% if selected_league %}
                 <li><hr class="dropdown-divider"></li>
                 <li>
-                    <button class="dropdown-item" onclick="exportTeams('yaml', {{ selected_league.id }})">
+                    <button class="dropdown-item" onclick="TeamsManager.exportTeams('yaml', {{ selected_league.id }})">
                         <i class="fas fa-filter"></i> Export "{{ selected_league.name }}" Teams (YAML)
                     </button>
                 </li>
                 <li>
-                    <button class="dropdown-item" onclick="exportTeams('json', {{ selected_league.id }})">
+                    <button class="dropdown-item" onclick="TeamsManager.exportTeams('json', {{ selected_league.id }})">
                         <i class="fas fa-filter"></i> Export "{{ selected_league.name }}" Teams (JSON)
                     </button>
                 </li>
                 {% endif %}
                 <li><hr class="dropdown-divider"></li>
                 <li>
-                    <button class="dropdown-item" onclick="showImportExportHelp()">
+                    <button class="dropdown-item" onclick="TeamsManager.showHelp()">
                         <i class="fas fa-question-circle"></i> Help & Examples
                     </button>
                 </li>
             </ul>
         </div>
-        <a href="{{ url_for('add_team') }}" class="btn btn-success">
+        <a href="{{ url_for('add_team') }}" class="btn btn-tennis-success">
             <i class="fas fa-plus"></i> Add Team
         </a>
     </div>
 </div>
 
-<!-- Import Modal -->
-<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="importModalLabel">
-                    <i class="fas fa-upload"></i> Import Teams
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="importForm" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label for="yamlFile" class="form-label">Select YAML File</label>
-                        <input type="file" class="form-control" id="yamlFile" name="yaml_file" accept=".yaml,.yml" required>
-                        <div class="form-text">Upload a YAML file containing team data. File must have .yaml or .yml extension.</div>
-                    </div>
-                    
-                    <div class="alert alert-info">
-                        <h6><i class="fas fa-info-circle"></i> Expected Format</h6>
-                        <div class="bg-light p-3 rounded">
-                            <pre class="mb-0"><code>teams:
-  - id: 201
-    name: "Lightning Bolts"
-    league_id: 101
-    captain: "Jane Smith"
-    home_facility_id: 5
-    preferred_days: ["Monday", "Wednesday"]
-    contact_email: "jane@example.com"</code></pre>
-                        </div>
-                    </div>
-                    
-                    <div class="alert alert-warning">
-                        <h6><i class="fas fa-exclamation-triangle"></i> Important Notes</h6>
-                        <ul class="mb-0">
-                            <li><strong>home_facility_id:</strong> Must be a valid facility ID from the database (use Facilities page to find IDs)</li>
-                            <li><strong>league_id:</strong> Must reference a valid league ID that exists in the database</li>
-                            <li><strong>preferred_days:</strong> Should be full day names (e.g., "Monday", "Tuesday")</li>
-                            <li><strong>Optional fields:</strong> contact_email, preferred_days, and notes are optional</li>
-                            <li><strong>Legacy support:</strong> home_facility (string name) is supported but home_facility_id is preferred</li>
-                        </ul>
-                    </div>
-                </form>
-                
-                <div id="importStatus" class="d-none">
-                    <!-- Results will be populated by JavaScript -->
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-success" onclick="importTeams()" id="importBtn">
-                    <i class="fas fa-upload"></i> Import Teams
-                </button>
-                <button type="button" class="btn btn-primary d-none" onclick="location.reload()" id="refreshBtn">
-                    <i class="fas fa-refresh"></i> Refresh Page
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Import/Export Help Modal -->
-<div class="modal fade" id="importExportHelpModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-question-circle"></i> Team Import/Export Help
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <h6><i class="fas fa-info-circle text-primary"></i> Overview</h6>
-                        <p>The import/export functionality allows you to:</p>
-                        <ul>
-                            <li><strong>Import:</strong> Add multiple teams from a YAML file</li>
-                            <li><strong>Export:</strong> Save team data to YAML or JSON format</li>
-                            <li><strong>Backup:</strong> Create backups of your team rosters</li>
-                            <li><strong>Share:</strong> Transfer team setups between databases</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <h6><i class="fas fa-file-code text-success"></i> YAML Format Example</h6>
-                        <div class="bg-light p-3 rounded">
-                            <pre><code>teams:
-  - id: 201
-    name: "Lightning Bolts"
-    league_id: 101
-    captain: "Jane Smith"
-    home_facility_id: 5
-    preferred_days: ["Monday", "Wednesday"]
-    contact_email: "jane@example.com"
-  - id: 202
-    name: "Thunder Strikes"
-    league_id: 101
-    captain: "John Doe"
-    home_facility_id: 3
-    preferred_days: ["Tuesday", "Thursday"]</code></pre>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <h6><i class="fas fa-upload text-primary"></i> Import Process</h6>
-                        <ol>
-                            <li>Prepare your YAML file</li>
-                            <li>Click "Import YAML"</li>
-                            <li>Select your .yaml/.yml file</li>
-                            <li>Review import status</li>
-                            <li>Refresh page to see results</li>
-                        </ol>
-                    </div>
-                    <div class="col-md-6">
-                        <h6><i class="fas fa-download text-success"></i> Export Options</h6>
-                        <ul>
-                            <li><strong>Export All to YAML:</strong> All teams</li>
-                            <li><strong>Export All to JSON:</strong> JSON format</li>
-                            <li><strong>Export by League:</strong> Filter by league</li>
-                            <li><strong>Export Single:</strong> Individual team</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-12">
-                        <h6><i class="fas fa-download text-info"></i> Get Started</h6>
-                        <button class="btn btn-outline-primary" onclick="downloadExampleYAML()">
-                            <i class="fas fa-download"></i> Download Example YAML
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Filter and Search Section -->
 {% if leagues %}
-<div class="card mb-4">
+<div class="card tennis-card mb-4 filter-section">
     <div class="card-body">
-        <form method="GET" class="row align-items-end">
+        <form method="GET" class="tennis-form row align-items-end">
             <div class="col-lg-3 col-md-4 mb-2">
                 <label for="league_filter" class="form-label">Filter by League</label>
                 <select class="form-select" id="league_filter" name="league_id" onchange="this.form.submit()">
@@ -237,7 +122,7 @@
             </div>
             <div class="col-lg-3 col-md-3 mb-2">
                 <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-tennis-primary">
                         <i class="fas fa-filter"></i> Apply Filters
                     </button>
                     {% if request.args.get('league_id') or request.args.get('search') %}
@@ -268,9 +153,9 @@
 </div>
 {% else %}
 <!-- Show search even when no leagues exist -->
-<div class="card mb-4">
+<div class="card tennis-card mb-4 filter-section">
     <div class="card-body">
-        <form method="GET" class="row align-items-end">
+        <form method="GET" class="tennis-form row align-items-end">
             <div class="col-md-6 mb-2">
                 <label for="search_query" class="form-label">Search Teams</label>
                 <div class="input-group">
@@ -288,7 +173,7 @@
             </div>
             <div class="col-md-3 mb-2">
                 <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-tennis-primary">
                         <i class="fas fa-search"></i> Search
                     </button>
                     {% if request.args.get('search') %}
@@ -317,7 +202,7 @@
 <!-- Team Summary Cards -->
 <div class="row mb-4">
     <div class="col-md-3">
-        <div class="card bg-primary text-white">
+        <div class="card tennis-card bg-tennis-primary text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
@@ -334,7 +219,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-info text-white">
+        <div class="card tennis-card bg-info text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
@@ -349,7 +234,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-success text-white">
+        <div class="card tennis-card bg-tennis-success text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
@@ -364,7 +249,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-warning text-dark">
+        <div class="card tennis-card bg-warning text-dark">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
@@ -381,26 +266,20 @@
 </div>
 
 <!-- Desktop Table View -->
-<div class="card d-none d-md-block">
-    <div class="card-header bg-primary text-white">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <h4 class="mb-0">
-                    <i class="fas fa-table"></i> Team Details
-                    {% if request.args.get('search') %}
-                    <small class="ms-2 opacity-75">- Search results for "{{ request.args.get('search') }}"</small>
-                    {% endif %}
-                </h4>
-            </div>
-            <div class="col-md-4 text-end">
-                <span class="badge bg-light text-dark fs-6">{{ teams|length }} teams</span>
-            </div>
-        </div>
+<div class="card tennis-card d-none d-md-block">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>
+            <i class="fas fa-table"></i> Team Details
+            {% if request.args.get('search') %}
+            <small class="ms-2 opacity-75">- Search results for "{{ request.args.get('search') }}"</small>
+            {% endif %}
+        </span>
+        <span class="badge bg-primary fs-6">{{ teams|length }} teams</span>
     </div>
-    <div class="card-body">
+    <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle enhanced-table" id="teamsTable">
-                <thead class="table-dark">
+            <table class="table tennis-table mb-0 align-middle" id="teamsTable">
+                <thead>
                     <tr>
                         <th class="text-center" style="width: 80px;">ID</th>
                         <th style="width: 200px;">Team Name</th>
@@ -450,15 +329,17 @@
                                         <i class="fas fa-exclamation-triangle text-warning me-1" title="Custom facility name - not found in database"></i>
                                     {% endif %}
                                     <div class="text-center">
-                                        <div class="fw-bold">{{ enhanced_team.facility_name }}</div>
                                         {% if enhanced_team.facility_exists and enhanced_team.facility_id %}
-                                        <div class="small text-muted">
-                                            <i class="fas fa-link"></i> 
-                                            <a href="{{ url_for('view_facility', facility_id=enhanced_team.facility_id) }}">
-                                                View details
+                                        <div class="fw-bold">
+                                            <a href="{{ url_for('view_facility', facility_id=enhanced_team.facility_id) }}" class="text-decoration-none">
+                                                {{ enhanced_team.facility_name }}
                                             </a>
                                         </div>
-                                        {% elif not enhanced_team.facility_exists %}
+                                        <div class="small text-muted">
+                                            <i class="fas fa-link"></i> View details
+                                        </div>
+                                        {% else %}
+                                        <div class="fw-bold">{{ enhanced_team.facility_name }}</div>
                                         <div class="small text-warning">
                                             <i class="fas fa-info-circle"></i> Custom name
                                         </div>
@@ -471,7 +352,7 @@
                             <div class="days-cell">
                                 {% if enhanced_team.has_preferred_days %}
                                     {% for day in enhanced_team.team.preferred_days %}
-                                    <span class="badge bg-success">{{ day[:3] }}</span>
+                                    <span class="badge bg-success text-white">{{ day[:3] }}</span>
                                     {% endfor %}
                                 {% else %}
                                     <span class="text-muted small">No preference</span>
@@ -487,17 +368,17 @@
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     <button class="btn btn-sm btn-outline-info" 
-                                            onclick="viewTeamDetails({{ enhanced_team.team.id }})"
+                                            onclick="TeamsManager.viewTeamDetails({{ enhanced_team.team.id }})"
                                             title="View team details">
                                         <i class="fas fa-eye"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-secondary" 
-                                            onclick="exportSingleTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')"
+                                            onclick="TeamsManager.exportSingleTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')"
                                             title="Export this team">
                                         <i class="fas fa-download"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger" 
-                                            onclick="deleteTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')"
+                                            onclick="TeamsManager.deleteTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')"
                                             title="Delete team">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -521,7 +402,7 @@
         {% endif %}
     </h5>
     {% for enhanced_team in teams %}
-    <div class="card mb-3 border-start border-primary border-3 enhanced-card" data-team-id="{{ enhanced_team.team.id }}">
+    <div class="card tennis-card mb-3 border-start border-tennis-primary border-3 enhanced-card" data-team-id="{{ enhanced_team.team.id }}">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <h6 class="mb-0">{{ enhanced_team.team.name }}</h6>
@@ -566,7 +447,7 @@
                     <div>
                         {% if enhanced_team.has_preferred_days %}
                             {% for day in enhanced_team.team.preferred_days %}
-                            <span class="badge bg-success">{{ day }}</span>
+                            <span class="badge bg-success text-white">{{ day }}</span>
                             {% endfor %}
                         {% else %}
                             <span class="text-muted small">No preference (any day)</span>
@@ -589,16 +470,16 @@
             <div class="row mt-2">
                 <div class="col-12">
                     <div class="d-flex gap-1 flex-wrap">
-                        <a href="{{ url_for('edit_team', team_id=enhanced_team.team.id) }}" class="btn btn-sm btn-warning">
+                        <a href="{{ url_for('edit_team', team_id=enhanced_team.team.id) }}" class="btn btn-sm btn-tennis-warning">
                             <i class="fas fa-edit"></i> Edit
                         </a>
-                        <button class="btn btn-sm btn-info" onclick="viewTeamDetails({{ enhanced_team.team.id }})">
+                        <button class="btn btn-sm btn-tennis-info" onclick="TeamsManager.viewTeamDetails({{ enhanced_team.team.id }})">
                             <i class="fas fa-eye"></i> View
                         </button>
-                        <button class="btn btn-sm btn-secondary" onclick="exportSingleTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="TeamsManager.exportSingleTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')">
                             <i class="fas fa-download"></i> Export
                         </button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')">
+                        <button class="btn btn-sm btn-tennis-danger" onclick="TeamsManager.deleteTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')">
                             <i class="fas fa-trash"></i> Delete
                         </button>
                     </div>
@@ -610,7 +491,7 @@
 </div>
 
 {% else %}
-<div class="card">
+<div class="card tennis-card">
     <div class="card-body text-center">
         <i class="fas fa-users fa-4x text-muted mb-3"></i>
         {% if request.args.get('search') %}
@@ -620,7 +501,7 @@
             <a href="{{ url_for('teams') }}" class="btn btn-outline-secondary">
                 <i class="fas fa-times"></i> Clear Search
             </a>
-            <a href="{{ url_for('add_team') }}" class="btn btn-success">
+            <a href="{{ url_for('add_team') }}" class="btn btn-tennis-success">
                 <i class="fas fa-plus"></i> Add Team
             </a>
         </div>
@@ -628,7 +509,7 @@
         <h5>No Teams Found</h5>
         <p class="text-muted">No teams are registered for the selected league.</p>
         <div class="d-flex gap-2 justify-content-center flex-wrap">
-            <a href="{{ url_for('add_team') }}" class="btn btn-success">
+            <a href="{{ url_for('add_team') }}" class="btn btn-tennis-success">
                 <i class="fas fa-plus"></i> Add Team to League
             </a>
             <a href="{{ url_for('teams') }}" class="btn btn-outline-secondary">
@@ -639,13 +520,13 @@
         <h5>No Teams Found</h5>
         <p class="text-muted">No teams are currently registered in the database.</p>
         <div class="d-flex gap-2 justify-content-center flex-wrap">
-            <a href="{{ url_for('add_team') }}" class="btn btn-success">
+            <a href="{{ url_for('add_team') }}" class="btn btn-tennis-success">
                 <i class="fas fa-plus"></i> Add Your First Team
             </a>
-            <button class="btn btn-outline-info" onclick="showImportModal()">
+            <button class="btn btn-outline-info" onclick="TeamsManager.showImportModal()">
                 <i class="fas fa-file-import"></i> Import from YAML
             </button>
-            <button class="btn btn-outline-secondary" onclick="showImportExportHelp()">
+            <button class="btn btn-outline-secondary" onclick="TeamsManager.showHelp()">
                 <i class="fas fa-question-circle"></i> Help
             </button>
         </div>
@@ -664,116 +545,223 @@
 
 {% endblock %}
 
+{% block modals %}
+<!-- Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importModalLabel">
+                    <i class="fas fa-upload"></i> Import Teams
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="importForm" class="tennis-form" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="yamlFile" class="form-label">Select YAML File</label>
+                        <input type="file" class="form-control" id="yamlFile" name="yaml_file" accept=".yaml,.yml" required>
+                        <div class="form-text">Upload a YAML file containing team data.</div>
+                    </div>
+                    
+                    <!-- Persistent Help Section -->
+                    <div class="alert alert-info" data-persistent="true">
+                        <h6><i class="fas fa-file-code"></i> Expected YAML Format</h6>
+                        <div class="bg-light p-3 rounded">
+                            <pre class="mb-0"><code>teams:
+  - id: 201
+    name: "Lightning Bolts"
+    league_id: 101
+    captain: "Jane Smith"
+    home_facility_id: 5
+    preferred_days: ["Monday", "Wednesday"]
+    contact_email: "jane@example.com"
+  - id: 202
+    name: "Thunder Strikes"
+    league_id: 101
+    captain: "John Doe"
+    home_facility_id: 3
+    preferred_days: ["Tuesday", "Thursday"]</code></pre>
+                        </div>
+                        <div class="mt-2">
+                            <small><strong>Required:</strong> id, name, league_id, captain, home_facility_id</small><br>
+                            <small><strong>Optional:</strong> preferred_days, contact_email</small>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-exclamation-triangle"></i> Important Notes</h6>
+                        <ul>
+                            <li><strong>Import:</strong> Add multiple teams from a YAML file</li>
+                            <li><strong>Export:</strong> Save team data to YAML or JSON format</li>
+                            <li><strong>Backup:</strong> Create backups of your team rosters</li>
+                            <li><strong>Share:</strong> Transfer team setups between databases</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h6><i class="fas fa-file-code text-tennis-success"></i> YAML Format Example</h6>
+                        <div class="bg-light p-3 rounded">
+                            <pre><code>teams:
+  - id: 201
+    name: "Lightning Bolts"
+    league_id: 101
+    captain: "Jane Smith"
+    home_facility_id: 5
+    preferred_days: ["Monday", "Wednesday"]
+    contact_email: "jane@example.com"
+  - id: 202
+    name: "Thunder Strikes"
+    league_id: 101
+    captain: "John Doe"
+    home_facility_id: 3
+    preferred_days: ["Tuesday", "Thursday"]
+    contact_email: "john@example.com"
+  - id: 203
+    name: "Net Ninjas"
+    league_id: 102
+    captain: "Sarah Johnson"
+    home_facility_id: 5
+    preferred_days: ["Saturday", "Sunday"]
+    contact_email: "sarah@example.com"</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-upload text-tennis-primary"></i> Import Process</h6>
+                        <ol>
+                            <li>Prepare your YAML file</li>
+                            <li>Click "Import YAML"</li>
+                            <li>Select your .yaml/.yml file</li>
+                            <li>Review import status</li>
+                            <li>Refresh page to see results</li>
+                        </ol>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-download text-tennis-success"></i> Export Options</h6>
+                        <ul>
+                            <li><strong>Export All to YAML:</strong> All teams</li>
+                            <li><strong>Export All to JSON:</strong> JSON format</li>
+                            <li><strong>Export by League:</strong> Filter by league</li>
+                            <li><strong>Export Single:</strong> Individual team</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-12">
+                        <h6><i class="fas fa-download text-info"></i> Get Started</h6>
+                        <button class="btn btn-tennis-primary" onclick="TeamsManager.downloadExample()">
+                            <i class="fas fa-download"></i> Download Example YAML
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
 {% block scripts %}
 <script>
-// Export functionality
-function exportTeams(format, leagueId = null) {
-    let url = `/teams/export?format=${format}`;
-    if (leagueId) {
-        url += `&league_id=${leagueId}`;
-    }
-    window.location.href = url;
-}
-
-function exportSingleTeam(teamId, teamName) {
-    const url = `/teams/${teamId}/export`;
-    window.location.href = url;
-}
-
-// Import functionality
-function showImportModal() {
-    const modal = new bootstrap.Modal(document.getElementById('importModal'));
-    modal.show();
-}
-
-function importTeams() {
-    const fileInput = document.getElementById('yamlFile');
-    const file = fileInput.files[0];
+// Teams management class using shared TennisUI functionality
+class TeamsManager {
     
-    if (!file) {
-        alert('Please select a YAML file to import.');
-        return;
+    static showImportModal() {
+        TennisUI.showModal('importModal');
     }
     
-    // Show progress and disable button
-    document.getElementById('importBtn').innerHTML = '<div class="spinner-border spinner-border-sm me-2" role="status"></div>Importing...';
-    document.getElementById('importBtn').disabled = true;
-    document.getElementById('importStatus').classList.add('d-none');
-    
-    // Prepare form data
-    const formData = new FormData();
-    formData.append('yaml_file', file);
-    
-    // Submit import request
-    fetch('/teams/import', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        // Reset button
-        document.getElementById('importBtn').innerHTML = '<i class="fas fa-upload"></i> Import Teams';
-        document.getElementById('importBtn').disabled = false;
-        
-        // Show results
-        displayImportResults(data);
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        // Reset button
-        document.getElementById('importBtn').innerHTML = '<i class="fas fa-upload"></i> Import Teams';
-        document.getElementById('importBtn').disabled = false;
-        
-        displayImportResults({
-            success: false,
-            error: 'Network error: ' + error.message
-        });
-    });
-}
-
-function displayImportResults(data) {
-    const statusDiv = document.getElementById('importStatus');
-    statusDiv.classList.remove('d-none');
-    
-    if (data.success) {
-        statusDiv.innerHTML = `
-            <div class="alert alert-success">
-                <h6><i class="fas fa-check-circle"></i> Import Successful!</h6>
-                <ul class="mb-0">
-                    <li><strong>${data.imported_count}</strong> new teams imported</li>
-                    <li><strong>${data.updated_count}</strong> existing teams updated</li>
-                    <li><strong>${data.total_processed}</strong> total teams processed</li>
-                </ul>
-                ${data.error_count > 0 ? `<div class="mt-2"><strong>Errors:</strong> ${data.error_count} team(s) failed to import</div>` : ''}
-            </div>
-            ${data.errors ? `<div class="alert alert-warning">
-                <h6>Import Errors:</h6>
-                <ul>${data.errors.map(error => `<li>${error}</li>`).join('')}</ul>
-                ${data.additional_errors ? `<p>... and ${data.additional_errors} more errors</p>` : ''}
-            </div>` : ''}
-        `;
-        
-        // Show refresh button
-        document.getElementById('refreshBtn').classList.remove('d-none');
-    } else {
-        statusDiv.innerHTML = `
-            <div class="alert alert-danger">
-                <h6><i class="fas fa-exclamation-triangle"></i> Import Failed</h6>
-                <p><strong>Error:</strong> ${data.error}</p>
-                ${data.details ? `<p><strong>Details:</strong> ${data.details}</p>` : ''}
-            </div>
-        `;
+    static showHelp() {
+        TennisUI.showModal('importExportHelpModal');
     }
-}
-
-// Help functionality
-function showImportExportHelp() {
-    const modal = new bootstrap.Modal(document.getElementById('importExportHelpModal'));
-    modal.show();
-}
-
-function downloadExampleYAML() {
-    const exampleYAML = `# Example Teams YAML File
+    
+    static exportTeams(format, leagueId = null) {
+        let url = `/teams/export?format=${format}`;
+        if (leagueId) {
+            url += `&league_id=${leagueId}`;
+        }
+        window.location.href = url;
+    }
+    
+    static exportSingleTeam(teamId, teamName) {
+        const url = `/teams/${teamId}/export`;
+        window.location.href = url;
+    }
+    
+    static async importTeams() {
+        const fileInput = document.getElementById('yamlFile');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            TennisUI.showNotification('Please select a YAML file to import.', 'warning');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('yaml_file', file);
+        
+        try {
+            // Use TennisUI bulk operation handler
+            await TennisUI.executeBulkOperation(
+                'Teams Import',
+                '/teams/import',
+                formData,
+                'importModal',
+                (result) => {
+                    // Custom success handler
+                    this.displayImportResults(result);
+                }
+            );
+        } catch (error) {
+            TennisUI.showNotification(`Import failed: ${error.message}`, 'danger');
+        }
+    }
+    
+    static displayImportResults(data) {
+        const statusDiv = document.getElementById('importStatus');
+        statusDiv.classList.remove('d-none');
+        
+        if (data.success) {
+            statusDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <h6><i class="fas fa-check-circle"></i> Import Successful!</h6>
+                    <ul class="mb-0">
+                        <li><strong>${data.imported_count}</strong> new teams imported</li>
+                        <li><strong>${data.updated_count}</strong> existing teams updated</li>
+                        <li><strong>${data.total_processed}</strong> total teams processed</li>
+                    </ul>
+                    ${data.error_count > 0 ? 
+                        `<div class="mt-2"><strong>Errors:</strong> ${data.error_count} team(s) failed to import</div>` : ''}
+                </div>
+                ${data.errors ? `<div class="alert alert-warning">
+                    <h6>Import Errors:</h6>
+                    <ul>${data.errors.map(error => `<li>${error}</li>`).join('')}</ul>
+                    ${data.additional_errors ? `<p>... and ${data.additional_errors} more errors</p>` : ''}
+                </div>` : ''}
+            `;
+            
+            // Show refresh button
+            document.getElementById('refreshBtn').classList.remove('d-none');
+        } else {
+            statusDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <h6><i class="fas fa-exclamation-triangle"></i> Import Failed</h6>
+                    <p><strong>Error:</strong> ${data.error}</p>
+                    ${data.details ? `<p><strong>Details:</strong> ${data.details}</p>` : ''}
+                </div>
+            `;
+        }
+    }
+    
+    static downloadExample() {
+        const exampleYAML = `# Example Teams YAML File
 # Save this as teams_example.yaml and modify as needed
 
 teams:
@@ -799,163 +787,159 @@ teams:
     captain: "Sarah Johnson" 
     home_facility_id: 5
     preferred_days: ["Saturday", "Sunday"]
+    contact_email: "sarah@example.com"
 `;
 
-    const blob = new Blob([exampleYAML], { type: 'text/yaml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'teams_example.yaml';
-    document.body.appendChild(a);
-    a.click();
-    URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-}
-
-// Team management functionality
-function viewTeamDetails(teamId) {
-    // Placeholder for team details modal or page
-    alert('Team details for ID: ' + teamId + ' (feature coming soon)');
-}
-
-function deleteTeam(teamId, teamName) {
-    if (confirm('Are you sure you want to delete team "' + teamName + '"?\n\nThis action cannot be undone and will also remove all associated matches.')) {
-        fetch('/teams/' + teamId + '/delete', {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
+        const blob = new Blob([exampleYAML], { type: 'text/yaml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'teams_example.yaml';
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    }
+    
+    static viewTeamDetails(teamId) {
+        // Use TennisUI notification instead of alert
+        TennisUI.showNotification('Team details feature coming soon!', 'info');
+    }
+    
+    static deleteTeam(teamId, teamName) {
+        TennisUI.confirmAction(
+            `Delete team "${teamName}"?`,
+            'This action cannot be undone and will also remove all associated matches.',
+            'danger',
+            async () => {
+                try {
+                    await TennisUI.apiCall(`/teams/${teamId}/delete`, {
+                        method: 'DELETE'
+                    });
+                    TennisUI.showNotification('Team deleted successfully!', 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } catch (error) {
+                    TennisUI.showNotification(`Failed to delete team: ${error.message}`, 'danger');
+                }
             }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Error deleting team: ' + data.error);
-            }
-        })
-        .catch(error => {
-            alert('Error deleting team: ' + error);
+        );
+    }
+    
+    static setupTableInteractions() {
+        const table = document.getElementById('teamsTable');
+        if (!table) return;
+        
+        // Add sortable headers using TennisUI
+        const headers = table.querySelectorAll('thead th');
+        headers.forEach((header, index) => {
+            // Skip action column
+            if (index === headers.length - 1) return;
+            
+            header.style.cursor = 'pointer';
+            header.style.userSelect = 'none';
+            header.setAttribute('data-sort-column', index);
+            
+            // Add sort icon
+            const sortIcon = document.createElement('i');
+            sortIcon.className = 'fas fa-sort ms-1 opacity-50';
+            header.appendChild(sortIcon);
+            
+            header.addEventListener('click', () => this.sortTable(index));
         });
+        
+        // Add row click handlers
+        const rows = document.querySelectorAll('.team-row');
+        rows.forEach(row => {
+            row.addEventListener('click', function(e) {
+                // Don't trigger if clicking on buttons or links
+                if (e.target.matches('button, button *, a, a *')) return;
+                
+                const teamId = this.getAttribute('data-team-id');
+                if (teamId) {
+                    // Add visual feedback using CSS variables
+                    this.style.backgroundColor = 'var(--tennis-hover-bg, rgba(45, 90, 135, 0.1))';
+                    setTimeout(() => {
+                        this.style.backgroundColor = '';
+                    }, 200);
+                    
+                    // Show team details
+                    TeamsManager.viewTeamDetails(parseInt(teamId));
+                }
+            });
+            
+            // Add hover tooltip
+            row.setAttribute('title', 'Click to view team details');
+        });
+    }
+    
+    static sortTable(columnIndex) {
+        const table = document.getElementById('teamsTable');
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.rows);
+        const header = table.querySelectorAll('thead th')[columnIndex];
+        const icon = header.querySelector('i');
+        
+        // Determine sort direction
+        const isAscending = !header.hasAttribute('data-sort-asc');
+        
+        // Reset all other headers
+        table.querySelectorAll('thead th').forEach(th => {
+            th.removeAttribute('data-sort-asc');
+            th.removeAttribute('data-sort-desc');
+            const otherIcon = th.querySelector('i');
+            if (otherIcon) {
+                otherIcon.className = 'fas fa-sort ms-1 opacity-50';
+            }
+        });
+        
+        // Set current header state
+        if (isAscending) {
+            header.setAttribute('data-sort-asc', '');
+            icon.className = 'fas fa-sort-up ms-1';
+        } else {
+            header.setAttribute('data-sort-desc', '');
+            icon.className = 'fas fa-sort-down ms-1';
+        }
+        
+        // Sort rows
+        rows.sort((a, b) => {
+            const aCell = a.cells[columnIndex];
+            const bCell = b.cells[columnIndex];
+            
+            let aValue = aCell.textContent.trim();
+            let bValue = bCell.textContent.trim();
+            
+            // Handle different data types
+            if (columnIndex === 0) { // Team ID
+                aValue = parseInt(aValue.replace(/\D/g, '')) || 0;
+                bValue = parseInt(bValue.replace(/\D/g, '')) || 0;
+            }
+            
+            // Compare values
+            let comparison = 0;
+            if (typeof aValue === 'number' && typeof bValue === 'number') {
+                comparison = aValue - bValue;
+            } else {
+                comparison = aValue.localeCompare(bValue, undefined, { numeric: true });
+            }
+            
+            return isAscending ? comparison : -comparison;
+        });
+        
+        // Reorder rows in DOM
+        rows.forEach(row => tbody.appendChild(row));
+        
+        // Add visual feedback
+        tbody.style.opacity = '0.7';
+        setTimeout(() => {
+            tbody.style.opacity = '1';
+        }, 150);
     }
 }
 
 // Initialize enhanced styling and interactions
 document.addEventListener('DOMContentLoaded', function() {
-    
-    // Setup table interactions
-    setupTeamTableInteractions();
+    TeamsManager.setupTableInteractions();
 });
-
-function setupTeamTableInteractions() {
-    const table = document.getElementById('teamsTable');
-    if (!table) return;
-    
-    // Add sortable headers
-    const headers = table.querySelectorAll('thead th');
-    headers.forEach((header, index) => {
-        // Skip action column
-        if (index === headers.length - 1) return;
-        
-        header.style.cursor = 'pointer';
-        header.style.userSelect = 'none';
-        header.setAttribute('data-sort-column', index);
-        
-        // Add sort icon
-        const sortIcon = document.createElement('i');
-        sortIcon.className = 'fas fa-sort ms-1 opacity-50';
-        header.appendChild(sortIcon);
-        
-        header.addEventListener('click', () => sortTeamTable(index));
-    });
-    
-    // Add row click handlers
-    const rows = document.querySelectorAll('.team-row');
-    rows.forEach(row => {
-        row.addEventListener('click', function(e) {
-            // Don't trigger if clicking on buttons or links
-            if (e.target.matches('button, button *, a, a *')) return;
-            
-            const teamId = this.getAttribute('data-team-id');
-            if (teamId) {
-                // Add visual feedback
-                this.style.backgroundColor = '#e3f2fd';
-                setTimeout(() => {
-                    this.style.backgroundColor = '';
-                }, 200);
-                
-                // Show team details
-                viewTeamDetails(parseInt(teamId));
-            }
-        });
-        
-        // Add hover tooltip
-        row.setAttribute('title', 'Click to view team details');
-    });
-}
-
-function sortTeamTable(columnIndex) {
-    const table = document.getElementById('teamsTable');
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.rows);
-    const header = table.querySelectorAll('thead th')[columnIndex];
-    const icon = header.querySelector('i');
-    
-    // Determine sort direction
-    const isAscending = !header.hasAttribute('data-sort-asc');
-    
-    // Reset all other headers
-    table.querySelectorAll('thead th').forEach(th => {
-        th.removeAttribute('data-sort-asc');
-        th.removeAttribute('data-sort-desc');
-        const otherIcon = th.querySelector('i');
-        if (otherIcon) {
-            otherIcon.className = 'fas fa-sort ms-1 opacity-50';
-        }
-    });
-    
-    // Set current header state
-    if (isAscending) {
-        header.setAttribute('data-sort-asc', '');
-        icon.className = 'fas fa-sort-up ms-1';
-    } else {
-        header.setAttribute('data-sort-desc', '');
-        icon.className = 'fas fa-sort-down ms-1';
-    }
-    
-    // Sort rows
-    rows.sort((a, b) => {
-        const aCell = a.cells[columnIndex];
-        const bCell = b.cells[columnIndex];
-        
-        let aValue = aCell.textContent.trim();
-        let bValue = bCell.textContent.trim();
-        
-        // Handle different data types
-        if (columnIndex === 0) { // Team ID
-            aValue = parseInt(aValue.replace(/\D/g, '')) || 0;
-            bValue = parseInt(bValue.replace(/\D/g, '')) || 0;
-        }
-        
-        // Compare values
-        let comparison = 0;
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-            comparison = aValue - bValue;
-        } else {
-            comparison = aValue.localeCompare(bValue, undefined, { numeric: true });
-        }
-        
-        return isAscending ? comparison : -comparison;
-    });
-    
-    // Reorder rows in DOM
-    rows.forEach(row => tbody.appendChild(row));
-    
-    // Add visual feedback
-    tbody.style.opacity = '0.7';
-    setTimeout(() => {
-        tbody.style.opacity = '1';
-    }, 150);
-}
 </script>
-{% endblock %}
+{% endblock %} class="mb-0">

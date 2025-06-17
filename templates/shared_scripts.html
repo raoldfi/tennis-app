@@ -1,493 +1,96 @@
 <script>
 /**
- * Tennis App - Standardized JavaScript Functions
- * Version 1.0 - Complete UI Management System
- * 
- * This script provides a unified interface for all modal, form, and UI interactions
- * across the Tennis Database Web Application.
+ * Tennis App - Standardized UI System v2.1
+ * Enhanced with League Management, Team Operations, and Visual Effects
+ * Comprehensive JavaScript utilities for all tennis app components
  */
 
 class TennisUI {
+    // ==================== INITIALIZATION ====================
     
-    /**
-     * Initialize the Tennis UI system
-     */
     static init() {
-        this.setupEventListeners();
+        console.log('🎾 Tennis UI System v2.1 Initialized');
+        this.initializeFlashMessages();
         this.initializeTooltips();
-        this.autoHideAlerts();
+        this.initializeSearchTables();
+        this.loadStyles();
     }
 
-    // ==================== MODAL MANAGEMENT ====================
-
-    /**
-     * Show a modal with standardized behavior
-     * @param {string} modalId - The ID of the modal to show
-     * @param {Object} options - Optional configuration
-     * @returns {bootstrap.Modal} - The modal instance
-     */
-    static showModal(modalId, options = {}) {
-        const modalElement = document.getElementById(modalId);
-        if (!modalElement) {
-            console.error(`Modal with ID '${modalId}' not found`);
-            return null;
-        }
-
-        const modal = new bootstrap.Modal(modalElement, {
-            backdrop: options.backdrop || 'static',
-            keyboard: options.keyboard !== false,
-            focus: options.focus !== false
-        });
-        
-        modal.show();
-        
-        // Add event listeners for this modal instance
-        modalElement.addEventListener('shown.bs.modal', () => {
-            // Focus first input field when modal opens
-            const firstInput = modalElement.querySelector('input:not([type="hidden"]), select, textarea');
-            if (firstInput) {
-                firstInput.focus();
-            }
-        });
-
-        return modal;
-    }
-
-    /**
-     * Hide a modal
-     * @param {string} modalId - The ID of the modal to hide
-     */
-    static hideModal(modalId) {
-        const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
-        if (modal) {
-            modal.hide();
-        }
-    }
-
-    /**
-     * Set modal content dynamically
-     * @param {string} modalId - The ID of the modal
-     * @param {string} contentElementId - The ID of the content container
-     * @param {string} content - HTML content to set
-     */
-    static setModalContent(modalId, contentElementId, content) {
-        const contentElement = document.querySelector(`#${modalId} #${contentElementId}`);
-        if (contentElement) {
-            contentElement.innerHTML = content;
-        } else {
-            console.warn(`Content element '${contentElementId}' not found in modal '${modalId}'`);
-        }
-    }
-
-    /**
-     * Set modal title
-     * @param {string} modalId - The ID of the modal
-     * @param {string} title - New title with icon (HTML allowed)
-     */
-    static setModalTitle(modalId, title) {
-        const titleElement = document.querySelector(`#${modalId} .modal-title`);
-        if (titleElement) {
-            titleElement.innerHTML = title;
-        }
-    }
-
-    /**
-     * Get data from modal form
-     * @param {string} modalId - The ID of the modal
-     * @param {string} formId - The ID of the form (optional)
-     * @returns {Object} - Form data as object
-     */
-    static getModalFormData(modalId, formId = null) {
-        const modal = document.getElementById(modalId);
-        const form = formId ? document.getElementById(formId) : modal.querySelector('form');
-        
-        if (!form) {
-            console.warn(`No form found in modal '${modalId}'`);
-            return {};
-        }
-
-        return this.serializeForm(form.id);
-    }
-
-    // ==================== FORM MANAGEMENT ====================
-
-    /**
-     * Set form loading state
-     * @param {string} formId - The ID of the form
-     * @param {boolean} loading - Whether form is loading
-     * @param {string} buttonSelector - CSS selector for the submit button
-     */
-    static setFormLoading(formId, loading, buttonSelector = 'button[type="submit"], .btn-tennis-success, .btn-tennis-primary') {
-        const form = document.getElementById(formId);
-        if (!form) {
-            console.error(`Form with ID '${formId}' not found`);
-            return;
-        }
-
-        const button = form.querySelector(buttonSelector);
-        
-        if (loading) {
-            form.classList.add('tennis-loading');
+    static initializeFlashMessages() {
+        // Auto-hide flash messages after 5 seconds
+        document.querySelectorAll('.alert').forEach(alert => {
+            if (!alert.querySelector('.btn-close')) return;
             
-            // Create loading overlay
-            let overlay = document.getElementById(`${formId}-loading`);
-            if (!overlay) {
-                overlay = document.createElement('div');
-                overlay.className = 'tennis-loading-overlay';
-                overlay.innerHTML = '<div class="tennis-spinner"></div>';
-                overlay.id = `${formId}-loading`;
-                form.appendChild(overlay);
-            }
-            
-            // Disable and update submit button
-            if (button) {
-                button.disabled = true;
-                if (!button.dataset.originalText) {
-                    button.dataset.originalText = button.innerHTML;
-                }
-                button.innerHTML = '<div class="tennis-spinner tennis-spinner-sm"></div>Processing...';
-                button.classList.add('btn-loading');
-            }
-
-            // Disable all form inputs
-            const inputs = form.querySelectorAll('input, select, textarea, button');
-            inputs.forEach(input => {
-                if (!input.hasAttribute('data-loading-disabled')) {
-                    input.disabled = true;
-                    input.setAttribute('data-loading-disabled', 'true');
-                }
-            });
-
-        } else {
-            form.classList.remove('tennis-loading');
-            
-            // Remove loading overlay
-            const overlay = document.getElementById(`${formId}-loading`);
-            if (overlay) {
-                overlay.remove();
-            }
-            
-            // Re-enable submit button
-            if (button) {
-                button.disabled = false;
-                button.classList.remove('btn-loading');
-                if (button.dataset.originalText) {
-                    button.innerHTML = button.dataset.originalText;
-                    delete button.dataset.originalText;
-                }
-            }
-
-            // Re-enable form inputs
-            const inputs = form.querySelectorAll('[data-loading-disabled]');
-            inputs.forEach(input => {
-                input.disabled = false;
-                input.removeAttribute('data-loading-disabled');
-            });
-        }
-    }
-
-    /**
-     * Set button loading state
-     * @param {HTMLElement} button - The button element
-     * @param {boolean} loading - Whether button is loading
-     * @param {string} loadingText - Text to show when loading
-     */
-    static setButtonLoading(button, loading, loadingText = 'Loading...') {
-        if (!button) return;
-
-        if (loading) {
-            button.disabled = true;
-            if (!button.dataset.originalText) {
-                button.dataset.originalText = button.innerHTML;
-            }
-            button.innerHTML = `<div class="tennis-spinner tennis-spinner-sm"></div>${loadingText}`;
-            button.classList.add('btn-loading');
-        } else {
-            button.disabled = false;
-            button.classList.remove('btn-loading');
-            if (button.dataset.originalText) {
-                button.innerHTML = button.dataset.originalText;
-                delete button.dataset.originalText;
-            }
-        }
-    }
-
-    /**
-     * Validate form fields
-     * @param {string} formId - The ID of the form
-     * @param {Object} options - Validation options
-     * @returns {boolean} - True if form is valid
-     */
-    static validateForm(formId, options = {}) {
-        const form = document.getElementById(formId);
-        if (!form) {
-            console.error(`Form with ID '${formId}' not found`);
-            return false;
-        }
-
-        const showMessages = options.showMessages !== false;
-        const requiredFields = form.querySelectorAll('[required]');
-        let isValid = true;
-        let firstInvalidField = null;
-
-        // Clear previous validation states
-        this.resetValidation(formId);
-
-        requiredFields.forEach(field => {
-            const value = field.type === 'checkbox' ? field.checked : field.value.trim();
-            const isEmpty = field.type === 'checkbox' ? !value : !value;
-
-            if (isEmpty) {
-                isValid = false;
-                if (!firstInvalidField) {
-                    firstInvalidField = field;
-                }
-
-                if (showMessages) {
-                    field.classList.add('is-invalid');
-                    this.showFieldError(field, 'This field is required');
-                }
-            } else {
-                if (showMessages) {
-                    field.classList.add('is-valid');
-                }
-            }
-        });
-
-        // Email validation
-        const emailFields = form.querySelectorAll('input[type="email"]');
-        emailFields.forEach(field => {
-            if (field.value && !this.isValidEmail(field.value)) {
-                isValid = false;
-                if (!firstInvalidField) {
-                    firstInvalidField = field;
-                }
-
-                if (showMessages) {
-                    field.classList.add('is-invalid');
-                    this.showFieldError(field, 'Please enter a valid email address');
-                }
-            }
-        });
-
-        // Focus first invalid field
-        if (!isValid && firstInvalidField) {
-            firstInvalidField.focus();
-        }
-
-        return isValid;
-    }
-
-    /**
-     * Setup form validation for all forms on the page
-     */
-    static setupFormValidation() {
-        // Real-time validation setup
-        document.addEventListener('input', (e) => {
-            const field = e.target;
-            if (field.hasAttribute('required') || field.type === 'email') {
-                this.validateField(field);
-            }
-        });
-
-        document.addEventListener('change', (e) => {
-            const field = e.target;
-            if (field.hasAttribute('required') || field.type === 'email') {
-                this.validateField(field);
-            }
-        });
-    }
-
-    /**
-     * Validate a single field
-     * @param {HTMLElement} field - The field to validate
-     */
-    static validateField(field) {
-        const value = field.type === 'checkbox' ? field.checked : field.value.trim();
-        const isEmpty = field.type === 'checkbox' ? !value : !value;
-
-        // Remove existing validation classes
-        field.classList.remove('is-valid', 'is-invalid');
-        this.removeFieldError(field);
-
-        if (field.hasAttribute('required') && isEmpty) {
-            field.classList.add('is-invalid');
-            this.showFieldError(field, 'This field is required');
-        } else if (field.type === 'email' && value && !this.isValidEmail(value)) {
-            field.classList.add('is-invalid');
-            this.showFieldError(field, 'Please enter a valid email address');
-        } else if (!isEmpty) {
-            field.classList.add('is-valid');
-        }
-    }
-
-    /**
-     * Reset validation state for a form
-     * @param {string} formId - The ID of the form
-     */
-    static resetValidation(formId) {
-        const form = document.getElementById(formId);
-        if (!form) return;
-
-        const fields = form.querySelectorAll('.is-valid, .is-invalid');
-        fields.forEach(field => {
-            field.classList.remove('is-valid', 'is-invalid');
-            this.removeFieldError(field);
-        });
-    }
-
-    /**
-     * Show field error message
-     * @param {HTMLElement} field - The field element
-     * @param {string} message - Error message
-     */
-    static showFieldError(field, message) {
-        this.removeFieldError(field);
-        
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'invalid-feedback';
-        errorDiv.textContent = message;
-        errorDiv.setAttribute('data-field-error', field.id || field.name);
-        
-        field.parentNode.appendChild(errorDiv);
-    }
-
-    /**
-     * Remove field error message
-     * @param {HTMLElement} field - The field element
-     */
-    static removeFieldError(field) {
-        const errorDiv = field.parentNode.querySelector(`[data-field-error="${field.id || field.name}"]`);
-        if (errorDiv) {
-            errorDiv.remove();
-        }
-    }
-
-    /**
-     * Serialize form data to object
-     * @param {string} formId - The ID of the form
-     * @returns {Object} - Form data as object
-     */
-    static serializeForm(formId) {
-        const form = document.getElementById(formId);
-        if (!form) return {};
-
-        const formData = new FormData(form);
-        const data = {};
-        
-        for (const [key, value] of formData.entries()) {
-            data[key] = value;
-        }
-        
-        return data;
-    }
-
-    // ==================== TABLE INTERACTIONS ====================
-
-    /**
-     * Setup table interactions for enhanced UX
-     * @param {string} tableId - The ID of the table (optional)
-     */
-    static setupTableInteractions(tableId = null) {
-        const tables = tableId ? [document.getElementById(tableId)] : document.querySelectorAll('.tennis-table');
-        
-        tables.forEach(table => {
-            if (!table) return;
-            
-            // Add hover effects
-            const rows = table.querySelectorAll('tbody tr');
-            rows.forEach(row => {
-                row.addEventListener('mouseenter', function() {
-                    this.style.transform = 'translateX(2px)';
-                    this.style.transition = 'transform 0.2s ease';
-                });
-                
-                row.addEventListener('mouseleave', function() {
-                    this.style.transform = 'translateX(0)';
-                });
-            });
-            
-            // Add sorting functionality if headers are clickable
-            const headers = table.querySelectorAll('th[data-sort]');
-            headers.forEach(header => {
-                header.style.cursor = 'pointer';
-                header.addEventListener('click', () => {
-                    this.sortTable(table, header.dataset.sort);
-                });
-            });
-        });
-    }
-
-    /**
-     * Sort table by column
-     * @param {HTMLElement} table - The table element
-     * @param {string} column - Column identifier
-     */
-    static sortTable(table, column) {
-        // Basic table sorting implementation
-        console.log(`Sorting table by column: ${column}`);
-        // Implementation would depend on specific requirements
-    }
-
-    // ==================== NOTIFICATION SYSTEM ====================
-
-    /**
-     * Show notification to user
-     * @param {string} message - Notification message
-     * @param {string} type - Notification type (success, danger, warning, info)
-     * @param {number} duration - Auto-hide duration in ms (0 = no auto-hide)
-     */
-    static showNotification(message, type = 'info', duration = 5000) {
-        // Remove existing notifications
-        const existingNotifications = document.querySelectorAll('.tennis-notification');
-        existingNotifications.forEach(notification => notification.remove());
-
-        // Create notification element
-        const notification = document.createElement('div');
-        notification.className = `tennis-notification alert alert-${type} alert-dismissible`;
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-            min-width: 300px;
-            max-width: 500px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            animation: slideInRight 0.3s ease;
-        `;
-
-        // Get appropriate icon
-        const icons = {
-            success: 'fas fa-check-circle',
-            danger: 'fas fa-exclamation-triangle',
-            warning: 'fas fa-exclamation-circle',
-            info: 'fas fa-info-circle'
-        };
-
-        notification.innerHTML = `
-            <i class="${icons[type] || icons.info} me-2"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-
-        // Add to page
-        document.body.appendChild(notification);
-
-        // Auto-hide if duration is specified
-        if (duration > 0) {
             setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.classList.add('fade');
-                    setTimeout(() => notification.remove(), 150);
+                if (alert.parentNode && !alert.classList.contains('fade')) {
+                    alert.classList.add('fade');
+                    setTimeout(() => {
+                        if (alert.parentNode) alert.remove();
+                    }, 150);
                 }
-            }, duration);
-        }
+            }, 5000);
+        });
+    }
 
-        // Add slide-in animation styles if not already present
-        if (!document.getElementById('tennis-notification-styles')) {
+    static initializeTooltips() {
+        // Initialize Bootstrap tooltips if available
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+    }
+
+    static initializeSearchTables() {
+        // Add search functionality to tables with search inputs
+        document.querySelectorAll('input[data-table-search]').forEach(input => {
+            const tableId = input.getAttribute('data-table-search');
+            const table = document.getElementById(tableId);
+            if (!table) return;
+
+            input.addEventListener('input', (e) => {
+                this.filterTable(table, e.target.value);
+            });
+        });
+    }
+
+    static filterTable(table, searchTerm) {
+        const rows = table.querySelectorAll('tbody tr');
+        const term = searchTerm.toLowerCase();
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            const isVisible = text.includes(term);
+            row.style.display = isVisible ? '' : 'none';
+            if (isVisible) visibleCount++;
+        });
+
+        // Show/hide "no results" message
+        const noResults = document.getElementById('noResults');
+        if (noResults) {
+            noResults.style.display = visibleCount === 0 && searchTerm ? 'block' : 'none';
+        }
+    }
+
+    static loadStyles() {
+        // Ensure required styles are loaded
+        if (!document.getElementById('tennis-ui-styles')) {
             const styles = document.createElement('style');
-            styles.id = 'tennis-notification-styles';
+            styles.id = 'tennis-ui-styles';
             styles.textContent = `
+                .tennis-notification {
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 9999;
+                    min-width: 300px;
+                    max-width: 500px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    animation: slideInRight 0.3s ease;
+                }
+                
                 @keyframes slideInRight {
                     from { transform: translateX(100%); opacity: 0; }
                     to { transform: translateX(0); opacity: 1; }
@@ -549,150 +152,817 @@ class TennisUI {
         
         // Set button loading state
         if (submitBtn) {
-            this.setButtonLoading(submitBtn, true, 'Processing...');
+            submitBtn.disabled = true;
+            submitBtn.classList.add('btn-loading');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.setAttribute('data-original-text', originalText);
         }
 
         try {
             const options = {
-                method: 'POST'
+                method: 'POST',
             };
 
-            // Handle different data types
             if (data instanceof FormData) {
                 options.body = data;
-            } else if (typeof data === 'object') {
-                options.body = JSON.stringify(data);
-                options.headers = { 'Content-Type': 'application/json' };
             } else {
-                options.body = data;
+                options.body = JSON.stringify(data);
+                options.headers = {
+                    'Content-Type': 'application/json'
+                };
             }
 
             const result = await this.apiCall(url, options);
 
+            // Handle success
+            this.showNotification(result.message || `${operation} completed successfully`, 'success');
+            
             // Close modal
-            this.hideModal(modalId);
-
-            // Show success message
-            this.showNotification(result.message || `${operation} completed successfully!`, 'success');
-
-            // Execute callback or reload page
+            const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+            if (modal) modal.hide();
+            
+            // Execute success callback
             if (successCallback) {
                 successCallback(result);
             } else {
-                setTimeout(() => location.reload(), 1500);
+                // Default: reload page after short delay
+                setTimeout(() => window.location.reload(), 500);
             }
 
         } catch (error) {
-            this.showNotification(`${operation} failed: ${error.message}`, 'danger');
+            this.showNotification(error.message || `${operation} failed`, 'danger');
+            console.error(`${operation} error:`, error);
         } finally {
             // Reset button state
             if (submitBtn) {
-                this.setButtonLoading(submitBtn, false);
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('btn-loading');
+                const originalText = submitBtn.getAttribute('data-original-text');
+                if (originalText) {
+                    submitBtn.innerHTML = originalText;
+                }
             }
         }
     }
 
-    // ==================== UTILITY FUNCTIONS ====================
+    // ==================== FORM UTILITIES ====================
 
     /**
-     * Initialize tooltips for elements
+     * Set form loading state
+     * @param {string} formId - The ID of the form
+     * @param {boolean} loading - Whether form is loading
+     * @param {string} buttonSelector - CSS selector for the submit button
      */
-    static initializeTooltips() {
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-    }
+    static setFormLoading(formId, loading, buttonSelector = 'button[type="submit"], .btn-tennis-success, .btn-tennis-primary') {
+        const form = document.getElementById(formId);
+        if (!form) {
+            console.error(`Form with ID '${formId}' not found`);
+            return;
+        }
 
-    /**
-     * Validate email format
-     * @param {string} email - Email to validate
-     * @returns {boolean} - True if valid
-     */
-    static isValidEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    }
+        const button = form.querySelector(buttonSelector);
+        
+        if (loading) {
+            form.classList.add('tennis-loading');
+            
+            // Create loading overlay if it doesn't exist
+            let overlay = form.querySelector('.tennis-loading-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.className = 'tennis-loading-overlay';
+                overlay.style.cssText = `
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(255, 255, 255, 0.8);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 1000;
+                    border-radius: var(--tennis-border-radius);
+                `;
+                overlay.innerHTML = '<div class="tennis-spinner"></div>';
+                form.style.position = 'relative';
+                form.appendChild(overlay);
+            }
+            
+            // Disable and update submit button
+            if (button) {
+                button.disabled = true;
+                if (!button.dataset.originalText) {
+                    button.dataset.originalText = button.innerHTML;
+                }
+                button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+                button.classList.add('btn-loading');
+            }
 
-    /**
-     * Format date for display
-     * @param {string|Date} date - Date to format
-     * @param {Object} options - Formatting options
-     * @returns {string} - Formatted date
-     */
-    static formatDate(date, options = {}) {
-        const dateObj = typeof date === 'string' ? new Date(date) : date;
-        const defaultOptions = {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        };
-        return dateObj.toLocaleDateString('en-US', { ...defaultOptions, ...options });
-    }
+            // Disable all form inputs
+            const inputs = form.querySelectorAll('input, select, textarea, button');
+            inputs.forEach(input => {
+                if (!input.hasAttribute('data-loading-disabled')) {
+                    input.disabled = true;
+                    input.setAttribute('data-loading-disabled', 'true');
+                }
+            });
 
-    /**
-     * Debounce function calls
-     * @param {Function} func - Function to debounce
-     * @param {number} wait - Wait time in ms
-     * @returns {Function} - Debounced function
-     */
-    static debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
-
-    /**
-     * Setup global event listeners
-     */
-    static setupEventListeners() {
-        // Form submission handling
-        document.addEventListener('submit', (e) => {
-            const form = e.target;
-            if (form.classList.contains('tennis-form')) {
-                if (!this.validateForm(form.id, { showMessages: true })) {
-                    e.preventDefault();
-                    this.showNotification('Please fill in all required fields correctly', 'warning');
+        } else {
+            form.classList.remove('tennis-loading');
+            
+            // Remove loading overlay
+            const overlay = form.querySelector('.tennis-loading-overlay');
+            if (overlay) {
+                overlay.remove();
+            }
+            
+            // Re-enable submit button
+            if (button) {
+                button.disabled = false;
+                button.classList.remove('btn-loading');
+                if (button.dataset.originalText) {
+                    button.innerHTML = button.dataset.originalText;
+                    delete button.dataset.originalText;
                 }
             }
-        });
+
+            // Re-enable form inputs
+            const inputs = form.querySelectorAll('[data-loading-disabled]');
+            inputs.forEach(input => {
+                input.disabled = false;
+                input.removeAttribute('data-loading-disabled');
+            });
+        }
     }
 
     /**
-     * Auto-hide alert messages
+     * Serialize form data to object
+     * @param {string} formId - The ID of the form
+     * @returns {Object} - Form data as object
      */
-    static autoHideAlerts() {
-        const alerts = document.querySelectorAll('.alert:not([data-persistent]):not([style*="position: fixed"])');
-        alerts.forEach(alert => {
-            if (!alert.classList.contains('alert-tennis')) {
-                setTimeout(() => {
-                    if (alert.parentNode) {
-                        alert.classList.remove('show');
-                        setTimeout(() => alert.remove(), 150);
-                    }
-                }, 5000);
+    static serializeForm(formId) {
+        const form = document.getElementById(formId);
+        if (!form) {
+            console.error(`Form with ID '${formId}' not found`);
+            return {};
+        }
+
+        const formData = new FormData(form);
+        const data = {};
+        
+        for (let [key, value] of formData.entries()) {
+            if (data[key]) {
+                // Handle multiple values (like checkboxes)
+                if (Array.isArray(data[key])) {
+                    data[key].push(value);
+                } else {
+                    data[key] = [data[key], value];
+                }
+            } else {
+                data[key] = value;
             }
+        }
+        
+        return data;
+    }
+
+    // ==================== LOADING SPINNER UTILITIES ====================
+
+    /**
+     * Show a notification message
+     * @param {string} message - Message to display
+     * @param {string} type - Alert type (success, danger, warning, info)
+     * @param {number} duration - Auto-hide duration in ms (0 = no auto-hide)
+     */
+    static showNotification(message, type = 'info', duration = 4000) {
+        // Remove existing notifications
+        const existingNotifications = document.querySelectorAll('.tennis-notification');
+        existingNotifications.forEach(notification => notification.remove());
+
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `tennis-notification alert alert-${type} alert-dismissible`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            min-width: 300px;
+            max-width: 500px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            animation: slideInRight 0.3s ease;
+        `;
+
+        // Get appropriate icon
+        const icons = {
+            success: 'fas fa-check-circle',
+            danger: 'fas fa-exclamation-triangle',
+            warning: 'fas fa-exclamation-circle',
+            info: 'fas fa-info-circle'
+        };
+
+        notification.innerHTML = `
+            <i class="${icons[type] || icons.info} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        // Add to page
+        document.body.appendChild(notification);
+
+        // Auto-hide if duration is specified
+        if (duration > 0) {
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.classList.add('fade');
+                    setTimeout(() => notification.remove(), 150);
+                }
+            }, duration);
+        }
+    }
+
+    // ==================== CONFIRMATION DIALOGS ====================
+
+    /**
+     * Show a confirmation dialog with custom styling
+     * @param {string} title - Dialog title
+     * @param {string} message - Dialog message
+     * @param {string} confirmText - Confirm button text
+     * @param {string} confirmClass - Confirm button class
+     * @returns {Promise<boolean>} - True if confirmed
+     */
+    static async showConfirmDialog(title, message, confirmText = 'Confirm', confirmClass = 'btn-tennis-danger') {
+        return new Promise((resolve) => {
+            // Create modal HTML
+            const modalHtml = `
+                <div class="modal fade tennis-modal" id="confirmModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    ${title}
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>${message}</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn ${confirmClass}" id="confirmBtn">${confirmText}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal
+            const existingModal = document.getElementById('confirmModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Add modal to page
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+
+            // Handle events
+            document.getElementById('confirmBtn').addEventListener('click', () => {
+                modal.hide();
+                resolve(true);
+            });
+
+            document.getElementById('confirmModal').addEventListener('hidden.bs.modal', () => {
+                document.getElementById('confirmModal').remove();
+                resolve(false);
+            });
+
+            modal.show();
         });
     }
 }
 
-// ==================== INITIALIZATION ====================
+// ==================== LEAGUE MANAGEMENT ====================
 
-// Initialize when DOM is loaded
+class TennisLeagues {
+    /**
+     * Generate matches for a league
+     */
+    static async generateMatches(leagueId, leagueName) {
+        const confirmed = await TennisUI.showConfirmDialog(
+            'Generate Matches',
+            `Generate all matches for league "${leagueName}"? This will create match pairings for all teams in the league.`,
+            'Generate Matches',
+            'btn-tennis-success'
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const result = await TennisUI.apiCall(`/api/leagues/${leagueId}/generate_matches`, {
+                method: 'POST'
+            });
+
+            TennisUI.showNotification(result.message || 'Matches generated successfully!', 'success');
+            
+            // Reload page to show new matches
+            setTimeout(() => window.location.reload(), 1000);
+            
+        } catch (error) {
+            TennisUI.showNotification(
+                error.message || 'Failed to generate matches. Please try again.',
+                'danger'
+            );
+        }
+    }
+
+    /**
+     * Delete a league
+     */
+    static async deleteLeague(leagueId, leagueName) {
+        const confirmed = await TennisUI.showConfirmDialog(
+            'Delete League',
+            `Are you sure you want to delete league "${leagueName}"? This action cannot be undone and will also delete all associated teams and matches.`,
+            'Delete League',
+            'btn-tennis-danger'
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const result = await TennisUI.apiCall(`/api/leagues/${leagueId}`, {
+                method: 'DELETE'
+            });
+
+            TennisUI.showNotification(result.message || 'League deleted successfully!', 'success');
+            
+            // Redirect to leagues page
+            setTimeout(() => window.location.href = '/leagues', 1000);
+            
+        } catch (error) {
+            TennisUI.showNotification(
+                error.message || 'Failed to delete league. Please try again.',
+                'danger'
+            );
+        }
+    }
+
+    /**
+     * Bulk delete leagues
+     */
+    static async bulkDeleteLeagues(leagueIds) {
+        const confirmed = await TennisUI.showConfirmDialog(
+            'Delete Multiple Leagues',
+            `Are you sure you want to delete ${leagueIds.length} league(s)? This action cannot be undone and will also delete all associated teams and matches.`,
+            `Delete ${leagueIds.length} Leagues`,
+            'btn-tennis-danger'
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const result = await TennisUI.apiCall('/api/leagues/bulk_delete', {
+                method: 'POST',
+                body: JSON.stringify({ league_ids: leagueIds })
+            });
+
+            TennisUI.showNotification(result.message || 'Leagues deleted successfully!', 'success');
+            
+            // Reload page
+            setTimeout(() => window.location.reload(), 1000);
+            
+        } catch (error) {
+            TennisUI.showNotification(
+                error.message || 'Failed to delete leagues. Please try again.',
+                'danger'
+            );
+        }
+    }
+}
+
+// ==================== TEAM MANAGEMENT ====================
+
+class TennisTeams {
+    /**
+     * Delete a team
+     */
+    static async deleteTeam(teamId, teamName) {
+        const confirmed = await TennisUI.showConfirmDialog(
+            'Delete Team',
+            `Are you sure you want to delete team "${teamName}"? This action cannot be undone and will also remove the team from all matches.`,
+            'Delete Team',
+            'btn-tennis-danger'
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const result = await TennisUI.apiCall(`/api/teams/${teamId}`, {
+                method: 'DELETE'
+            });
+
+            TennisUI.showNotification(result.message || 'Team deleted successfully!', 'success');
+            
+            // Reload page to reflect changes
+            setTimeout(() => window.location.reload(), 1000);
+            
+        } catch (error) {
+            TennisUI.showNotification(
+                error.message || 'Failed to delete team. Please try again.',
+                'danger'
+            );
+        }
+    }
+
+    /**
+     * Bulk delete teams
+     */
+    static async bulkDeleteTeams(teamIds) {
+        const confirmed = await TennisUI.showConfirmDialog(
+            'Delete Multiple Teams',
+            `Are you sure you want to delete ${teamIds.length} team(s)? This action cannot be undone and will remove the teams from all matches.`,
+            `Delete ${teamIds.length} Teams`,
+            'btn-tennis-danger'
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const result = await TennisUI.apiCall('/api/teams/bulk_delete', {
+                method: 'POST',
+                body: JSON.stringify({ team_ids: teamIds })
+            });
+
+            TennisUI.showNotification(result.message || 'Teams deleted successfully!', 'success');
+            
+            // Reload page
+            setTimeout(() => window.location.reload(), 1000);
+            
+        } catch (error) {
+            TennisUI.showNotification(
+                error.message || 'Failed to delete teams. Please try again.',
+                'danger'
+            );
+        }
+    }
+}
+
+// ==================== MATCH MANAGEMENT ====================
+
+class TennisMatches {
+    /**
+     * Delete a match
+     */
+    static async deleteMatch(matchId, matchDescription) {
+        const confirmed = await TennisUI.showConfirmDialog(
+            'Delete Match',
+            `Are you sure you want to delete this match "${matchDescription}"? This action cannot be undone.`,
+            'Delete Match',
+            'btn-tennis-danger'
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const result = await TennisUI.apiCall(`/api/matches/${matchId}`, {
+                method: 'DELETE'
+            });
+
+            TennisUI.showNotification(result.message || 'Match deleted successfully!', 'success');
+            
+            // Reload page to reflect changes
+            setTimeout(() => window.location.reload(), 1000);
+            
+        } catch (error) {
+            TennisUI.showNotification(
+                error.message || 'Failed to delete match. Please try again.',
+                'danger'
+            );
+        }
+    }
+
+    /**
+     * Schedule a match
+     */
+    static async scheduleMatch(matchId, facilityId, date, time) {
+        try {
+            const result = await TennisUI.apiCall(`/api/matches/${matchId}/schedule`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    facility_id: facilityId,
+                    date: date,
+                    time: time
+                })
+            });
+
+            TennisUI.showNotification(result.message || 'Match scheduled successfully!', 'success');
+            
+            // Reload page to show updated schedule
+            setTimeout(() => window.location.reload(), 1000);
+            
+        } catch (error) {
+            TennisUI.showNotification(
+                error.message || 'Failed to schedule match. Please try again.',
+                'danger'
+            );
+        }
+    }
+
+    /**
+     * Bulk delete matches
+     */
+    static async bulkDeleteMatches(matchIds) {
+        const confirmed = await TennisUI.showConfirmDialog(
+            'Delete Multiple Matches',
+            `Are you sure you want to delete ${matchIds.length} match(es)? This action cannot be undone.`,
+            `Delete ${matchIds.length} Matches`,
+            'btn-tennis-danger'
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const result = await TennisUI.apiCall('/api/matches/bulk_delete', {
+                method: 'POST',
+                body: JSON.stringify({ match_ids: matchIds })
+            });
+
+            TennisUI.showNotification(result.message || 'Matches deleted successfully!', 'success');
+            
+            // Reload page
+            setTimeout(() => window.location.reload(), 1000);
+            
+        } catch (error) {
+            TennisUI.showNotification(
+                error.message || 'Failed to delete matches. Please try again.',
+                'danger'
+            );
+        }
+    }
+}
+
+// ==================== FACILITY MANAGEMENT ====================
+
+class TennisFacilities {
+    /**
+     * Delete a facility
+     */
+    static async deleteFacility(facilityId, facilityName) {
+        const confirmed = await TennisUI.showConfirmDialog(
+            'Delete Facility',
+            `Are you sure you want to delete facility "${facilityName}"? This action cannot be undone and may affect teams and matches using this facility.`,
+            'Delete Facility',
+            'btn-tennis-danger'
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const result = await TennisUI.apiCall(`/api/facilities/${facilityId}`, {
+                method: 'DELETE'
+            });
+
+            TennisUI.showNotification(result.message || 'Facility deleted successfully!', 'success');
+            
+            // Reload page to reflect changes
+            setTimeout(() => window.location.reload(), 1000);
+            
+        } catch (error) {
+            TennisUI.showNotification(
+                error.message || 'Failed to delete facility. Please try again.',
+                'danger'
+            );
+        }
+    }
+}
+
+// ==================== FORM ENHANCEMENTS ====================
+
+class TennisForms {
+    /**
+     * Initialize form validation and enhancement
+     */
+    static initializeFormValidation() {
+        document.querySelectorAll('.tennis-form').forEach(form => {
+            form.addEventListener('submit', this.handleFormSubmit.bind(this));
+            
+            // Add real-time validation
+            form.querySelectorAll('input, select, textarea').forEach(field => {
+                field.addEventListener('blur', () => this.validateField(field));
+                field.addEventListener('input', () => this.clearFieldError(field));
+            });
+        });
+    }
+
+    static handleFormSubmit(event) {
+        const form = event.target;
+        const isValid = this.validateForm(form);
+        
+        if (!isValid) {
+            event.preventDefault();
+            TennisUI.showNotification('Please correct the errors in the form', 'warning');
+        }
+    }
+
+    static validateForm(form) {
+        let isValid = true;
+        
+        form.querySelectorAll('[required]').forEach(field => {
+            if (!this.validateField(field)) {
+                isValid = false;
+            }
+        });
+        
+        return isValid;
+    }
+
+    static validateField(field) {
+        const value = field.value.trim();
+        const isRequired = field.hasAttribute('required');
+        const fieldType = field.type;
+        
+        // Clear previous errors
+        this.clearFieldError(field);
+        
+        // Check required fields
+        if (isRequired && !value) {
+            this.showFieldError(field, 'This field is required');
+            return false;
+        }
+        
+        // Type-specific validation
+        if (value) {
+            switch (fieldType) {
+                case 'email':
+                    if (!this.isValidEmail(value)) {
+                        this.showFieldError(field, 'Please enter a valid email address');
+                        return false;
+                    }
+                    break;
+                case 'number':
+                    const min = field.getAttribute('min');
+                    const max = field.getAttribute('max');
+                    const numValue = parseFloat(value);
+                    
+                    if (isNaN(numValue)) {
+                        this.showFieldError(field, 'Please enter a valid number');
+                        return false;
+                    }
+                    
+                    if (min !== null && numValue < parseFloat(min)) {
+                        this.showFieldError(field, `Value must be at least ${min}`);
+                        return false;
+                    }
+                    
+                    if (max !== null && numValue > parseFloat(max)) {
+                        this.showFieldError(field, `Value must be no more than ${max}`);
+                        return false;
+                    }
+                    break;
+            }
+        }
+        
+        return true;
+    }
+
+    static showFieldError(field, message) {
+        field.classList.add('is-invalid');
+        
+        let feedback = field.parentNode.querySelector('.invalid-feedback');
+        if (!feedback) {
+            feedback = document.createElement('div');
+            feedback.className = 'invalid-feedback';
+            field.parentNode.appendChild(feedback);
+        }
+        
+        feedback.textContent = message;
+    }
+
+    static clearFieldError(field) {
+        field.classList.remove('is-invalid');
+        const feedback = field.parentNode.querySelector('.invalid-feedback');
+        if (feedback) {
+            feedback.remove();
+        }
+    }
+
+    static isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+}
+
+// ==================== ENHANCED UI INTERACTIONS ====================
+
+/**
+ * Enhanced dropdown interactions for tennis-action-dropdown
+ */
+class TennisDropdowns {
+    static init() {
+        // Add enhanced hover effects for dropdown items
+        document.querySelectorAll('.tennis-action-dropdown .dropdown-item').forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateX(2px)';
+            });
+            
+            item.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateX(0)';
+            });
+        });
+    }
+}
+
+/**
+ * Badge group animations
+ */
+class TennisBadges {
+    static init() {
+        // Add subtle animations to badge groups
+        document.querySelectorAll('.tennis-badge-group .badge').forEach((badge, index) => {
+            badge.style.animationDelay = `${index * 0.1}s`;
+            badge.classList.add('badge-fade-in');
+        });
+        
+        // Add CSS for badge animations if not present
+        if (!document.getElementById('tennis-badge-animations')) {
+            const styles = document.createElement('style');
+            styles.id = 'tennis-badge-animations';
+            styles.textContent = `
+                .badge-fade-in {
+                    animation: badgeFadeIn 0.3s ease-out forwards;
+                    opacity: 0;
+                }
+                
+                @keyframes badgeFadeIn {
+                    from { opacity: 0; transform: translateY(-10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                
+                .tennis-badge-group .badge {
+                    transition: all 0.2s ease;
+                }
+                
+                .tennis-badge-group .badge:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                }
+            `;
+            document.head.appendChild(styles);
+        }
+    }
+}
+
+/**
+ * Enhanced card interactions
+ */
+class TennisCards {
+    static init() {
+        // Add enhanced interactions for tennis cards
+        document.querySelectorAll('.tennis-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-2px)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+            });
+        });
+        
+        // Special handling for league detail cards
+        document.querySelectorAll('.league-detail-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-3px)';
+                this.style.boxShadow = '0 8px 25px rgba(0,0,0,0.12)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = '';
+            });
+        });
+    }
+}
+
+// ==================== GLOBAL INITIALIZATION ====================
+
+// Auto-initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     TennisUI.init();
-    
-    // Make TennisUI globally available
-    window.TennisUI = TennisUI;
-    
-    console.log('Tennis UI system initialized successfully');
+    TennisForms.initializeFormValidation();
+    TennisDropdowns.init();
+    TennisBadges.init();
+    TennisCards.init();
 });
 
-console.log('Tennis App shared scripts loaded successfully');
+// Make classes available globally
+window.TennisUI = TennisUI;
+window.TennisLeagues = TennisLeagues;
+window.TennisTeams = TennisTeams;
+window.TennisMatches = TennisMatches;
+window.TennisFacilities = TennisFacilities;
+window.TennisForms = TennisForms;
+window.TennisDropdowns = TennisDropdowns;
+window.TennisBadges = TennisBadges;
+window.TennisCards = TennisCards;
 </script>
