@@ -17,7 +17,7 @@ import os
 from typing import Type, Dict, Any
 
 # Import the updated web app
-from tennis_web_app import app, create_app_with_backend, TennisDBInterface
+from web_app import app, create_app_with_backend, TennisDBInterface
 
 def get_sqlite_backend():
     """Import and return SQLite backend class"""

@@ -41,9 +41,8 @@
     <div class="d-flex gap-2 flex-wrap">
         <!-- Import/Export Buttons -->
         <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-info dropdown-toggle" data-bs-toggle="dropdown">
-                <i class="fas fa-file-import"></i> Import/Export
-            </button>
+	    <button onclick="TennisImportExport.showModal('teams', 'Import/Export Teams')">Import/Export</button>
+
             <ul class="dropdown-menu">
                 <li>
                     <button class="dropdown-item" onclick="TeamsManager.showImportModal()">

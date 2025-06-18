@@ -69,6 +69,24 @@ class League:
         if self.num_lines_per_match > 10:
             raise ValueError(f"Number of lines per match seems unusually high: {self.num_lines_per_match}. Expected 1-10.")
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert league to dictionary for serialization"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'year': self.year,
+            'section': self.section,
+            'region': self.region,
+            'age_group': self.age_group,
+            'division': self.division,
+            'num_lines_per_match': self.num_lines_per_match,
+            'num_matches': self.num_matches,
+            'allow_split_lines': self.allow_split_lines,
+            'preferred_days': self.preferred_days,
+            'backup_days': self.backup_days,
+            'start_date': self.start_date,
+            'end_date': self.end_date
+        }
 
 
 

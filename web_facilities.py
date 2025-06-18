@@ -318,8 +318,6 @@ def register_routes(app):
             }), 500
     
     
-    # Enhanced debug version of export routes with comprehensive error handling
-    # Add these to your tennis_web_app.py
     
     import yaml
     import json

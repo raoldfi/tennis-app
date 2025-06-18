@@ -537,7 +537,6 @@ def register_routes(app):
 
 # =========== Helpers ==========
 
-# Fix for the teams() route in tennis_web_app.py
 
 def enhance_teams_with_facility_info(teams_list, db):
     """

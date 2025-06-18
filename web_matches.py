@@ -235,6 +235,45 @@ def register_routes(app, get_db):
 
 
     # ==================== Bulk Operations ====================
+
+    @app.route('/api/import-matches', methods=['POST'])
+    def api_import_matches():
+        """API endpoint for importing matches from YAML"""
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connection'}), 500
+    
+        try:
+            # Validate file upload
+            if 'yaml_file' not in request.files:
+                return jsonify({'error': 'No file uploaded'}), 400
+    
+            file = request.files['yaml_file']
+            if file.filename == '':
+                return jsonify({'error': 'No file selected'}), 400
+    
+            if not file.filename.lower().endswith(('.yaml', '.yml')):
+                return jsonify({'error': 'File must be a YAML file (.yaml or .yml)'}), 400
+    
+            # Read and parse YAML content
+            try:
+                yaml_content = file.read().decode('utf-8')
+                data = yaml.safe_load(yaml_content)
+            except UnicodeDecodeError:
+                return jsonify({'error': 'File must be valid UTF-8 text'}), 400
+            except yaml.YAMLError as e:
+                return jsonify({'error': f'Invalid YAML format: {str(e)}'}), 400
+    
+            # Validate data structure
+            if not isinstance(data, list):
+                return jsonify({'error': 'YAML must contain a list of matches'}), 400
+    
+            return jsonify({'message': 'Match import endpoint not yet implemented', 'imported_count': 0})
+    
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    # ==================== Bulk Operations ====================
     
     @app.route('/api/bulk-auto-schedule', methods=['POST'])
     def bulk_auto_schedule():

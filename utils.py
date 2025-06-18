@@ -5,8 +5,10 @@ import itertools
 from collections import defaultdict
 from typing import List, Set
 from usta import Team, Match, League, Facility
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Optional
 from datetime import datetime, timedelta
+import yaml
+import os
 
 
 def generate_matches(teams: List['Team']) -> List['Match']:
@@ -468,15 +470,562 @@ def get_date_difference(dates_list1: List[str], dates_list2: List[str],
     
     return difference
 
+# ========== YAML Export Functions ==========
 
-# Main function for demonstration only
-if __name__ == "__main__":
-    print("Utils module loaded successfully!")
-    print("Available functions:")
-    print("  - generate_matches(teams)")
-    print("  - get_optimal_scheduling_dates(match, ...)")
-    print("  - get_date_intersection(dates1, dates2, ...)")
-    print("  - get_multiple_date_intersection(*date_lists, ...)")
-    print("  - get_date_union(dates1, dates2, ...)")
-    print("  - get_date_difference(dates1, dates2, ...)")
-    print("\nRun test_utils.py to execute all tests.")
+def export_facilities_to_yaml(facilities: List['Facility'], filename: str) -> None:
+    """
+    Export facilities to YAML file
+    
+    Args:
+        facilities: List of Facility objects to export
+        filename: Path to output YAML file
+    """
+    try:
+        facilities_data = []
+        for facility in facilities:
+            facilities_data.append(facility.to_yaml_dict())
+        
+        with open(filename, 'w') as f:
+            yaml.dump({
+                'facilities': facilities_data
+            }, f, default_flow_style=False, sort_keys=False)
+            
+    except Exception as e:
+        raise RuntimeError(f"Failed to export facilities to YAML: {e}")
+
+
+def export_leagues_to_yaml(leagues: List['League'], filename: str) -> None:
+    """
+    Export leagues to YAML file
+    
+    Args:
+        leagues: List of League objects to export
+        filename: Path to output YAML file
+    """
+    try:
+        leagues_data = []
+        for league in leagues:
+            league_dict = {
+                'id': league.id,
+                'name': league.name,
+                'year': league.year,
+                'section': league.section,
+                'region': league.region,
+                'age_group': league.age_group,
+                'division': league.division,
+                'num_lines_per_match': league.num_lines_per_match,
+                'num_matches': league.num_matches,
+                'allow_split_lines': league.allow_split_lines,
+                'preferred_days': league.preferred_days,
+                'backup_days': league.backup_days,
+                'start_date': league.start_date,
+                'end_date': league.end_date
+            }
+            leagues_data.append(league_dict)
+        
+        with open(filename, 'w') as f:
+            yaml.dump({
+                'leagues': leagues_data
+            }, f, default_flow_style=False, sort_keys=False)
+            
+    except Exception as e:
+        raise RuntimeError(f"Failed to export leagues to YAML: {e}")
+
+
+def export_teams_to_yaml(teams: List['Team'], filename: str) -> None:
+    """
+    Export teams to YAML file with foreign key references
+    
+    Args:
+        teams: List of Team objects to export
+        filename: Path to output YAML file
+    """
+    try:
+        teams_data = []
+        for team in teams:
+            team_dict = {
+                'id': team.id,
+                'name': team.name,
+                'league_id': team.league.id,
+                'home_facility_id': team.home_facility.id,
+                'captain': team.captain,
+                'preferred_days': team.preferred_days
+            }
+            teams_data.append(team_dict)
+        
+        with open(filename, 'w') as f:
+            yaml.dump({
+                'teams': teams_data
+            }, f, default_flow_style=False, sort_keys=False)
+            
+    except Exception as e:
+        raise RuntimeError(f"Failed to export teams to YAML: {e}")
+
+
+def export_matches_to_yaml(matches: List['Match'], filename: str) -> None:
+    """
+    Export matches to YAML file with foreign key references
+    
+    Args:
+        matches: List of Match objects to export
+        filename: Path to output YAML file
+    """
+    try:
+        matches_data = []
+        for match in matches:
+            match_dict = {
+                'id': match.id,
+                'league_id': match.league.id,
+                'home_team_id': match.home_team.id,
+                'visitor_team_id': match.visitor_team.id,
+                'facility_id': match.facility.id if match.facility else None,
+                'date': match.date,
+                'scheduled_times': match.scheduled_times
+            }
+            matches_data.append(match_dict)
+        
+        with open(filename, 'w') as f:
+            yaml.dump({
+                'matches': matches_data
+            }, f, default_flow_style=False, sort_keys=False)
+            
+    except Exception as e:
+        raise RuntimeError(f"Failed to export matches to YAML: {e}")
+
+
+def export_all_to_yaml(leagues: List['League'], facilities: List['Facility'], 
+                       teams: List['Team'], matches: List['Match'], filename: str) -> None:
+    """
+    Export all data to a single YAML file
+    
+    Args:
+        leagues: List of League objects
+        facilities: List of Facility objects
+        teams: List of Team objects
+        matches: List of Match objects
+        filename: Path to output YAML file
+    """
+    try:
+        # Convert facilities
+        facilities_data = []
+        for facility in facilities:
+            facilities_data.append(facility.to_yaml_dict())
+        
+        # Convert leagues
+        leagues_data = []
+        for league in leagues:
+            league_dict = {
+                'id': league.id,
+                'name': league.name,
+                'year': league.year,
+                'section': league.section,
+                'region': league.region,
+                'age_group': league.age_group,
+                'division': league.division,
+                'num_lines_per_match': league.num_lines_per_match,
+                'num_matches': league.num_matches,
+                'allow_split_lines': league.allow_split_lines,
+                'preferred_days': league.preferred_days,
+                'backup_days': league.backup_days,
+                'start_date': league.start_date,
+                'end_date': league.end_date
+            }
+            leagues_data.append(league_dict)
+        
+        # Convert teams with foreign key references
+        teams_data = []
+        for team in teams:
+            team_dict = {
+                'id': team.id,
+                'name': team.name,
+                'league_id': team.league.id,
+                'home_facility_id': team.home_facility.id,
+                'captain': team.captain,
+                'preferred_days': team.preferred_days
+            }
+            teams_data.append(team_dict)
+        
+        # Convert matches with foreign key references
+        matches_data = []
+        for match in matches:
+            match_dict = {
+                'id': match.id,
+                'league_id': match.league.id,
+                'home_team_id': match.home_team.id,
+                'visitor_team_id': match.visitor_team.id,
+                'facility_id': match.facility.id if match.facility else None,
+                'date': match.date,
+                'scheduled_times': match.scheduled_times
+            }
+            matches_data.append(match_dict)
+        
+        # Combine all data
+        all_data = {
+            'leagues': leagues_data,
+            'facilities': facilities_data,
+            'teams': teams_data,
+            'matches': matches_data
+        }
+        
+        with open(filename, 'w') as f:
+            yaml.dump(all_data, f, default_flow_style=False, sort_keys=False)
+            
+    except Exception as e:
+        raise RuntimeError(f"Failed to export all data to YAML: {e}")
+
+
+# ========== YAML Import Functions ==========
+
+def import_facilities_from_yaml(filename: str) -> List['Facility']:
+    """
+    Import facilities from YAML file
+    
+    Args:
+        filename: Path to YAML file
+        
+    Returns:
+        List of Facility objects
+    """
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"YAML file not found: {filename}")
+    
+    try:
+        with open(filename, 'r') as f:
+            data = yaml.safe_load(f)
+        
+        facilities = []
+        facilities_data = data.get('facilities', [])
+        
+        for facility_dict in facilities_data:
+            facility = Facility.from_yaml_dict(facility_dict)
+            facilities.append(facility)
+        
+        return facilities
+        
+    except yaml.YAMLError as e:
+        raise ValueError(f"Invalid YAML format: {e}")
+    except Exception as e:
+        raise RuntimeError(f"Failed to import facilities from YAML: {e}")
+
+
+def import_leagues_from_yaml(filename: str) -> List['League']:
+    """
+    Import leagues from YAML file
+    
+    Args:
+        filename: Path to YAML file
+        
+    Returns:
+        List of League objects
+    """
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"YAML file not found: {filename}")
+    
+    try:
+        with open(filename, 'r') as f:
+            data = yaml.safe_load(f)
+        
+        leagues = []
+        leagues_data = data.get('leagues', [])
+        
+        for league_dict in leagues_data:
+            league = League(**league_dict)
+            leagues.append(league)
+        
+        return leagues
+        
+    except yaml.YAMLError as e:
+        raise ValueError(f"Invalid YAML format: {e}")
+    except Exception as e:
+        raise RuntimeError(f"Failed to import leagues from YAML: {e}")
+
+
+def import_teams_from_yaml(filename: str, db) -> List['Team']:
+    """
+    Import teams from YAML file, resolving object references from database
+    
+    Args:
+        filename: Path to YAML file
+        db: Database interface instance (TennisDBInterface)
+        
+    Returns:
+        List of Team objects with resolved object references
+    """
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"YAML file not found: {filename}")
+    
+    try:
+        with open(filename, 'r') as f:
+            data = yaml.safe_load(f)
+        
+        teams = []
+        teams_data = data.get('teams', [])
+        
+        for team_dict in teams_data:
+            # Resolve object references from database
+            league = db.get_league(team_dict['league_id'])
+            home_facility = db.get_facility(team_dict['home_facility_id'])
+            
+            if not league:
+                raise ValueError(f"League with ID {team_dict['league_id']} not found in database")
+            if not home_facility:
+                raise ValueError(f"Facility with ID {team_dict['home_facility_id']} not found in database")
+            
+            # Create Team object with resolved references
+            team = Team(
+                id=team_dict['id'],
+                name=team_dict['name'],
+                league=league,
+                home_facility=home_facility,
+                captain=team_dict.get('captain'),
+                preferred_days=team_dict.get('preferred_days', [])
+            )
+            teams.append(team)
+        
+        return teams
+        
+    except yaml.YAMLError as e:
+        raise ValueError(f"Invalid YAML format: {e}")
+    except Exception as e:
+        raise RuntimeError(f"Failed to import teams from YAML: {e}")
+
+
+def import_matches_from_yaml(filename: str, db) -> List['Match']:
+    """
+    Import matches from YAML file, resolving object references from database
+    
+    Args:
+        filename: Path to YAML file
+        db: Database interface instance (TennisDBInterface)
+        
+    Returns:
+        List of Match objects with resolved object references
+    """
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"YAML file not found: {filename}")
+    
+    try:
+        with open(filename, 'r') as f:
+            data = yaml.safe_load(f)
+        
+        matches = []
+        matches_data = data.get('matches', [])
+        
+        for match_dict in matches_data:
+            # Resolve object references from database
+            league = db.get_league(match_dict['league_id'])
+            home_team = db.get_team(match_dict['home_team_id'])
+            visitor_team = db.get_team(match_dict['visitor_team_id'])
+            
+            facility = None
+            if match_dict.get('facility_id'):
+                facility = db.get_facility(match_dict['facility_id'])
+            
+            if not league:
+                raise ValueError(f"League with ID {match_dict['league_id']} not found in database")
+            if not home_team:
+                raise ValueError(f"Home team with ID {match_dict['home_team_id']} not found in database")
+            if not visitor_team:
+                raise ValueError(f"Visitor team with ID {match_dict['visitor_team_id']} not found in database")
+            
+            # Create Match object with resolved references
+            match = Match(
+                id=match_dict['id'],
+                league=league,
+                home_team=home_team,
+                visitor_team=visitor_team,
+                facility=facility,
+                date=match_dict.get('date'),
+                scheduled_times=match_dict.get('scheduled_times', [])
+            )
+            matches.append(match)
+        
+        return matches
+        
+    except yaml.YAMLError as e:
+        raise ValueError(f"Invalid YAML format: {e}")
+    except Exception as e:
+        raise RuntimeError(f"Failed to import matches from YAML: {e}")
+
+
+def import_all_from_yaml(filename: str, db) -> Dict[str, List]:
+    """
+    Import all data from YAML file, resolving object references from database
+    
+    Args:
+        filename: Path to YAML file
+        db: Database interface instance (TennisDBInterface)
+        
+    Returns:
+        Dictionary with keys 'leagues', 'facilities', 'teams', 'matches' containing lists of objects
+    """
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"YAML file not found: {filename}")
+    
+    try:
+        with open(filename, 'r') as f:
+            data = yaml.safe_load(f)
+        
+        result = {
+            'leagues': [],
+            'facilities': [],
+            'teams': [],
+            'matches': []
+        }
+        
+        # Import leagues first (no dependencies)
+        leagues_data = data.get('leagues', [])
+        for league_dict in leagues_data:
+            league = League(**league_dict)
+            result['leagues'].append(league)
+        
+        # Import facilities (no dependencies)
+        facilities_data = data.get('facilities', [])
+        for facility_dict in facilities_data:
+            facility = Facility.from_yaml_dict(facility_dict)
+            result['facilities'].append(facility)
+        
+        # Import teams (depends on leagues and facilities being in database)
+        teams_data = data.get('teams', [])
+        for team_dict in teams_data:
+            league = db.get_league(team_dict['league_id'])
+            home_facility = db.get_facility(team_dict['home_facility_id'])
+            
+            if not league:
+                raise ValueError(f"League with ID {team_dict['league_id']} not found in database")
+            if not home_facility:
+                raise ValueError(f"Facility with ID {team_dict['home_facility_id']} not found in database")
+            
+            team = Team(
+                id=team_dict['id'],
+                name=team_dict['name'],
+                league=league,
+                home_facility=home_facility,
+                captain=team_dict.get('captain'),
+                preferred_days=team_dict.get('preferred_days', [])
+            )
+            result['teams'].append(team)
+        
+        # Import matches (depends on leagues, teams, and facilities being in database)
+        matches_data = data.get('matches', [])
+        for match_dict in matches_data:
+            league = db.get_league(match_dict['league_id'])
+            home_team = db.get_team(match_dict['home_team_id'])
+            visitor_team = db.get_team(match_dict['visitor_team_id'])
+            
+            facility = None
+            if match_dict.get('facility_id'):
+                facility = db.get_facility(match_dict['facility_id'])
+            
+            if not all([league, home_team, visitor_team]):
+                raise ValueError(f"Missing references for match {match_dict.get('id', 'Unknown')}")
+            
+            match = Match(
+                id=match_dict['id'],
+                league=league,
+                home_team=home_team,
+                visitor_team=visitor_team,
+                facility=facility,
+                date=match_dict.get('date'),
+                scheduled_times=match_dict.get('scheduled_times', [])
+            )
+            result['matches'].append(match)
+        
+        return result
+        
+    except yaml.YAMLError as e:
+        raise ValueError(f"Invalid YAML format: {e}")
+    except Exception as e:
+        raise RuntimeError(f"Failed to import all data from YAML: {e}")
+
+
+# ========== Convenience Functions ==========
+
+def export_database_to_yaml(db, filename: str) -> None:
+    """
+    Export entire database to YAML file
+    
+    Args:
+        db: Database interface instance (TennisDBInterface)
+        filename: Path to output YAML file
+    """
+    try:
+        leagues = db.list_leagues()
+        facilities = db.list_facilities()
+        teams = db.list_teams()
+        matches = db.list_matches()
+        
+        export_all_to_yaml(leagues, facilities, teams, matches, filename)
+        
+    except Exception as e:
+        raise RuntimeError(f"Failed to export database to YAML: {e}")
+
+
+def import_database_from_yaml(db, filename: str, clear_existing: bool = False) -> Dict[str, int]:
+    """
+    Import entire database from YAML file
+    
+    Args:
+        db: Database interface instance (TennisDBInterface)
+        filename: Path to YAML file
+        clear_existing: Whether to clear existing data before import
+        
+    Returns:
+        Dictionary with counts of imported objects
+    """
+    if clear_existing:
+        # Clear in reverse dependency order
+        for match in db.list_matches():
+            db.delete_match(match)
+        for team in db.list_teams():
+            db.delete_team(team)
+        for facility in db.list_facilities():
+            db.delete_facility(facility)
+        for league in db.list_leagues():
+            db.delete_league(league)
+    
+    try:
+        # Import in dependency order
+        all_data = import_all_from_yaml(filename, db)
+        
+        # Add to database in dependency order
+        for league in all_data['leagues']:
+            db.add_league(league)
+        
+        for facility in all_data['facilities']:
+            db.add_facility(facility)
+        
+        for team in all_data['teams']:
+            db.add_team(team)
+        
+        for match in all_data['matches']:
+            db.add_match(match)
+        
+        return {
+            'leagues': len(all_data['leagues']),
+            'facilities': len(all_data['facilities']),
+            'teams': len(all_data['teams']),
+            'matches': len(all_data['matches'])
+        }
+        
+    except Exception as e:
+        raise RuntimeError(f"Failed to import database from YAML: {e}")
+
+
+# Example usage function
+def demo_yaml_functions():
+    """Demonstrate YAML import/export functionality"""
+    print("YAML Import/Export Functions Available:")
+    print("  - export_facilities_to_yaml(facilities, filename)")
+    print("  - export_leagues_to_yaml(leagues, filename)")
+    print("  - export_teams_to_yaml(teams, filename)")
+    print("  - export_matches_to_yaml(matches, filename)")
+    print("  - export_all_to_yaml(leagues, facilities, teams, matches, filename)")
+    print("  - import_facilities_from_yaml(filename)")
+    print("  - import_leagues_from_yaml(filename)")
+    print("  - import_teams_from_yaml(filename, db)")
+    print("  - import_matches_from_yaml(filename, db)")
+    print("  - import_all_from_yaml(filename, db)")
+    print("  - export_database_to_yaml(db, filename)")
+    print("  - import_database_from_yaml(db, filename, clear_existing=False)")
+    

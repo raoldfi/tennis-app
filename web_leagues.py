@@ -37,21 +37,35 @@ def register_routes(app):
             # Enhance leagues with additional data for table display
             enhanced_leagues = []
             for league in leagues_list:
-                enhanced_league = league.__dict__.copy() if hasattr(league, '__dict__') else dict(league)
+                # Convert league to dict properly
+                if hasattr(league, '__dict__'):
+                    enhanced_league = league.__dict__.copy()
+                else:
+                    enhanced_league = {
+                        'id': getattr(league, 'id', None),
+                        'name': getattr(league, 'name', ''),
+                        'year': getattr(league, 'year', ''),
+                        'section': getattr(league, 'section', ''),
+                        'region': getattr(league, 'region', ''),
+                        'age_group': getattr(league, 'age_group', ''),
+                        'division': getattr(league, 'division', '')
+                    }
                 
                 # Add team and match counts
                 try:
                     teams = db.list_teams(league)
                     enhanced_league['teams_count'] = len(teams) if teams else 0
+                    print(f"League {enhanced_league.get('name')} has {enhanced_league['teams_count']} teams")  # Debug
                 except Exception as e:
-                    print(f"Error getting teams for league {league.id}: {e}")
+                    print(f"Error getting teams for league {getattr(league, 'id', 'unknown')}: {e}")
                     enhanced_league['teams_count'] = 0
-                
+    
                 try:
                     matches = db.list_matches(league)
                     enhanced_league['matches_count'] = len(matches) if matches else 0
+                    print(f"League {enhanced_league.get('name')} has {enhanced_league['matches_count']} matches")  # Debug
                 except Exception as e:
-                    print(f"Error getting matches for league {league.id}: {e}")
+                    print(f"Error getting matches for league {getattr(league, 'id', 'unknown')}: {e}")
                     enhanced_league['matches_count'] = 0
                 
                 enhanced_leagues.append(enhanced_league)
@@ -124,8 +138,16 @@ def register_routes(app):
             except Exception as e:
                 flash(f'Error creating league: {str(e)}', 'error')
         
-        return render_template('add_league.html')
+        # Add these lines for GET request:
+        return render_template('add_league.html',
+                             sections=db.list_sections(),
+                             regions=db.list_regions(), 
+                             age_groups=db.list_age_groups(),
+                             divisions=db.list_divisions(),
+                             current_year=datetime.now().year)
 
+
+    
     # ==================== VIEW LEAGUE ACTION ====================
     
 
@@ -316,7 +338,12 @@ def register_routes(app):
                 except Exception as e:
                     flash(f'Error updating league: {str(e)}', 'error')
             
-            return render_template('edit_league.html', league=league)
+            return render_template('edit_league.html', 
+                                 league=league,
+                                 sections=db.list_sections(),
+                                 regions=db.list_regions(),
+                                 age_groups=db.list_age_groups(),
+                                 divisions=db.list_divisions())
             
         except Exception as e:
             flash(f'Error loading league for editing: {e}', 'error')
@@ -324,34 +351,34 @@ def register_routes(app):
 
     # ==================== DELETE LEAGUE ACTION ====================
     
-    @app.route('/leagues/<int:league_id>/delete', methods=['POST'])
-    def delete_league(league_id):
-        """Delete a league and all associated data"""
-        db = get_db()
-        if db is None:
-            flash('No database connection', 'error')
-            return redirect(url_for('index'))
+    # @app.route('/leagues/<int:league_id>/delete', methods=['POST'])
+    # def delete_league(league_id):
+    #     """Delete a league and all associated data"""
+    #     db = get_db()
+    #     if db is None:
+    #         flash('No database connection', 'error')
+    #         return redirect(url_for('index'))
         
-        try:
-            league = db.get_league(league_id)
-            if not league:
-                flash(f'League {league_id} not found', 'error')
-                return redirect(url_for('leagues'))
+    #     try:
+    #         league = db.get_league(league_id)
+    #         if not league:
+    #             flash(f'League {league_id} not found', 'error')
+    #             return redirect(url_for('leagues'))
             
-            league_name = league.name
+    #         league_name = league.name
             
-            # Delete league and associated data
-            success = db.delete_league(league_id)
+    #         # Delete league and associated data
+    #         success = db.delete_league(league)
             
-            if success:
-                flash(f'League "{league_name}" and all associated data deleted successfully', 'success')
-            else:
-                flash(f'Failed to delete league "{league_name}"', 'error')
+    #         if success:
+    #             flash(f'League "{league_name}" and all associated data deleted successfully', 'success')
+    #         else:
+    #             flash(f'Failed to delete league "{league_name}"', 'error')
                 
-        except Exception as e:
-            flash(f'Error deleting league: {str(e)}', 'error')
+    #     except Exception as e:
+    #         flash(f'Error deleting league: {str(e)}', 'error')
         
-        return redirect(url_for('leagues'))
+    #     return redirect(url_for('leagues'))
 
     # ==================== GENERATE MATCHES ROUTES ====================
     
@@ -474,90 +501,186 @@ def register_routes(app):
 
     @app.route('/api/import-leagues', methods=['POST'])
     def api_import_leagues():
-        """Modern API endpoint for importing leagues from YAML"""
+        """Modern API endpoint for importing leagues from YAML using utils.py"""
         db = get_db()
         if db is None:
             return jsonify({'error': 'No database connection'}), 500
-
+    
         try:
+            print(f"IMPORT_LEAGUES")
             # Validate file upload
             if 'yaml_file' not in request.files:
                 return jsonify({'error': 'No file uploaded'}), 400
-
+    
             file = request.files['yaml_file']
             if file.filename == '':
                 return jsonify({'error': 'No file selected'}), 400
-
+    
+            print(f"IMPORT_LEAGUES from file: {file}")
+    
             if not file.filename.lower().endswith(('.yaml', '.yml')):
                 return jsonify({'error': 'File must be a YAML file (.yaml or .yml)'}), 400
-
-            # Read and parse YAML content
+    
+            # Save uploaded file to temporary location
             try:
-                yaml_content = file.read().decode('utf-8')
-                data = yaml.safe_load(yaml_content)
-            except UnicodeDecodeError:
-                return jsonify({'error': 'File must be valid UTF-8 text'}), 400
-            except yaml.YAMLError as e:
-                return jsonify({'error': f'Invalid YAML format: {str(e)}'}), 400
-
-            # Validate data structure
-            if not isinstance(data, list):
-                return jsonify({'error': 'YAML must contain a list of leagues'}), 400
-
-            # Import leagues
-            imported_count = 0
-            errors = []
-            
-            for i, league_data in enumerate(data):
-                try:
-                    # Create League object
-                    league = League(
-                        name=league_data.get('name', ''),
-                        year=league_data.get('year'),
-                        section=league_data.get('section', ''),
-                        region=league_data.get('region', ''),
-                        age_group=league_data.get('age_group', ''),
-                        division=league_data.get('division', '')
-                    )
-                    
-                    # Add optional fields
-                    if 'num_matches' in league_data:
-                        league.num_matches = league_data['num_matches']
-                    if 'num_lines_per_match' in league_data:
-                        league.num_lines_per_match = league_data['num_lines_per_match']
-                    if 'allow_split_lines' in league_data:
-                        league.allow_split_lines = league_data['allow_split_lines']
-                    if 'start_date' in league_data:
-                        league.start_date = league_data['start_date']
-                    if 'end_date' in league_data:
-                        league.end_date = league_data['end_date']
-                    
-                    # Add to database
-                    if db.add_league(league):
-                        imported_count += 1
-                    else:
-                        errors.append(f'Failed to add league at index {i}')
+                with tempfile.NamedTemporaryFile(mode='w+b', suffix='.yaml', delete=False) as temp_file:
+                    file.save(temp_file.name)
+                    temp_filename = temp_file.name
+            except Exception as e:
+                return jsonify({'error': f'Failed to save uploaded file: {str(e)}'}), 500
+    
+            try:
+                # Use utils.py function to import leagues
+                leagues = utils.import_leagues_from_yaml(temp_filename)
+                
+                # Add leagues to database
+                imported_count = 0
+                errors = []
+                
+                for i, league in enumerate(leagues):
+                    try:
+                        # Check if league with same ID already exists
+                        existing_league = db.get_league(league.id)
+                        if existing_league:
+                            errors.append(f'League with ID {league.id} already exists: {existing_league.name}')
+                            continue
                         
-                except Exception as e:
-                    errors.append(f'Error processing league at index {i}: {str(e)}')
-
-            result = {
-                'imported_count': imported_count,
-                'total_count': len(data),
-                'errors': errors
-            }
-            
-            if imported_count > 0:
-                result['message'] = f'Successfully imported {imported_count} out of {len(data)} leagues'
-                if errors:
-                    result['message'] += f' ({len(errors)} errors)'
-                return jsonify(result), 200
-            else:
-                result['message'] = 'No leagues were imported'
-                return jsonify(result), 400
-
+                        # Add to database
+                        db.add_league(league)
+                        imported_count += 1
+                            
+                    except Exception as e:
+                        errors.append(f'Error adding league at index {i} ({getattr(league, "name", "Unknown")}): {str(e)}')
+    
+                result = {
+                    'imported_count': imported_count,
+                    'total_count': len(leagues),
+                    'errors': errors
+                }
+                
+                print(f"IMPORT_LEAGUES -- Import complete {result}")
+                
+                if imported_count > 0:
+                    result['message'] = f'Successfully imported {imported_count} out of {len(leagues)} leagues'
+                    if errors:
+                        result['message'] += f' ({len(errors)} errors)'
+                    return jsonify(result), 200
+                else:
+                    result['message'] = 'No leagues were imported'
+                    return jsonify(result), 400
+    
+            finally:
+                # Clean up temporary file
+                try:
+                    os.unlink(temp_filename)
+                except:
+                    pass
+    
         except Exception as e:
             return jsonify({'error': f'Import failed: {str(e)}'}), 500
+
+
+    @app.route('/api/export-leagues', methods=['POST'])
+    def api_export_leagues():
+        """API endpoint to export leagues using utils.py functions"""
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connection'}), 500
+        
+        try:
+            data = request.get_json()
+            format_type = data.get('format', 'yaml').lower()
+            
+            if format_type not in ['yaml', 'json', 'csv']:
+                return jsonify({'error': 'Invalid format. Use yaml, json, or csv'}), 400
+            
+            # Get all leagues
+            leagues_list = db.list_leagues()
+            
+            if format_type == 'yaml':
+                # Use utils.py function for YAML export
+                with tempfile.NamedTemporaryFile(mode='w+', suffix='.yaml', delete=False) as temp_file:
+                    temp_filename = temp_file.name
+                
+                try:
+                    utils.export_leagues_to_yaml(leagues_list, temp_filename)
+                    
+                    # Read the file content
+                    with open(temp_filename, 'r') as f:
+                        yaml_content = f.read()
+                    
+                    response = make_response(yaml_content)
+                    response.headers['Content-Type'] = 'application/x-yaml'
+                    response.headers['Content-Disposition'] = f'attachment; filename="leagues_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.yaml"'
+                    return response
+                    
+                finally:
+                    # Clean up temporary file
+                    try:
+                        os.unlink(temp_filename)
+                    except:
+                        pass
+                    
+            elif format_type == 'json':
+                leagues_data = []
+                for league in leagues_list:
+                    league_dict = {
+                        'id': league.id,
+                        'name': league.name,
+                        'year': league.year,
+                        'section': league.section,
+                        'region': league.region,
+                        'age_group': league.age_group,
+                        'division': league.division,
+                        'num_matches': getattr(league, 'num_matches', None),
+                        'num_lines_per_match': getattr(league, 'num_lines_per_match', None),
+                        'allow_split_lines': getattr(league, 'allow_split_lines', None),
+                        'start_date': getattr(league, 'start_date', None),
+                        'end_date': getattr(league, 'end_date', None)
+                    }
+                    leagues_data.append(league_dict)
+                
+                response = make_response(json.dumps(leagues_data, indent=2))
+                response.headers['Content-Type'] = 'application/json'
+                response.headers['Content-Disposition'] = f'attachment; filename="leagues_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json"'
+                return response
+                
+            elif format_type == 'csv':
+                import csv
+                import io
+                
+                output = io.StringIO()
+                writer = csv.writer(output)
+                
+                # Write header
+                writer.writerow(['ID', 'Name', 'Year', 'Section', 'Region', 'Age Group', 'Division', 'Num Matches', 'Lines Per Match', 'Allow Split Lines', 'Start Date', 'End Date'])
+                
+                # Write data
+                for league in leagues_list:
+                    writer.writerow([
+                        league.id,
+                        league.name,
+                        league.year,
+                        league.section,
+                        league.region,
+                        league.age_group,
+                        league.division,
+                        getattr(league, 'num_matches', ''),
+                        getattr(league, 'num_lines_per_match', ''),
+                        getattr(league, 'allow_split_lines', ''),
+                        getattr(league, 'start_date', ''),
+                        getattr(league, 'end_date', '')
+                    ])
+                
+                response = make_response(output.getvalue())
+                response.headers['Content-Type'] = 'text/csv'
+                response.headers['Content-Disposition'] = f'attachment; filename="leagues_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+                return response
+                
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    
 
     @app.route('/api/leagues/<int:league_id>/generate-matches', methods=['POST'])
     def api_generate_matches(league_id):
@@ -645,28 +768,111 @@ def register_routes(app):
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
+
+    
     @app.route('/api/leagues/<int:league_id>', methods=['DELETE'])
     def api_delete_league(league_id):
         """API endpoint to delete a league"""
+        print(f"🗑️  DELETE request received for league_id: {league_id}")
+        
         db = get_db()
         if db is None:
+            print("❌ No database connection")
             return jsonify({'error': 'No database connection'}), 500
         
         try:
-            league = db.get_league(league_id)
+            # Use the same fallback pattern as in view_league
+            league = None
+            try:
+                print(f"🔍 Trying db.get_league({league_id})")
+                league = db.get_league(league_id)
+                print(f"✅ Found league via get_league: {getattr(league, 'name', 'Unknown')}")
+            except AttributeError as ae:
+                print(f"⚠️  get_league method not available: {ae}")
+                # Fallback to list_leagues and find by ID
+                print("🔄 Falling back to list_leagues")
+                leagues_list = db.list_leagues()
+                for l in leagues_list:
+                    if getattr(l, 'id', None) == league_id:
+                        league = l
+                        print(f"✅ Found league via fallback: {getattr(league, 'name', 'Unknown')}")
+                        break
+            except Exception as e:
+                print(f"❌ Unexpected error in get_league: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'error': f'Error finding league: {str(e)}'}), 500
+            
             if not league:
+                print(f"❌ League {league_id} not found")
                 return jsonify({'error': 'League not found'}), 404
             
-            league_name = league.name
-            success = db.delete_league(league_id)
+            league_name = getattr(league, 'name', f'League {league_id}')
+            print(f"🎯 About to delete league: {league_name}")
             
-            if success:
+            # Cascade delete: matches -> teams -> league
+            matches_deleted = 0
+            teams_deleted = 0
+            
+            try:
+                # Step 1: Delete all matches for this league
+                print("🔍 Getting matches for league...")
+                matches = db.list_matches(league)
+                print(f"📋 Found {len(matches)} matches to delete")
+                
+                for match in matches:
+                    try:
+                        print(f"🗑️  Deleting match {getattr(match, 'id', 'unknown')}")
+                        db.delete_match(match)
+                        matches_deleted += 1
+                    except Exception as match_error:
+                        print(f"❌ Error deleting match {getattr(match, 'id', 'unknown')}: {match_error}")
+                        # Continue with other matches
+                
+                print(f"✅ Deleted {matches_deleted} matches")
+                
+                # Step 2: Delete all teams for this league
+                print("🔍 Getting teams for league...")
+                teams = db.list_teams(league)
+                print(f"👥 Found {len(teams)} teams to delete")
+                
+                for team in teams:
+                    try:
+                        print(f"🗑️  Deleting team {getattr(team, 'id', 'unknown')} - {getattr(team, 'name', 'Unknown')}")
+                        db.delete_team(team)
+                        teams_deleted += 1
+                    except Exception as team_error:
+                        print(f"❌ Error deleting team {getattr(team, 'id', 'unknown')}: {team_error}")
+                        # Continue with other teams
+                
+                print(f"✅ Deleted {teams_deleted} teams")
+                
+                # Step 3: Delete the league itself
+                print(f"🗑️  Deleting league: {league_name}")
+                db.delete_league(league)  # This returns None, not bool
+                print(f"✅ League deletion completed")
+                
+                # If we get here without exception, deletion was successful
+                print(f"✅ Successfully deleted league: {league_name}")
                 return jsonify({
-                    'message': f'League "{league_name}" deleted successfully',
-                    'league_id': league_id
+                    'message': f'League "{league_name}" and all associated data ({matches_deleted} matches, {teams_deleted} teams) deleted successfully',
+                    'league_id': league_id,
+                    'matches_deleted': matches_deleted,
+                    'teams_deleted': teams_deleted
                 })
-            else:
-                return jsonify({'error': f'Failed to delete league "{league_name}"'}), 500
+                
+            except Exception as delete_error:
+                print(f"❌ Exception in cascade delete: {delete_error}")
+                print(f"❌ Exception type: {type(delete_error)}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'error': f'Database delete failed: {str(delete_error)}'}), 500
                 
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            print(f"❌ Unexpected error in api_delete_league: {e}")
+            print(f"❌ Exception type: {type(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': f'Unexpected server error: {str(e)}'}), 500
+
+

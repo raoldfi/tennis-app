@@ -85,15 +85,106 @@ class TennisUI {
                     top: 20px;
                     right: 20px;
                     z-index: 9999;
-                    min-width: 300px;
+                    min-width: 350px;
                     max-width: 500px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                    animation: slideInRight 0.3s ease;
+                    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+                    animation: slideInRight 0.4s ease;
+                    border-radius: 8px;
+                    border: none;
+                }
+                
+                .tennis-notification-enhanced {
+                    background: rgba(255, 255, 255, 0.98) !important;
+                    backdrop-filter: blur(10px);
+                    border-left: 5px solid;
+                    font-weight: 500;
+                    padding: 1rem 1.25rem;
+                }
+                
+                .tennis-notification-enhanced.alert-success {
+                    border-left-color: #28a745;
+                    background: rgba(40, 167, 69, 0.95) !important;
+                    color: white;
+                }
+                
+                .tennis-notification-enhanced.alert-danger {
+                    border-left-color: #dc3545;
+                    background: rgba(220, 53, 69, 0.95) !important;
+                    color: white;
+                }
+                
+                .tennis-notification-enhanced.alert-warning {
+                    border-left-color: #ffc107;
+                    background: rgba(255, 193, 7, 0.95) !important;
+                    color: #212529;
+                }
+                
+                .tennis-notification-enhanced.alert-info {
+                    border-left-color: #007bff;
+                    background: rgba(0, 123, 255, 0.95) !important;
+                    color: white;
+                }
+                
+                .tennis-notification-icon {
+                    flex-shrink: 0;
+                    margin-top: 2px;
+                }
+                
+                .tennis-notification-content {
+                    line-height: 1.4;
+                }
+                
+                .tennis-notification-message {
+                    font-size: 0.95rem;
+                    font-weight: 500;
+                }
+                
+                .tennis-notification:hover {
+                    transform: translateX(-5px);
+                    box-shadow: 0 12px 35px rgba(0,0,0,0.4);
+                    transition: all 0.2s ease;
+                }
+                
+                .fade-out {
+                    animation: slideOutRight 0.3s ease forwards;
                 }
                 
                 @keyframes slideInRight {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
+                    from { 
+                        transform: translateX(100%); 
+                        opacity: 0; 
+                    }
+                    to { 
+                        transform: translateX(0); 
+                        opacity: 1; 
+                    }
+                }
+                
+                @keyframes slideOutRight {
+                    from { 
+                        transform: translateX(0); 
+                        opacity: 1; 
+                    }
+                    to { 
+                        transform: translateX(100%); 
+                        opacity: 0; 
+                    }
+                }
+                
+                /* Stack multiple notifications */
+                .tennis-notification:nth-child(n+2) {
+                    margin-top: 10px;
+                }
+                
+                /* Enhanced close button for dark backgrounds */
+                .tennis-notification .btn-close-white {
+                    filter: brightness(0) invert(1);
+                    opacity: 0.8;
+                }
+                
+                .tennis-notification .btn-close-white:hover {
+                    opacity: 1;
+                    transform: scale(1.1);
                 }
             `;
             document.head.appendChild(styles);
@@ -124,15 +215,43 @@ class TennisUI {
                 },
                 ...options
             });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    
+            // Always try to parse JSON response (for both success and error)
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseError) {
+                // If JSON parsing fails, create a generic error object
+                data = { 
+                    error: `Server returned non-JSON response: ${response.status} ${response.statusText}` 
+                };
             }
-
-            const data = await response.json();
+    
+            // For error responses, throw an error with the server's error message
+            if (!response.ok) {
+                const errorMessage = data.error || data.message || `HTTP ${response.status}: ${response.statusText}`;
+                console.error('API Error Response:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    url: url,
+                    errorData: data
+                });
+                
+                // Create an error object that includes all the response data
+                const error = new Error(errorMessage);
+                error.status = response.status;
+                error.responseData = data;
+                throw error;
+            }
+    
             return data;
+            
         } catch (error) {
-            console.error('API call failed:', error);
+            // If it's a network error or other fetch error, wrap it
+            if (!error.status) {
+                console.error('Network/Fetch error:', error);
+                error.message = `Network error: ${error.message}`;
+            }
             throw error;
         }
     }
@@ -332,153 +451,227 @@ class TennisUI {
      * Show a notification message
      * @param {string} message - Message to display
      * @param {string} type - Alert type (success, danger, warning, info)
-     * @param {number} duration - Auto-hide duration in ms (0 = no auto-hide)
+     * @param {number} duration - Auto-hide duration in milliseconds (default: 8000)
      */
-    static showNotification(message, type = 'info', duration = 4000) {
-        // Remove existing notifications
-        const existingNotifications = document.querySelectorAll('.tennis-notification');
-        existingNotifications.forEach(notification => notification.remove());
-
-        // Create notification element
+    static showNotification(message, type = 'info', duration = 8000) {
+        // Create notification element with enhanced styling
         const notification = document.createElement('div');
-        notification.className = `tennis-notification alert alert-${type} alert-dismissible`;
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-            min-width: 300px;
-            max-width: 500px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            animation: slideInRight 0.3s ease;
-        `;
-
-        // Get appropriate icon
-        const icons = {
-            success: 'fas fa-check-circle',
-            danger: 'fas fa-exclamation-triangle',
-            warning: 'fas fa-exclamation-circle',
-            info: 'fas fa-info-circle'
-        };
-
+        notification.className = `alert alert-${type} alert-dismissible fade show tennis-notification tennis-notification-enhanced`;
         notification.innerHTML = `
-            <i class="${icons[type] || icons.info} me-2"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <div class="d-flex align-items-start">
+                <div class="tennis-notification-icon me-3">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-triangle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'} fa-lg"></i>
+                </div>
+                <div class="tennis-notification-content flex-grow-1">
+                    <div class="tennis-notification-message">${message}</div>
+                </div>
+                <button type="button" class="btn-close btn-close-white ms-2" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
         `;
-
+    
         // Add to page
         document.body.appendChild(notification);
-
-        // Auto-hide if duration is specified
-        if (duration > 0) {
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.classList.add('fade');
-                    setTimeout(() => notification.remove(), 150);
-                }
-            }, duration);
-        }
+    
+        // Add click-to-dismiss functionality
+        notification.addEventListener('click', function(e) {
+            if (!e.target.closest('.btn-close')) {
+                // Don't dismiss when clicking the close button
+                return;
+            }
+        });
+    
+        // Auto-remove after duration
+        const timeoutId = setTimeout(() => {
+            if (notification.parentNode) {
+                notification.classList.remove('show');
+                notification.classList.add('fade-out');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 300);
+            }
+        }, duration);
+    
+        // Allow manual dismissal to cancel auto-removal
+        notification.addEventListener('closed.bs.alert', () => {
+            clearTimeout(timeoutId);
+        });
+    
+        // Add hover to pause auto-dismissal
+        let isPaused = false;
+        notification.addEventListener('mouseenter', () => {
+            isPaused = true;
+            clearTimeout(timeoutId);
+        });
+    
+        notification.addEventListener('mouseleave', () => {
+            if (isPaused) {
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.classList.remove('show');
+                        notification.classList.add('fade-out');
+                        setTimeout(() => {
+                            if (notification.parentNode) {
+                                notification.remove();
+                            }
+                        }, 300);
+                    }
+                }, 2000); // 2 second delay after mouse leave
+            }
+        });
     }
 
-    // ==================== CONFIRMATION DIALOGS ====================
 
     /**
-     * Show a confirmation dialog with custom styling
+     * Show a confirmation dialog
      * @param {string} title - Dialog title
      * @param {string} message - Dialog message
-     * @param {string} confirmText - Confirm button text
-     * @param {string} confirmClass - Confirm button class
-     * @returns {Promise<boolean>} - True if confirmed
+     * @param {string} confirmText - Text for confirm button
+     * @param {string} confirmClass - CSS class for confirm button
+     * @returns {Promise<boolean>} - True if confirmed, false if cancelled
      */
-    static async showConfirmDialog(title, message, confirmText = 'Confirm', confirmClass = 'btn-tennis-danger') {
+    static async showConfirmDialog(title, message, confirmText = 'Confirm', confirmClass = 'btn-primary') {
         return new Promise((resolve) => {
             // Create modal HTML
-            const modalHtml = `
-                <div class="modal fade tennis-modal" id="confirmModal" tabindex="-1">
+            const modalId = 'tennis-confirm-dialog';
+            const existingModal = document.getElementById(modalId);
+            if (existingModal) {
+                existingModal.remove();
+            }
+    
+            const modalHTML = `
+                <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true">
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                    ${title}
-                                </h5>
+                                <h5 class="modal-title">${title}</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
                                 <p>${message}</p>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                                <button type="button" class="btn ${confirmClass}" id="confirmBtn">${confirmText}</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn ${confirmClass}" id="confirm-action">${confirmText}</button>
                             </div>
                         </div>
                     </div>
                 </div>
             `;
-
-            // Remove existing modal
-            const existingModal = document.getElementById('confirmModal');
-            if (existingModal) {
-                existingModal.remove();
-            }
-
-            // Add modal to page
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-            const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
-
-            // Handle events
-            document.getElementById('confirmBtn').addEventListener('click', () => {
+    
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            const modal = new bootstrap.Modal(document.getElementById(modalId));
+            
+            // Handle button clicks
+            document.getElementById('confirm-action').addEventListener('click', () => {
                 modal.hide();
                 resolve(true);
             });
-
-            document.getElementById('confirmModal').addEventListener('hidden.bs.modal', () => {
-                document.getElementById('confirmModal').remove();
+    
+            modal._element.addEventListener('hidden.bs.modal', () => {
+                document.getElementById(modalId).remove();
                 resolve(false);
             });
-
+    
             modal.show();
         });
     }
+
+    /**
+     * Set button loading state with text
+     */
+    static setButtonLoading(selector, loading, loadingText = 'Loading...') {
+        const buttons = typeof selector === 'string' ? document.querySelectorAll(selector) : [selector];
+        
+        buttons.forEach(button => {
+            if (loading) {
+                if (!button.dataset.originalText) {
+                    button.dataset.originalText = button.innerHTML;
+                }
+                button.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${loadingText}`;
+                button.disabled = true;
+            } else {
+                button.disabled = false;
+                if (button.dataset.originalText) {
+                    button.innerHTML = button.dataset.originalText;
+                    delete button.dataset.originalText;
+                }
+            }
+        });
+    }
+    
+    /**
+     * Download file blob
+     */
+    static downloadFile(blob, filename) {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    }
+        
 }
 
 // ==================== LEAGUE MANAGEMENT ====================
 
 class TennisLeagues {
+
     /**
      * Generate matches for a league
      */
-    static async generateMatches(leagueId, leagueName) {
+    static async generateMatches(leagueId) {
         const confirmed = await TennisUI.showConfirmDialog(
             'Generate Matches',
-            `Generate all matches for league "${leagueName}"? This will create match pairings for all teams in the league.`,
+            `Are you sure you want to generate matches for this league? This will create match pairings for all teams in the league.`,
             'Generate Matches',
             'btn-tennis-success'
         );
-
+    
         if (!confirmed) return;
-
+    
         try {
-            const result = await TennisUI.apiCall(`/api/leagues/${leagueId}/generate_matches`, {
+            console.log(`🎲 Attempting to generate matches for league ${leagueId}`);
+            
+            const result = await TennisUI.apiCall(`/api/leagues/${leagueId}/generate-matches`, {
                 method: 'POST'
             });
-
+    
+            console.log('✅ Generate matches successful:', result);
             TennisUI.showNotification(result.message || 'Matches generated successfully!', 'success');
             
             // Reload page to show new matches
             setTimeout(() => window.location.reload(), 1000);
             
         } catch (error) {
-            TennisUI.showNotification(
-                error.message || 'Failed to generate matches. Please try again.',
-                'danger'
-            );
+            console.error('❌ Generate matches error:', error);
+            
+            // The error.message now contains the actual JSON error message from the server
+            let errorMessage = error.message || 'Failed to generate matches. Please try again.';
+            
+            // Log additional details if available
+            if (error.responseData) {
+                console.error('Server error details:', error.responseData);
+                
+                // If there are additional details in the response, we could use them
+                if (error.responseData.teams_count !== undefined) {
+                    console.log(`League has ${error.responseData.teams_count} teams`);
+                }
+                if (error.responseData.existing_matches_count !== undefined) {
+                    console.log(`League has ${error.responseData.existing_matches_count} existing matches`);
+                }
+            }
+            
+            TennisUI.showNotification(errorMessage, 'danger', 7000); // Show for 7 seconds
         }
     }
 
     /**
-     * Delete a league
+     * Delete a single league
      */
     static async deleteLeague(leagueId, leagueName) {
         const confirmed = await TennisUI.showConfirmDialog(
@@ -487,27 +680,36 @@ class TennisLeagues {
             'Delete League',
             'btn-tennis-danger'
         );
-
+    
         if (!confirmed) return;
-
+    
         try {
+            console.log(`🗑️ Attempting to delete league ${leagueId}: ${leagueName}`);
+            
             const result = await TennisUI.apiCall(`/api/leagues/${leagueId}`, {
                 method: 'DELETE'
             });
-
+    
+            console.log('✅ Delete league successful:', result);
             TennisUI.showNotification(result.message || 'League deleted successfully!', 'success');
             
-            // Redirect to leagues page
-            setTimeout(() => window.location.href = '/leagues', 1000);
+            // Reload page to reflect changes
+            setTimeout(() => window.location.reload(), 1000);
             
         } catch (error) {
-            TennisUI.showNotification(
-                error.message || 'Failed to delete league. Please try again.',
-                'danger'
-            );
+            console.error('❌ Delete league error:', error);
+            
+            let errorMessage = error.message || 'Failed to delete league. Please try again.';
+            
+            // Log additional details if available
+            if (error.responseData) {
+                console.error('Server error details:', error.responseData);
+            }
+            
+            TennisUI.showNotification(errorMessage, 'danger', 7000);
         }
     }
-
+    
     /**
      * Bulk delete leagues
      */
@@ -539,8 +741,44 @@ class TennisLeagues {
             );
         }
     }
+
+    /**
+     * Clear league filters
+     */
+    static clearFilters() {
+        // Clear all filter inputs
+        const filters = [
+            '#leagueNameFilter',
+            '#yearFilter', 
+            '#divisionFilter',
+            '#sectionFilter',
+            '#ageGroupFilter'
+        ];
+        
+        filters.forEach(selector => {
+            const element = document.querySelector(selector);
+            if (element) {
+                element.value = '';
+            }
+        });
+        
+        // Show all rows
+        document.querySelectorAll('.league-row').forEach(row => {
+            row.style.display = '';
+        });
+        
+        // Reset result count
+        const totalCount = document.querySelectorAll('.league-row').length;
+        document.querySelectorAll('#resultCount, #tableResultCount').forEach(element => {
+            element.textContent = `${totalCount} leagues`;
+        });
+        
+        TennisUI.showNotification('Filters cleared', 'info');
+    }
 }
 
+
+    
 // ==================== TEAM MANAGEMENT ====================
 
 class TennisTeams {
@@ -773,7 +1011,7 @@ class TennisForms {
                 isValid = false;
             }
         });
-        
+      
         return isValid;
     }
 
@@ -853,79 +1091,154 @@ class TennisForms {
     }
 }
 
-// ==================== ENHANCED UI INTERACTIONS ====================
+// ==================== DROPDOWN ENHANCEMENTS ====================
 
-/**
- * Enhanced dropdown interactions for tennis-action-dropdown
- */
 class TennisDropdowns {
     static init() {
-        // Add enhanced hover effects for dropdown items
-        document.querySelectorAll('.tennis-action-dropdown .dropdown-item').forEach(item => {
-            item.addEventListener('mouseenter', function() {
-                this.style.transform = 'translateX(2px)';
+        this.initializeCascadingDropdowns();
+        this.initializeSearchableDropdowns();
+        console.log('✅ Dropdown Management - Initialized');
+    }
+    
+    static initializeCascadingDropdowns() {
+        // Section -> Region cascading
+        const sectionSelect = document.getElementById('section');
+        const regionSelect = document.getElementById('region');
+        
+        if (sectionSelect && regionSelect) {
+            sectionSelect.addEventListener('change', () => {
+                this.updateRegionOptions(sectionSelect.value, regionSelect);
             });
-            
-            item.addEventListener('mouseleave', function() {
-                this.style.transform = 'translateX(0)';
+        }
+    }
+    
+    static updateRegionOptions(section, regionSelect) {
+        // This would be populated with actual region data
+        const regionsBySection = {
+            'Southwest': ['Northern New Mexico', 'Southern New Mexico', 'Arizona', 'Colorado'],
+            'Texas': ['North Texas', 'South Texas', 'East Texas', 'West Texas'],
+            'Southern': ['Georgia', 'Alabama', 'Florida', 'South Carolina']
+        };
+        
+        regionSelect.innerHTML = '<option value="">Select a region...</option>';
+        
+        if (regionsBySection[section]) {
+            regionsBySection[section].forEach(region => {
+                const option = document.createElement('option');
+                option.value = region;
+                option.textContent = region;
+                regionSelect.appendChild(option);
+            });
+        }
+    }
+    
+    static initializeSearchableDropdowns() {
+        // Add search functionality to large dropdowns
+        document.querySelectorAll('select[data-searchable]').forEach(select => {
+            this.makeDropdownSearchable(select);
+        });
+    }
+    
+    static makeDropdownSearchable(select) {
+        // This would implement a searchable dropdown functionality
+        // For now, just add basic filtering
+        const wrapper = document.createElement('div');
+        wrapper.className = 'searchable-dropdown';
+        select.parentNode.insertBefore(wrapper, select);
+        wrapper.appendChild(select);
+        
+        const search = document.createElement('input');
+        search.type = 'text';
+        search.className = 'form-control mb-2';
+        search.placeholder = 'Search options...';
+        wrapper.insertBefore(search, select);
+        
+        search.addEventListener('input', () => {
+            const searchTerm = search.value.toLowerCase();
+            Array.from(select.options).forEach(option => {
+                option.style.display = option.text.toLowerCase().includes(searchTerm) ? '' : 'none';
             });
         });
     }
 }
 
-/**
- * Badge group animations
- */
+// ==================== BADGE MANAGEMENT ====================
+
 class TennisBadges {
     static init() {
-        // Add subtle animations to badge groups
-        document.querySelectorAll('.tennis-badge-group .badge').forEach((badge, index) => {
-            badge.style.animationDelay = `${index * 0.1}s`;
-            badge.classList.add('badge-fade-in');
+        this.initializeBadgeAnimations();
+        this.initializeStatusBadges();
+        console.log('✅ Badge Management - Initialized');
+    }
+    
+    static initializeBadgeAnimations() {
+        document.querySelectorAll('.badge, .tennis-badge-info, .tennis-badge-warning, .tennis-badge-success').forEach(badge => {
+            badge.addEventListener('mouseenter', function() {
+                this.style.transform = 'scale(1.05)';
+                this.style.transition = 'transform 0.15s ease';
+            });
+            
+            badge.addEventListener('mouseleave', function() {
+                this.style.transform = 'scale(1)';
+            });
         });
+    }
+    
+    static initializeStatusBadges() {
+        // Update badge colors based on status
+        document.querySelectorAll('[data-status]').forEach(element => {
+            const status = element.dataset.status;
+            this.updateStatusBadge(element, status);
+        });
+    }
+    
+    static updateStatusBadge(element, status) {
+        element.classList.remove('bg-success', 'bg-warning', 'bg-danger', 'bg-info', 'bg-secondary');
         
-        // Add CSS for badge animations if not present
-        if (!document.getElementById('tennis-badge-animations')) {
-            const styles = document.createElement('style');
-            styles.id = 'tennis-badge-animations';
-            styles.textContent = `
-                .badge-fade-in {
-                    animation: badgeFadeIn 0.3s ease-out forwards;
-                    opacity: 0;
-                }
-                
-                @keyframes badgeFadeIn {
-                    from { opacity: 0; transform: translateY(-10px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                
-                .tennis-badge-group .badge {
-                    transition: all 0.2s ease;
-                }
-                
-                .tennis-badge-group .badge:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-                }
-            `;
-            document.head.appendChild(styles);
+        switch(status.toLowerCase()) {
+            case 'active':
+            case 'scheduled':
+            case 'completed':
+                element.classList.add('bg-success');
+                break;
+            case 'pending':
+            case 'unscheduled':
+                element.classList.add('bg-warning');
+                break;
+            case 'cancelled':
+            case 'inactive':
+                element.classList.add('bg-danger');
+                break;
+            case 'in-progress':
+                element.classList.add('bg-info');
+                break;
+            default:
+                element.classList.add('bg-secondary');
         }
     }
 }
 
-/**
- * Enhanced card interactions
- */
+// ==================== CARD MANAGEMENT ====================
+
 class TennisCards {
     static init() {
-        // Add enhanced interactions for tennis cards
+        this.initializeCardAnimations();
+        this.initializeStatCards();
+        console.log('✅ Card Management - Initialized');
+    }
+    
+    static initializeCardAnimations() {
+        // Enhanced hover effects for tennis cards
         document.querySelectorAll('.tennis-card').forEach(card => {
             card.addEventListener('mouseenter', function() {
                 this.style.transform = 'translateY(-2px)';
+                this.style.boxShadow = '0 8px 25px rgba(0,0,0,0.12)';
+                this.style.transition = 'all 0.2s ease';
             });
             
             card.addEventListener('mouseleave', function() {
                 this.style.transform = 'translateY(0)';
+                this.style.boxShadow = '';
             });
         });
         
@@ -942,6 +1255,639 @@ class TennisCards {
             });
         });
     }
+    
+    static initializeStatCards() {
+        // Animate stat card numbers on scroll
+        const statCards = document.querySelectorAll('.stat-card h4');
+        
+        if ('IntersectionObserver' in window) {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        this.animateNumber(entry.target);
+                        observer.unobserve(entry.target);
+                    }
+                });
+            });
+            
+            statCards.forEach(card => observer.observe(card));
+        }
+    }
+    
+    static animateNumber(element) {
+        const finalNumber = parseInt(element.textContent);
+        if (isNaN(finalNumber)) return;
+        
+        let currentNumber = 0;
+        const increment = Math.ceil(finalNumber / 20);
+        const timer = setInterval(() => {
+            currentNumber += increment;
+            if (currentNumber >= finalNumber) {
+                currentNumber = finalNumber;
+                clearInterval(timer);
+            }
+            element.textContent = currentNumber;
+        }, 50);
+    }
+}
+
+
+// ==================== GENERALIZED IMPORT/EXPORT MANAGEMENT ====================
+
+class TennisImportExport {
+
+    /**
+     * Initialize import/export functionality (called when modal opens)
+     */
+    static init() {
+        // File input change handler
+        const fileInput = document.getElementById('yamlFileInput');
+        const uploadArea = document.getElementById('fileUploadArea');
+        const importBtn = document.getElementById('importBtn');
+    
+        if (fileInput && uploadArea && importBtn) {
+            // Remove existing listeners to prevent duplicates
+            fileInput.removeEventListener('change', this.handleFileSelect);
+            uploadArea.removeEventListener('dragover', this.handleDragOver);
+            uploadArea.removeEventListener('dragleave', this.handleDragLeave);
+            uploadArea.removeEventListener('drop', this.handleDrop);
+            uploadArea.removeEventListener('click', this.clickHandler);
+    
+            // Add fresh listeners
+            this.clickHandler = () => fileInput.click();
+            fileInput.addEventListener('change', this.handleFileSelect.bind(this));
+            uploadArea.addEventListener('dragover', this.handleDragOver.bind(this));
+            uploadArea.addEventListener('dragleave', this.handleDragLeave.bind(this));
+            uploadArea.addEventListener('drop', this.handleDrop.bind(this));
+            // Don't add click handler to entire area since button handles it
+            //uploadArea.addEventListener('click', this.clickHandler);
+        }
+    }
+    
+    /**
+     * Handle file selection
+     */
+    static handleFileSelect(event) {
+        const file = event.target.files[0];
+        this.processSelectedFile(file);
+    }
+    
+    /**
+     * Handle drag over
+     */
+    static handleDragOver(event) {
+        event.preventDefault();
+        event.target.closest('.tennis-file-upload-area').classList.add('dragover');
+    }
+    
+    /**
+     * Handle drag leave
+     */
+    static handleDragLeave(event) {
+        event.target.closest('.tennis-file-upload-area').classList.remove('dragover');
+    }
+    
+    /**
+     * Handle file drop
+     */
+    static handleDrop(event) {
+        event.preventDefault();
+        const uploadArea = event.target.closest('.tennis-file-upload-area');
+        uploadArea.classList.remove('dragover');
+        
+        const file = event.dataTransfer.files[0];
+        this.processSelectedFile(file);
+    }
+    
+    /**
+     * Process the selected file
+     */
+    static processSelectedFile(file) {
+        const importBtn = document.getElementById('importBtn');
+        
+        if (!file) {
+            importBtn.disabled = true;
+            return;
+        }
+    
+        if (!file.name.toLowerCase().endsWith('.yaml') && !file.name.toLowerCase().endsWith('.yml')) {
+            TennisUI.showNotification('Please select a YAML file (.yaml or .yml)', 'warning');
+            importBtn.disabled = true;
+            return;
+        }
+    
+        // Store file for import
+        this.selectedFile = file;
+        importBtn.disabled = false;
+        
+        // Update upload area to show selected file
+        const uploadArea = document.getElementById('fileUploadArea');
+        uploadArea.innerHTML = `
+            <div class="tennis-file-upload-content">
+                <i class="fas fa-file-check fa-2x text-tennis-success mb-2"></i>
+                <div>
+                    <strong>File Selected: ${file.name}</strong>
+                    <div class="small text-muted mt-1">Ready to import</div>
+                </div>
+            </div>
+            <button class="btn btn-outline-secondary btn-sm mt-2" onclick="TennisImportExport.resetFileUpload()">
+                <i class="fas fa-times"></i> Change File
+            </button>
+        `;
+        
+        TennisUI.showNotification(`File "${file.name}" selected and ready for import`, 'info');
+    }
+    
+    /**
+     * Reset file upload area
+     */
+    static resetFileUpload() {
+        const uploadArea = document.getElementById('fileUploadArea');
+        uploadArea.innerHTML = `
+            <div class="tennis-file-upload-content">
+                <i class="fas fa-cloud-upload-alt fa-2x text-tennis-primary mb-2"></i>
+                <div>
+                    <strong>Drop YAML file here or click to browse</strong>
+                    <div class="small text-muted mt-1">Supports .yaml and .yml files</div>
+                </div>
+            </div>
+            <input type="file" id="yamlFileInput" accept=".yaml,.yml" style="display: none;">
+            <button class="btn btn-tennis-primary mt-2" onclick="document.getElementById('yamlFileInput').click()">
+                <i class="fas fa-folder-open"></i> Select File
+            </button>
+        `;
+        
+        document.getElementById('importBtn').disabled = true;
+        this.selectedFile = null;
+        this.init(); // Reinitialize handlers
+    }
+    
+    /**
+     * Download example YAML file
+     */
+    static downloadExample() {
+        const examples = {
+            leagues: `# Example leagues.yaml file
+    - name: "Men's 4.0 Singles"
+      year: 2025
+      section: "Southwest"
+      region: "Northern New Mexico"
+      age_group: "18 & Over"
+      division: "4.0"
+      num_lines_per_match: 3
+      num_matches: 12
+      allow_split_lines: false
+      preferred_days: ["Saturday", "Sunday"]
+      backup_days: ["Friday"]
+      start_date: "2025-03-01"
+      end_date: "2025-09-30"
+    
+    - name: "Women's 3.5 Doubles"
+      year: 2025
+      section: "Southwest"
+      region: "Northern New Mexico"
+      age_group: "18 & Over"
+      division: "3.5"
+      num_lines_per_match: 3
+      num_matches: 10
+      allow_split_lines: true
+      preferred_days: ["Saturday"]
+      backup_days: ["Sunday", "Friday"]
+      start_date: "2025-03-15"
+      end_date: "2025-09-15"`,
+    
+            teams: `# Example teams.yaml file
+    - name: "Lightning Bolts"
+      league_id: 101
+      captain: "Jane Smith"
+      home_facility_id: 5
+      preferred_days: ["Saturday", "Sunday"]
+    
+    - name: "Thunder Strikes"
+      league_id: 101
+      captain: "John Doe"
+      home_facility_id: 3
+      preferred_days: ["Tuesday", "Thursday"]`,
+    
+            facilities: `# Example facilities.yaml file
+    - name: "Tennis Center North"
+      location: "123 Tennis Ave, Las Cruces, NM"
+      total_courts: 6
+      schedule:
+        Monday:
+          start_times:
+            - time: "09:00"
+              available_courts: 4
+            - time: "10:30"
+              available_courts: 4
+            - time: "12:00"
+              available_courts: 6
+        Tuesday:
+          start_times:
+            - time: "09:00"
+              available_courts: 4
+            - time: "10:30"
+              available_courts: 4
+        Wednesday:
+          start_times: []
+        Thursday:
+          start_times:
+            - time: "09:00"
+              available_courts: 6
+        Friday:
+          start_times:
+            - time: "09:00"
+              available_courts: 4
+        Saturday:
+          start_times:
+            - time: "08:00"
+              available_courts: 6
+            - time: "10:00"
+              available_courts: 6
+            - time: "12:00"
+              available_courts: 6
+        Sunday:
+          start_times:
+            - time: "08:00"
+              available_courts: 6
+            - time: "10:00"
+              available_courts: 6
+      unavailable_dates:
+        - "2025-07-04"
+        - "2025-12-25"
+    
+    - name: "Westside Tennis Club"
+      location: "456 Court St, Las Cruces, NM"
+      total_courts: 4
+      schedule:
+        Monday:
+          start_times:
+            - time: "09:00"
+              available_courts: 2
+        Tuesday:
+          start_times:
+            - time: "09:00"
+              available_courts: 2
+        Wednesday:
+          start_times: []
+        Thursday:
+          start_times:
+            - time: "09:00"
+              available_courts: 2
+        Friday:
+          start_times:
+            - time: "09:00"
+              available_courts: 2
+        Saturday:
+          start_times:
+            - time: "08:00"
+              available_courts: 4
+            - time: "10:00"
+              available_courts: 4
+        Sunday:
+          start_times:
+            - time: "08:00"
+              available_courts: 4
+      unavailable_dates: []`,
+    
+            matches: `# Example matches.yaml file
+    # Note: Matches are typically generated automatically
+    # This is an example of the expected format
+    - team1_id: 101
+      team2_id: 102
+      league_id: 1
+      date: "2025-06-15"
+      time: "09:00"
+      facility_id: 5
+    
+    - team1_id: 103
+      team2_id: 104
+      league_id: 1
+      date: "2025-06-22"
+      time: "10:00"
+      facility_id: 3`
+        };
+    
+        const exampleContent = examples[this.currentDataType] || examples.leagues;
+        const blob = new Blob([exampleContent], { type: 'text/yaml' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `example_${this.currentDataType}.yaml`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    
+        TennisUI.showNotification('Example YAML file downloaded', 'info');
+    }
+    /**
+     * Show import/export modal for any data type
+     * @param {string} dataType - 'leagues', 'teams', 'facilities', 'matches'
+     * @param {string} title - Modal title
+     */
+    static showModal(dataType, title) {
+        this.currentDataType = dataType;
+        
+        // Create modal dynamically using shared modal structure
+        const modalHtml = this.createModalHtml(dataType, title);
+        
+        // Remove existing modal if present
+        const existingModal = document.getElementById('importExportModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Add modal to DOM
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('importExportModal'));
+        modal.show();
+        
+        // Initialize after modal is shown
+        setTimeout(() => this.init(), 100);
+        
+        // Clean up on close
+        modal._element.addEventListener('hidden.bs.modal', () => {
+            document.getElementById('importExportModal').remove();
+        });
+    }
+
+    /**
+     * Create modal HTML using shared structure
+     */
+    static createModalHtml(dataType, title) {
+        const examples = this.getExamples(dataType);
+        
+        return `
+        <div class="modal fade tennis-modal" id="importExportModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-exchange-alt"></i>
+                            ${title}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="tennis-import-section">
+                                    <h5><i class="fas fa-upload text-tennis-primary"></i> Import ${dataType.charAt(0).toUpperCase() + dataType.slice(1)}</h5>
+                                    <p class="text-muted">Upload a YAML file to import multiple ${dataType}.</p>
+                                    
+                                    <div class="tennis-file-upload-area" id="fileUploadArea">
+                                        <div class="tennis-file-upload-content">
+                                            <i class="fas fa-cloud-upload-alt fa-2x text-tennis-primary mb-2"></i>
+                                            <div>
+                                                <strong>Drop YAML file here or click to browse</strong>
+                                                <div class="small text-muted mt-1">Supports .yaml and .yml files</div>
+                                            </div>
+                                        </div>
+                                        <input type="file" id="yamlFileInput" accept=".yaml,.yml" style="display: none;">
+                                        <button class="btn btn-tennis-primary mt-2" onclick="document.getElementById('yamlFileInput').click()">
+                                            <i class="fas fa-folder-open"></i> Select File
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="tennis-import-actions mt-3">
+                                        <button class="btn btn-tennis-success" id="importBtn" onclick="TennisImportExport.executeImport()" disabled>
+                                            <i class="fas fa-upload"></i> Import ${dataType.charAt(0).toUpperCase() + dataType.slice(1)}
+                                        </button>
+                                        <button class="btn btn-outline-info ms-2" onclick="TennisImportExport.downloadExample()">
+                                            <i class="fas fa-download"></i> Download Example
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="tennis-export-section">
+                                    <h5><i class="fas fa-download text-tennis-success"></i> Export ${dataType.charAt(0).toUpperCase() + dataType.slice(1)}</h5>
+                                    <p class="text-muted">Download your ${dataType} data in various formats.</p>
+                                    
+                                    <div class="tennis-export-options">
+                                        <button class="btn btn-tennis-success btn-export" onclick="TennisImportExport.executeExport('yaml')">
+                                            <i class="fas fa-file-code"></i> Export YAML
+                                        </button>
+                                        <button class="btn btn-tennis-info btn-export" onclick="TennisImportExport.executeExport('json')">
+                                            <i class="fas fa-file-download"></i> Export JSON
+                                        </button>
+                                        <button class="btn btn-outline-secondary btn-export" onclick="TennisImportExport.executeExport('csv')">
+                                            <i class="fas fa-table"></i> Export CSV
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="mt-4">
+                                        <h6><i class="fas fa-info-circle text-tennis-info"></i> YAML Format Example:</h6>
+                                        <div class="tennis-example-code">${examples}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="alert alert-info">
+                                    <h6><i class="fas fa-lightbulb"></i> Quick Guide</h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <strong>Import Process:</strong>
+                                            <ol class="mb-0">
+                                                <li>Download example to see format</li>
+                                                <li>Prepare your YAML file</li>
+                                                <li>Select or drag your file</li>
+                                                <li>Click Import button</li>
+                                            </ol>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong>Export Options:</strong>
+                                            <ul class="mb-0">
+                                                <li><strong>YAML:</strong> For importing later</li>
+                                                <li><strong>JSON:</strong> For data processing</li>
+                                                <li><strong>CSV:</strong> For spreadsheet apps</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    /**
+     * Get examples for different data types
+     */
+    static getExamples(dataType) {
+        const examples = {
+            leagues:`
+leagues:
+  - id: 201
+    name: "2025 Adult 18+ 4.5 Women"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "4.5 Women"
+    num_lines_per_match: 5
+    num_matches: 10
+    allow_split_lines: false
+    preferred_days:
+      - "Sunday"
+      - "Thursday"
+    backup_days:
+      - "Wednesday"
+    start_date: "2025-03-01"
+    end_date: "2025-05-01"`,
+            
+            teams: `
+teams:
+    - id: 2001
+      name: "Lightning Bolts"
+      league_id: 101
+      captain: "Jane Smith"
+      home_facility_id: 5
+      preferred_days: ["Saturday"]`,
+            
+            facilities: `
+facilities:
+    - id: 14512
+      name: "Tennis Center North"
+      short_name: "TCN"
+      location: "123 Tennis Ave"
+      total_courts: 6
+      schedule:
+          Monday:
+            start_times:
+              - time: "18:00"
+                available_courts: 5
+          Tuesday:
+            start_times:
+              - time: "18:00"
+                available_courts: 5
+          Wednesday:
+            start_times:
+              - time: "18:00"
+                available_courts: 5
+          Thursday:
+            start_times:
+              - time: "18:00"
+                available_courts: 5
+          Friday:
+            start_times:
+              - time: "18:00"
+                available_courts: 5
+          Saturday:
+            start_times:
+              - time: "12:00"
+                available_courts: 5
+              - time: "14:00"
+                available_courts: 5
+          Sunday:
+            start_times:
+              - time: "12:00"
+                available_courts: 5
+              - time: "14:00"
+                available_courts: 5
+        unavailable_dates:
+          - "2025-03-09"
+          - "2025-03-23"`,
+            
+            matches: `
+matches: 
+    - team1_id: 101
+      team2_id: 102
+      league_id: 1
+      date: "2025-06-15"
+      time: "09:00"`
+        };
+        return examples[dataType] || '';
+    }
+
+    static async executeImport() {
+        if (!this.selectedFile) {
+            TennisUI.showNotification('Please select a YAML file first', 'warning');
+            return;
+        }
+    
+        const formData = new FormData();
+        formData.append('yaml_file', this.selectedFile);
+    
+        try {
+            TennisUI.setButtonLoading('importBtn', true, 'Importing...');
+            
+            const response = await fetch(`/api/import-${this.currentDataType}`, {
+                method: 'POST',
+                body: formData
+            });
+    
+            const result = await response.json();
+    
+            if (!response.ok) {
+                // Get the detailed error message from the server response
+                const errorMessage = result.error || result.message || `Import failed: ${response.status} ${response.statusText}`;
+                throw new Error(errorMessage);
+            }
+    
+            TennisUI.showNotification(result.message || 'Import completed successfully!', 'success');
+            
+            // Close modal and reload
+            const modal = bootstrap.Modal.getInstance(document.getElementById('importExportModal'));
+            modal.hide();
+            setTimeout(() => window.location.reload(), 500);
+    
+        } catch (error) {
+            TennisUI.showNotification(error.message || 'Import failed', 'danger');
+            TennisUI.setButtonLoading('importBtn', false);
+        }
+    }
+
+    /**
+     * Execute export using dynamic API endpoint
+     */
+    static async executeExport(format) {
+        try {
+            TennisUI.setButtonLoading('.btn-export', true, 'Exporting...');
+
+            const response = await fetch(`/api/export-${this.currentDataType}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ format: format })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Export failed: ${response.status} ${response.statusText}`);
+            }
+
+            // Handle file download
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = `${this.currentDataType}_export.${format}`;
+            if (contentDisposition) {
+                const match = contentDisposition.match(/filename="(.+)"/);
+                if (match) filename = match[1];
+            }
+
+            const blob = await response.blob();
+            TennisUI.downloadFile(blob, filename);
+
+            TennisUI.showNotification(`${this.currentDataType.charAt(0).toUpperCase() + this.currentDataType.slice(1)} exported as ${format.toUpperCase()}`, 'success');
+
+        } catch (error) {
+            TennisUI.showNotification(error.message || 'Export failed', 'danger');
+        } finally {
+            TennisUI.setButtonLoading('.btn-export', false);
+        }
+    }
+
+    // ... [keep existing file handling methods but remove hardcoded references]
 }
 
 // ==================== GLOBAL INITIALIZATION ====================
@@ -954,6 +1900,9 @@ document.addEventListener('DOMContentLoaded', function() {
     TennisBadges.init();
     TennisCards.init();
 });
+
+// Make classes available globally - add TennisImportExport
+window.TennisImportExport = TennisImportExport;
 
 // Make classes available globally
 window.TennisUI = TennisUI;

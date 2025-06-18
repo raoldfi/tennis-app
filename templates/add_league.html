@@ -5,16 +5,16 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-10">
-        <div class="card">
+        <div class="card tennis-card">
             <div class="card-header">
                 <i class="fas fa-trophy"></i> Add New League
             </div>
             <div class="card-body">
-                <form method="POST">
+                <form method="POST" class="tennis-form" id="addLeagueForm">
                     <div class="row">
                         <div class="col-md-3 mb-3">
                             <label for="id" class="form-label">
-                                <i class="fas fa-hashtag"></i> League ID *
+                                <i class="fas fa-hashtag"></i> League ID <span class="required">*</span>
                             </label>
                             <input type="number" class="form-control" id="id" name="id" 
                                    min="1" required 
@@ -24,7 +24,7 @@
                         
                         <div class="col-md-6 mb-3">
                             <label for="name" class="form-label">
-                                <i class="fas fa-trophy"></i> League Name *
+                                <i class="fas fa-trophy"></i> League Name <span class="required">*</span>
                             </label>
                             <input type="text" class="form-control" id="name" name="name" 
                                    required maxlength="255"
@@ -34,7 +34,7 @@
                         
                         <div class="col-md-3 mb-3">
                             <label for="year" class="form-label">
-                                <i class="fas fa-calendar"></i> Year *
+                                <i class="fas fa-calendar"></i> Year <span class="required">*</span>
                             </label>
                             <input type="number" class="form-control" id="year" name="year" 
                                    min="2020" max="2030" required 
@@ -46,7 +46,7 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="section" class="form-label">
-                                <i class="fas fa-map"></i> Section *
+                                <i class="fas fa-map"></i> Section <span class="required">*</span>
                             </label>
                             <select class="form-select" id="section" name="section" required>
                                 <option value="">Select a section...</option>
@@ -59,7 +59,7 @@
                         
                         <div class="col-md-6 mb-3">
                             <label for="region" class="form-label">
-                                <i class="fas fa-map-marker-alt"></i> Region *
+                                <i class="fas fa-map-marker-alt"></i> Region <span class="required">*</span>
                             </label>
                             <select class="form-select" id="region" name="region" required>
                                 <option value="">Select a region...</option>
@@ -74,7 +74,7 @@
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label for="age_group" class="form-label">
-                                <i class="fas fa-users"></i> Age Group *
+                                <i class="fas fa-users"></i> Age Group <span class="required">*</span>
                             </label>
                             <select class="form-select" id="age_group" name="age_group" required>
                                 <option value="">Select an age group...</option>
@@ -87,7 +87,7 @@
                         
                         <div class="col-md-4 mb-3">
                             <label for="division" class="form-label">
-                                <i class="fas fa-award"></i> Division *
+                                <i class="fas fa-award"></i> Division <span class="required">*</span>
                             </label>
                             <select class="form-select" id="division" name="division" required>
                                 <option value="">Select a division...</option>
@@ -100,7 +100,7 @@
                         
                         <div class="col-md-4 mb-3">
                             <label for="num_lines_per_match" class="form-label">
-                                <i class="fas fa-list-ol"></i> Lines per Match *
+                                <i class="fas fa-list-ol"></i> Lines per Match <span class="required">*</span>
                             </label>
                             <select class="form-select" id="num_lines_per_match" name="num_lines_per_match" required>
                                 <option value="1">1 Line (Singles)</option>
@@ -113,14 +113,14 @@
                         </div>
                     </div>
                     
-                    <!-- New Fields Section -->
+                    <!-- League Settings Section -->
                     <hr>
                     <h5><i class="fas fa-cogs"></i> League Settings</h5>
                     
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label for="num_matches" class="form-label">
-                                <i class="fas fa-calendar-check"></i> Matches per Team *
+                                <i class="fas fa-calendar-check"></i> Matches per Team <span class="required">*</span>
                             </label>
                             <input type="number" class="form-control" id="num_matches" name="num_matches" 
                                    min="1" max="50" required value="10">
@@ -209,13 +209,13 @@
                     <hr>
                     
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-tennis-primary">
                             <i class="fas fa-plus"></i> Add League
                         </button>
                         <a href="{{ url_for('leagues') }}" class="btn btn-secondary">
                             <i class="fas fa-times"></i> Cancel
                         </a>
-                        <button type="button" class="btn btn-outline-info" onclick="generateName()">
+                        <button type="button" class="btn btn-outline-info" onclick="TennisLeagueForms.generateName()">
                             <i class="fas fa-magic"></i> Auto-Generate Name
                         </button>
                     </div>
@@ -224,7 +224,7 @@
         </div>
         
         <!-- Help Section -->
-        <div class="card mt-4">
+        <div class="card tennis-card mt-4">
             <div class="card-header">
                 <i class="fas fa-info-circle"></i> League Creation Guidelines
             </div>
@@ -269,162 +269,9 @@
 
 {% block scripts %}
 <script>
+// Initialize league form management when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    // Auto-focus on the first input
-    document.getElementById('id').focus();
-    
-    // Set current year as default
-    const yearInput = document.getElementById('year');
-    if (!yearInput.value) {
-        yearInput.value = new Date().getFullYear();
-    }
-    
-    // Add event listeners for day validation
-    const preferredCheckboxes = document.querySelectorAll('input[name="preferred_days"]');
-    const backupCheckboxes = document.querySelectorAll('input[name="backup_days"]');
-    
-    // Add date validation
-    const startDateInput = document.getElementById('start_date');
-    const endDateInput = document.getElementById('end_date');
-    
-    function validateDates() {
-        const startDate = startDateInput.value;
-        const endDate = endDateInput.value;
-        
-        if (startDate && endDate) {
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            
-            if (end <= start) {
-                endDateInput.setCustomValidity('End date must be after start date');
-            } else {
-                endDateInput.setCustomValidity('');
-            }
-        } else {
-            endDateInput.setCustomValidity('');
-        }
-    }
-    
-    startDateInput.addEventListener('change', validateDates);
-    endDateInput.addEventListener('change', validateDates);
-    
-    // Prevent overlap between preferred and backup days
-    function validateDaySelection() {
-        const preferred = Array.from(preferredCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
-        const backup = Array.from(backupCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
-        
-        // Disable backup days that are selected as preferred
-        backupCheckboxes.forEach(cb => {
-            if (preferred.includes(cb.value)) {
-                cb.disabled = true;
-                cb.checked = false;
-            } else {
-                cb.disabled = false;
-            }
-        });
-        
-        // Disable preferred days that are selected as backup
-        preferredCheckboxes.forEach(cb => {
-            if (backup.includes(cb.value)) {
-                cb.disabled = true;
-                cb.checked = false;
-            } else {
-                cb.disabled = false;
-            }
-        });
-    }
-    
-    // Add event listeners
-    preferredCheckboxes.forEach(cb => {
-        cb.addEventListener('change', validateDaySelection);
-    });
-    
-    backupCheckboxes.forEach(cb => {
-        cb.addEventListener('change', validateDaySelection);
-    });
-    
-    // Initial validation
-    validateDaySelection();
-});
-
-function generateName() {
-    const year = document.getElementById('year').value;
-    const ageGroup = document.getElementById('age_group').value;
-    const division = document.getElementById('division').value;
-    
-    if (year && ageGroup && division) {
-        const name = `${year} Adult ${ageGroup} ${division}`;
-        document.getElementById('name').value = name;
-    } else {
-        alert('Please select Year, Age Group, and Division first to auto-generate the name.');
-    }
-}
-
-// Form validation
-document.querySelector('form').addEventListener('submit', function(e) {
-    const id = document.getElementById('id').value;
-    const name = document.getElementById('name').value.trim();
-    const year = document.getElementById('year').value;
-    const section = document.getElementById('section').value;
-    const region = document.getElementById('region').value;
-    const ageGroup = document.getElementById('age_group').value;
-    const division = document.getElementById('division').value;
-    const numMatches = document.getElementById('num_matches').value;
-    const startDate = document.getElementById('start_date').value;
-    const endDate = document.getElementById('end_date').value;
-    
-    if (!id || id < 1) {
-        alert('Please enter a valid league ID (must be a positive number)');
-        e.preventDefault();
-        return;
-    }
-    
-    if (!name) {
-        alert('Please enter a league name');
-        e.preventDefault();
-        return;
-    }
-    
-    if (!year || year < 2020 || year > 2030) {
-        alert('Please enter a valid year between 2020 and 2030');
-        e.preventDefault();
-        return;
-    }
-    
-    if (!section || !region || !ageGroup || !division) {
-        alert('Please select all required dropdown values');
-        e.preventDefault();
-        return;
-    }
-    
-    if (!numMatches || numMatches < 1 || numMatches > 50) {
-        alert('Please enter a valid number of matches between 1 and 50');
-        e.preventDefault();
-        return;
-    }
-    
-    // Validate dates if both are provided
-    if (startDate && endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        
-        if (end <= start) {
-            alert('End date must be after start date');
-            e.preventDefault();
-            return;
-        }
-    }
-    
-    // Check if at least one preferred or backup day is selected
-    const preferredDays = Array.from(document.querySelectorAll('input[name="preferred_days"]:checked'));
-    const backupDays = Array.from(document.querySelectorAll('input[name="backup_days"]:checked'));
-    
-    if (preferredDays.length === 0 && backupDays.length === 0) {
-        if (!confirm('No scheduling days selected. This may make scheduling difficult. Continue anyway?')) {
-            e.preventDefault();
-            return;
-        }
-    }
+    TennisLeagueForms.initializeForm('addLeagueForm', 'add');
 });
 </script>
 {% endblock %}

@@ -86,3 +86,14 @@ class Team:
     def get_home_facility_name(self) -> str:
         """Get the name of the home facility"""
         return self.home_facility.name
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert team to dictionary for serialization"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'league_id': self.league.id,
+            'home_facility_id': self.home_facility.id,
+            'captain': self.captain,
+            'preferred_days': self.preferred_days
+        }    
