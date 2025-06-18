@@ -13,7 +13,7 @@ from typing import List, Dict, Optional, Tuple, Any, TYPE_CHECKING
 
 # Use TYPE_CHECKING to avoid circular imports for type hints
 if TYPE_CHECKING:
-    from usta import Team, League, Match, Facility
+    from usta import Team, League, Match, Facility, MatchType
 
 
 
@@ -107,9 +107,14 @@ class TennisDBInterface(ABC):
         """Get a match by ID with full object references"""
         pass
 
+    from usta import MatchType, Match
     @abstractmethod
-    def list_matches(self, league: Optional['League'] = None, include_unscheduled: bool = True) -> List['Match']:
-        """List matches, optionally filtered by league and scheduling status"""
+    def list_matches(self, 
+                     facility: Optional['Facility'] = None,
+                     league: Optional['League'] = None,
+                     team: Optional['Team'] = None,
+                     match_type: 'MatchType' = MatchType.ALL) -> List[Match]:
+        """List matches, optionally filtered by facility, league, team"""
         pass
 
     @abstractmethod

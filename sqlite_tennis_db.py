@@ -296,11 +296,16 @@ class SQLiteTennisDB(TennisDBInterface):
     
     def get_match(self, match_id: int) -> Optional[Match]:
         return self.match_manager.get_match(match_id)
-    
+
     def list_matches(self, 
-                     league: Optional[League] = None, 
-                     match_type : Optional[MatchType] = MatchType.ALL) -> List[Match]:
-        return self.match_manager.list_matches(league=league, match_type=match_type)
+                     facility: Optional['Facility'] = None,
+                     league: Optional['League'] = None,
+                     team: Optional['Team'] = None,
+                    match_type: Optional['MatchType'] = MatchType.ALL) -> List[Match]:
+        return self.match_manager.list_matches(facility=facility,
+                                               league=league,
+                                               team=team,
+                                               match_type=match_type)
 
     def update_match(self, match: Match) -> None:
         return self.match_manager.update_match(match)

@@ -1,0 +1,585 @@
+[200~<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Match #{{ match.id }} - Tennis Database</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Include shared Tennis UI styles -->
+    {% include 'shared_styles.html' %}
+</head>
+<body class="bg-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg tennis-navbar">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="{{ url_for('index') }}">
+                <i class="fas fa-tennis-ball me-2"></i>Tennis Database
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="fas fa-home"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('matches') }}">
+                            <i class="fas fa-calendar"></i> Matches
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('leagues') }}">
+                            <i class="fas fa-trophy"></i> Leagues
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('teams') }}">
+                            <i class="fas fa-users"></i> Teams
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('facilities') }}">
+                            <i class="fas fa-building"></i> Facilities
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                        <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' }}"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Breadcrumb -->
+    <div class="container mt-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('index') }}">
+                        <i class="fas fa-home"></i> Dashboard
+                    </a>
+                </li>
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('matches') }}">
+                        <i class="fas fa-calendar"></i> Matches
+                    </a>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">
+                    Match #{{ match.id }}
+                </li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Page Header -->
+    <div class="container mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h2 mb-2">
+                    <i class="fas fa-eye text-tennis-primary"></i> 
+                    Match #{{ match.id }}
+                    {% if match.is_fully_scheduled() %}
+                    <span class="tennis-badge-success ms-2">Scheduled</span>
+                    {% elif match.date %}
+                    <span class="tennis-badge-warning ms-2">Partially Scheduled</span>
+                    {% else %}
+                    <span class="badge bg-danger ms-2">Unscheduled</span>
+                    {% endif %}
+                </h1>
+                <h3 class="h4 text-tennis-primary mb-1">
+                    <strong>{{ match.home_team.name if match.home_team else 'TBD' }}</strong>
+                    <span class="text-muted mx-2">vs</span>
+                    <strong>{{ match.visitor_team.name if match.visitor_team else 'TBD' }}</strong>
+                </h3>
+                <p class="text-muted mb-0">
+                    <i class="fas fa-trophy"></i> {{ match.league.name if match.league else 'Unknown League' }}
+                </p>
+            </div>
+            <div class="tennis-action-group">
+                {% if not match.is_fully_scheduled() %}
+                <button type="button" class="btn btn-tennis-success" onclick="scheduleMatch({{ match.id }})">
+                    <i class="fas fa-calendar-plus"></i> Schedule Match
+                </button>
+                {% endif %}
+                {% if match.date %}
+                <button type="button" class="btn btn-tennis-warning" onclick="clearSchedule({{ match.id }})">
+                    <i class="fas fa-calendar-times"></i> Clear Schedule
+                </button>
+                {% endif %}
+                {% if not match.is_fully_scheduled() %}
+                <button type="button" class="btn btn-tennis-danger" onclick="TennisMatches.deleteMatch({{ match.id }}, 'Match #{{ match.id }}')">
+                    <i class="fas fa-trash"></i> Delete Match
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Match Details Grid -->
+    <div class="container">
+        <div class="row">
+            <!-- Left Column - Match Information -->
+            <div class="col-lg-8 mb-4">
+                <!-- Basic Match Information -->
+                <div class="tennis-card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle"></i> Match Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <dl class="row">
+                                    <dt class="col-sm-4">Match ID:</dt>
+                                    <dd class="col-sm-8">
+                                        <span class="badge bg-secondary">{{ match.id }}</span>
+                                    </dd>
+                                    
+                                    <dt class="col-sm-4">League:</dt>
+                                    <dd class="col-sm-8">
+                                        <a href="{{ url_for('view_league', league_id=match.league.id) }}" class="tennis-badge-info text-decoration-none">
+                                            {{ match.league.name if match.league else 'Unknown' }}
+                                        </a>
+                                    </dd>
+                                    
+                                    <dt class="col-sm-4">Home Team:</dt>
+                                    <dd class="col-sm-8">
+                                        {% if match.home_team %}
+                                        <a href="{{ url_for('view_team', team_id=match.home_team.id) }}" class="text-tennis-primary text-decoration-none fw-bold">
+                                            {{ match.home_team.name }}
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted">TBD</span>
+                                        {% endif %}
+                                    </dd>
+                                    
+                                    <dt class="col-sm-4">Visitor Team:</dt>
+                                    <dd class="col-sm-8">
+                                        {% if match.visitor_team %}
+                                        <a href="{{ url_for('view_team', team_id=match.visitor_team.id) }}" class="text-tennis-primary text-decoration-none fw-bold">
+                                            {{ match.visitor_team.name }}
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted">TBD</span>
+                                        {% endif %}
+                                    </dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <dl class="row">
+                                    <dt class="col-sm-4">Date:</dt>
+                                    <dd class="col-sm-8">
+                                        {% if match.date %}
+                                        <span class="text-success">
+                                            <i class="fas fa-calendar-check"></i> {{ match.date }}
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted">
+                                            <i class="fas fa-calendar-times"></i> Not scheduled
+                                        </span>
+                                        {% endif %}
+                                    </dd>
+                                    
+                                    <dt class="col-sm-4">Facility:</dt>
+                                    <dd class="col-sm-8">
+                                        {% if match.facility %}
+                                        <a href="{{ url_for('view_facility', facility_id=match.facility.id) }}" class="text-success text-decoration-none">
+                                            <i class="fas fa-map-marker-alt"></i> {{ match.facility.name }}
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted">
+                                            <i class="fas fa-question-circle"></i> Not assigned
+                                        </span>
+                                        {% endif %}
+                                    </dd>
+                                    
+                                    <dt class="col-sm-4">Expected Lines:</dt>
+                                    <dd class="col-sm-8">
+                                        <span class="badge bg-light text-dark">{{ match.get_expected_lines() }}</span>
+                                    </dd>
+                                    
+                                    <dt class="col-sm-4">Scheduled Lines:</dt>
+                                    <dd class="col-sm-8">
+                                        {% if match.get_num_scheduled_lines() > 0 %}
+                                        <span class="badge bg-success">{{ match.get_num_scheduled_lines() }}</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">0</span>
+                                        {% endif %}
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scheduled Times -->
+                {% if match.get_scheduled_times() %}
+                <div class="tennis-card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-clock"></i> Scheduled Times
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for time in match.get_scheduled_times() %}
+                            <span class="badge bg-light text-dark fs-6 p-2">
+                                <i class="fas fa-clock me-1"></i>{{ time }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+
+                <!-- Team Preferences -->
+                {% if (match.home_team and match.home_team.preferred_days) or (match.visitor_team and match.visitor_team.preferred_days) %}
+                <div class="tennis-card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calendar-week"></i> Team Preferences
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% if match.home_team and match.home_team.preferred_days %}
+                            <div class="col-md-6 mb-3">
+                                <h6 class="text-tennis-primary">{{ match.home_team.name }} (Home)</h6>
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for day in match.home_team.preferred_days %}
+                                    <span class="badge bg-light text-dark">{{ day }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if match.visitor_team and match.visitor_team.preferred_days %}
+                            <div class="col-md-6 mb-3">
+                                <h6 class="text-tennis-primary">{{ match.visitor_team.name }} (Visitor)</h6>
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for day in match.visitor_team.preferred_days %}
+                                    <span class="badge bg-light text-dark">{{ day }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Right Column - Status & Quick Actions -->
+            <div class="col-lg-4">
+                <!-- Status Overview -->
+                <div class="tennis-card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-pie"></i> Status Overview
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="stat-card">
+                                    <div class="card-body text-center">
+                                        <h4 class="mb-1">{{ match.get_num_scheduled_lines() }}</h4>
+                                        <small>Lines Scheduled</small>
+                                        <div class="mt-1">
+                                            <i class="fas fa-calendar-check"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="stat-card">
+                                    <div class="card-body text-center">
+                                        <h4 class="mb-1">{{ match.get_expected_lines() - match.get_num_scheduled_lines() }}</h4>
+                                        <small>Lines Remaining</small>
+                                        <div class="mt-1">
+                                            <i class="fas fa-calendar-times"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="stat-card">
+                                    <div class="card-body text-center">
+                                        <h4 class="mb-1">
+                                            {% if match.get_num_scheduled_lines() > 0 %}
+                                            {{ ((match.get_num_scheduled_lines() / match.get_expected_lines()) * 100)|round|int }}%
+                                            {% else %}
+                                            0%
+                                            {% endif %}
+                                        </h4>
+                                        <small>Completion</small>
+                                        <div class="progress progress-thin mt-2">
+                                            <div class="progress-bar bg-tennis-success" style="width: {% if match.get_num_scheduled_lines() > 0 %}{{ ((match.get_num_scheduled_lines() / match.get_expected_lines()) * 100)|round|int }}{% else %}0{% endif %}%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="tennis-card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-bolt"></i> Quick Actions
+                        </h5>
+                    </div>
+                    <div class="card-body d-grid gap-2">
+                        {% if not match.is_fully_scheduled() %}
+                        <button type="button" class="btn btn-tennis-success" onclick="scheduleMatch({{ match.id }})">
+                            <i class="fas fa-calendar-plus"></i> Schedule This Match
+                        </button>
+                        {% endif %}
+                        
+                        {% if match.date %}
+                        <button type="button" class="btn btn-tennis-warning" onclick="clearSchedule({{ match.id }})">
+                            <i class="fas fa-calendar-times"></i> Clear Schedule
+                        </button>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('matches', league_id=match.league.id if match.league else '') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-list"></i> View All League Matches
+                        </a>
+                        
+                        <a href="{{ url_for('matches', league_id=match.league.id if match.league else '') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-list"></i> View All League Matches
+                        </a>
+                        
+                        {% if match.home_team %}
+                        <a href="{{ url_for('view_team', team_id=match.home_team.id) }}" class="btn btn-outline-info">
+                            <i class="fas fa-users"></i> View {{ match.home_team.name }}
+                        </a>
+                        {% endif %}
+                        
+                        {% if match.visitor_team %}
+                        <a href="{{ url_for('view_team', team_id=match.visitor_team.id) }}" class="btn btn-outline-info">
+                            <i class="fas fa-users"></i> View {{ match.visitor_team.name }}
+                        </a>
+                        {% endif %}
+                        
+                        {% if match.facility %}
+                        <a href="{{ url_for('view_facility', facility_id=match.facility.id) }}" class="btn btn-outline-success">
+                            <i class="fas fa-building"></i> View Facility Details
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Related Information -->
+                {% if match.league %}
+                <div class="tennis-card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-trophy"></i> League Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-5">Name:</dt>
+                            <dd class="col-sm-7">
+                                <a href="{{ url_for('view_league', league_id=match.league.id) }}" class="text-tennis-primary text-decoration-none">
+                                    {{ match.league.name }}
+                                </a>
+                            </dd>
+                            
+                            {% if match.league.division %}
+                            <dt class="col-sm-5">Division:</dt>
+                            <dd class="col-sm-7">{{ match.league.division }}</dd>
+                            {% endif %}
+                            
+                            {% if match.league.age_group %}
+                            <dt class="col-sm-5">Age Group:</dt>
+                            <dd class="col-sm-7">{{ match.league.age_group }}</dd>
+                            {% endif %}
+                            
+                            <dt class="col-sm-5">Lines per Match:</dt>
+                            <dd class="col-sm-7">
+                                <span class="badge bg-light text-dark">{{ match.league.num_lines_per_match }}</span>
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Back to Matches Button -->
+    <div class="container mt-4 mb-5">
+        <div class="tennis-action-group">
+            <a href="{{ url_for('matches') }}" class="btn btn-tennis-secondary">
+                <i class="fas fa-arrow-left"></i> Back to All Matches
+            </a>
+            <a href="{{ url_for('matches', league_id=match.league.id if match.league else '') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-trophy"></i> Back to League Matches
+            </a>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-home"></i> Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Schedule Match Modal -->
+    <div class="modal fade tennis-modal" id="scheduleMatchModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-calendar-plus"></i> Schedule Match #{{ match.id }}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="scheduleModalContent">
+                    <div class="text-center py-4">
+                        <div class="tennis-spinner"></div>
+                        <p class="mt-2">Loading scheduling options...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-light mt-5 py-4 border-top">
+        <div class="container text-center">
+            <small>Tennis Database Management System - Matches generated automatically with interface-based architecture</small>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Include shared Tennis UI JavaScript -->
+    {% include 'shared_scripts.html' %}
+    
+    <!-- Page-specific JavaScript -->
+    <script>
+        let currentMatchId = {{ match.id }};
+
+        // Schedule match function
+        function scheduleMatch(matchId) {
+            currentMatchId = matchId;
+            
+            // Show loading in modal content
+            TennisUI.setModalContent('scheduleMatchModal', 'scheduleModalContent', 
+                '<div class="text-center py-4"><div class="tennis-spinner"></div><p class="mt-2">Loading scheduling options...</p></div>'
+            );
+            
+            // Show the modal
+            TennisUI.showModal('scheduleMatchModal');
+            
+            // Load scheduling form
+            TennisUI.apiCall(`/api/matches/${matchId}/schedule-form`)
+                .then(data => {
+                    TennisUI.setModalContent('scheduleMatchModal', 'scheduleModalContent', data.html);
+                })
+                .catch(error => {
+                    TennisUI.setModalContent('scheduleMatchModal', 'scheduleModalContent', 
+                        `<div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Error loading scheduling options: ${error.message}
+                        </div>`
+                    );
+                });
+        }
+
+        // Clear schedule function
+        function clearSchedule(matchId) {
+            if (!confirm('Are you sure you want to clear the schedule for this match? This action cannot be undone.')) {
+                return;
+            }
+            
+            TennisUI.apiCall(`/api/matches/${matchId}/schedule`, {
+                method: 'DELETE'
+            })
+            .then(result => {
+                TennisUI.showNotification(result.message || 'Match schedule cleared successfully', 'success');
+                setTimeout(() => location.reload(), 1500);
+            })
+            .catch(error => {
+                TennisUI.showNotification(`Failed to clear schedule: ${error.message}`, 'danger');
+            });
+        }
+
+        // Submit schedule form (called from dynamically loaded content)
+        function submitSchedule() {
+            const form = document.getElementById('scheduleForm');
+            if (!form) {
+                TennisUI.showNotification('Schedule form not found', 'danger');
+                return;
+            }
+            
+            if (!TennisUI.validateForm('scheduleForm')) {
+                return;
+            }
+            
+            const formData = new FormData(form);
+            
+            TennisUI.setFormLoading('scheduleForm', true);
+            
+            TennisUI.apiCall(`/api/matches/${currentMatchId}/schedule`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(result => {
+                TennisUI.hideModal('scheduleMatchModal');
+                TennisUI.showNotification(result.message || 'Match scheduled successfully', 'success');
+                setTimeout(() => location.reload(), 1500);
+            })
+            .catch(error => {
+                TennisUI.showNotification(`Failed to schedule match: ${error.message}`, 'danger');
+            })
+            .finally(() => {
+                TennisUI.setFormLoading('scheduleForm', false);
+            });
+        }
+
+        // Initialize tooltips
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize tooltips for action buttons
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+
+            // Initialize any additional Tennis UI components
+            TennisUI.init();
+        });
+
+        // Export functions for use in dynamically loaded content
+        window.MatchPage = {
+            scheduleMatch,
+            clearSchedule,
+            submitSchedule
+        };
+    </script>
+</body>
+</html>

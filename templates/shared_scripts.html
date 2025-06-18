@@ -54,7 +54,67 @@ class TennisUI {
             });
         });
     }
+    
+    /**
+     * Validate form by ID (convenience method)
+     * @param {string} formId - The ID of the form to validate
+     * @returns {boolean} - True if form is valid
+     */
+    static validateForm(formId) {
+        const form = document.getElementById(formId);
+        if (!form) {
+            console.error(`Form with ID '${formId}' not found`);
+            return false;
+        }
+        
+        return TennisForms.validateForm(form);
+    }
 
+    /**
+     * Show a modal by ID
+     * @param {string} modalId - The ID of the modal to show
+     */
+    static showModal(modalId) {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        } else {
+            console.error(`Modal with ID '${modalId}' not found`);
+        }
+    }
+    
+    /**
+     * Hide a modal by ID
+     * @param {string} modalId - The ID of the modal to hide
+     */
+    static hideModal(modalId) {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+        } else {
+            console.error(`Modal with ID '${modalId}' not found`);
+        }
+    }
+    
+    /**
+     * Set modal content
+     * @param {string} modalId - The ID of the modal
+     * @param {string} contentId - The ID of the content element within the modal
+     * @param {string} content - The HTML content to set
+     */
+    static setModalContent(modalId, contentId, content) {
+        const contentElement = document.getElementById(contentId);
+        if (contentElement) {
+            contentElement.innerHTML = content;
+        } else {
+            console.error(`Content element with ID '${contentId}' not found in modal '${modalId}'`);
+        }
+    }
+    
     static filterTable(table, searchTerm) {
         const rows = table.querySelectorAll('tbody tr');
         const term = searchTerm.toLowerCase();

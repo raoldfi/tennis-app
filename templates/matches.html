@@ -205,7 +205,7 @@
                             <td>
                                 {% if match.facility and match.facility.name %}
                                 <span class="text-success">
-                                    <i class="fas fa-map-marker-alt"></i> {{ match.facility.name }}
+                                    <i class="fas fa-map-marker-alt"></i> {{ match.facility.short_name }}
                                 </span>
                                 {% else %}
                                 <span class="text-muted">
@@ -254,24 +254,52 @@
                                 </span>
                                 {% endif %}
                             </td>
-                            <td class="text-center">
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-tennis-primary btn-sm" 
-                                            onclick="scheduleMatch({{ match.id }})"
-                                            data-bs-toggle="tooltip" 
-                                            title="{% if match.is_scheduled() %}Edit Schedule{% else %}Schedule Match{% endif %}">
-                                        <i class="fas fa-{% if match.is_scheduled() %}edit{% else %}calendar-plus{% endif %}"></i>
-                                    </button>
-                                    {% if not match.is_scheduled() %}
-                                    <button type="button" class="btn btn-tennis-danger btn-sm" 
-                                            onclick="deleteMatch({{ match.id }})"
-                                            data-bs-toggle="tooltip" 
-                                            title="Delete Unscheduled Match">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+
+
+
+
+                            
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <!-- View button - always visible -->
+                                    
+                                    <a href="{{ url_for('view_match', match_id=match.id) }}" 
+                                       class="btn btn-tennis-primary btn-sm"
+                                       data-bs-toggle="tooltip" 
+                                       title="View Match Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>                                   
+                                    
+                                    {% if match.is_fully_scheduled() %}
+                                        <!-- Scheduled Match Actions -->
+                                        <button type="button" class="btn btn-tennis-warning btn-sm" 
+                                                onclick="unscheduleMatch({{ match.id }})"
+                                                data-bs-toggle="tooltip" 
+                                                title="Unschedule Match">
+                                            <i class="fas fa-calendar-times"></i>
+                                        </button>
+                                    {% else %}
+                                        <!-- Unscheduled Match Actions -->
+                                        <button type="button" class="btn btn-tennis-success btn-sm" 
+                                                onclick="scheduleMatch({{ match.id }})"
+                                                data-bs-toggle="tooltip" 
+                                                title="Schedule Match">
+                                            <i class="fas fa-calendar-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-tennis-danger btn-sm" 
+                                                onclick="deleteMatch({{ match.id }})"
+                                                data-bs-toggle="tooltip" 
+                                                title="Delete Unscheduled Match">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
                                     {% endif %}
                                 </div>
                             </td>
+
+
+
+
+                            
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -462,6 +490,7 @@
 </div>
 
 <!-- Bulk Unschedule Modal -->
+<!-- Bulk Unschedule Modal -->
 <div class="modal fade tennis-modal" id="bulkUnscheduleModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -486,13 +515,13 @@
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="scope" value="league" id="unscheduleLeague">
                             <label class="form-check-label" for="unscheduleLeague">
-                                Specific league only
+                                Scheduled matches in specific league
                             </label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="scope" value="selected" id="unscheduleSelected">
                             <label class="form-check-label" for="unscheduleSelected">
-                                Currently filtered matches only
+                                Currently filtered scheduled matches only
                             </label>
                         </div>
                     </div>
@@ -511,7 +540,7 @@
                     
                     <div class="alert alert-tennis-warning">
                         <i class="fas fa-exclamation-triangle"></i>
-                        This will remove facility and time assignments from scheduled matches. This action cannot be undone.
+                        <strong>Warning:</strong> This will remove scheduling information from selected matches. This action cannot be undone.
                     </div>
                 </form>
             </div>

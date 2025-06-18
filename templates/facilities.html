@@ -5,13 +5,13 @@
 {% block content %}
 <div class="mb-4 d-flex justify-content-between align-items-start">
     <div>
-        <h1><i class="fas fa-building"></i> Facilities</h1>
-        <p class="text-muted">Manage tennis facilities and their schedules</p>
+        <h1 class="tennis-page-title"><i class="fas fa-building text-tennis-primary"></i> Facilities</h1>
+        <p class="tennis-subtitle">Manage tennis facilities and their schedules</p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
         <!-- Import/Export Buttons -->
         <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-info dropdown-toggle" data-bs-toggle="dropdown">
+            <button type="button" class="btn btn-tennis-outline dropdown-toggle" data-bs-toggle="dropdown">
                 <i class="fas fa-file-import"></i> Import/Export
             </button>
             <ul class="dropdown-menu">
@@ -39,7 +39,7 @@
                 </li>
             </ul>
         </div>
-        <a href="{{ url_for('add_facility') }}" class="btn btn-success">
+        <a href="{{ url_for('add_facility') }}" class="btn btn-tennis-primary">
             <i class="fas fa-plus"></i> Add Facility
         </a>
     </div>
@@ -51,129 +51,66 @@
 <!-- Import Status Modal -->
 <div class="modal fade" id="importStatusModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-file-import"></i> Import Status</h5>
+        <div class="modal-content tennis-modal">
+            <div class="modal-header tennis-modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-upload text-tennis-primary"></i> Import Status
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div id="importStatus"></div>
+                <div id="importProgress" class="d-none">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="spinner-border spinner-border-sm text-tennis-primary me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <span>Processing file...</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-tennis-primary" 
+                             role="progressbar" style="width: 100%"></div>
+                    </div>
+                </div>
+                <div id="importResults" class="d-none">
+                    <div class="alert" role="alert">
+                        <h6 class="alert-heading"><i class="fas fa-check-circle"></i> Import Complete</h6>
+                        <div id="importSummary"></div>
+                    </div>
+                </div>
+                <div id="importErrors" class="d-none">
+                    <div class="alert alert-danger" role="alert">
+                        <h6 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Import Failed</h6>
+                        <div id="errorDetails"></div>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="location.reload()">Refresh Page</button>
+                <button type="button" class="btn btn-tennis-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-tennis-primary" onclick="window.location.reload()" id="reloadButton" style="display: none;">
+                    <i class="fas fa-sync-alt"></i> Reload Page
+                </button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Facilities List -->
 {% if facilities %}
-<!-- Stats Cards -->
-<div class="row mb-4">
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card bg-primary text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title mb-0">{{ facilities|length }}</h5>
-                        <p class="card-text">Total Facilities</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-building fa-2x"></i>
-                    </div>
-                </div>
-            </div>
+<div class="tennis-card">
+    <div class="tennis-card-header d-flex justify-content-between align-items-center">
+        <div class="col-md-8">
+            <h4 class="mb-0">
+                <i class="fas fa-table text-tennis-primary"></i> Facilities Overview
+            </h4>
         </div>
-    </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card bg-success text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title mb-0">
-                            {% set total_slots = 0 %}
-                            {% for facility in facilities %}
-                                {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
-                                    {% set total_slots = total_slots + day_schedule.start_times|length %}
-                                {% endfor %}
-                            {% endfor %}
-                            {{ total_slots }}
-                        </h5>
-                        <p class="card-text">Total Time Slots</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-clock fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card bg-warning text-dark">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title mb-0">
-                            {% set total_blackouts = 0 %}
-                            {% for facility in facilities %}
-                                {% set total_blackouts = total_blackouts + (facility.unavailable_dates|length if facility.unavailable_dates else 0) %}
-                            {% endfor %}
-                            {{ total_blackouts }}
-                        </h5>
-                        <p class="card-text">Blackout Dates</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-ban fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title mb-0">
-                            {% set active_days = 0 %}
-                            {% for facility in facilities %}
-                                {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
-                                    {% if day_schedule.start_times %}
-                                        {% set active_days = active_days + 1 %}
-                                    {% endif %}
-                                {% endfor %}
-                            {% endfor %}
-                            {{ active_days }}
-                        </h5>
-                        <p class="card-text">Active Day Schedules</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-calendar-day fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Desktop Table View -->
-<div class="card d-none d-md-block">
-    <div class="card-header bg-primary text-white">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <h4 class="mb-0">
-                    <i class="fas fa-table"></i> Facilities Overview
-                </h4>
-            </div>
-            <div class="col-md-4 text-end">
-                <span class="badge bg-light text-dark fs-6">{{ facilities|length }} facilities</span>
-            </div>
+        <div class="col-md-4 text-end">
+            <span class="badge tennis-badge-light fs-6">{{ facilities|length }} facilities</span>
         </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle facility-table" id="facilitiesTable">
-                <thead class="table-dark">
+            <table class="table table-hover mb-0 align-middle tennis-table" id="facilitiesTable">
+                <thead class="tennis-table-header">
                     <tr>
                         <th class="text-center" style="width: 80px;">ID</th>
                         <th style="width: 200px;">Facility Name</th>
@@ -187,65 +124,78 @@
                     {% for facility in facilities %}
                     <tr class="facility-row" data-facility-id="{{ facility.id }}">
                         <td class="text-center">
-                            <span class="badge bg-secondary">{{ facility.id }}</span>
+                            <span class="badge tennis-badge-secondary">{{ facility.id }}</span>
                         </td>
                         <td>
                             <div class="facility-info-cell">
-                                <div class="fw-bold">{{ facility.get_display_name() }}</div>
+                                <div class="fw-bold text-tennis-dark">{{ facility.get_display_name() }}</div>
                                 {% if facility.short_name and facility.short_name != facility.name %}
-                                <div class="small text-muted">{{ facility.name }}</div>
+                                <div class="small text-tennis-muted">{{ facility.name }}</div>
                                 {% endif %}
                             </div>
                         </td>
                         <td class="text-center">
                             <div class="location-cell">
                                 {% if facility.location %}
-                                <span class="badge bg-info text-wrap">{{ facility.location }}</span>
+                                <span class="badge tennis-badge-info text-wrap">{{ facility.location }}</span>
                                 {% else %}
-                                <span class="text-muted">Not specified</span>
+                                <span class="text-tennis-muted small">Not specified</span>
                                 {% endif %}
                             </div>
                         </td>
                         <td class="text-center">
                             <div class="schedule-cell">
+                                {% set schedule_days = facility.schedule.get_all_days() %}
+                                {% set schedule_days_count = schedule_days|length %}
                                 {% set total_slots = 0 %}
-                                {% set active_days = 0 %}
-                                {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
-                                    {% if day_schedule.start_times %}
-                                        {% set active_days = active_days + 1 %}
-                                        {% set total_slots = total_slots + day_schedule.start_times|length %}
-                                    {% endif %}
+                                {% for day_name, day_schedule in schedule_days.items() %}
+                                    {% set total_slots = total_slots + day_schedule.start_times|length %}
                                 {% endfor %}
-                                <div class="small text-muted">{{ active_days }} days</div>
-                                <div class="fw-bold">{{ total_slots }} slots</div>
+                                
+                                <div class="fw-bold text-tennis-primary">{{ total_slots }} slots</div>
+                                <div class="small">
+                                    {% if schedule_days_count == 7 %}
+                                        <span class="text-tennis-success">Full Week</span>
+                                    {% elif schedule_days_count > 0 %}
+                                        <span class="text-tennis-warning">{{ schedule_days_count }} days</span>
+                                    {% else %}
+                                        <span class="text-tennis-danger">No Schedule</span>
+                                    {% endif %}
+                                </div>
                             </div>
                         </td>
                         <td class="text-center">
                             <div class="availability-cell">
-                                {% if facility.unavailable_dates %}
-                                <span class="badge bg-warning text-dark">{{ facility.unavailable_dates|length }} blackouts</span>
+				{% set today = today %}
+
+                                {% set unavailable_dates = facility.unavailable_dates or [] %}
+                                {% set is_unavailable_today = today in unavailable_dates %}
+                                
+                                {% if is_unavailable_today %}
+                                    <span class="badge tennis-badge-danger">Unavailable</span>
+                                {% elif unavailable_dates|length > 0 %}
+                                    <span class="badge tennis-badge-warning">Restricted</span>
+                                    <div class="small text-tennis-muted">{{ unavailable_dates|length }} blocked dates</div>
                                 {% else %}
-                                <span class="badge bg-success">Always available</span>
+                                    <span class="badge tennis-badge-success">Available</span>
                                 {% endif %}
                             </div>
                         </td>
                         <td class="text-center">
-                            <div class="action-cell">
-                                <div class="btn-group" role="group">
-                                    <a href="{{ url_for('view_facility', facility_id=facility.id) }}" 
-                                       class="btn btn-sm btn-outline-info" title="View facility details">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="{{ url_for('edit_facility', facility_id=facility.id) }}" 
-                                       class="btn btn-sm btn-outline-warning" title="Edit facility">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button class="btn btn-sm btn-outline-secondary" 
-                                            onclick="exportSingleFacility({{ facility.id }})" 
-                                            title="Export this facility">
-                                        <i class="fas fa-download"></i>
-                                    </button>
-                                </div>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('view_facility', facility_id=facility.id) }}" 
+                                   class="btn btn-tennis-outline btn-sm" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('edit_facility', facility_id=facility.id) }}" 
+                                   class="btn btn-tennis-outline btn-sm" title="Edit Facility">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-tennis-danger btn-sm" 
+                                        onclick="TennisFacilities.deleteFacility({{ facility.id }}, '{{ facility.get_display_name() }}')" 
+                                        title="Delete Facility">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -256,415 +206,259 @@
     </div>
 </div>
 
-<!-- Mobile Card View -->
-<div class="d-block d-md-none mt-4">
-    <h5><i class="fas fa-list"></i> Facility Cards</h5>
-    {% for facility in facilities %}
-    <div class="card mb-3 border-start border-primary border-3 facility-card" data-facility-id="{{ facility.id }}">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-                <h6 class="mb-0">{{ facility.name }}</h6>
-                <span class="badge bg-secondary">{{ facility.id }}</span>
-            </div>
-            
-            {% if facility.location %}
-            <div class="mb-2">
-                <small class="text-muted">Location</small>
-                <div><i class="fas fa-map-marker-alt text-muted"></i> {{ facility.location }}</div>
-            </div>
-            {% endif %}
-            
-            <div class="row mb-2">
-                <div class="col-6">
-                    <small class="text-muted">Schedule</small>
-                    {% set total_slots = 0 %}
-                    {% set active_days = 0 %}
-                    {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
-                        {% if day_schedule.start_times %}
-                            {% set active_days = active_days + 1 %}
-                            {% set total_slots = total_slots + day_schedule.start_times|length %}
-                        {% endif %}
-                    {% endfor %}
-                    <div>{{ active_days }} days, {{ total_slots }} slots</div>
-                </div>
-                <div class="col-6">
-                    <small class="text-muted">Availability</small>
-                    <div>
-                        {% if facility.unavailable_dates %}
-                        {{ facility.unavailable_dates|length }} blackout dates
-                        {% else %}
-                        Always available
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            
-            <div class="d-flex gap-2">
-                <a href="{{ url_for('view_facility', facility_id=facility.id) }}" 
-                   class="btn btn-sm btn-info">
-                    <i class="fas fa-eye"></i> View
-                </a>
-                <a href="{{ url_for('edit_facility', facility_id=facility.id) }}" 
-                   class="btn btn-sm btn-warning">
-                    <i class="fas fa-edit"></i> Edit
-                </a>
-                <button class="btn btn-sm btn-outline-secondary" 
-                        onclick="exportSingleFacility({{ facility.id }})">
-                    <i class="fas fa-download"></i> Export
-                </button>
+<!-- Facility Statistics -->
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="stat-card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-building fa-2x text-tennis-primary mb-2"></i>
+                <h4 class="text-tennis-primary">{{ facilities|length }}</h4>
+                <small class="text-tennis-muted">Total Facilities</small>
             </div>
         </div>
     </div>
-    {% endfor %}
+    <div class="col-md-3">
+        <div class="stat-card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-calendar-alt fa-2x text-tennis-success mb-2"></i>
+                <h4 class="text-tennis-primary">
+                    {% set total_slots = 0 %}
+                    {% for facility in facilities %}
+                        {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                            {% set total_slots = total_slots + day_schedule.start_times|length %}
+                        {% endfor %}
+                    {% endfor %}
+                    {{ total_slots }}
+                </h4>
+                <small class="text-tennis-muted">Total Time Slots</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle fa-2x text-tennis-success mb-2"></i>
+                <h4 class="text-tennis-primary">
+                    {% set available_count = 0 %}
+                    {% for facility in facilities %}
+			{% set today = today %}
+                        {% set unavailable_dates = facility.unavailable_dates or [] %}
+                        {% if today not in unavailable_dates %}
+                            {% set available_count = available_count + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                    {{ available_count }}
+                </h4>
+                <small class="text-tennis-muted">Available Today</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-map-marker-alt fa-2x text-tennis-info mb-2"></i>
+                <h4 class="text-tennis-primary">
+                    {% set locations = [] %}
+                    {% for facility in facilities %}
+                        {% if facility.location and facility.location not in locations %}
+                            {% set _ = locations.append(facility.location) %}
+                        {% endif %}
+                    {% endfor %}
+                    {{ locations|length }}
+                </h4>
+                <small class="text-tennis-muted">Unique Locations</small>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% else %}
-<div class="card">
-    <div class="card-body text-center">
-        <i class="fas fa-building fa-4x text-muted mb-3"></i>
-        <h5>No Facilities Found</h5>
-        <p class="text-muted">No facilities are currently registered in the database.</p>
-        <div class="d-flex gap-2 justify-content-center flex-wrap">
-            <a href="{{ url_for('add_facility') }}" class="btn btn-success">
-                <i class="fas fa-plus"></i> Add Your First Facility
-            </a>
-            <button class="btn btn-outline-info" onclick="document.getElementById('importFile').click()">
-                <i class="fas fa-file-import"></i> Import from YAML
-            </button>
-            <button class="btn btn-outline-secondary" onclick="showImportExportHelp()">
-                <i class="fas fa-question-circle"></i> Help
-            </button>
-        </div>
-        
-        <div class="alert alert-info mt-3">
-            <i class="fas fa-info-circle"></i>
-            <strong>Note:</strong> Facilities are required before adding teams or scheduling matches.
-        </div>
-    </div>
+<!-- Empty State -->
+<div class="empty-state">
+    <i class="fas fa-building"></i>
+    <h5>No facilities found</h5>
+    <p>Add your first facility to get started with tennis scheduling.</p>
+    <a href="{{ url_for('add_facility') }}" class="btn btn-tennis-primary mt-2">
+        <i class="fas fa-plus"></i> Add First Facility
+    </a>
 </div>
 {% endif %}
 
 {% endblock %}
 
-<!-- Import/Export Help Modal -->
-<div class="modal fade" id="importExportHelpModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-question-circle"></i> Facility Import/Export Help
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <h6><i class="fas fa-info-circle text-primary"></i> Overview</h6>
-                        <p>The import/export functionality allows you to:</p>
-                        <ul>
-                            <li><strong>Import:</strong> Add multiple facilities from a YAML file</li>
-                            <li><strong>Export:</strong> Save facility data to YAML or JSON format</li>
-                            <li><strong>Backup:</strong> Create backups of your facility configurations</li>
-                            <li><strong>Share:</strong> Transfer facility setups between databases</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <h6><i class="fas fa-file-code text-success"></i> YAML Format Example</h6>
-                        <div class="bg-light p-3 rounded">
-                            <pre><code>facilities:
-  - id: 1
-    name: "Tennis Club Name"
-    short_name: "TC"  # Optional
-    location: "Address"  # Optional
-    total_courts: 6
-    schedule:
-      Monday:
-        "09:00": 4    # Time: Courts available
-        "10:30": 4
-        "12:00": 6
-      Tuesday:
-        "09:00": 4
-        "10:30": 4
-    unavailable_dates:
-      - "2025-07-04"  # YYYY-MM-DD format
-      - "2025-12-25"</code></pre>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <h6><i class="fas fa-upload text-primary"></i> Import Process</h6>
-                        <ol>
-                            <li>Prepare your YAML file</li>
-                            <li>Click "Import YAML"</li>
-                            <li>Select your .yaml/.yml file</li>
-                            <li>Review import status</li>
-                            <li>Refresh page to see results</li>
-                        </ol>
-                    </div>
-                    <div class="col-md-6">
-                        <h6><i class="fas fa-download text-success"></i> Export Options</h6>
-                        <ul>
-                            <li><strong>Export All to YAML:</strong> All facilities</li>
-                            <li><strong>Export All to JSON:</strong> JSON format</li>
-                            <li><strong>Export Single:</strong> Individual facility</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-12">
-                        <h6><i class="fas fa-download text-info"></i> Get Started</h6>
-                        <button class="btn btn-outline-primary" onclick="downloadExampleYAML()">
-                            <i class="fas fa-download"></i> Download Example YAML
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% block scripts %}
 <script>
-// Import functionality
-async function handleFileImport(event) {
+// ==================== FILE IMPORT/EXPORT FUNCTIONS ====================
+
+function handleFileImport(event) {
     const file = event.target.files[0];
     if (!file) return;
     
+    // Show the import modal
+    const modal = new bootstrap.Modal(document.getElementById('importStatusModal'));
+    modal.show();
+    
+    // Show progress
+    document.getElementById('importProgress').classList.remove('d-none');
+    document.getElementById('importResults').classList.add('d-none');
+    document.getElementById('importErrors').classList.add('d-none');
+    
+    // Create FormData and send file
     const formData = new FormData();
     formData.append('yaml_file', file);
     
-    try {
-        const response = await fetch('{{ url_for("import_facilities") }}', {
-            method: 'POST',
-            body: formData
-        });
+    fetch('/facilities/import', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Hide progress
+        document.getElementById('importProgress').classList.add('d-none');
         
-        const result = await response.json();
-        
-        let statusHtml = '';
-        if (result.success) {
-            statusHtml = `
-                <div class="alert alert-success">
-                    <i class="fas fa-check-circle"></i> <strong>Import Successful!</strong>
-                    <p class="mb-0">${result.message}</p>
-                </div>
+        if (data.success) {
+            // Show success results
+            document.getElementById('importResults').classList.remove('d-none');
+            document.getElementById('importSummary').innerHTML = `
+                <p><strong>Successfully imported ${data.imported_count} facilities</strong></p>
+                ${data.details ? `<small class="text-tennis-muted">${data.details}</small>` : ''}
             `;
+            document.getElementById('reloadButton').style.display = 'inline-block';
             
-            if (result.imported_facilities && result.imported_facilities.length > 0) {
-                statusHtml += `
-                    <div class="mt-3">
-                        <h6>Imported Facilities:</h6>
-                        <ul class="list-group">
-                `;
-                result.imported_facilities.forEach(facility => {
-                    statusHtml += `
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>${facility.name}</strong>
-                                ${facility.location ? `<br><small class="text-muted">${facility.location}</small>` : ''}
-                            </div>
-                            <span class="badge bg-primary">${facility.id}</span>
-                        </li>
-                    `;
-                });
-                statusHtml += '</ul></div>';
-            }
+            TennisUI.showNotification(`Successfully imported ${data.imported_count} facilities!`, 'success');
         } else {
-            statusHtml = `
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle"></i> <strong>Import Failed!</strong>
-                    <p class="mb-0">${result.error || 'Unknown error occurred'}</p>
-                </div>
+            // Show error
+            document.getElementById('importErrors').classList.remove('d-none');
+            document.getElementById('errorDetails').innerHTML = `
+                <p><strong>Error:</strong> ${data.error}</p>
+                ${data.details ? `<small><strong>Details:</strong> ${data.details}</small>` : ''}
             `;
             
-            if (result.details) {
-                statusHtml += `
-                    <div class="mt-3">
-                        <h6>Error Details:</h6>
-                        <pre class="bg-light p-2 rounded">${result.details}</pre>
-                    </div>
-                `;
-            }
+            TennisUI.showNotification('Import failed: ' + data.error, 'danger');
         }
-        
-        document.getElementById('importStatus').innerHTML = statusHtml;
-        new bootstrap.Modal(document.getElementById('importStatusModal')).show();
-        
-    } catch (error) {
-        document.getElementById('importStatus').innerHTML = `
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-triangle"></i> <strong>Network Error!</strong>
-                <p class="mb-0">Failed to upload file: ${error.message}</p>
-            </div>
+    })
+    .catch(error => {
+        // Hide progress and show error
+        document.getElementById('importProgress').classList.add('d-none');
+        document.getElementById('importErrors').classList.remove('d-none');
+        document.getElementById('errorDetails').innerHTML = `
+            <p><strong>Network Error:</strong> ${error.message}</p>
+            <small>Please check your connection and try again.</small>
         `;
-        new bootstrap.Modal(document.getElementById('importStatusModal')).show();
-    }
+        
+        TennisUI.showNotification('Import failed: Network error', 'danger');
+    });
     
     // Reset file input
     event.target.value = '';
 }
 
-// Export all facilities to YAML
-async function exportFacilities() {
-    try {
-        const response = await fetch('{{ url_for("export_facilities") }}?format=yaml');
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `facilities_${new Date().toISOString().split('T')[0]}.yaml`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        } else {
-            alert('Failed to export facilities');
+function exportFacilities() {
+    TennisUI.showNotification('Exporting facilities...', 'info');
+    
+    fetch('/facilities/export')
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Export failed');
         }
-    } catch (error) {
-        alert('Error exporting facilities: ' + error.message);
-    }
+        return response.blob();
+    })
+    .then(blob => {
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `facilities_export_${new Date().toISOString().split('T')[0]}.yaml`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        TennisUI.showNotification('Facilities exported successfully!', 'success');
+    })
+    .catch(error => {
+        TennisUI.showNotification('Export failed: ' + error.message, 'danger');
+    });
 }
 
-// Export all facilities to JSON
-async function exportFacilitiesJSON() {
-    try {
-        const response = await fetch('{{ url_for("export_facilities") }}?format=json');
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `facilities_${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        } else {
-            alert('Failed to export facilities');
+function exportFacilitiesJSON() {
+    TennisUI.showNotification('Exporting facilities as JSON...', 'info');
+    
+    fetch('/facilities/export?format=json')
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Export failed');
         }
-    } catch (error) {
-        alert('Error exporting facilities: ' + error.message);
-    }
+        return response.blob();
+    })
+    .then(blob => {
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `facilities_export_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        TennisUI.showNotification('Facilities exported as JSON successfully!', 'success');
+    })
+    .catch(error => {
+        TennisUI.showNotification('Export failed: ' + error.message, 'danger');
+    });
 }
 
-// Export single facility
-async function exportSingleFacility(facilityId) {
-    try {
-        const response = await fetch(`{{ url_for("export_single_facility", facility_id=0) }}`.replace('0', facilityId));
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `facility_${facilityId}_${new Date().toISOString().split('T')[0]}.yaml`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        } else {
-            alert('Failed to export facility');
-        }
-    } catch (error) {
-        alert('Error exporting facility: ' + error.message);
-    }
-}
-
-// Show help modal
 function showImportExportHelp() {
-    new bootstrap.Modal(document.getElementById('importExportHelpModal')).show();
+    // Use the shared TennisImportExport modal system
+    TennisImportExport.showModal('facilities', 'Facility Import/Export Help');
 }
 
-// Download example YAML
 function downloadExampleYAML() {
-    const exampleYAML = `# Example Facilities YAML File
-# Save this as facilities_example.yaml and modify as needed
-
+    const exampleContent = `# Example facilities.yaml file
 facilities:
   - id: 1
-    name: "Example Tennis Club"
-    short_name: "ETC"
-    location: "123 Tennis Lane, Your City, State"
+    name: "Main Tennis Center"
+    short_name: "MTC"
+    location: "Downtown Sports Complex"
     total_courts: 6
     schedule:
       Monday:
-        "09:00": 4
-        "10:30": 4
-        "12:00": 6
-        "13:30": 6
-        "15:00": 6
-        "16:30": 6
-        "18:00": 4
+        start_times:
+          - time: "08:00"
+            available_courts: 4
+          - time: "10:00"
+            available_courts: 4
+          - time: "14:00"
+            available_courts: 6
+          - time: "16:00"
+            available_courts: 6
       Tuesday:
-        "09:00": 4
-        "10:30": 4
-        "12:00": 6
-        "13:30": 6
-        "15:00": 6
-        "16:30": 6
-        "18:00": 4
-      Saturday:
-        "08:00": 6
-        "09:30": 6
-        "11:00": 6
-        "12:30": 6
-        "14:00": 6
-        "15:30": 6
-        "17:00": 4
-      Sunday:
-        "08:00": 6
-        "09:30": 6
-        "11:00": 6
-        "12:30": 6
-        "14:00": 6
-        "15:30": 6
-        "17:00": 4
-    unavailable_dates:
-      - "2025-07-04"
-      - "2025-12-25"
-      - "2025-01-01"
-
+        start_times:
+          - time: "08:00"
+            available_courts: 4
+          - time: "10:00"
+            available_courts: 4
+      # ... more days
+    unavailable_dates: []
+    
   - id: 2
     name: "Community Courts"
-    location: "456 Community Dr"
-    total_courts: 4
+    location: "City Park"
+    total_courts: 3
     schedule:
-      Monday:
-        "16:00": 4
-        "17:30": 4
-        "19:00": 4
-      Wednesday:
-        "16:00": 4
-        "17:30": 4
-        "19:00": 4
-      Friday:
-        "16:00": 4
-        "17:30": 4
-        "19:00": 4
       Saturday:
-        "09:00": 4
-        "10:30": 4
-        "12:00": 4
-        "13:30": 4
+        start_times:
+          - time: "09:00"
+            available_courts: 3
       Sunday:
-        "09:00": 4
-        "10:30": 4
-        "12:00": 4
-        "13:30": 4
-    unavailable_dates: []
-`;
+        start_times:
+          - time: "09:00"
+            available_courts: 3
+    unavailable_dates: []`;
 
-    const blob = new Blob([exampleYAML], { type: 'text/yaml' });
-    const url = URL.createObjectURL(blob);
+    const blob = new Blob([exampleContent], { type: 'text/yaml' });
+    const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'facilities_example.yaml';
@@ -672,13 +466,11 @@ facilities:
     a.click();
     URL.revokeObjectURL(url);
     document.body.removeChild(a);
+    
+    TennisUI.showNotification('Example YAML file downloaded', 'info');
 }
 
-// Initialize enhanced styling and interactions
-document.addEventListener('DOMContentLoaded', function() {
-    // Setup table interactions
-    setupFacilityTableInteractions();
-});
+// ==================== TABLE INTERACTIONS ====================
 
 function setupFacilityTableInteractions() {
     const table = document.getElementById('facilitiesTable');
@@ -702,7 +494,7 @@ function setupFacilityTableInteractions() {
         header.addEventListener('click', () => sortFacilityTable(index));
     });
     
-    // Add row click handlers
+    // Add row click handlers for navigation
     const rows = document.querySelectorAll('.facility-row');
     rows.forEach(row => {
         row.addEventListener('click', function(e) {
@@ -712,7 +504,7 @@ function setupFacilityTableInteractions() {
             const facilityId = this.getAttribute('data-facility-id');
             if (facilityId) {
                 // Add visual feedback
-                this.style.backgroundColor = '#e3f2fd';
+                this.style.backgroundColor = 'var(--tennis-gray-100)';
                 setTimeout(() => {
                     this.style.backgroundColor = '';
                 }, 200);
@@ -722,73 +514,68 @@ function setupFacilityTableInteractions() {
             }
         });
         
-        // Add hover tooltip
-        row.setAttribute('title', 'Click to view facility details');
+        // Add hover effect
+        row.addEventListener('mouseenter', function() {
+            this.style.cursor = 'pointer';
+        });
     });
 }
 
 function sortFacilityTable(columnIndex) {
     const table = document.getElementById('facilitiesTable');
     const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.rows);
+    const rows = Array.from(tbody.querySelectorAll('tr'));
     const header = table.querySelectorAll('thead th')[columnIndex];
-    const icon = header.querySelector('i');
+    const sortIcon = header.querySelector('i');
     
     // Determine sort direction
-    const isAscending = !header.hasAttribute('data-sort-asc');
+    const currentDirection = header.getAttribute('data-sort-direction') || 'asc';
+    const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
     
-    // Reset all other headers
-    table.querySelectorAll('thead th').forEach(th => {
-        th.removeAttribute('data-sort-asc');
-        th.removeAttribute('data-sort-desc');
-        const otherIcon = th.querySelector('i');
-        if (otherIcon) {
-            otherIcon.className = 'fas fa-sort ms-1 opacity-50';
-        }
+    // Reset all sort icons
+    table.querySelectorAll('thead th i').forEach(icon => {
+        icon.className = 'fas fa-sort ms-1 opacity-50';
     });
     
-    // Set current header state
-    if (isAscending) {
-        header.setAttribute('data-sort-asc', '');
-        icon.className = 'fas fa-sort-up ms-1';
-    } else {
-        header.setAttribute('data-sort-desc', '');
-        icon.className = 'fas fa-sort-down ms-1';
-    }
+    // Update current sort icon
+    sortIcon.className = `fas fa-sort-${newDirection === 'asc' ? 'up' : 'down'} ms-1`;
+    header.setAttribute('data-sort-direction', newDirection);
     
     // Sort rows
     rows.sort((a, b) => {
-        const aCell = a.cells[columnIndex];
-        const bCell = b.cells[columnIndex];
+        const aValue = a.cells[columnIndex].textContent.trim();
+        const bValue = b.cells[columnIndex].textContent.trim();
         
-        let aValue = aCell.textContent.trim();
-        let bValue = bCell.textContent.trim();
-        
-        // Handle different data types
-        if (columnIndex === 0) { // Facility ID
-            aValue = parseInt(aValue.replace(/\D/g, '')) || 0;
-            bValue = parseInt(bValue.replace(/\D/g, '')) || 0;
+        // Handle numeric sorting for ID column
+        if (columnIndex === 0) {
+            return newDirection === 'asc' 
+                ? parseInt(aValue) - parseInt(bValue)
+                : parseInt(bValue) - parseInt(aValue);
         }
         
-        // Compare values
-        let comparison = 0;
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-            comparison = aValue - bValue;
-        } else {
-            comparison = aValue.localeCompare(bValue, undefined, { numeric: true });
-        }
-        
-        return isAscending ? comparison : -comparison;
+        // Handle text sorting
+        const result = aValue.localeCompare(bValue);
+        return newDirection === 'asc' ? result : -result;
     });
     
-    // Reorder rows in DOM
+    // Re-append sorted rows
     rows.forEach(row => tbody.appendChild(row));
     
-    // Add visual feedback
-    tbody.style.opacity = '0.7';
-    setTimeout(() => {
-        tbody.style.opacity = '1';
-    }, 150);
+    TennisUI.showNotification(`Sorted by ${header.textContent.trim()} (${newDirection})`, 'info');
 }
+
+// ==================== INITIALIZATION ====================
+
+// Initialize enhanced styling and interactions
+document.addEventListener('DOMContentLoaded', function() {
+    // Setup table interactions
+    setupFacilityTableInteractions();
+    
+    // Initialize tooltips for action buttons
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
 </script>
 {% endblock %}

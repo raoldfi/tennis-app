@@ -92,7 +92,7 @@ def register_routes(app):
             for league in leagues_list:
                 try:
                     teams_in_league = len(db.list_teams(league))
-                    matches_in_league = len(db.list_matches(league))
+                    matches_in_league = len(db.list_matches(league=league))
                     league_stats.append({
                         'league': league,
                         'teams_count': teams_in_league,

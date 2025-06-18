@@ -103,7 +103,37 @@ def register_routes(app):
         leagues = db.list_leagues()
         facilities = db.list_facilities()  # For dropdown
         return render_template('add_team.html', leagues=leagues, facilities=facilities)
+
     
+    
+    
+    @app.route('/teams/<int:team_id>')
+    def view_team(team_id):
+        """View a single team with full details"""
+        db = get_db()
+        if db is None:
+            flash('No database connection', 'error')
+            return redirect(url_for('index'))
+        
+        try:
+            team = db.get_team(team_id)
+            if not team:
+                flash(f'Team #{team_id} not found', 'error')
+                return redirect(url_for('teams'))
+            
+            # Get recent matches (last 10)
+            matches = db.list_matches(team=team)
+            
+            return render_template('view_team.html', 
+                                 team=team,
+                                 matches=matches)
+            
+        except Exception as e:
+            flash(f'Error loading team: {str(e)}', 'error')
+            return redirect(url_for('teams'))
+
+    
+
     
     @app.route('/teams/<int:team_id>/edit', methods=['GET', 'POST'])
     def edit_team(team_id):

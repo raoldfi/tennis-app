@@ -61,7 +61,7 @@ def register_routes(app):
                     enhanced_league['teams_count'] = 0
     
                 try:
-                    matches = db.list_matches(league)
+                    matches = db.list_matches(league=league)
                     enhanced_league['matches_count'] = len(matches) if matches else 0
                     print(f"League {enhanced_league.get('name')} has {enhanced_league['matches_count']} matches")  # Debug
                 except Exception as e:
@@ -213,7 +213,7 @@ def register_routes(app):
                     enhanced_teams.append(team_dict)
             
             # Get matches for this league
-            matches = db.list_matches(league)
+            matches = db.list_matches(league=league)
             
             # Calculate league statistics
             league_stats = {
@@ -411,7 +411,7 @@ def register_routes(app):
                     return redirect(url_for('generate_matches'))
                 
                 # Check for existing matches
-                existing_matches = db.list_matches(league)
+                existing_matches = db.list_matches(league=league)
                 if existing_matches:
                     flash(f'League "{league.name}" already has {len(existing_matches)} matches. Delete existing matches first if you want to regenerate.', 'warning')
                     return redirect(url_for('generate_matches'))
@@ -468,7 +468,7 @@ def register_routes(app):
             
             # Get additional data
             teams = db.list_teams(league)
-            matches = db.list_matches(league)
+            matches = db.list_matches(league=league)
             
             league_data = {
                 'id': league.id,
@@ -701,7 +701,7 @@ def register_routes(app):
                 }), 400
             
             # Check for existing matches
-            existing_matches = db.list_matches(league)
+            existing_matches = db.list_matches(league=league)
             if existing_matches:
                 return jsonify({
                     'error': f'League already has {len(existing_matches)} matches. Delete existing matches first.'
@@ -743,7 +743,7 @@ def register_routes(app):
             for league in leagues_list:
                 # Get team and match counts
                 teams = db.list_teams(league)
-                matches = db.list_matches(league)
+                matches = db.list_matches(league=league)
                 
                 league_data = {
                     'id': league.id,
@@ -817,7 +817,7 @@ def register_routes(app):
             try:
                 # Step 1: Delete all matches for this league
                 print("🔍 Getting matches for league...")
-                matches = db.list_matches(league)
+                matches = db.list_matches(league=league)
                 print(f"📋 Found {len(matches)} matches to delete")
                 
                 for match in matches:

@@ -26,10 +26,18 @@ pip install flask pyyaml
 
 ```
 tennis_web_app/
-├── tennis_web_app.py
+├── web_app.py
+├── start_tennis_app.py
 ├── sqlite_tennis_db.py
-├── tennis_db.py
+├── tennis_db_interface.py
 ├── usta.py
+├── web_database.py
+├── web_main.py
+├── web_facilities.py
+├── web_leagues.py
+├── web_teams.py
+├── web_matches.py
+├── web_schedule.py
 └── templates/
     ├── base.html
     ├── connect.html
@@ -44,14 +52,20 @@ tennis_web_app/
 
 ### 3. Copy Files
 
-1. Copy all the Python files (`usta.py`, `tennis_db.py`, `sqlite_tennis_db.py`, `tennis_web_app.py`)
+1. Copy all the Python files (core modules and web modules)
 2. Create a `templates` folder
 3. Copy all the HTML template files into the `templates` folder
 
 ### 4. Run the Application
 
+#### Option A: Simple startup (configure database through web interface)
 ```bash
-python tennis_web_app.py
+python web_app.py
+```
+
+#### Option B: Pre-configured startup with database
+```bash
+python start_tennis_app.py --backend sqlite --db-path tennis.db
 ```
 
 The application will start on `http://localhost:5000`
@@ -60,13 +74,19 @@ The application will start on `http://localhost:5000`
 
 1. Open `http://localhost:5000` in your browser
 2. Enter the path to your tennis database (e.g., `tennis.db`)
-3. If you don't have data yet, load it using the command line:
+3. If you don't have data yet, populate it using:
 
 ```bash
-python sqlite_tennis_db.py tennis.db load facilities facilities.yaml
-python sqlite_tennis_db.py tennis.db load leagues leagues.yaml
-python sqlite_tennis_db.py tennis.db load teams teams.yaml
-python sqlite_tennis_db.py tennis.db load matches matches.yaml
+python populate_tennis_db.py tennis.db
+```
+
+Or load individual data files using the CLI:
+
+```bash
+python tennis_cli.py --db-path tennis.db load facilities facilities.yaml
+python tennis_cli.py --db-path tennis.db load leagues leagues.yaml
+python tennis_cli.py --db-path tennis.db load teams teams.yaml
+python tennis_cli.py --db-path tennis.db load matches matches.yaml
 ```
 
 ## Features
@@ -126,8 +146,8 @@ python sqlite_tennis_db.py tennis.db load matches matches.yaml
 
 ### **Data Management**
 - Load new data using the command line interface
-- Web app is read-only (viewing only)
-- Database changes require CLI tools
+- Web app supports both viewing and editing
+- Use CLI tools for bulk operations
 
 ## Troubleshooting
 
@@ -137,26 +157,37 @@ python sqlite_tennis_db.py tennis.db load matches matches.yaml
 - Create directory if it doesn't exist
 
 ### **No Data Showing**
-- Verify data was loaded using CLI commands
+- Verify data was loaded using CLI commands or populate script
 - Check for errors in data loading
-- Use debug mode in `load_yaml` if needed
+- Use debug mode if needed
 
 ### **Web App Won't Start**
 - Check Python version (3.7+)
 - Install missing dependencies: `pip install flask pyyaml`
 - Ensure all files are in correct directories
+- Check import errors in console output
 
 ### **Templates Not Found**
 - Verify `templates/` folder exists
 - Check all HTML files are in templates folder
 - File names must match exactly
 
+### **Import Errors**
+- Ensure all required Python modules are present
+- Check that `web_database.py` exists
+- Verify `tennis_db_interface.py` is available
+
 ## Development
 
 ### **Run in Debug Mode**
 ```bash
 export FLASK_ENV=development
-python tennis_web_app.py
+python web_app.py
+```
+
+Or use the startup script with debug flag:
+```bash
+python start_tennis_app.py --backend sqlite --db-path tennis.db --debug
 ```
 
 ### **Access from Other Devices**
@@ -175,4 +206,3 @@ This application is designed for local use. For production deployment:
 - Use production WSGI server
 - Enable HTTPS
 - Validate all inputs
-

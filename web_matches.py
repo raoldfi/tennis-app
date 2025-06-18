@@ -88,27 +88,34 @@ def register_routes(app, get_db):
             traceback.print_exc()
             flash(f'Error loading matches: {str(e)}', 'error')
             return redirect(url_for('dashboard'))
+
+
     
-    @app.route('/match/<int:match_id>')
+    @app.route('/matches/<int:match_id>')
     def view_match(match_id):
-        """View match details"""
+        """View a single match with full details"""
         db = get_db()
-        if not db:
-            return redirect(url_for('connect'))
+        if db is None:
+            flash('No database connection', 'error')
+            return redirect(url_for('index'))
         
         try:
             match = db.get_match(match_id)
             if not match:
-                flash('Match not found', 'error')
+                flash(f'Match #{match_id} not found', 'error')
                 return redirect(url_for('matches'))
             
-            return render_template('view_match.html', match=match)
+            # Get additional data for the match view
+            leagues = db.list_leagues()  # For breadcrumb/navigation
+            
+            return render_template('view_match.html', 
+                                 match=match,
+                                 leagues=leagues)
             
         except Exception as e:
-            print(f"Error loading match {match_id}: {str(e)}")
-            traceback.print_exc()
             flash(f'Error loading match: {str(e)}', 'error')
             return redirect(url_for('matches'))
+
 
     @app.route('/matches/<int:match_id>/schedule', methods=['POST'])
     def schedule_match(match_id):
@@ -233,7 +240,12 @@ def register_routes(app, get_db):
             traceback.print_exc()
             return jsonify({'error': f'Deletion failed: {str(e)}'}), 500
 
+    
+    
+    
 
+
+    
     # ==================== Bulk Operations ====================
 
     @app.route('/api/import-matches', methods=['POST'])
@@ -277,7 +289,7 @@ def register_routes(app, get_db):
     
     @app.route('/api/bulk-auto-schedule', methods=['POST'])
     def bulk_auto_schedule():
-        """Bulk auto-schedule matches using db.auto_schedule_matches"""
+        """Bulk auto-schedule matches using db.scheduling_manager.auto_schedule_matches"""
         print(f"\n=== BULK AUTO-SCHEDULE ===")
         db = get_db()
         if db is None:
@@ -290,12 +302,13 @@ def register_routes(app, get_db):
             
             print(f"Bulk auto-schedule scope: {scope}, league_id: {league_id}")
             
-            # Determine which matches to schedule - use MatchType.UNSCHEDULED directly
+            # Get the matches to schedule based on scope
             matches_to_schedule = []
             
             if scope == 'all':
                 # All unscheduled matches - use MatchType.UNSCHEDULED directly
                 matches_to_schedule = db.list_matches(match_type=MatchType.UNSCHEDULED)
+                print(f"Auto-scheduling all unscheduled matches: {len(matches_to_schedule)} found")
                 
             elif scope == 'league' and league_id:
                 # Specific league only - get unscheduled matches for that league
@@ -304,6 +317,7 @@ def register_routes(app, get_db):
                     return jsonify({'error': f'League {league_id} not found'}), 400
                 
                 matches_to_schedule = db.list_matches(league=league, match_type=MatchType.UNSCHEDULED)
+                print(f"Auto-scheduling unscheduled matches for league '{league.name}': {len(matches_to_schedule)} found")
                 
             elif scope == 'selected':
                 # Apply current filter parameters to get the same matches as displayed
@@ -313,13 +327,14 @@ def register_routes(app, get_db):
                 end_date = request.form.get('end_date')
                 search_query = request.form.get('search', '').strip()
                 
-                # Get filtered matches - if original filter was for unscheduled, use that directly
+                # Get filtered matches - for auto-scheduling, we want unscheduled matches from the current view
                 league = db.get_league(league_id_filter) if league_id_filter else None
                 
                 # For selected scope, we want unscheduled matches from the current view
                 # So we use UNSCHEDULED regardless of the original match_type filter
                 all_matches = db.list_matches(league=league, match_type=MatchType.UNSCHEDULED)
                 matches_to_schedule = filter_matches(all_matches, start_date, end_date, search_query)
+                print(f"Auto-scheduling filtered unscheduled matches: {len(matches_to_schedule)} found")
             
             else:
                 return jsonify({'error': 'Invalid scope or missing parameters'}), 400
@@ -327,51 +342,70 @@ def register_routes(app, get_db):
             if not matches_to_schedule:
                 return jsonify({
                     'success': True,
-                    'message': 'No unscheduled matches found to schedule',
+                    'message': 'No unscheduled matches found to auto-schedule',
                     'scheduled_count': 0,
+                    'failed_count': 0,
                     'total_count': 0
                 })
             
             print(f"Found {len(matches_to_schedule)} unscheduled matches to auto-schedule")
             
-            # Use the database's auto_schedule_matches method
+            # Check if scheduling manager exists and has auto_schedule_matches method
+            if not hasattr(db, 'scheduling_manager'):
+                return jsonify({
+                    'error': 'Auto-scheduling functionality not available. Database scheduling manager not found.'
+                }), 500
+            
+            if not hasattr(db.scheduling_manager, 'auto_schedule_matches'):
+                return jsonify({
+                    'error': 'Auto-scheduling functionality not available. Database method auto_schedule_matches not implemented.'
+                }), 500
+            
+            # Call the database auto_schedule_matches method with list of Match objects
             try:
-                results = db.auto_schedule_matches(matches_to_schedule)
+                print(f"Calling db.scheduling_manager.auto_schedule_matches with {len(matches_to_schedule)} matches")
+                results = db.scheduling_manager.auto_schedule_matches(matches_to_schedule)
                 
-                # Extract results
+                # Extract results based on sql_scheduling_manager.py return format
                 scheduled_count = results.get('scheduled', 0)
                 failed_count = results.get('failed', 0)
+                total_count = results.get('total_matches', len(matches_to_schedule))
+                success_rate = results.get('success_rate', 0.0)
+                scheduling_details = results.get('scheduling_details', [])
                 errors = results.get('errors', [])
                 
-                print(f"Auto-scheduling results: {scheduled_count} scheduled, {failed_count} failed")
+                print(f"Auto-scheduling results: {scheduled_count} scheduled, {failed_count} failed, success rate: {success_rate}%")
                 
-                # Prepare response message
-                if scheduled_count > 0 and failed_count == 0:
-                    message = f"Successfully auto-scheduled all {scheduled_count} matches"
+                # Prepare response message based on results
+                if total_count == 0:
+                    response_message = "No unscheduled matches found to auto-schedule"
+                elif scheduled_count > 0 and failed_count == 0:
+                    response_message = f"Successfully auto-scheduled all {scheduled_count} matches"
                 elif scheduled_count > 0 and failed_count > 0:
-                    message = f"Auto-scheduled {scheduled_count} of {len(matches_to_schedule)} matches. {failed_count} could not be scheduled."
-                elif scheduled_count == 0:
-                    message = f"Could not auto-schedule any of the {len(matches_to_schedule)} matches. No available time slots found."
+                    response_message = f"Auto-scheduled {scheduled_count} of {total_count} matches. {failed_count} could not be scheduled (no available time slots)."
+                elif scheduled_count == 0 and total_count > 0:
+                    response_message = f"Could not auto-schedule any of the {total_count} matches. No available time slots found."
                 else:
-                    message = f"Auto-scheduled {scheduled_count} of {len(matches_to_schedule)} matches"
+                    response_message = f"Auto-scheduled {scheduled_count} matches"
+                
+                # Include success rate in message if meaningful
+                if total_count > 0:
+                    response_message += f" (Success rate: {success_rate}%)"
                 
                 return jsonify({
                     'success': True,
-                    'message': message,
+                    'message': response_message,
                     'scheduled_count': scheduled_count,
                     'failed_count': failed_count,
-                    'total_count': len(matches_to_schedule),
+                    'total_count': total_count,
+                    'success_rate': success_rate,
+                    'scheduling_details': scheduling_details[:10] if scheduling_details else [],  # Limit details
                     'errors': errors[:5] if errors else []  # Limit error details
                 })
                 
-            except AttributeError:
-                # Fallback if db.auto_schedule_matches doesn't exist
-                return jsonify({
-                    'error': 'Auto-scheduling functionality not available. Database method auto_schedule_matches not found.'
-                }), 500
-                
             except Exception as db_error:
                 print(f"Database auto-scheduling error: {str(db_error)}")
+                traceback.print_exc()
                 return jsonify({
                     'error': f'Auto-scheduling failed: {str(db_error)}'
                 }), 500
@@ -380,7 +414,11 @@ def register_routes(app, get_db):
             print(f"Bulk auto-schedule error: {str(e)}")
             traceback.print_exc()
             return jsonify({'error': f'Bulk auto-schedule failed: {str(e)}'}), 500
-    
+
+
+
+
+
     
     @app.route('/api/bulk-unschedule', methods=['POST'])
     def bulk_unschedule():

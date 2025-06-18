@@ -178,19 +178,28 @@ class SQLMatchManager:
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error retrieving match {match_id}: {e}")
 
-    def list_matches(self, league: Optional['League'] = None, 
-                    match_type: MatchType = MatchType.ALL) -> List[Match]:
-        """List matches with optional filtering by league and match type
+
+
+
+    
+    def list_matches(self, 
+                     facility: Optional['Facility'] = None,
+                     league: Optional['League'] = None,
+                     team: Optional['Team'] = None,
+                    match_type: Optional['MatchType'] = MatchType.ALL) -> List[Match]:
+        """List matches with optional filtering by league, match type, facility, and team
         
         Args:
             league: Optional League object to filter by
-            match_type: Type of matches to return (MatchType enum)
+            match_type: Optional type of matches to return (MatchType enum, defaults to MatchType.ALL)
+            facility: Optional Facility object to filter by (matches at this facility)
+            team: Optional Team object to filter by (matches involving this team)
         
         Returns:
             List of Match objects matching the criteria
             
         Raises:
-            TypeError: If match_type is not a MatchType enum
+            TypeError: If match_type is not a MatchType enum, or if facility/team are wrong types
             RuntimeError: If database error occurs
         
         Examples:
@@ -202,13 +211,28 @@ class SQLMatchManager:
             
             # Get unscheduled matches in a specific league
             matches = manager.list_matches(my_league, MatchType.UNSCHEDULED)
+            
+            # Get matches at a specific facility
+            matches = manager.list_matches(facility=my_facility)
+            
+            # Get matches involving a specific team
+            matches = manager.list_matches(team=my_team)
+            
+            # Get scheduled matches for a team at a facility
+            matches = manager.list_matches(match_type=MatchType.SCHEDULED, facility=my_facility, team=my_team)
         """
         
-        # Validate match_type parameter
+        # Validate parameters
         if not isinstance(match_type, MatchType):
             raise TypeError(f"match_type must be a MatchType enum, got: {type(match_type)}")
         
-        print(f"Trying to get Matches for League = {league}, match_type={match_type}")
+        if facility is not None and not hasattr(facility, 'id'):
+            raise TypeError(f"facility must be a Facility object with an id attribute, got: {type(facility)}")
+        
+        if team is not None and not hasattr(team, 'id'):
+            raise TypeError(f"team must be a Team object with an id attribute, got: {type(team)}")
+        
+        print(f"Trying to get Matches for League = {league}, match_type={match_type}, facility={facility}, team={team}")
         
         try:
             # Build query based on filters
@@ -219,67 +243,46 @@ class SQLMatchManager:
                 where_conditions.append("league_id = ?")
                 params.append(league.id)
             
-            # Build the query
-            base_query = "SELECT * FROM matches"
-            if where_conditions:
-                query = f"{base_query} WHERE {' AND '.join(where_conditions)}"
-            else:
-                query = base_query
+            # Add facility filter
+            if facility:
+                where_conditions.append("facility_id = ?")
+                params.append(facility.id)
             
-            # Execute query and fetch results
+            # Add team filter (matches where team is either home or visitor)
+            if team:
+                where_conditions.append("(home_team_id = ? OR visitor_team_id = ?)")
+                params.append(team.id)
+                params.append(team.id)
+            
+            # Add match type filter
+            if match_type == MatchType.SCHEDULED:
+                where_conditions.append("status = 'scheduled'")
+            elif match_type == MatchType.UNSCHEDULED:
+                where_conditions.append("status = 'unscheduled'")
+            # For MatchType.ALL, no additional filter needed
+            
+            # Build the query
+            query = "SELECT id FROM matches"
+            if where_conditions:
+                query += " WHERE " + " AND ".join(where_conditions)
+            query += " ORDER BY id"
+            
+            print(f"Query: {query}")
+            print(f"Params: {params}")
+            
             self.cursor.execute(query, params)
-            rows = self.cursor.fetchall()
             
             matches = []
-            for row in rows:
-                match_data = self._dictify(row)
-                
-                # Parse scheduled times from JSON
-                if match_data.get('scheduled_times'):
-                    try:
-                        parsed_times = json.loads(match_data['scheduled_times'])
-                        if isinstance(parsed_times, list):
-                            match_data['scheduled_times'] = parsed_times
-                        else:
-                            match_data['scheduled_times'] = [parsed_times] if parsed_times is not None else []
-                    except (json.JSONDecodeError, TypeError):
-                        match_data['scheduled_times'] = []
-                else:
-                    match_data['scheduled_times'] = []
-                
-                # Resolve related objects using managers
-                league_obj = self.db.league_manager.get_league(match_data['league_id'])
-                home_team = self.db.team_manager.get_team(match_data['home_team_id'])
-                visitor_team = self.db.team_manager.get_team(match_data['visitor_team_id'])
-                facility = None
-                if match_data.get('facility_id'):
-                    facility = self.db.facility_manager.get_facility(match_data['facility_id'])
-                
-                # Create Match object
-                match = Match(
-                    id=match_data['id'],
-                    league=league_obj,
-                    home_team=home_team,
-                    visitor_team=visitor_team,
-                    facility=facility,
-                    date=match_data['date'],
-                    scheduled_times=match_data['scheduled_times']
-                )
-                
-                # Apply match_type filter
-                if match_type == MatchType.SCHEDULED and not match.is_scheduled():
-                    continue
-                elif match_type == MatchType.UNSCHEDULED and match.is_scheduled():
-                    continue
-                # MatchType.ALL includes everything
-                    
-                matches.append(match)
+            for row in self.cursor.fetchall():
+                match = self.get_match(row['id'])
+                if match:
+                    matches.append(match)
             
+            print(f"Found {len(matches)} matches")
             return matches
             
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error listing matches: {e}")
-
 
 
 

@@ -26,7 +26,9 @@ def register_routes(app):
         
         try:
             facilities_list = db.list_facilities()
-            return render_template('facilities.html', facilities=facilities_list)
+            # Add current date to template context
+            today = datetime.now().strftime('%Y-%m-%d')
+            return render_template('facilities.html', facilities=facilities_list, today=today)
         except Exception as e:
             flash(f'Error loading facilities: {e}', 'error')
             return redirect(url_for('index'))

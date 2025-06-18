@@ -12,16 +12,16 @@
 
 <div class="row">
     <div class="col-md-3 mb-4">
-        <div class="card h-100">
+        <div class="card h-100 stat-card">
             <div class="card-body text-center">
-                <i class="fas fa-building fa-3x text-primary mb-3"></i>
+                <i class="fas fa-building fa-3x text-tennis-primary mb-3"></i>
                 <h5 class="card-title">Facilities</h5>
                 <p class="card-text">View and manage tennis facilities where matches are played.</p>
                 <div class="d-flex gap-2 justify-content-center">
-                    <a href="{{ url_for('facilities') }}" class="btn btn-primary">
+                    <a href="{{ url_for('facilities') }}" class="btn btn-tennis-primary">
                         <i class="fas fa-eye"></i> View
                     </a>
-                    <a href="{{ url_for('add_facility') }}" class="btn btn-success">
+                    <a href="{{ url_for('add_facility') }}" class="btn btn-tennis-success">
                         <i class="fas fa-plus"></i> Add
                     </a>
                 </div>
@@ -30,16 +30,16 @@
     </div>
     
     <div class="col-md-3 mb-4">
-        <div class="card h-100">
+        <div class="card h-100 stat-card">
             <div class="card-body text-center">
-                <i class="fas fa-trophy fa-3x text-success mb-3"></i>
+                <i class="fas fa-trophy fa-3x text-tennis-success mb-3"></i>
                 <h5 class="card-title">Leagues</h5>
                 <p class="card-text">Browse leagues and generate matches directly from the leagues page.</p>
                 <div class="d-flex gap-2 justify-content-center">
-                    <a href="{{ url_for('leagues') }}" class="btn btn-success">
+                    <a href="{{ url_for('leagues') }}" class="btn btn-tennis-success">
                         <i class="fas fa-eye"></i> View
                     </a>
-                    <a href="{{ url_for('add_league') }}" class="btn btn-success">
+                    <a href="{{ url_for('add_league') }}" class="btn btn-tennis-success">
                         <i class="fas fa-plus"></i> Add
                     </a>
                 </div>
@@ -48,16 +48,16 @@
     </div>
     
     <div class="col-md-3 mb-4">
-        <div class="card h-100">
+        <div class="card h-100 stat-card">
             <div class="card-body text-center">
-                <i class="fas fa-users fa-3x text-info mb-3"></i>
+                <i class="fas fa-users fa-3x text-tennis-info mb-3"></i>
                 <h5 class="card-title">Teams</h5>
-                <p class="card-text">Explore teams, their captains, and league affiliations.</p>
+                <p class="card-text">View teams organized by league with captain contact information.</p>
                 <div class="d-flex gap-2 justify-content-center">
-                    <a href="{{ url_for('teams') }}" class="btn btn-info">
+                    <a href="{{ url_for('teams') }}" class="btn btn-tennis-info">
                         <i class="fas fa-eye"></i> View
                     </a>
-                    <a href="{{ url_for('add_team') }}" class="btn btn-success">
+                    <a href="{{ url_for('add_team') }}" class="btn btn-tennis-success">
                         <i class="fas fa-plus"></i> Add
                     </a>
                 </div>
@@ -66,17 +66,14 @@
     </div>
     
     <div class="col-md-3 mb-4">
-        <div class="card h-100">
+        <div class="card h-100 stat-card">
             <div class="card-body text-center">
-                <i class="fas fa-calendar-alt fa-3x text-warning mb-3"></i>
-                <h5 class="card-title">Matches & Schedule</h5>
-                <p class="card-text">View generated matches, schedule them, and see the daily match schedule.</p>
-                <div class="d-flex gap-1 justify-content-center">
-                    <a href="{{ url_for('matches') }}" class="btn btn-sm btn-warning">
-                        <i class="fas fa-list"></i> List
-                    </a>
-                    <a href="{{ url_for('schedule') }}" class="btn btn-sm btn-info">
-                        <i class="fas fa-calendar-week"></i> Schedule
+                <i class="fas fa-calendar-alt fa-3x text-tennis-warning mb-3"></i>
+                <h5 class="card-title">Matches</h5>
+                <p class="card-text">View and manage scheduled matches between teams.</p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <a href="{{ url_for('matches') }}" class="btn btn-tennis-warning">
+                        <i class="fas fa-eye"></i> View
                     </a>
                 </div>
             </div>
@@ -84,165 +81,30 @@
     </div>
 </div>
 
-<!-- Quick Add Section -->
+<!-- Additional dashboard sections can be added here -->
 <div class="row mt-4">
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <i class="fas fa-plus-circle"></i> Quick Actions
-            </div>
-            <div class="card-body">
-                <p class="text-muted mb-3">Quickly add new entries or view your tennis database</p>
-                <div class="row">
-                    <div class="col-md-3 mb-2">
-                        <a href="{{ url_for('add_facility') }}" class="btn btn-outline-primary w-100">
-                            <i class="fas fa-building"></i> Add Facility
-                        </a>
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <a href="{{ url_for('add_league') }}" class="btn btn-outline-success w-100">
-                            <i class="fas fa-trophy"></i> Add League
-                        </a>
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <a href="{{ url_for('add_team') }}" class="btn btn-outline-info w-100">
-                            <i class="fas fa-users"></i> Add Team
-                        </a>
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <a href="{{ url_for('schedule') }}" class="btn btn-outline-info w-100">
-                            <i class="fas fa-calendar-week"></i> View Schedule
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Match Generation Section -->
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-magic"></i> Match Generation
-            </div>
-            <div class="card-body">
-                <p class="text-muted mb-3">Automatically generate fair and balanced match schedules directly from the Leagues page</p>
-                <div class="row">
-                    <div class="col-md-4">
-                        <h6><i class="fas fa-magic text-success"></i> What it does:</h6>
-                        <ul class="small mb-3">
-                            <li>Creates fair match pairings for all teams in a league</li>
-                            <li>Balances home and away games for each team</li>
-                            <li>Ensures optimal opponent distribution</li>
-                            <li>Generates unscheduled matches ready for date assignment</li>
-                        </ul>
-                    </div>
-                    <div class="col-md-4">
-                        <h6><i class="fas fa-chart-line text-info"></i> You get:</h6>
-                        <ul class="small mb-3">
-                            <li>Complete set of matches automatically created</li>
-                            <li>Fair distribution of home and away games</li>
-                            <li>Unscheduled matches ready for scheduling</li>
-                            <li>Immediate integration with match scheduling</li>
-                        </ul>
-                    </div>
-                    <div class="col-md-4">
-                        <h6><i class="fas fa-workflow text-warning"></i> Simple Process:</h6>
-                        <ul class="small mb-3">
-                            <li>Go to the Leagues page</li>
-                            <li>Click the <i class="fas fa-magic"></i> button next to any league</li>
-                            <li>Matches are generated instantly!</li>
-                            <li>View and schedule matches in the Matches section</li>
-                        </ul>
-                    </div>
-                </div>
-                <a href="{{ url_for('leagues') }}" class="btn btn-primary">
-                    <i class="fas fa-trophy"></i> Go to Leagues to Generate Matches
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mt-4">
-    <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-list"></i> USTA Constants
-            </div>
-            <div class="card-body">
-                <p>View official USTA sections, regions, age groups, and divisions used for league organization.</p>
-                <a href="{{ url_for('constants') }}" class="btn btn-outline-primary">
-                    <i class="fas fa-list"></i> View Constants
-                </a>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-chart-bar"></i> Statistics
-            </div>
-            <div class="card-body">
-                <p>Get insights into your database with counts, breakdowns, and league statistics.</p>
-                <a href="{{ url_for('stats') }}" class="btn btn-outline-primary">
-                    <i class="fas fa-chart-bar"></i> View Statistics
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-question-circle"></i> Getting Started
+                <h5 class="mb-0"><i class="fas fa-chart-bar text-tennis-primary"></i> Quick Actions</h5>
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-4">
-                        <h6><i class="fas fa-route text-primary"></i> Recommended Order</h6>
-                        <p class="small">For best results, add entries in this order:</p>
-                        <ol class="small">
-                            <li><strong>Facilities</strong> - Tennis venues</li>
-                            <li><strong>Leagues</strong> - Competition categories</li>
-                            <li><strong>Teams</strong> - Assign to leagues & facilities</li>
-                            <li><strong>Generate Matches</strong> - Use the <i class="fas fa-magic"></i> button on Leagues page</li>
-                            <li><strong>Schedule Matches</strong> - Set dates and times</li>
-                        </ol>
+                    <div class="col-md-6">
+                        <h6>Database Management</h6>
+                        <a href="{{ url_for('stats') }}" class="btn btn-outline-tennis-primary me-2 mb-2">
+                            <i class="fas fa-chart-line"></i> View Statistics
+                        </a>
+                        <a href="{{ url_for('constants') }}" class="btn btn-outline-tennis-info mb-2">
+                            <i class="fas fa-cog"></i> USTA Constants
+                        </a>
                     </div>
-                    <div class="col-md-4">
-                        <h6><i class="fas fa-magic text-success"></i> Instant Match Generation</h6>
-                        <p class="small">Matches are automatically generated with optimal fairness:</p>
-                        <ul class="small">
-                            <li>No manual match entry needed</li>
-                            <li>Perfect home/away distribution</li>
-                            <li>Optimal opponent variety</li>
-                            <li>Mathematical validation built-in</li>
-                            <li>Ready for immediate scheduling</li>
-                        </ul>
+                    <div class="col-md-6">
+                        <h6>Advanced Operations</h6>
+                        <button class="btn btn-outline-tennis-warning me-2 mb-2" onclick="TennisImportExport.showModal('leagues', 'Import/Export Leagues')">
+                            <i class="fas fa-exchange-alt"></i> Import/Export
+                        </button>
                     </div>
-                    <div class="col-md-4">
-                        <h6><i class="fas fa-upload text-info"></i> Bulk Import</h6>
-                        <p class="small">For large datasets, use the command line interface:</p>
-                        <pre class="bg-light p-2 rounded small"><code>python sqlite_tennis_db.py tennis.db load facilities facilities.yaml</code></pre>
-                        
-                        <h6><i class="fas fa-search text-warning"></i> Navigation</h6>
-                        <p class="small">Use filters and sorting to find data quickly. All tables are sortable by clicking column headers.</p>
-                    </div>
-                </div>
-                
-                <hr>
-                
-                <div class="alert alert-info mb-0">
-                    <i class="fas fa-lightbulb"></i>
-                    <strong>Pro Tip:</strong> Start by adding facilities and leagues, then create teams. 
-                    Use the USTA Constants page to ensure valid league values.
-                    <strong>New:</strong> Generate matches directly from the Leagues page using the <i class="fas fa-magic"></i> button!
                 </div>
             </div>
         </div>
