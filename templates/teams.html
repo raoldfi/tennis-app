@@ -366,11 +366,11 @@
                                        title="Edit team information">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <button class="btn btn-sm btn-outline-info" 
-                                            onclick="TeamsManager.viewTeamDetails({{ enhanced_team.team.id }})"
-                                            title="View team details">
+                                    <a href="{{ url_for('view_team', team_id=enhanced_team.team.id) }}" 
+                                       class="btn btn-sm btn-outline-info" 
+                                       title="View team details">
                                         <i class="fas fa-eye"></i>
-                                    </button>
+                                    </a>
                                     <button class="btn btn-sm btn-outline-secondary" 
                                             onclick="TeamsManager.exportSingleTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')"
                                             title="Export this team">
@@ -472,9 +472,10 @@
                         <a href="{{ url_for('edit_team', team_id=enhanced_team.team.id) }}" class="btn btn-sm btn-tennis-warning">
                             <i class="fas fa-edit"></i> Edit
                         </a>
-                        <button class="btn btn-sm btn-tennis-info" onclick="TeamsManager.viewTeamDetails({{ enhanced_team.team.id }})">
+                        <a href="{{ url_for('view_team', team_id=enhanced_team.team.id) }}" 
+                           class="btn btn-sm btn-tennis-info">
                             <i class="fas fa-eye"></i> View
-                        </button>
+                        </a>
                         <button class="btn btn-sm btn-outline-secondary" onclick="TeamsManager.exportSingleTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')">
                             <i class="fas fa-download"></i> Export
                         </button>

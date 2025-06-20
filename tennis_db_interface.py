@@ -29,12 +29,12 @@ class TennisDBInterface(ABC):
 
     # ========== Connection Management ==========
     @abstractmethod
-    def connect(self) -> None:
+    def connect(self) -> bool:
         """Establish database connection"""
         pass
 
     @abstractmethod
-    def disconnect(self) -> None:
+    def disconnect(self) -> bool:
         """Close database connection"""
         pass
 
@@ -45,7 +45,7 @@ class TennisDBInterface(ABC):
 
     # ========== Team Management ==========
     @abstractmethod
-    def add_team(self, team: 'Team') -> None:
+    def add_team(self, team: 'Team') -> bool:
         """Add a new team to the database"""
         pass
 
@@ -60,19 +60,19 @@ class TennisDBInterface(ABC):
         pass
 
     @abstractmethod
-    def update_team(self, team: 'Team') -> None:
+    def update_team(self, team: 'Team') -> bool:
         """Update an existing team"""
         pass
 
     @abstractmethod
-    def delete_team(self, team: 'Team') -> None:
+    def delete_team(self, team: 'Team') -> bool:
         """Delete a team"""
         pass
 
 
     # ========== League Management ==========
     @abstractmethod
-    def add_league(self, league: 'League') -> None:
+    def add_league(self, league: 'League') -> bool:
         """Add a new league to the database"""
         pass
 
@@ -87,18 +87,18 @@ class TennisDBInterface(ABC):
         pass
 
     @abstractmethod
-    def update_league(self, league: 'League') -> None:
+    def update_league(self, league: 'League') -> bool:
         """Update an existing league"""
         pass
 
     @abstractmethod
-    def delete_league(self, league: 'League') -> None:
+    def delete_league(self, league: 'League') -> bool:
         """Delete a league"""
         pass
 
     # ========== Match Management ==========
     @abstractmethod
-    def add_match(self, match: 'Match') -> None:
+    def add_match(self, match: 'Match') -> bool:
         """Add a new match to the database"""
         pass
 
@@ -118,12 +118,12 @@ class TennisDBInterface(ABC):
         pass
 
     @abstractmethod
-    def update_match(self, match: 'Match') -> None:
+    def update_match(self, match: 'Match') -> bool:
         """Update an existing match"""
         pass
 
     @abstractmethod
-    def delete_match(self, match: 'Match') -> None:
+    def delete_match(self, match: 'Match') -> bool:
         """Delete a match"""
         pass
 
@@ -134,7 +134,7 @@ class TennisDBInterface(ABC):
 
     # ========== Facility Management ==========
     @abstractmethod
-    def add_facility(self, facility: 'Facility') -> None:
+    def add_facility(self, facility: 'Facility') -> bool:
         """Add a new facility to the database"""
         pass
 
@@ -149,12 +149,12 @@ class TennisDBInterface(ABC):
         pass
 
     @abstractmethod
-    def update_facility(self, facility: 'Facility') -> None:
+    def update_facility(self, facility: 'Facility') -> bool:
         """Update an existing facility"""
         pass
 
     @abstractmethod
-    def delete_facility(self, facility: 'Facility') -> None:
+    def delete_facility(self, facility: 'Facility') -> bool:
         """Delete a facility"""
         pass
 
@@ -250,7 +250,7 @@ class TennisDBInterface(ABC):
         pass
 
     @abstractmethod
-    def unschedule_match(self, match: 'Match') -> None:
+    def unschedule_match(self, match: 'Match') -> bool:
         """
         Unschedule a match (remove facility, date, and all scheduled times)
         
@@ -385,7 +385,7 @@ class TennisDBInterface(ABC):
 
     # ========== Import/Export ==========
     @abstractmethod
-    def export_to_yaml(self, filename: str) -> None:
+    def export_to_yaml(self, filename: str) -> bool:
         """
         Export database to YAML file
         
@@ -395,7 +395,7 @@ class TennisDBInterface(ABC):
         pass
 
     @abstractmethod
-    def import_from_yaml(self, filename: str) -> None:
+    def import_from_yaml(self, filename: str) -> bool:
         """
         Import data from YAML file
         

@@ -177,13 +177,14 @@ class SQLiteTennisDB(TennisDBInterface):
     
     # ========== Connection Management ==========
     
-    def connect(self) -> None:
+    def connect(self) -> bool:
         """Establish database connection"""
         if not self.conn:
             self._initialize_schema()
             self._initialize_managers()
+        return True
     
-    def disconnect(self) -> None:
+    def disconnect(self) -> bool:
         """Close database connection"""
         if hasattr(self, 'conn') and self.conn:
             try:
@@ -192,6 +193,7 @@ class SQLiteTennisDB(TennisDBInterface):
                 self.cursor = None
             except sqlite3.Error:
                 pass
+        return True
 
     def ping(self) -> bool:
         """Test if database connection is alive"""
@@ -205,15 +207,15 @@ class SQLiteTennisDB(TennisDBInterface):
 
     def close(self):
         """Explicitly close the database connection (legacy method)"""
-        self.disconnect()
+        return self.disconnect()
 
     def __del__(self):
         """Ensure database connection is properly closed"""
-        self.disconnect()
+        return self.disconnect()
 
     # ========== Team Management ==========
     
-    def add_team(self, team: Team) -> None:
+    def add_team(self, team: Team) -> bool:
         return self.team_manager.add_team(team)
     
     def get_team(self, team_id: int) -> Optional[Team]:
@@ -223,15 +225,15 @@ class SQLiteTennisDB(TennisDBInterface):
         league_id = league.id if league else None
         return self.team_manager.list_teams(league_id)
 
-    def update_team(self, team: Team) -> None:
+    def update_team(self, team: Team) -> bool:
         return self.team_manager.update_team(team)
 
-    def delete_team(self, team: Team) -> None:
+    def delete_team(self, team: Team) -> bool:
         return self.team_manager.delete_team(team.id)
 
     # ========== League Management ==========
     
-    def add_league(self, league: League) -> None:
+    def add_league(self, league: League) -> bool:
         return self.league_manager.add_league(league)
     
     def get_league(self, league_id: int) -> Optional[League]:
@@ -240,15 +242,15 @@ class SQLiteTennisDB(TennisDBInterface):
     def list_leagues(self) -> List[League]:
         return self.league_manager.list_leagues()
 
-    def update_league(self, league: League) -> None:
+    def update_league(self, league: League) -> bool:
         return self.league_manager.update_league(league)
 
-    def delete_league(self, league: League) -> None:
+    def delete_league(self, league: League) -> bool:
         return self.league_manager.delete_league(league.id)
 
     # ========== Facility Management ==========
     
-    def add_facility(self, facility: Facility) -> None:
+    def add_facility(self, facility: Facility) -> bool:
         return self.facility_manager.add_facility(facility)
     
     def get_facility(self, facility_id: int) -> Optional[Facility]:
@@ -257,10 +259,10 @@ class SQLiteTennisDB(TennisDBInterface):
     def list_facilities(self) -> List[Facility]:
         return self.facility_manager.list_facilities()
 
-    def update_facility(self, facility: Facility) -> None:
+    def update_facility(self, facility: Facility) -> bool:
         return self.facility_manager.update_facility(facility)
 
-    def delete_facility(self, facility: Facility) -> None:
+    def delete_facility(self, facility: Facility) -> bool:
         return self.facility_manager.delete_facility(facility.id)
 
     def get_facility_availability(self, facility: Facility, date: str) -> Dict[str, Any]:
@@ -291,7 +293,7 @@ class SQLiteTennisDB(TennisDBInterface):
 
     # ========== Match Management ==========
     
-    def add_match(self, match: Match) -> None:
+    def add_match(self, match: Match) -> bool:
         return self.match_manager.add_match(match)
     
     def get_match(self, match_id: int) -> Optional[Match]:
@@ -307,10 +309,10 @@ class SQLiteTennisDB(TennisDBInterface):
                                                team=team,
                                                match_type=match_type)
 
-    def update_match(self, match: Match) -> None:
+    def update_match(self, match: Match) -> bool:
         return self.match_manager.update_match(match)
 
-    def delete_match(self, match: Match) -> None:
+    def delete_match(self, match: Match) -> bool:
         return self.match_manager.delete_match(match.id)
 
     def get_matches_on_date(self, date: str) -> List[Match]:
@@ -338,7 +340,7 @@ class SQLiteTennisDB(TennisDBInterface):
     def auto_schedule_matches(self, matches: List['Match']) -> Dict[str, Any]:
         return self.scheduling_manager.auto_schedule_matches(matches)
 
-    def unschedule_match(self, match: Match) -> None:
+    def unschedule_match(self, match: Match) -> bool:
         return self.match_manager.unschedule_match(match)
     
     def check_time_availability(self, facility: Facility, date: str, time: str, courts_needed: int = 1) -> bool:
@@ -376,7 +378,7 @@ class SQLiteTennisDB(TennisDBInterface):
 
     # ========== Import/Export Methods ==========
     
-    def export_to_yaml(self, filename: str) -> None:
+    def export_to_yaml(self, filename: str) -> bool:
         """Export database to YAML file"""
         try:
             data = {
@@ -390,8 +392,9 @@ class SQLiteTennisDB(TennisDBInterface):
                 yaml.dump(data, f, default_flow_style=False, sort_keys=False)
         except Exception as e:
             raise RuntimeError(f"Failed to export to YAML: {e}")
+        return True
 
-    def import_from_yaml(self, filename: str) -> None:
+    def import_from_yaml(self, filename: str) -> bool:
         """Import data from YAML file with proper object reference resolution"""
         if not os.path.exists(filename):
             raise FileNotFoundError(f"YAML file not found: {filename}")
@@ -465,6 +468,7 @@ class SQLiteTennisDB(TennisDBInterface):
             raise ValueError(f"Invalid YAML format: {e}")
         except Exception as e:
             raise RuntimeError(f"Failed to import from YAML: {e}")
+        return True
 
     # ========== USTA Constants ==========
     

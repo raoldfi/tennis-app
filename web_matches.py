@@ -24,22 +24,21 @@ def register_routes(app, get_db):
         try:
             # Get filter parameters
             league_id = request.args.get('league_id', type=int)
+            facility_id = request.args.get('facility_id', type=int)  # NEW
+            team_id = request.args.get('team_id', type=int)  # NEW
             match_type_str = request.args.get('match_type', 'all')
-            start_date = request.args.get('start_date')
-            end_date = request.args.get('end_date')
-            search_query = request.args.get('search', '').strip()
-            show_scheduled = request.args.get('show_scheduled', 'true') == 'true'
-            show_unscheduled = request.args.get('show_unscheduled', 'true') == 'true'
+            start_date = request.args.get('start_date', '').strip()
+            end_date = request.args.get('end_date', '').strip()
+            search_query = request.args.get('search_query', '').strip()
+            show_scheduled = request.args.get('show_scheduled', '1') == '1'
+            show_unscheduled = request.args.get('show_unscheduled', '1') == '1'
+            
+            # Get filter objects
+            league = db.get_league(league_id) if league_id else None
+            facility = db.get_facility(facility_id) if facility_id else None  # NEW
+            team = db.get_team(team_id) if team_id else None  # NEW
 
             print(f"Trying to get Matches for League = {league_id}, match_type={match_type_str}")
-            
-            # Convert league_id to League object
-            league = None
-            if league_id:
-                league = db.get_league(league_id)
-                if not league:
-                    flash(f'League with ID {league_id} not found', 'error')
-                    league_id = None  # Reset to show all matches
             
             # Convert match_type string to MatchType enum using from_string()
             try:
@@ -51,7 +50,9 @@ def register_routes(app, get_db):
             
             # Get matches with proper parameters
             matches_list = db.list_matches(
-                league=league,     # Pass League object, not league_id
+                facility=facility,
+                league=league,
+                team=team,
                 match_type=match_type  # Pass MatchType enum, not string
             )
             
@@ -66,16 +67,32 @@ def register_routes(app, get_db):
             
             # FIXED: Pass original Match objects to template instead of converting to dicts
             # The template expects Match objects with methods like get_scheduled_times()
-            matches_display = filtered_matches  # Don't convert to display format
+            # Sort matches with proper None handling for dates
+            def sort_key(match):
+                if match.date is None:
+                    return (1, '')  # Put None dates last
+                return (0, match.date)
             
-            # Get leagues for filter dropdown
-            leagues = db.list_leagues()
+            matches_display = sorted(filtered_matches, key=sort_key)
+            
+            # Get data for filter dropdowns
             selected_league = db.get_league(league_id) if league_id else None
+            selected_facility = db.get_facility(facility_id) if facility_id else None  # NEW
+            selected_team = db.get_team(team_id) if team_id else None  # NEW
+            leagues = db.list_leagues()
+            facilities = db.list_facilities()  # NEW
+            teams = db.list_teams(league=selected_league)  # NEW
             
             return render_template('matches.html',
-                                 matches=matches_display,  # Pass Match objects directly
+                                 matches=matches_display,
                                  leagues=leagues,
+                                 facilities=facilities,  # NEW
+                                 teams=teams,  # NEW
                                  selected_league=selected_league,
+                                 selected_facility=selected_facility,  # NEW
+                                 selected_team=selected_team,  # NEW
+                                 facility_id=facility_id,  # NEW
+                                 team_id=team_id,  # NEW
                                  match_type=str(match_type_str),
                                  start_date=start_date,
                                  end_date=end_date,
@@ -116,6 +133,34 @@ def register_routes(app, get_db):
             flash(f'Error loading match: {str(e)}', 'error')
             return redirect(url_for('matches'))
 
+    
+    @app.route('/matches/<int:match_id>/schedule', methods=['DELETE'])
+    def unschedule_match(match_id):
+        """Unschedule a match - remove all scheduling information"""
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connected'}), 500
+            
+        try:
+            match = db.get_match(match_id)
+            if not match:
+                return jsonify({'error': 'Match not found'}), 404
+            
+            # Clear scheduling information
+            match.facility = None
+            match.date = None
+            match.scheduled_times = []
+            
+            db.update_match(match)
+            
+            return jsonify({
+                'success': True,
+                'message': f'Match {match_id} has been unscheduled successfully'
+            })
+            
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+            
 
     @app.route('/matches/<int:match_id>/schedule', methods=['POST'])
     def schedule_match(match_id):
@@ -178,38 +223,7 @@ def register_routes(app, get_db):
             traceback.print_exc()
             return jsonify({'error': f'Scheduling failed: {str(e)}'}), 500
 
-    @app.route('/matches/<int:match_id>/schedule', methods=['DELETE'])
-    def clear_match_schedule(match_id):
-        """Clear a match's schedule"""
-        print(f"\n=== CLEAR SCHEDULE FOR MATCH {match_id} ===")
-        db = get_db()
-        if db is None:
-            return jsonify({'error': 'No database connected'}), 500
-        
-        try:
-            match = db.get_match(match_id)
-            if not match:
-                return jsonify({'error': 'Match not found'}), 404
-            
-            # Clear scheduling info
-            match.facility = None
-            match.date = None
-            match.scheduled_times = []
-            
-            # Save to database
-            db.update_match(match)
-            
-            print(f"Schedule cleared for match {match_id}")
-            
-            return jsonify({
-                'success': True,
-                'message': 'Match schedule cleared successfully'
-            })
-            
-        except Exception as e:
-            print(f"Clear schedule error: {str(e)}")
-            traceback.print_exc()
-            return jsonify({'error': f'Failed to clear schedule: {str(e)}'}), 500
+
 
     @app.route('/matches/<int:match_id>', methods=['DELETE'])
     def delete_match(match_id):
@@ -350,21 +364,10 @@ def register_routes(app, get_db):
             
             print(f"Found {len(matches_to_schedule)} unscheduled matches to auto-schedule")
             
-            # Check if scheduling manager exists and has auto_schedule_matches method
-            if not hasattr(db, 'scheduling_manager'):
-                return jsonify({
-                    'error': 'Auto-scheduling functionality not available. Database scheduling manager not found.'
-                }), 500
-            
-            if not hasattr(db.scheduling_manager, 'auto_schedule_matches'):
-                return jsonify({
-                    'error': 'Auto-scheduling functionality not available. Database method auto_schedule_matches not implemented.'
-                }), 500
-            
             # Call the database auto_schedule_matches method with list of Match objects
             try:
                 print(f"Calling db.scheduling_manager.auto_schedule_matches with {len(matches_to_schedule)} matches")
-                results = db.scheduling_manager.auto_schedule_matches(matches_to_schedule)
+                results = db.auto_schedule_matches(matches_to_schedule)
                 
                 # Extract results based on sql_scheduling_manager.py return format
                 scheduled_count = results.get('scheduled', 0)
@@ -376,15 +379,47 @@ def register_routes(app, get_db):
                 
                 print(f"Auto-scheduling results: {scheduled_count} scheduled, {failed_count} failed, success rate: {success_rate}%")
                 
+                # Enhanced warning output when not all matches are scheduled
+                if failed_count > 0:
+                    warning_message = f"⚠️ WARNING: Auto-scheduling incomplete!"
+                    print(f"\n{warning_message}")
+                    print(f"Results structure:")
+                    print(f"  - Total matches processed: {total_count}")
+                    print(f"  - Successfully scheduled: {scheduled_count}")
+                    print(f"  - Failed to schedule: {failed_count}")
+                    print(f"  - Success rate: {success_rate}%")
+                    
+                    # Log detailed error information
+                    if errors:
+                        print(f"  - Error details:")
+                        for i, error in enumerate(errors[:5], 1):  # Show first 5 errors
+                            print(f"    {i}. {error}")
+                        if len(errors) > 5:
+                            print(f"    ... and {len(errors) - 5} more errors")
+                    
+                    # Log scheduling details for failed matches
+                    failed_details = [detail for detail in scheduling_details if not detail.get('success', True)]
+                    if failed_details:
+                        print(f"  - Failed match details:")
+                        for i, detail in enumerate(failed_details[:3], 1):  # Show first 3 failed matches
+                            match_info = f"Match {detail.get('match_id', 'Unknown')}"
+                            if detail.get('teams'):
+                                match_info += f" ({detail['teams']})"
+                            print(f"    {i}. {match_info}: {detail.get('reason', 'Unknown reason')}")
+                        if len(failed_details) > 3:
+                            print(f"    ... and {len(failed_details) - 3} more failed matches")
+                    
+                    print(f"⚠️ End warning\n")
+                
                 # Prepare response message based on results
                 if total_count == 0:
                     response_message = "No unscheduled matches found to auto-schedule"
                 elif scheduled_count > 0 and failed_count == 0:
-                    response_message = f"Successfully auto-scheduled all {scheduled_count} matches"
+                    response_message = f"✅ Successfully auto-scheduled all {scheduled_count} matches"
                 elif scheduled_count > 0 and failed_count > 0:
-                    response_message = f"Auto-scheduled {scheduled_count} of {total_count} matches. {failed_count} could not be scheduled (no available time slots)."
+                    response_message = f"⚠️ Auto-scheduled {scheduled_count} of {total_count} matches. {failed_count} could not be scheduled (no available time slots)."
                 elif scheduled_count == 0 and total_count > 0:
-                    response_message = f"Could not auto-schedule any of the {total_count} matches. No available time slots found."
+                    response_message = f"❌ Could not auto-schedule any of the {total_count} matches. No available time slots found."
                 else:
                     response_message = f"Auto-scheduled {scheduled_count} matches"
                 
@@ -392,7 +427,8 @@ def register_routes(app, get_db):
                 if total_count > 0:
                     response_message += f" (Success rate: {success_rate}%)"
                 
-                return jsonify({
+                # Enhanced response structure for partial failures
+                response_data = {
                     'success': True,
                     'message': response_message,
                     'scheduled_count': scheduled_count,
@@ -401,7 +437,32 @@ def register_routes(app, get_db):
                     'success_rate': success_rate,
                     'scheduling_details': scheduling_details[:10] if scheduling_details else [],  # Limit details
                     'errors': errors[:5] if errors else []  # Limit error details
-                })
+                }
+                
+                # Add warning flag and refresh option for partial failures
+                if failed_count > 0:
+                    response_data['warning'] = True
+                    response_data['warning_message'] = f"Not all matches could be scheduled. {failed_count} of {total_count} matches failed."
+                    response_data['show_refresh'] = True  # NEW: Enable refresh button
+                    response_data['refresh_text'] = 'Refresh Page'  # NEW: Custom refresh text
+                    
+                    # Include detailed failure information in response
+                    response_data['failure_summary'] = {
+                        'failed_matches': failed_count,
+                        'success_rate': success_rate,
+                        'common_issues': _extract_common_scheduling_issues(errors),
+                        'failed_match_details': [
+                            {
+                                'match_id': detail.get('match_id'),
+                                'teams': detail.get('teams', 'Unknown teams'),
+                                'reason': detail.get('reason', 'Unknown reason')
+                            }
+                            for detail in scheduling_details 
+                            if not detail.get('success', True)
+                        ][:5]  # Limit to first 5 failed matches
+                    }
+                
+                return jsonify(response_data)
                 
             except Exception as db_error:
                 print(f"Database auto-scheduling error: {str(db_error)}")
@@ -414,6 +475,9 @@ def register_routes(app, get_db):
             print(f"Bulk auto-schedule error: {str(e)}")
             traceback.print_exc()
             return jsonify({'error': f'Bulk auto-schedule failed: {str(e)}'}), 500
+
+
+    
 
 
 
@@ -615,6 +679,63 @@ def register_routes(app, get_db):
             traceback.print_exc()
             return jsonify({'error': f'Bulk delete failed: {str(e)}'}), 500
 
+    # ==================== JINJA2 FILTERS ====================
+    
+    # ==================== JINJA2 FILTERS ====================
+    
+    def format_weekday(date_str):
+        """Format date string to weekday abbreviation"""
+        if not date_str or date_str == 'TBD':
+            return 'TBD'
+        
+        try:
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+            return date_obj.strftime('%a')  # Returns Mon, Tue, Wed, etc.
+        except (ValueError, TypeError):
+            return 'TBD'
+    
+    def group_matches_by_date(matches):
+        """Group matches by date, with unscheduled matches last"""
+        from itertools import groupby
+        
+        # Sort matches: scheduled dates first (by date), then unscheduled
+        def sort_key(match):
+            if match.date:
+                return (0, match.date)  # 0 = scheduled, sort by date
+            else:
+                return (1, 'zzzz')  # 1 = unscheduled, sort after scheduled with dummy string
+        
+        sorted_matches = sorted(matches, key=sort_key)
+        
+        # Group by date (None dates will be grouped together)
+        grouped = []
+        for date, group in groupby(sorted_matches, key=lambda m: m.date):
+            grouped.append((date, list(group)))
+        
+        return grouped
+
+    def format_times_compact(times_list):
+        """Format times in a more compact way"""
+        if not times_list:
+            return "No times"
+        
+        if len(times_list) == 1:
+            return times_list[0]
+        
+        # For multiple times, show range if consecutive or list if not
+        if len(times_list) == 2:
+            return f"{times_list[0]}-{times_list[1]}"
+        
+        # For 3+ times, show first and last with count
+        return f"{times_list[0]}+{len(times_list)-1} more"
+    
+    # Register the filter
+    app.jinja_env.filters['compact_times'] = format_times_compact
+    
+    # Register filters with the Flask app
+    app.jinja_env.filters['format_weekday'] = format_weekday
+    app.jinja_env.filters['groupby_date'] = group_matches_by_date
+
 
 # ==================== HELPER FUNCTIONS ====================
 
@@ -756,6 +877,34 @@ def search_matches(matches_list, search_query):
     
     return filtered_matches
 
+
+
+
+
+
+def _extract_common_scheduling_issues(errors):
+    """Helper function to extract and categorize common scheduling issues"""
+    if not errors:
+        return []
+    
+    issue_counts = {}
+    for error in errors:
+        error_str = str(error).lower()
+        
+        # Categorize common issues
+        if 'no available' in error_str or 'no slots' in error_str:
+            issue_counts['No available time slots'] = issue_counts.get('No available time slots', 0) + 1
+        elif 'facility' in error_str and ('not found' in error_str or 'unavailable' in error_str):
+            issue_counts['Facility unavailable'] = issue_counts.get('Facility unavailable', 0) + 1
+        elif 'conflict' in error_str or 'overlap' in error_str:
+            issue_counts['Scheduling conflict'] = issue_counts.get('Scheduling conflict', 0) + 1
+        elif 'team' in error_str and 'unavailable' in error_str:
+            issue_counts['Team unavailable'] = issue_counts.get('Team unavailable', 0) + 1
+        else:
+            issue_counts['Other scheduling issues'] = issue_counts.get('Other scheduling issues', 0) + 1
+    
+    # Return sorted list of issues by frequency
+    return sorted(issue_counts.items(), key=lambda x: x[1], reverse=True)
 
 # Export the register function for use in main app
 __all__ = ['register_routes']

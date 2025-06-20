@@ -93,7 +93,7 @@ class SQLMatchManager:
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error retrieving match {match_id}: {e}")
 
-    def add_match(self, match: Match) -> None:
+    def add_match(self, match: Match) -> bool:
         """Add a new match to the database"""
         if not isinstance(match, Match):
             raise TypeError(f"Expected Match object, got: {type(match)}")
@@ -145,6 +145,7 @@ class SQLMatchManager:
             raise ValueError(f"Database integrity error adding match: {e}")
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error adding match: {e}")
+        return True
 
     def get_match_simple(self, match_id: int) -> Optional[Dict[str, Any]]:
         """Get a match as a simple dictionary (for performance)"""
@@ -286,7 +287,7 @@ class SQLMatchManager:
 
 
 
-    def update_match(self, match: Match) -> None:
+    def update_match(self, match: Match) -> bool:
         """Update match metadata and scheduled times"""
         if not isinstance(match, Match):
             raise TypeError(f"Expected Match object, got: {type(match)}")
@@ -331,8 +332,9 @@ class SQLMatchManager:
                   facility_id, match.date, scheduled_times_json, status, match.id))
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error updating match: {e}")
+        return True
 
-    def delete_match(self, match_id: int) -> None:
+    def delete_match(self, match_id: int) -> bool:
         """Delete a match"""
         if not isinstance(match_id, int) or match_id <= 0:
             raise ValueError(f"Match ID must be a positive integer, got: {match_id}")
@@ -347,6 +349,7 @@ class SQLMatchManager:
             self.cursor.execute("DELETE FROM matches WHERE id = ?", (match_id,))
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error deleting match: {e}")
+        return True
 
     def get_matches_on_date(self, date: str) -> List[Match]:
         """Get all scheduled matches on a specific date"""
@@ -416,13 +419,13 @@ class SQLMatchManager:
         except Exception as e:
             return False
     
-    def unschedule_match(self, match: Match) -> None:
+    def unschedule_match(self, match: Match) -> bool:
         """Unschedule a match (remove facility, date, and all times)"""
         if not isinstance(match, Match):
             raise TypeError(f"Expected Match object, got: {type(match)}")
         
         match.unschedule()
-        self.update_match(match)
+        return self.update_match(match)
     
     def get_scheduled_times_at_facility(self, facility: Facility, date: str) -> List[str]:
         """Get all scheduled times at a facility on a specific date using facility manager for validation"""

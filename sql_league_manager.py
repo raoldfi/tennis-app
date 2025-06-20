@@ -28,7 +28,7 @@ class SQLLeagueManager:
         """Convert sqlite Row object to dictionary"""
         return dict(row) if row else {}
     
-    def add_league(self, league: League) -> None:
+    def add_league(self, league: League) -> bool:
         """Add a new league to the database"""
         if not isinstance(league, League):
             raise TypeError(f"Expected League object, got: {type(league)}")
@@ -68,6 +68,7 @@ class SQLLeagueManager:
             raise ValueError(f"Database integrity error adding league: {e}")
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error adding league: {e}")
+        return True
     
     def get_league(self, league_id: int) -> Optional[League]:
         """Get a league by ID"""
@@ -137,7 +138,7 @@ class SQLLeagueManager:
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error listing leagues: {e}")
 
-    def update_league(self, league: League) -> None:
+    def update_league(self, league: League) -> bool:
         """Update an existing league in the database"""
         if not isinstance(league, League):
             raise TypeError(f"Expected League object, got: {type(league)}")
@@ -183,8 +184,9 @@ class SQLLeagueManager:
             raise ValueError(f"Database integrity error updating league: {e}")
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error updating league: {e}")
+        return True
 
-    def delete_league(self, league_id: int) -> None:
+    def delete_league(self, league_id: int) -> bool:
         """Delete a league from the database"""
         if not isinstance(league_id, int) or league_id <= 0:
             raise ValueError(f"League ID must be a positive integer, got: {league_id}")
@@ -216,6 +218,7 @@ class SQLLeagueManager:
                 
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error deleting league {league_id}: {e}")
+        return True
 
     def get_leagues_by_year(self, year: int) -> List[League]:
         """Get all leagues for a specific year"""

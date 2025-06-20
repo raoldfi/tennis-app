@@ -1,0 +1,478 @@
+{% extends "base.html" %}
+
+{% block title %}{{ team.name }} - Tennis Scheduler{% endblock %}
+
+{% block extra_css %}
+<!-- Page-specific styles that build on shared styles -->
+<style>
+.team-header {
+    background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
+    color: white;
+    border-radius: var(--tennis-border-radius-lg);
+    margin-bottom: 2rem;
+}
+
+.team-detail-card {
+    transition: all 0.2s ease;
+}
+
+.team-detail-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.match-row {
+    transition: all 0.2s ease;
+}
+
+.match-row:hover {
+    background-color: rgba(45, 90, 135, 0.05);
+    transform: translateX(2px);
+}
+
+.facility-info {
+    background: linear-gradient(135deg, var(--tennis-gray-100) 0%, #ffffff 100%);
+    border-radius: var(--tennis-border-radius);
+    padding: 1rem;
+    border: 1px solid var(--tennis-gray-200);
+}
+
+.preferred-days-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.day-badge {
+    background: linear-gradient(135deg, var(--tennis-success) 0%, var(--tennis-success-dark) 100%);
+    color: white;
+    padding: 0.375rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.no-matches-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--tennis-gray-600);
+}
+
+.match-status-scheduled {
+    border-left: 4px solid var(--tennis-success);
+}
+
+.match-status-unscheduled {
+    border-left: 4px solid var(--tennis-warning);
+}
+
+.match-status-completed {
+    border-left: 4px solid var(--tennis-info);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb Navigation -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('teams') }}">Teams</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ team.name }}</li>
+    </ol>
+</nav>
+
+<!-- Team Header -->
+<div class="team-header p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1 class="h2 mb-2">
+                <i class="fas fa-users me-2"></i>
+                {{ team.name }}
+            </h1>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+                <span class="tennis-badge-info">
+                    <i class="fas fa-trophy me-1"></i>
+                    {{ team.league.name }}
+                </span>
+                <span class="tennis-badge-secondary">
+                    <i class="fas fa-calendar me-1"></i>
+                    {{ team.league.year }}
+                </span>
+                <span class="tennis-badge-warning">
+                    <i class="fas fa-medal me-1"></i>
+                    {{ team.league.division }}
+                </span>
+            </div>
+            <p class="mb-0 opacity-75">
+                <i class="fas fa-map-marker-alt me-1"></i>
+                {{ team.league.section }} - {{ team.league.region }}
+            </p>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="dropdown">
+            <button class="btn btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-cog"></i> Actions
+            </button>
+            <ul class="dropdown-menu tennis-action-dropdown">
+                <li><a class="dropdown-item" href="{{ url_for('edit_team', team_id=team.id) }}">
+                    <i class="fas fa-edit"></i> Edit Team
+                </a></li>
+                <li><a class="dropdown-item" href="{{ url_for('teams', league_id=team.league.id) }}">
+                    <i class="fas fa-users"></i> View League Teams
+                </a></li>
+                <li><a class="dropdown-item" href="{{ url_for('matches', team_id=team.id) }}">
+                    <i class="fas fa-calendar-alt"></i> View All Matches
+                </a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#" onclick="TennisImportExport.showModal('teams', 'Export Team Data')">
+                    <i class="fas fa-download"></i> Export Team Data
+                </a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-danger" href="#" onclick="TennisTeams.deleteTeam({{ team.id }}, '{{ team.name|e }}')">
+                    <i class="fas fa-trash"></i> Delete Team
+                </a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Team Details -->
+<div class="row mb-4">
+    <!-- Team Information -->
+    <div class="col-lg-8">
+        <div class="card tennis-card team-detail-card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle text-tennis-primary me-2"></i>
+                    Team Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">Team ID:</dt>
+                            <dd class="col-sm-8">
+                                <span class="tennis-badge-secondary">#{{ team.id }}</span>
+                            </dd>
+                            
+                            <dt class="col-sm-4">Captain:</dt>
+                            <dd class="col-sm-8">
+                                {% if team.captain %}
+                                    <i class="fas fa-user text-tennis-primary me-1"></i>
+                                    {{ team.captain }}
+                                {% else %}
+                                    <span class="text-muted">Not specified</span>
+                                {% endif %}
+                            </dd>
+                            
+                            {% if team.contact_email %}
+                            <dt class="col-sm-4">Contact:</dt>
+                            <dd class="col-sm-8">
+                                <i class="fas fa-envelope text-tennis-primary me-1"></i>
+                                <a href="mailto:{{ team.contact_email }}">{{ team.contact_email }}</a>
+                            </dd>
+                            {% endif %}
+                        </dl>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-5">League:</dt>
+                            <dd class="col-sm-7">
+                                <a href="{{ url_for('view_league', league_id=team.league.id) }}" class="text-tennis-primary text-decoration-none">
+                                    {{ team.league.name }}
+                                </a>
+                                <div class="small text-muted">{{ team.league.division }} • {{ team.league.year }}</div>
+                            </dd>
+                            
+                            <dt class="col-sm-5">Age Group:</dt>
+                            <dd class="col-sm-7">{{ team.league.age_group }}</dd>
+                            
+                            <dt class="col-sm-5">Section:</dt>
+                            <dd class="col-sm-7">{{ team.league.section }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Home Facility Information -->
+        <div class="card tennis-card team-detail-card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-map-marker-alt text-tennis-primary me-2"></i>
+                    Home Facility
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="facility-info">
+                    <div class="d-flex align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">
+                                {% if team.home_facility and team.home_facility.name is defined %}
+                                    <i class="fas fa-building text-tennis-success me-2"></i>
+                                    {{ team.home_facility.name }}
+                                    {% if team.home_facility.short_name is defined and team.home_facility.short_name %}
+                                        <span class="tennis-badge-info ms-2">{{ team.home_facility.short_name }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <i class="fas fa-exclamation-triangle text-tennis-warning me-2"></i>
+                                    {{ team.home_facility or 'No facility specified' }}
+                                {% endif %}
+                            </h6>
+                            
+                            {% if team.home_facility and team.home_facility.location is defined and team.home_facility.location %}
+                            <p class="mb-2 text-muted">
+                                <i class="fas fa-location-dot me-1"></i>
+                                {{ team.home_facility.location }}
+                            </p>
+                            {% endif %}
+                            
+                            {% if team.home_facility and team.home_facility.total_courts is defined and team.home_facility.total_courts %}
+                            <div class="small">
+                                <i class="fas fa-tennis-ball text-tennis-primary me-1"></i>
+                                {{ team.home_facility.total_courts }} courts available
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if team.home_facility and team.home_facility.id is defined %}
+                        <a href="{{ url_for('view_facility', facility_id=team.home_facility.id) }}" class="btn btn-tennis-primary btn-sm">
+                            <i class="fas fa-external-link-alt"></i> View Details
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preferred Playing Days -->
+        <div class="card tennis-card team-detail-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-calendar-week text-tennis-primary me-2"></i>
+                    Playing Schedule
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="mb-2">Preferred Days:</h6>
+                        {% if team.preferred_days %}
+                        <div class="preferred-days-container">
+                            {% for day in team.preferred_days %}
+                            <span class="day-badge">{{ day }}</span>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-info-circle me-1"></i>
+                            No preferred days specified - can play any day
+                        </p>
+                        {% endif %}
+                    </div>
+                    
+                    {% if team.league.backup_days %}
+                    <div class="col-md-6">
+                        <h6 class="mb-2">League Backup Days:</h6>
+                        <div class="preferred-days-container">
+                            {% for day in team.league.backup_days %}
+                            <span class="tennis-badge-warning">{{ day }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Sidebar -->
+    <div class="col-lg-4">
+        <div class="row">
+            <div class="col-6 col-lg-12 mb-3">
+                <div class="card tennis-card stat-card text-center team-detail-card">
+                    <div class="card-body">
+                        <i class="fas fa-calendar-alt fa-2x mb-2 text-tennis-primary"></i>
+                        <h4 class="mb-0">{{ matches|length }}</h4>
+                        <small>Total Matches</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-6 col-lg-12 mb-3">
+                <div class="card tennis-card stat-card text-center team-detail-card">
+                    <div class="card-body">
+                        <i class="fas fa-check-circle fa-2x mb-2 text-tennis-success"></i>
+                        <h4 class="mb-0">
+                            {% set scheduled_matches = matches|selectattr('facility')|list %}
+                            {{ scheduled_matches|length }}
+                        </h4>
+                        <small>Scheduled</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-6 col-lg-12 mb-3">
+                <div class="card tennis-card stat-card text-center team-detail-card">
+                    <div class="card-body">
+                        <i class="fas fa-clock fa-2x mb-2 text-tennis-warning"></i>
+                        <h4 class="mb-0">
+                            {% set unscheduled_matches = matches|rejectattr('facility')|list %}
+                            {{ unscheduled_matches|length }}
+                        </h4>
+                        <small>Unscheduled</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-6 col-lg-12 mb-3">
+                <div class="card tennis-card stat-card text-center team-detail-card">
+                    <div class="card-body">
+                        <i class="fas fa-trophy fa-2x mb-2 text-tennis-info"></i>
+                        <h4 class="mb-0">0</h4>
+                        <small>Completed</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Matches -->
+<div class="card tennis-card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-history text-tennis-primary me-2"></i>
+            Recent Matches
+        </h5>
+        {% if matches|length > 0 %}
+        <a href="{{ url_for('matches', team_id=team.id) }}" class="btn btn-tennis-primary btn-sm">
+            <i class="fas fa-list"></i> View All Matches
+        </a>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% if matches %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Opponent</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Facility</th>
+                        <th>Status</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for match in matches[:10] %}
+                    <tr class="match-row {% if match.is_scheduled() %}match-status-scheduled{% else %}match-status-unscheduled{% endif %}">
+                        <td>
+                            <div class="fw-bold">
+                                {% if match.home_team.id == team.id %}
+                                    vs {{ match.visitor_team.name }}
+                                {% else %}
+                                    vs {{ match.home_team.name }}
+                                {% endif %}
+                            </div>
+                            <div class="small text-muted">
+                                {{ match.league.name }}
+                            </div>
+                        </td>
+                        <td>
+                            {% if match.date %}
+                                <i class="fas fa-calendar me-1"></i>
+                                {{ match.date }}
+                            {% else %}
+                                <span class="text-muted">TBD</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if match.scheduled_times and match.scheduled_times|length > 0 %}
+                                <i class="fas fa-clock me-1"></i>
+                                {{ match.scheduled_times[0] }}
+                                {% if match.scheduled_times|length > 1 %}
+                                    <div class="small text-muted">+{{ match.scheduled_times|length - 1 }} more</div>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">TBD</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if match.facility %}
+                                <div class="fw-bold">{{ match.facility.name }}</div>
+                                {% if match.facility.location %}
+                                <div class="small text-muted">{{ match.facility.location }}</div>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">Not scheduled</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if match.is_scheduled() %}
+                                <span class="tennis-badge-info">
+                                    <i class="fas fa-calendar-check"></i> Scheduled
+                                </span>
+                            {% else %}
+                                <span class="tennis-badge-warning">
+                                    <i class="fas fa-clock"></i> Unscheduled
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('view_match', match_id=match.id) }}" 
+                                   class="btn btn-sm btn-outline-info" 
+                                   title="View match details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if matches|length > 10 %}
+        <div class="text-center mt-3">
+            <a href="{{ url_for('matches', team_id=team.id) }}" class="btn btn-outline-tennis-primary">
+                <i class="fas fa-list"></i> View All {{ matches|length }} Matches
+            </a>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="no-matches-state">
+            <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
+            <h5>No Matches Yet</h5>
+            <p class="text-muted">This team doesn't have any matches scheduled yet.</p>
+            <div class="d-flex gap-2 justify-content-center flex-wrap">
+                <a href="{{ url_for('view_league', league_id=team.league.id) }}" class="btn btn-tennis-primary">
+                    <i class="fas fa-plus"></i> Generate League Matches
+                </a>
+                <a href="{{ url_for('add_match') }}?team1_id={{ team.id }}" class="btn btn-outline-tennis-primary">
+                    <i class="fas fa-calendar-plus"></i> Schedule Individual Match
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize any team-specific functionality
+    console.log('🎾 Team view page loaded for team: {{ team.name|e }}');
+    
+    // Add any specific JavaScript for team view if needed
+});
+</script>
+{% endblock %}

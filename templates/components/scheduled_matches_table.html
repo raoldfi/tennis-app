@@ -1,0 +1,255 @@
+<!-- templates/components/scheduled_matches_table.html -->
+<!-- Refactored: Groups matches by day for better visual organization -->
+
+{% if matches and matches|length > 0 %}
+
+<!-- Desktop Grouped Table View -->
+<div class="d-none d-md-block">
+    {% set matches_by_day = matches | groupby_date %}
+    
+    {% for date, day_matches in matches_by_day %}
+    <div class="tennis-matches-day-group mb-4">
+        <!-- Day Header -->
+        <div class="day-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-day"></i>
+                        {% if date %}
+                            <span class="day-name">{{ date | format_weekday }}</span>
+                            <span class="date-display">{{ date }}</span>
+                        {% else %}
+                            <span class="day-name">Unscheduled</span>
+                            <span class="date-display">No date set</span>
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="col-md-4 text-end">
+                    <span class="badge bg-light text-dark">
+                        {{ day_matches|list|length }} match{% if day_matches|list|length != 1 %}es{% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Matches Table for this Day -->
+        <div class="tennis-matches-table">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="text-center" style="width: 80px;">Match ID</th>
+                        <th style="width: 280px;">Teams</th>
+                        <th style="width: 220px;">Times</th>
+                        <th class="text-center" style="width: 150px;">Facility</th>
+                        <th class="text-center" style="width: 120px;">League</th>
+                        <th class="text-center" style="width: 180px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for match in day_matches %}
+                    <tr>
+                        <div class="status-indicator {{ 'status-scheduled' if match.is_fully_scheduled() else 'status-partial' if match.is_partially_scheduled() else 'status-unscheduled' }}"></div>
+                        <td class="text-center">
+                            <code class="match-id-cell">{{ match.id }}</code>
+                        </td>
+                        <td>
+                            <div class="teams-cell">
+                                <div class="team-matchup">
+                                    <div class="home-team-row">
+                                        <span class="home-team">{{ match.home_team.name }}</span>
+                                        <small class="text-muted">(Home)</small>
+                                    </div>
+                                    <div class="visitor-team-row">
+                                        <span class="visitor-team">{{ match.visitor_team.name }}</span>
+                                        <small class="text-muted">(Visitor)</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="times-display-compact">
+                                {% if match.scheduled_times and match.scheduled_times|length > 0 %}
+                                    {% if match.scheduled_times|length == 1 %}
+                                        <span class="time-badge-compact">{{ match.scheduled_times[0] }}</span>
+                                    {% elif match.scheduled_times|length == 2 %}
+                                        <span class="time-badge-compact">{{ match.scheduled_times[0] }}</span>
+                                        <span class="time-separator">-</span>
+                                        <span class="time-badge-compact">{{ match.scheduled_times[1] }}</span>
+                                    {% else %}
+                                        <span class="time-badge-compact">{{ match.scheduled_times[0] }}</span>
+                                        <span class="time-more">+{{ match.scheduled_times|length - 1 }}</span>
+                                    {% endif %}
+                                    <div class="scheduling-status-compact">
+                                        <small class="text-muted">{{ match.scheduled_times|length }}/{{ match.get_expected_lines() }}</small>
+                                    </div>
+                                {% else %}
+                                    <span class="no-times-badge-compact">Not set</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            {% if match.facility %}
+                                <div class="facility-cell">
+                                    <a href="{{ url_for('view_facility', facility_id=match.facility.id) }}" 
+                                       class="facility-name-link"
+                                       title="View facility details">
+                                        {{ match.facility.name }}
+                                    </a>
+                                </div>
+                            {% else %}
+                                <div class="text-muted">Not assigned</div>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="league-badge">{{ match.league.name }}</span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{{ url_for('view_match', match_id=match.id) }}" 
+                                   class="action-btn action-btn-view"
+                                   title="View match details">
+                                    <i class="fas fa-eye"></i>
+                                    <span class="d-none d-lg-inline">View</span>
+                                </a>
+                                {% if match.is_scheduled() %}
+                                <button class="action-btn action-btn-unschedule"
+                                        onclick="TennisUI.unscheduleMatch({{ match.id }}, '{{ match.home_team.name }} vs {{ match.visitor_team.name }}')"
+                                        title="Remove schedule">
+                                    <i class="fas fa-calendar-times"></i>
+                                    <span class="d-none d-lg-inline">Unschedule</span>
+                                </button>
+                                {% else %}
+                                <button class="action-btn action-btn-unschedule" disabled
+                                        title="No schedule to remove">
+                                    <i class="fas fa-calendar-times"></i>
+                                    <span class="d-none d-lg-inline">Unschedule</span>
+                                </button>
+                                {% endif %}
+                                <button class="action-btn action-btn-edit"
+                                        onclick="TennisUI.editMatchSchedule({{ match.id }})"
+                                        title="Edit schedule">
+                                    <i class="fas fa-edit"></i>
+                                    <span class="d-none d-lg-inline">Edit</span>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Mobile Card View -->
+<div class="d-md-none">
+    {% set matches_by_day = matches | groupby_date %}
+    
+    {% for date, day_matches in matches_by_day %}
+    <div class="mobile-day-group mb-4">
+        <!-- Mobile Day Header -->
+        <div class="mobile-day-header">
+            <h6 class="mb-2">
+                <i class="fas fa-calendar-day"></i>
+                {% if date %}
+                    {{ date | format_weekday }}, {{ date }}
+                {% else %}
+                    Unscheduled Matches
+                {% endif %}
+                <span class="badge bg-secondary ms-2">{{ day_matches|list|length }}</span>
+            </h6>
+        </div>
+        
+        <!-- Mobile Cards for this Day -->
+        {% for match in day_matches %}
+        <div class="card mb-3 enhanced-card">
+            <div class="card-body">
+                <div class="status-indicator {{ 'status-scheduled' if match.is_fully_scheduled() else 'status-partial' if match.is_partially_scheduled() else 'status-unscheduled' }}"></div>
+                
+                <!-- Header row with teams and match ID -->
+                <div class="row">
+                    <div class="col-8">
+                        <h6 class="card-title mb-1">
+                            <div class="home-team">{{ match.home_team.name }} <small>(Home)</small></div>
+                            <div class="visitor-team">{{ match.visitor_team.name }} <small>(Visitor)</small></div>
+                        </h6>
+                        <small class="text-muted">
+                            <i class="fas fa-tag"></i> {{ match.league.name }}
+                            {% if match.facility %}
+                            | <i class="fas fa-map-marker-alt"></i> {{ match.facility.name }}
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="col-4 text-end">
+                        <code class="match-id-cell">{{ match.id }}</code>
+                    </div>
+                </div>
+                
+                <!-- Time information -->
+                <div class="row mt-2">
+                    <div class="col-12">
+                        {% if match.scheduled_times and match.scheduled_times|length > 0 %}
+                            <div class="mt-1">
+                                <i class="fas fa-clock"></i>
+                                <strong>Times:</strong>
+                                {% for time in match.scheduled_times %}
+                                    <span class="time-badge ms-1">{{ time }}</span>
+                                {% endfor %}
+                                <div class="mt-1">
+                                    <small class="text-muted">{{ match.scheduled_times|length }}/{{ match.get_expected_lines() }} lines scheduled</small>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="mt-1 text-warning">
+                                <i class="fas fa-clock"></i>
+                                <strong>Times:</strong>
+                                <span class="no-times-badge ms-1">No times set</span>
+                                <div class="mt-1">
+                                    <small class="text-warning">Needs {{ match.get_expected_lines() }} lines</small>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Action buttons -->
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="action-buttons">
+                            <a href="{{ url_for('view_match', match_id=match.id) }}" 
+                               class="action-btn action-btn-view">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                            {% if match.is_scheduled() %}
+                            <button class="action-btn action-btn-unschedule"
+                                    onclick="TennisUI.unscheduleMatch({{ match.id }}, '{{ match.home_team.name }} vs {{ match.visitor_team.name }}')">
+                                <i class="fas fa-calendar-times"></i> Unschedule
+                            </button>
+                            {% else %}
+                            <button class="action-btn action-btn-unschedule" disabled>
+                                <i class="fas fa-calendar-times"></i> Unschedule
+                            </button>
+                            {% endif %}
+                            <button class="action-btn action-btn-edit"
+                                    onclick="TennisUI.editMatchSchedule({{ match.id }})">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<!-- Empty state when no matches -->
+<div class="text-center py-5">
+    <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+    <h5 class="text-muted">No matches found</h5>
+    <p class="text-muted">Try adjusting your filters or check back later.</p>
+</div>
+{% endif %}

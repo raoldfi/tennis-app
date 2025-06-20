@@ -293,6 +293,9 @@ class SQLSchedulingManager:
                 'errors': [],  # for failed scheduling
                 'matches_attempted': []
             }
+
+            attempted_matches = 0
+            already_scheduled = 0
             
             for match in matches:
                 # Skip already scheduled matches
@@ -306,7 +309,10 @@ class SQLSchedulingManager:
                         'date': match.date,
                         'times': match.scheduled_times
                     })
+                    already_scheduled += 1
                     continue
+                    
+                attempted_matches += 1
                 
                 # Get optimal dates for this specific match (prioritizing team preferences)
                 optimal_dates = utils.get_optimal_scheduling_dates(match)
@@ -347,7 +353,7 @@ class SQLSchedulingManager:
                         })
 
                 else:
-                    results['failed_to_schedule'] += 1
+                    results['failed'] += 1
                     results['errors'].append({
                         'match_id': match.id,
                         'status': 'failed',
@@ -357,14 +363,13 @@ class SQLSchedulingManager:
                     })
             
             # Calculate success rate
-            attempted_matches = len([m for m in matches if not m.is_scheduled()])
             if attempted_matches > 0:
                 success_rate = (results['scheduled'] / attempted_matches) * 100
                 results['success_rate'] = round(success_rate, 2)
             else:
                 results['success_rate'] = 100.0  # All matches were already scheduled
             
-            results['already_scheduled'] = len(matches) - attempted_matches
+            results['already_scheduled'] = already_scheduled
             
             return results
             

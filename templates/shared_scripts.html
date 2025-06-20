@@ -13,6 +13,7 @@ class TennisUI {
         this.initializeFlashMessages();
         this.initializeTooltips();
         this.initializeSearchTables();
+        this.initializeScheduledMatchesTable(); 
         this.loadStyles();
     }
 
@@ -251,6 +252,103 @@ class TennisUI {
         }
     }
 
+    /**
+     * Standard scheduled matches table functions
+     */
+    static initializeScheduledMatchesTable(tableSelector = '.tennis-matches-table') {
+        const tables = document.querySelectorAll(tableSelector);
+        tables.forEach(table => {
+            // Add click handlers for action buttons
+            table.addEventListener('click', (e) => {
+                const target = e.target.closest('.action-btn');
+                if (!target) return;
+    
+                const matchId = target.getAttribute('data-match-id');
+                const action = target.getAttribute('data-action');
+    
+                switch (action) {
+                    case 'view':
+                        this.viewMatchDetails(matchId);
+                        break;
+                    case 'unschedule':
+                        const description = target.getAttribute('data-description');
+                        this.unscheduleMatch(matchId, description);
+                        break;
+                    case 'edit':
+                        this.editMatchSchedule(matchId);
+                        break;
+                }
+            });
+        });
+    }
+    
+    static viewMatchDetails(matchId) {
+        window.location.href = `/matches/${matchId}`;
+    }
+    
+    static async unscheduleMatch(matchId, description) {
+        const confirmed = await this.showConfirmDialog(
+            'Unschedule Match',
+            `Are you sure you want to unschedule "${description}"?`,
+            'Unschedule',
+            'btn-tennis-warning'
+        );
+    
+        if (!confirmed) return;
+    
+        try {
+            const result = await this.apiCall(`/matches/${matchId}/schedule`, {
+                method: 'DELETE'
+            });
+    
+            this.showNotification(result.message || 'Match unscheduled successfully!', 'success');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (error) {
+            this.showNotification(error.message || 'Failed to unschedule match.', 'danger');
+        }
+    }
+    
+    static editMatchSchedule(matchId) {
+        // Use existing schedule match function from matches.html
+        if (typeof scheduleMatch === 'function') {
+            scheduleMatch(matchId);
+        } else {
+            window.location.href = `/matches/${matchId}/schedule`;
+        }
+    }
+    
+    /**
+     * Format day name from date string
+     */
+    static formatDayName(dateStr) {
+        if (!dateStr || dateStr === 'TBD') return 'TBD';
+        
+        try {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { weekday: 'short' });
+        } catch {
+            return 'TBD';
+        }
+    }
+    
+    /**
+     * Get status class for match
+     */
+    static getMatchStatusClass(match) {
+        if (!match.scheduled_times || match.scheduled_times.length === 0) {
+            return 'status-unscheduled';
+        }
+        
+        const expectedLines = match.expected_lines || 3;
+        const scheduledLines = match.scheduled_times.length;
+        
+        if (scheduledLines >= expectedLines) {
+            return 'status-scheduled';
+        } else {
+            return 'status-partial';
+        }
+    }
+
     // ==================== API UTILITIES ====================
 
     /**
@@ -384,6 +482,133 @@ class TennisUI {
         }
     }
 
+    /**
+     * Create a standardized bulk operation modal
+     */
+    static createBulkOperationModal(operation, title, scopeOptions, alertType, alertMessage, handler, leagues = []) {
+        const iconMap = {
+            'auto-schedule': 'magic',
+            'unschedule': 'calendar-times',
+            'delete': 'trash'
+        };
+    
+        const buttonClassMap = {
+            'auto-schedule': 'btn-tennis-warning',
+            'unschedule': 'btn-tennis-warning', 
+            'delete': 'btn-tennis-danger'
+        };
+    
+        const formId = `bulk${operation.charAt(0).toUpperCase() + operation.slice(1).replace('-', '')}Form`;
+        const modalId = `bulk${operation.charAt(0).toUpperCase() + operation.slice(1).replace('-', '')}Modal`;
+    
+        const needsLeagueSelection = scopeOptions.some(option => option.value === 'league');
+        
+        const modalContent = `
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-${iconMap[operation]}"></i> ${title}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="${formId}" class="tennis-form">
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <i class="fas fa-crosshairs"></i> Scope <span class="required">*</span>
+                                </label>
+                                <div class="form-check-container">
+                                    ${scopeOptions.map((option, index) => `
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="scope" value="${option.value}" 
+                                                   id="${operation}${option.value}" ${index === 0 ? 'checked' : ''}>
+                                            <label class="form-check-label" for="${operation}${option.value}">
+                                                ${option.label}
+                                            </label>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            
+                            ${needsLeagueSelection ? `
+                            <div class="mb-3" id="leagueSelection" style="display: none;">
+                                <label for="bulkLeagueSelect" class="form-label">
+                                    <i class="fas fa-trophy"></i> Select League
+                                </label>
+                                <select class="form-select" id="bulkLeagueSelect" name="league_id">
+                                    <option value="">Choose a league...</option>
+                                    ${leagues.map(league => `<option value="${league.id}">${league.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            ` : ''}
+                            
+                            <div class="alert alert-${alertType}">
+                                <i class="fas fa-${alertType === 'danger' ? 'exclamation-triangle' : 'info-circle'}"></i>
+                                ${alertMessage}
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button type="button" class="btn ${buttonClassMap[operation]}" onclick="${handler.name}()">
+                            <i class="fas fa-${iconMap[operation]}"></i> ${title}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) existingModal.remove();
+        
+        const modalElement = document.createElement('div');
+        modalElement.className = 'modal fade tennis-modal';
+        modalElement.id = modalId;
+        modalElement.innerHTML = modalContent;
+        document.body.appendChild(modalElement);
+        
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    
+        if (needsLeagueSelection) {
+            setTimeout(() => {
+                const scopeRadios = document.querySelectorAll(`#${modalId} input[name="scope"]`);
+                const leagueSelection = document.getElementById('leagueSelection');
+                
+                scopeRadios.forEach(radio => {
+                    radio.addEventListener('change', function() {
+                        if (leagueSelection) {
+                            leagueSelection.style.display = this.value === 'league' ? 'block' : 'none';
+                        }
+                    });
+                });
+            }, 100);
+        }
+    
+        modal._element.addEventListener('hidden.bs.modal', () => {
+            document.getElementById(modalId).remove();
+        });
+    }
+    
+    /**
+     * Add current URL filters to FormData for "selected" scope operations
+     */
+    static addCurrentFiltersToFormData(formData, targetScope = 'selected') {
+        if (formData.get('scope') === targetScope) {
+            const urlParams = new URLSearchParams(window.location.search);
+            for (const [key, value] of urlParams) {
+                if (!formData.has(key)) {
+                    formData.append(key, value);
+                }
+            }
+        }
+    }
+    
+
+
     // ==================== FORM UTILITIES ====================
 
     /**
@@ -512,11 +737,29 @@ class TennisUI {
      * @param {string} message - Message to display
      * @param {string} type - Alert type (success, danger, warning, info)
      * @param {number} duration - Auto-hide duration in milliseconds (default: 8000)
+     * @param {Object} options - Additional options
+     * @param {boolean} options.showRefresh - Show refresh button (default: false)
+     * @param {string} options.refreshText - Text for refresh button (default: 'Refresh')
+     * @param {Function} options.onRefresh - Custom refresh callback (default: page reload)
      */
-    static showNotification(message, type = 'info', duration = 8000) {
+    static showNotification(message, type = 'info', duration = 8000, options = {}) {
+        const { 
+            showRefresh = false, 
+            refreshText = 'Refresh', 
+            onRefresh = () => window.location.reload() 
+        } = options;
+    
         // Create notification element with enhanced styling
         const notification = document.createElement('div');
         notification.className = `alert alert-${type} alert-dismissible fade show tennis-notification tennis-notification-enhanced`;
+        
+        // Add refresh button if requested
+        const refreshButton = showRefresh ? `
+            <button type="button" class="btn btn-sm btn-outline-light ms-2 tennis-refresh-btn" onclick="handleNotificationRefresh(this)">
+                <i class="fas fa-sync-alt"></i> ${refreshText}
+            </button>
+        ` : '';
+        
         notification.innerHTML = `
             <div class="d-flex align-items-start">
                 <div class="tennis-notification-icon me-3">
@@ -525,22 +768,30 @@ class TennisUI {
                 <div class="tennis-notification-content flex-grow-1">
                     <div class="tennis-notification-message">${message}</div>
                 </div>
-                <button type="button" class="btn-close btn-close-white ms-2" data-bs-dismiss="alert" aria-label="Close"></button>
+                <div class="tennis-notification-actions">
+                    ${refreshButton}
+                    <button type="button" class="btn-close btn-close-white ms-2" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
             </div>
         `;
+    
+        // Store refresh callback on the notification element
+        if (showRefresh) {
+            notification._refreshCallback = onRefresh;
+        }
     
         // Add to page
         document.body.appendChild(notification);
     
         // Add click-to-dismiss functionality
         notification.addEventListener('click', function(e) {
-            if (!e.target.closest('.btn-close')) {
-                // Don't dismiss when clicking the close button
+            if (!e.target.closest('.btn-close') && !e.target.closest('.tennis-refresh-btn')) {
+                // Don't dismiss when clicking buttons
                 return;
             }
         });
     
-        // Auto-remove after duration
+        // Auto-remove after duration (if no refresh button or user preference)
         const timeoutId = setTimeout(() => {
             if (notification.parentNode) {
                 notification.classList.remove('show');
@@ -566,7 +817,7 @@ class TennisUI {
         });
     
         notification.addEventListener('mouseleave', () => {
-            if (isPaused) {
+            if (isPaused && !showRefresh) { // Don't auto-hide if refresh button is shown
                 setTimeout(() => {
                     if (notification.parentNode) {
                         notification.classList.remove('show');
@@ -581,7 +832,6 @@ class TennisUI {
             }
         });
     }
-
 
     /**
      * Show a confirmation dialog
@@ -1948,6 +2198,32 @@ matches:
     }
 
     // ... [keep existing file handling methods but remove hardcoded references]
+}
+
+// ==================== GLOBAL Functions ====================
+
+    
+/**
+ * Handle refresh button click in notifications
+ */
+function handleNotificationRefresh(button) {
+    const notification = button.closest('.tennis-notification');
+    if (notification && notification._refreshCallback) {
+        // Show loading state on button
+        const originalContent = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+        button.disabled = true;
+        
+        // Execute refresh callback
+        try {
+            notification._refreshCallback();
+        } catch (error) {
+            console.error('Refresh callback error:', error);
+            // Restore button state on error
+            button.innerHTML = originalContent;
+            button.disabled = false;
+        }
+    }
 }
 
 // ==================== GLOBAL INITIALIZATION ====================

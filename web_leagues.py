@@ -334,9 +334,12 @@ def register_routes(app):
                         return redirect(url_for('view_league', league_id=league_id))
                     else:
                         flash('Failed to update league', 'error')
+                        print('Failed to update league', 'error')
                         
                 except Exception as e:
                     flash(f'Error updating league: {str(e)}', 'error')
+                    print(f'Error updating league: {str(e)}', 'error')
+
             
             return render_template('edit_league.html', 
                                  league=league,

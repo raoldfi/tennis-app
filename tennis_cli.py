@@ -117,10 +117,10 @@ Usage examples:
     python tennis_cli.py --db-path tennis.db stats --facility-id 1 --start-date 2025-01-01 --end-date 2025-12-31
     
     # Data management
-    # Load data from YAML files
-    python tennis_cli.py --db-path tennis.db load facilities facilities.yaml
-    python tennis_cli.py --db-path tennis.db load leagues leagues.yaml
-    python tennis_cli.py --db-path tennis.db load teams teams.yaml
+# Load data from YAML files
+    python tennis_cli.py --db-path tennis.db load all_data.yaml
+    python tennis_cli.py --db-path tennis.db load facilities.yaml
+    python tennis_cli.py --db-path tennis.db load --clear-existing complete_setup.yaml
     
     # Create individual matches
     python tennis_cli.py --db-path tennis.db create match --league-id 1 --home-team-id 1 --visitor-team-id 2
@@ -397,8 +397,8 @@ class TennisCLI:
 
         # Load command (from YAML files)
         load_parser = subparsers.add_parser("load", help="Load data from YAML file")
-        load_parser.add_argument("table", choices=["facilities", "leagues", "teams", "matches"], 
-                               help="Type of data to load")
+        # # load_parser.add_argument("table", choices=["facilities", "leagues", "teams", "matches"], 
+        #                        help="Type of data to load")
         load_parser.add_argument("file_path", help="Path to YAML file")
 
         # Health command
@@ -1433,151 +1433,35 @@ class TennisCLI:
             return 1
 
     def handle_load_command(self, args, db) -> int:
-        """Handle loading data from YAML files with logging"""
-        logger.debug("Starting handle_load_command: table=%s, file_path=%s", args.table, args.file_path)
+        """Handle loading data from YAML files using db.import_from_yaml"""
+        logger.debug("Starting handle_load_command: file_path=%s", args.file_path)
         try:
-            import yaml
-
             if not os.path.exists(args.file_path):
                 logger.error("File not found: %s", args.file_path)
                 print(f"Error: File {args.file_path} not found", file=sys.stderr)
                 return 1
-            logger.info("Found YAML file: %s", args.file_path)
-
-            with open(args.file_path, 'r') as f:
-                data = yaml.safe_load(f)
-            logger.debug("Loaded YAML data: %d items", len(data) if hasattr(data, '__len__') else 0)
-
-            count = 0
-            if args.table == "facilities":
-
-                facilities_data = data.get('facilities')
-                if facilities_data is None:
-                    logger.error("Key 'facilities' not found in YAML file: %s", args.file_path)
-                    raise KeyError("Key 'facilities' not found in YAML file")          
-                
-                from usta_facility import Facility
-                logger.info(f"Loading facilities from YAML\n\n")
-                for item in facilities_data:
-                    logger.debug(f"Loading facility from YAML {item}")
-                    facility = Facility.from_yaml_dict(item)
-                    db.add_facility(facility)
-                    count += 1
-                logger.info("Loaded %d facilities", count)
-                print(f"Loaded {count} facilities from {args.file_path}")
-
-            elif args.table == "leagues":
-                
-                leagues_data = data.get('leagues')
-                if leagues_data is None:
-                    logger.error("Key 'leagues' not found in YAML file: %s", args.file_path)
-                    raise KeyError("Key 'leagues' not found in YAML file")
-                    
-                from usta_league import League
-                logger.info("Loading leagues from YAML")
-                for item in leagues_data:
-                    if hasattr(League, 'from_yaml_dict'):
-                        league = League.from_yaml_dict(item)
-                    else:
-                        league = League(**item)
-                    db.add_league(league)
-                    count += 1
-                logger.info("Loaded %d leagues", count)
-                print(f"Loaded {count} leagues from {args.file_path}")
-
-            elif args.table == "teams":
-                teams_data = data.get('teams')
-                if teams_data is None:
-                    logger.error("Key 'teams' not found in YAML file: %s", args.file_path)
-                    raise KeyError("Key 'teams' not found in YAML file")
-                    
-                from usta_team import Team
-                logger.info("Loading teams from YAML")
-                for item in teams_data:
-                    league = db.get_league(item['league_id'])
-                    if not league:
-                        logger.warning("League not found: %s for team %s", item['league_id'], item.get('name', 'Unknown'))
-                        print(f"Warning: League {item['league_id']} not found for team {item.get('name', 'Unknown')}")
-                        continue
-                    home_facility = None
-                    if 'home_facility_id' in item and item['home_facility_id']:
-                        home_facility = db.get_facility(item['home_facility_id'])
-                        if not home_facility:
-                            logger.warning("Facility not found: %s for team %s", item['home_facility_id'], item.get('name', 'Unknown'))
-                            print(f"Warning: Facility {item['home_facility_id']} not found for team {item.get('name', 'Unknown')}")
-                    if hasattr(Team, 'from_yaml_dict'):
-                        item_copy = item.copy()
-                        item_copy['league'] = league
-                        item_copy['home_facility'] = home_facility
-                        team = Team.from_yaml_dict(item_copy)
-                    else:
-                        team_data = item.copy()
-                        team_data['league'] = league
-                        team_data['home_facility'] = home_facility
-                        team_data.pop('league_id', None)
-                        team_data.pop('home_facility_id', None)
-                        team = Team(**team_data)
-                    db.add_team(team)
-                    count += 1
-                logger.info("Loaded %d teams", count)
-                print(f"Loaded {count} teams from {args.file_path}")
-
-            elif args.table == "matches":
-                matches_data = data.get('matches')
-                if matches_data is None:
-                    logger.error("Key 'matches' not found in YAML file: %s", args.file_path)
-                    raise KeyError("Key 'matches' not found in YAML file")
-                    
-                from usta_match import Match
-                logger.info("Loading matches from YAML")
-                for item in matches_data:
-                    league = db.get_league(item['league_id'])
-                    home_team = db.get_team(item['home_team_id'])
-                    visitor_team = db.get_team(item['visitor_team_id'])
-                    if not all([league, home_team, visitor_team]):
-                        logger.warning("Missing reference for match id=%s", item.get('id', 'Unknown'))
-                        print(f"Warning: Missing references for match {item.get('id', 'Unknown')}")
-                        continue
-                    facility = None
-                    if item.get('facility_id'):
-                        facility = db.get_facility(item['facility_id'])
-                    if hasattr(Match, 'from_yaml_dict'):
-                        item_copy = item.copy()
-                        item_copy.update({
-                            'league': league,
-                            'home_team': home_team,
-                            'visitor_team': visitor_team,
-                            'facility': facility
-                        })
-                        match = Match.from_yaml_dict(item_copy)
-                    else:
-                        match_data = {
-                            'id': item['id'],
-                            'league': league,
-                            'home_team': home_team,
-                            'visitor_team': visitor_team,
-                            'facility': facility,
-                            'date': item.get('date'),
-                            'scheduled_times': item.get('scheduled_times', [])
-                        }
-                        match = Match(**match_data)
-                    db.add_match(match)
-                    count += 1
-                logger.info("Loaded %d matches", count)
-                print(f"Loaded {count} matches from {args.file_path}")
-
+            
+            logger.info("Importing from YAML file: %s", args.file_path)
+            
+            # Use the database's built-in import function
+            success = db.import_from_yaml(args.file_path)
+            
+            if success:
+                print(f"Successfully imported data from {args.file_path}")
+                logger.info("Successfully imported data from %s", args.file_path)
             else:
-                logger.error("Unknown table specified: %s", args.table)
-                print(f"Error: Unknown table {args.table}", file=sys.stderr)
+                print(f"Failed to import data from {args.file_path}", file=sys.stderr)
+                logger.error("Failed to import data from %s", args.file_path)
                 return 1
-
-            logger.debug("Finished handle_load_command successfully")
+                
             return 0
-
+    
         except Exception as e:
             logger.exception("Exception in handle_load_command")
             print(f"Error: {e}", file=sys.stderr)
             return 1
+
+    
 
     def handle_health_command(self, args, db):
         """Handle database health check"""

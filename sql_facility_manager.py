@@ -38,7 +38,7 @@ class SQLFacilityManager:
         """Convert sqlite Row object to dictionary"""
         return dict(row) if row else {}
     
-    def add_facility(self, facility: Facility) -> None:
+    def add_facility(self, facility: Facility) -> bool:
         """Add a new facility to the database"""
         if not isinstance(facility, Facility):
             raise TypeError(f"Expected Facility object, got: {type(facility)}")
@@ -71,6 +71,7 @@ class SQLFacilityManager:
             raise ValueError(f"Database integrity error adding facility: {e}")
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error adding facility: {e}")
+        return True
 
     def get_facility(self, facility_id: int) -> Optional[Facility]:
         """Get a facility by ID"""
@@ -105,7 +106,7 @@ class SQLFacilityManager:
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error retrieving facility {facility_id}: {e}")
 
-    def update_facility(self, facility: Facility) -> None:
+    def update_facility(self, facility: Facility) -> bool:
         """Update an existing facility in the database"""
         if not isinstance(facility, Facility):
             raise TypeError(f"Expected Facility object, got: {type(facility)}")
@@ -143,8 +144,9 @@ class SQLFacilityManager:
             raise ValueError(f"Database integrity error updating facility: {e}")
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error updating facility: {e}")
+        return True
     
-    def delete_facility(self, facility_id: int) -> None:
+    def delete_facility(self, facility_id: int) -> bool:
         """Delete a facility from the database"""
         if not isinstance(facility_id, int) or facility_id <= 0:
             raise ValueError(f"Facility ID must be a positive integer, got: {facility_id}")
@@ -176,6 +178,7 @@ class SQLFacilityManager:
                 
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error deleting facility {facility_id}: {e}")
+        return True
 
 
     
@@ -771,7 +774,7 @@ class SQLFacilityManager:
         except Exception as e:
             raise RuntimeError(f"Error calculating facility utilization: {e}")
 
-    def add_unavailable_date(self, facility_id: int, date: str) -> None:
+    def add_unavailable_date(self, facility_id: int, date: str) -> bool:
         """Add an unavailable date to a facility"""
         if not isinstance(facility_id, int) or facility_id <= 0:
             raise ValueError(f"Facility ID must be a positive integer, got: {facility_id}")
@@ -787,8 +790,9 @@ class SQLFacilityManager:
             """, (facility_id, date))
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error adding unavailable date: {e}")
+        return True
 
-    def remove_unavailable_date(self, facility_id: int, date: str) -> None:
+    def remove_unavailable_date(self, facility_id: int, date: str) -> bool:
         """Remove an unavailable date from a facility"""
         if not isinstance(facility_id, int) or facility_id <= 0:
             raise ValueError(f"Facility ID must be a positive integer, got: {facility_id}")
@@ -800,3 +804,4 @@ class SQLFacilityManager:
             """, (facility_id, date))
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error removing unavailable date: {e}")
+        return True

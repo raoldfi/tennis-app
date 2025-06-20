@@ -30,7 +30,7 @@ class SQLTeamManager:
         """Convert sqlite Row object to dictionary"""
         return dict(row) if row else {}
     
-    def add_team(self, team: Team) -> None:
+    def add_team(self, team: Team) -> bool:
         """Add a new team to the database"""
         if not isinstance(team, Team):
             raise TypeError(f"Expected Team object, got: {type(team)}")
@@ -67,6 +67,7 @@ class SQLTeamManager:
             raise ValueError(f"Database integrity error adding team: {e}")
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error adding team: {e}")
+        return True
     
     def get_team(self, team_id: int) -> Optional[Team]:
         """Get a team by ID"""
@@ -155,7 +156,7 @@ class SQLTeamManager:
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error listing teams: {e}")
 
-    def update_team(self, team: Team) -> None:
+    def update_team(self, team: Team) -> bool:
         """Update an existing team in the database"""
         if not isinstance(team, Team):
             raise TypeError(f"Expected Team object, got: {type(team)}")
@@ -198,8 +199,9 @@ class SQLTeamManager:
             raise ValueError(f"Database integrity error updating team: {e}")
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error updating team: {e}")
+        return True
 
-    def delete_team(self, team_id: int) -> None:
+    def delete_team(self, team_id: int) -> bool:
         """Delete a team from the database"""
         if not isinstance(team_id, int) or team_id <= 0:
             raise ValueError(f"Team ID must be a positive integer, got: {team_id}")
@@ -229,6 +231,7 @@ class SQLTeamManager:
                 
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error deleting team {team_id}: {e}")
+        return True
 
     def get_teams_by_facility(self, facility_id: int) -> List[Team]:
         """Get all teams that use a specific facility as their home"""

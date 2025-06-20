@@ -193,8 +193,6 @@ def get_optimal_scheduling_dates(match: 'Match', start_date: Optional[str] = Non
 
 
     try:
-
-        
         # Use league dates or reasonable defaults
         search_start = start_date or match.league.start_date or datetime.now().strftime('%Y-%m-%d')
         search_end = end_date or match.league.end_date
@@ -213,11 +211,31 @@ def get_optimal_scheduling_dates(match: 'Match', start_date: Optional[str] = Non
         current = start_dt
         
         # Create combined team preferred days (intersection is highest priority)
-        home_preferred = set(match.home_team.preferred_days)
-        visitor_preferred = set(match.visitor_team.preferred_days)
+        # RON's ASSUMPTION -- THESE ARE REQUIRED
+        hp = set(match.home_team.preferred_days)
+        vp = set(match.visitor_team.preferred_days)
+
+        # Start with no required days
+        required_days = None
+        
+        # if both teams have preferred days, but the intersection is null-set, error.
+        if (hp and vp):
+            rd = hp & vp
+            if not rd:
+                raise ValueError(f"Teams have preferred dates that don't overlap: "
+                                 f"h={hp}, v={vp}")
+                
+        # One is non-empty, so we use the union
+        elif (hp or vp):
+            required_days = hp | vp
+
+        # If both are empty, anyday works.  Set required_days to None
+        else:
+            required_days = None
+
         
         # Priority levels:
-        # 1 = Both teams prefer this day
+        # 1 = required days (no other days matter)
         # 2 = One team prefers this day
         # 3 = League prefers this day (but no team preference)
         # 4 = League backup day (but no team preference)
@@ -234,11 +252,13 @@ def get_optimal_scheduling_dates(match: 'Match', start_date: Optional[str] = Non
             
             # Determine priority based on team and league preferences
             priority = 5  # Default: allowed but not preferred
-            
-            if day_name in home_preferred and day_name in visitor_preferred:
-                priority = 1  # Both teams prefer this day
-            elif day_name in home_preferred or day_name in visitor_preferred:
-                priority = 2  # One team prefers this day
+
+            if required_days:
+                if day_name in required_days:
+                    priority = 1  # required day
+                else:
+                    current += timedelta(days=1)
+                    continue
             elif day_name in match.league.preferred_days:
                 priority = 3  # League prefers this day
             elif day_name in match.league.backup_days:

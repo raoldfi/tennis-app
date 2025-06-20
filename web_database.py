@@ -15,12 +15,15 @@ def configure_database(backend_class: Type[TennisDBInterface], **connection_para
     db_config['backend_class'] = backend_class
     db_config['connection_params'] = connection_params
 
+
+
 def get_db() -> Optional[TennisDBInterface]:
     """Get database connection for current thread"""
     if not hasattr(g, 'db') or g.db is None:
         if db_config['backend_class'] is None:
             return None
         try:
+            # Fix: Pass as a dict since SQLiteTennisDB expects config dict
             g.db = db_config['backend_class'](db_config['connection_params'])
             g.db.connect()
         except Exception as e:
@@ -41,7 +44,8 @@ def close_db(error):
 def init_db(backend_class: Type[TennisDBInterface], **connection_params) -> bool:
     """Initialize database with specified backend and parameters"""
     try:
-        test_db = backend_class(connection_params)
+        # Fix: Pass connection_params as a dict, since SQLiteTennisDB expects a config dict
+        test_db = backend_class({'db_path': connection_params['db_path']})  # For SQLite specifically
         test_db.connect()
         if test_db.ping():
             test_db.disconnect()

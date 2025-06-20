@@ -51,7 +51,7 @@
             <form method="GET" action="{{ url_for('matches') }}" class="tennis-form">
                 <div class="row g-3">
                     <!-- League Filter -->
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="league_id" class="form-label">
                             <i class="fas fa-trophy"></i> League
                         </label>
@@ -65,11 +65,43 @@
                             {% endfor %}
                         </select>
                     </div>
-
+    
+                    <!-- NEW: Facility Filter -->
+                    <div class="col-md-2">
+                        <label for="facility_id" class="form-label">
+                            <i class="fas fa-building"></i> Facility
+                        </label>
+                        <select class="form-select" id="facility_id" name="facility_id">
+                            <option value="">All Facilities</option>
+                            {% for facility in facilities %}
+                            <option value="{{ facility.id }}" 
+                                    {% if selected_facility and selected_facility.id == facility.id %}selected{% endif %}>
+                                {{ facility.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+    
+                    <!-- NEW: Team Filter -->
+                    <div class="col-md-2">
+                        <label for="team_id" class="form-label">
+                            <i class="fas fa-users"></i> Team
+                        </label>
+                        <select class="form-select" id="team_id" name="team_id">
+                            <option value="">All Teams</option>
+                            {% for team in teams %}
+                            <option value="{{ team.id }}" 
+                                    {% if selected_team and selected_team.id == team.id %}selected{% endif %}>
+                                {{ team.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+    
                     <!-- Match Type Filter -->
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="match_type" class="form-label">
-                            <i class="fas fa-list"></i> Match Type
+                            <i class="fas fa-list"></i> Type
                         </label>
                         <select class="form-select" id="match_type" name="match_type">
                             <option value="all" {% if match_type == 'all' %}selected{% endif %}>
@@ -83,42 +115,40 @@
                             </option>
                         </select>
                     </div>
-
+    
                     <!-- Date Range Filters -->
                     <div class="col-md-2">
                         <label for="start_date" class="form-label">
-                            <i class="fas fa-calendar-plus"></i> Start Date
+                            <i class="fas fa-calendar-plus"></i> Start
                         </label>
                         <input type="date" class="form-control" id="start_date" name="start_date" 
                                value="{{ start_date or '' }}">
                     </div>
-
+    
                     <div class="col-md-2">
                         <label for="end_date" class="form-label">
-                            <i class="fas fa-calendar-minus"></i> End Date
+                            <i class="fas fa-calendar-minus"></i> End
                         </label>
                         <input type="date" class="form-control" id="end_date" name="end_date" 
                                value="{{ end_date or '' }}">
                     </div>
-
-                    <!-- Search -->
-                    <div class="col-md-2">
+                </div>
+    
+                <!-- Second row for search and actions -->
+                <div class="row g-3 mt-2">
+                    <div class="col-md-8">
                         <label for="search_query" class="form-label">
                             <i class="fas fa-search"></i> Search
                         </label>
                         <input type="text" class="form-control" id="search_query" name="search_query" 
-                               value="{{ search_query or '' }}" placeholder="Teams, facilities...">
+                               value="{{ search_query or '' }}" placeholder="Teams, facilities, match ID...">
                     </div>
-                </div>
-
-                <!-- Filter Actions -->
-                <div class="row mt-3">
-                    <div class="col-12">
-                        <button type="submit" class="btn btn-tennis-primary">
-                            <i class="fas fa-filter"></i> Apply Filters
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-tennis-primary me-2">
+                            <i class="fas fa-filter"></i> Apply
                         </button>
-                        <a href="{{ url_for('matches') }}" class="btn btn-secondary ms-2">
-                            <i class="fas fa-times"></i> Clear Filters
+                        <a href="{{ url_for('matches') }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Clear
                         </a>
                     </div>
                 </div>
@@ -127,7 +157,7 @@
     </div>
 
     <!-- Active Filters Display -->
-    {% if selected_league or match_type != 'all' or start_date or end_date or search_query %}
+    {% if selected_league or selected_facility or selected_team or match_type != 'all' or start_date or end_date or search_query %}
     <div class="alert alert-tennis-info mb-4">
         <div class="d-flex justify-content-between align-items-center">
             <div>
@@ -135,6 +165,12 @@
                 <strong>Active Filters:</strong>
                 {% if selected_league %}
                 <span class="badge bg-primary ms-1">League: {{ selected_league.name }}</span>
+                {% endif %}
+                {% if selected_facility %}
+                <span class="badge bg-success ms-1">Facility: {{ selected_facility.name }}</span>
+                {% endif %}
+                {% if selected_team %}
+                <span class="badge bg-info ms-1">Team: {{ selected_team.name }}</span>
                 {% endif %}
                 {% if match_type != 'all' %}
                 <span class="badge bg-secondary ms-1">Type: {{ match_type.title() }}</span>
@@ -158,269 +194,11 @@
 
     <!-- Matches Content -->
     {% if matches %}
-    <!-- Desktop Table View -->
-    <div class="tennis-card d-none d-lg-block">
-        <div class="card-header">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h4 class="mb-0">
-                        <i class="fas fa-table"></i> Match Details
-                    </h4>
-                </div>
-                <div class="col-md-4 text-end">
-                    <span class="badge bg-light text-dark fs-6">{{ matches | length }} matches</span>
-                </div>
-            </div>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table tennis-table mb-0">
-                    <thead>
-                        <tr>
-                            <th><i class="fas fa-hashtag"></i> ID</th>
-                            <th><i class="fas fa-users"></i> Teams</th>
-                            <th><i class="fas fa-trophy"></i> League</th>
-                            <th><i class="fas fa-building"></i> Facility</th>
-                            <th><i class="fas fa-calendar"></i> Date</th>
-                            <th><i class="fas fa-clock"></i> Times</th>
-                            <th><i class="fas fa-info-circle"></i> Status</th>
-                            <th class="text-center"><i class="fas fa-cogs"></i> Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for match in matches %}
-                        <tr class="{% if not match.is_fully_scheduled %}table-warning{% endif %}">
-                            <td>
-                                <span class="badge bg-secondary">{{ match.id }}</span>
-                            </td>
-                            <td>
-                                <div class="match-teams">
-                                    <div class="fw-bold text-tennis-primary">{{ match.home_team.name if match.home_team else 'TBD' }}</div>
-                                    <div class="fw-normal text-tennis-primary">vs {{ match.visitor_team.name if match.visitor_team else 'TBD' }}</div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="badge bg-info">{{ match.league.name if match.league else 'Unknown' }}</span>
-                            </td>
-                            <td>
-                                {% if match.facility and match.facility.name %}
-                                <span class="text-success">
-                                    <i class="fas fa-map-marker-alt"></i> {{ match.facility.short_name }}
-                                </span>
-                                {% else %}
-                                <span class="text-muted">
-                                    <i class="fas fa-question-circle"></i> Not assigned
-                                </span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if match.date %}
-                                <span class="text-success">
-                                    <i class="fas fa-calendar-check"></i> {{ match.date }}
-                                </span>
-                                {% else %}
-                                <span class="text-muted">
-                                    <i class="fas fa-calendar-times"></i> Not scheduled
-                                </span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if match.get_scheduled_times() %}
-                                <div class="small">
-                                    {% for time in match.get_scheduled_times() %}
-                                    <div class="text-success">
-                                        <i class="fas fa-clock"></i> {{ time }}
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                                {% else %}
-                                <span class="text-muted">
-                                    <i class="fas fa-clock"></i> Not scheduled
-                                </span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if match.is_fully_scheduled() %}
-                                <span class="badge bg-success">
-                                    <i class="fas fa-check"></i> Scheduled
-                                </span>
-                                {% elif match.is_partially_scheduled() %}
-                                <span class="badge bg-warning">
-                                    <i class="fas fa-exclamation-triangle"></i> Partial
-                                </span>
-                                {% else %}
-                                <span class="badge bg-danger">
-                                    <i class="fas fa-times"></i> Unscheduled
-                                </span>
-                                {% endif %}
-                            </td>
-
-
-
-
-                            
-                            <td>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <!-- View button - always visible -->
-                                    
-                                    <a href="{{ url_for('view_match', match_id=match.id) }}" 
-                                       class="btn btn-tennis-primary btn-sm"
-                                       data-bs-toggle="tooltip" 
-                                       title="View Match Details">
-                                        <i class="fas fa-eye"></i>
-                                    </a>                                   
-                                    
-                                    {% if match.is_fully_scheduled() %}
-                                        <!-- Scheduled Match Actions -->
-                                        <button type="button" class="btn btn-tennis-warning btn-sm" 
-                                                onclick="unscheduleMatch({{ match.id }})"
-                                                data-bs-toggle="tooltip" 
-                                                title="Unschedule Match">
-                                            <i class="fas fa-calendar-times"></i>
-                                        </button>
-                                    {% else %}
-                                        <!-- Unscheduled Match Actions -->
-                                        <button type="button" class="btn btn-tennis-success btn-sm" 
-                                                onclick="scheduleMatch({{ match.id }})"
-                                                data-bs-toggle="tooltip" 
-                                                title="Schedule Match">
-                                            <i class="fas fa-calendar-plus"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-tennis-danger btn-sm" 
-                                                onclick="deleteMatch({{ match.id }})"
-                                                data-bs-toggle="tooltip" 
-                                                title="Delete Unscheduled Match">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    {% endif %}
-                                </div>
-                            </td>
-
-
-
-
-                            
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Mobile Card View -->
-    <div class="d-lg-none">
-        {% for match in matches %}
-        <div class="tennis-card mb-3">
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-12">
-                        <!-- Match Header -->
-                        <div class="d-flex justify-content-between align-items-start mb-3">
-                            <div>
-                                <h6 class="mb-1">
-                                    <span class="badge bg-secondary me-2">{{ match.id }}</span>
-                                    {% if match.is_fully_scheduled() %}
-                                    <span class="badge bg-success">
-                                        <i class="fas fa-check"></i> Scheduled
-                                    </span>
-                                    {% elif match.is_partially_scheduled() %}
-                                    <span class="badge bg-warning">
-                                        <i class="fas fa-exclamation-triangle"></i> Partial
-                                    </span>
-                                    {% else %}
-                                    <span class="badge bg-danger">
-                                        <i class="fas fa-times"></i> Unscheduled
-                                    </span>
-                                    {% endif %}
-                                </h6>
-                                                                    <div class="text-muted small">{{ match.league.name if match.league else 'Unknown' }}</div>
-                            </div>
-                            <div class="btn-group" role="group">
-                                <button type="button" class="btn btn-tennis-primary btn-sm" 
-                                        onclick="scheduleMatch({{ match.id }})">
-                                    <i class="fas fa-{% if match.is_scheduled() %}edit{% else %}calendar-plus{% endif %}"></i>
-                                </button>
-                                {% if not match.is_scheduled() %}
-                                <button type="button" class="btn btn-tennis-danger btn-sm" 
-                                        onclick="deleteMatch({{ match.id }})">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <!-- Teams -->
-                        <div class="mb-3">
-                            <div class="fw-bold text-tennis-primary">{{ match.home_team.name if match.home_team else 'TBD' }}</div>
-                            <div class="text-muted">vs {{ match.visitor_team.name if match.visitor_team else 'TBD' }}</div>
-                        </div>
-
-                        <!-- Schedule Info -->
-                        <div class="row text-sm">
-                            <div class="col-6">
-                                <div class="mb-2">
-                                    <i class="fas fa-building text-muted"></i>
-                                    {% if match.facility_name %}
-                                    <span class="text-success">{{ match.facility_name }}</span>
-                                    {% else %}
-                                    <span class="text-muted">Not assigned</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="mb-2">
-                                    <i class="fas fa-calendar text-muted"></i>
-                                    {% if match.date %}
-                                    <span class="text-success">{{ match.date }}</span>
-                                    {% else %}
-                                    <span class="text-muted">Not scheduled</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Times -->
-                        {% if match.get_scheduled_times() %}
-                        <div class="mt-2">
-                            <i class="fas fa-clock text-muted"></i>
-                            <span class="small">
-                                {% for time in match.get_scheduled_times() %}
-                                <span class="badge bg-light text-dark me-1">{{ time }}</span>
-                                {% endfor %}
-                            </span>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-
-    {% else %}
-    <!-- No Matches Found -->
-    <div class="tennis-card">
-        <div class="card-body text-center py-5">
-            <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
-            <h4 class="text-muted">No Matches Found</h4>
-            <p class="text-muted mb-4">
-                {% if selected_league or match_type != 'all' or start_date or end_date or search_query %}
-                No matches match your current filters. Try adjusting your search criteria.
-                {% else %}
-                There are no matches in the database yet.
-                {% endif %}
-            </p>
-            <div class="d-flex justify-content-center gap-2">
-                {% if selected_league or match_type != 'all' or start_date or end_date or search_query %}
-                <a href="{{ url_for('matches') }}" class="btn btn-tennis-primary">
-                    <i class="fas fa-times"></i> Clear Filters
-                </a>
-                {% endif %}
-            </div>
-        </div>
-    </div>
+        {% with matches=matches %}
+            {% include 'components/scheduled_matches_table.html' %}
+        {% endwith %}
     {% endif %}
+
 </div>
 
 <!-- Bulk Auto-Schedule Modal -->
@@ -643,201 +421,329 @@
 
 {% block scripts %}
 <script>
+// ==================== MATCHES PAGE FUNCTIONALITY ====================
 let currentMatchId = null;
 
-// Handle scope selection for bulk operations
-document.addEventListener('DOMContentLoaded', function() {
-    // Bulk Auto-Schedule scope handling
-    const scopeRadios = document.querySelectorAll('input[name="scope"]');
-    const leagueSelection = document.getElementById('leagueSelection');
-    
-    scopeRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.value === 'league') {
-                leagueSelection.style.display = 'block';
-            } else {
-                leagueSelection.style.display = 'none';
-            }
-        });
-    });
+// Get leagues data for modals
+const leagues = [
+    {% for league in leagues %}
+    { id: {{ league.id }}, name: "{{ league.name }}" },
+    {% endfor %}
+];
 
-    // Bulk Unschedule scope handling
-    const unscheduleRadios = document.querySelectorAll('#bulkUnscheduleModal input[name="scope"]');
-    const unscheduleLeagueSelection = document.getElementById('unscheduleLeagueSelection');
-    
-    unscheduleRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.value === 'league') {
-                unscheduleLeagueSelection.style.display = 'block';
-            } else {
-                unscheduleLeagueSelection.style.display = 'none';
-            }
-        });
-    });
+// ==================== BULK OPERATION MODALS ====================
 
-    // Bulk Delete scope handling
-    const deleteRadios = document.querySelectorAll('#bulkDeleteModal input[name="scope"]');
-    const deleteLeagueSelection = document.getElementById('deleteLeagueSelection');
-    
-    deleteRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.value === 'league') {
-                deleteLeagueSelection.style.display = 'block';
-            } else {
-                deleteLeagueSelection.style.display = 'none';
-            }
-        });
-    });
-});
+function showBulkAutoScheduleModal() {
+    TennisUI.createBulkOperationModal(
+        'auto-schedule',
+        'Auto-Schedule Matches',
+        [
+            { value: 'all', label: 'All unscheduled matches' },
+            { value: 'league', label: 'Specific league only' },
+            { value: 'selected', label: 'Currently filtered matches only' }
+        ],
+        'info',
+        'This will attempt to automatically schedule unscheduled matches to available facilities and time slots.',
+        handleBulkAutoSchedule,
+        leagues
+    );
+}
 
-// Bulk Operation Handlers
+function showBulkUnscheduleModal() {
+    TennisUI.createBulkOperationModal(
+        'unschedule',
+        'Unschedule Matches',
+        [
+            { value: 'all', label: 'All scheduled matches' },
+            { value: 'league', label: 'Scheduled matches in specific league' },
+            { value: 'selected', label: 'Currently filtered scheduled matches only' }
+        ],
+        'warning',
+        '<strong>Warning:</strong> This will remove scheduling information from selected matches. This action cannot be undone.',
+        handleBulkUnschedule,
+        leagues
+    );
+}
+
+function showBulkDeleteModal() {
+    TennisUI.createBulkOperationModal(
+        'delete',
+        'Delete Matches',
+        [
+            { value: 'unscheduled', label: 'All unscheduled matches only' },
+            { value: 'league', label: 'Unscheduled matches in specific league' },
+            { value: 'selected', label: 'Currently filtered unscheduled matches' }
+        ],
+        'danger',
+        '<strong>Warning:</strong> Only unscheduled matches can be deleted for safety. This action cannot be undone.',
+        handleBulkDelete,
+        leagues
+    );
+}
+
+// ==================== BULK OPERATION HANDLERS ====================
+
 function handleBulkAutoSchedule() {
-    const form = document.getElementById('bulkAutoScheduleForm');
-    if (!TennisUI.validateForm('bulkAutoScheduleForm')) {
-        return;
-    }
+    const formData = new FormData(document.getElementById('bulkAutoScheduleForm'));
+    TennisUI.addCurrentFiltersToFormData(formData, 'selected');
     
-    const formData = new FormData(form);
-    const scope = formData.get('scope');
-    
-    // Add current filter parameters if scope is 'selected'
-    if (scope === 'selected') {
-        const urlParams = new URLSearchParams(window.location.search);
-        for (const [key, value] of urlParams) {
-            if (!formData.has(key)) {
-                formData.append(key, value);
-            }
+    // Custom success callback to handle warnings with refresh button
+    const customSuccessCallback = (result) => {
+        // Check if there were partial failures
+        if (result.warning && result.failed_count > 0) {
+            // Show warning with refresh button
+            TennisUI.showNotification(
+                result.message || `Auto-scheduled ${result.scheduled_count} of ${result.total_count} matches. ${result.failed_count} could not be scheduled.`,
+                'warning',
+                15000, // Longer duration for warnings
+                {
+                    showRefresh: true,
+                    refreshText: 'Refresh Page',
+                    onRefresh: () => window.location.reload()
+                }
+            );
+        } else {
+            // Show success normally
+            TennisUI.showNotification(result.message || 'All matches scheduled successfully!', 'success');
+            setTimeout(() => window.location.reload(), 1500);
         }
-    }
-    
-    TennisUI.executeBulkOperation(
+    };
+
+    // Use modified executeBulkOperation with custom callback
+    executeBulkOperationWithRefresh(
         'Bulk Auto-Schedule',
         '/api/bulk-auto-schedule',
         formData,
-        'bulkAutoScheduleModal'
+        'bulkAutoScheduleModal',
+        customSuccessCallback
     );
 }
 
 function handleBulkUnschedule() {
-    const form = document.getElementById('bulkUnscheduleForm');
-    if (!TennisUI.validateForm('bulkUnscheduleForm')) {
-        return;
-    }
+    const formData = new FormData(document.getElementById('bulkUnscheduleForm'));
+    TennisUI.addCurrentFiltersToFormData(formData, 'selected');
     
-    const formData = new FormData(form);
-    const scope = formData.get('scope');
-    
-    // Add current filter parameters if scope is 'selected'
-    if (scope === 'selected') {
-        const urlParams = new URLSearchParams(window.location.search);
-        for (const [key, value] of urlParams) {
-            if (!formData.has(key)) {
-                formData.append(key, value);
-            }
+    const customSuccessCallback = (result) => {
+        if (result.warning) {
+            TennisUI.showNotification(
+                result.message || 'Unscheduling completed with some issues.',
+                'warning',
+                12000,
+                {
+                    showRefresh: true,
+                    refreshText: 'Refresh Page',
+                    onRefresh: () => window.location.reload()
+                }
+            );
+        } else {
+            TennisUI.showNotification(result.message || 'Matches unscheduled successfully!', 'success');
+            setTimeout(() => window.location.reload(), 1500);
         }
-    }
+    };
     
-    TennisUI.executeBulkOperation(
+    executeBulkOperationWithRefresh(
         'Bulk Unschedule',
         '/api/bulk-unschedule',
         formData,
-        'bulkUnscheduleModal'
+        'bulkUnscheduleModal',
+        customSuccessCallback
     );
 }
 
 function handleBulkDelete() {
-    const form = document.getElementById('bulkDeleteForm');
-    if (!TennisUI.validateForm('bulkDeleteForm')) {
-        return;
-    }
+    const formData = new FormData(document.getElementById('bulkDeleteForm'));
+    TennisUI.addCurrentFiltersToFormData(formData, 'selected');
     
-    const formData = new FormData(form);
-    const scope = formData.get('scope');
-    
-    // Add current filter parameters if scope is 'selected'
-    if (scope === 'selected') {
-        const urlParams = new URLSearchParams(window.location.search);
-        for (const [key, value] of urlParams) {
-            if (!formData.has(key)) {
-                formData.append(key, value);
-            }
+    const customSuccessCallback = (result) => {
+        if (result.warning) {
+            TennisUI.showNotification(
+                result.message || 'Deletion completed with some issues.',
+                'warning',
+                12000,
+                {
+                    showRefresh: true,
+                    refreshText: 'Refresh Page', 
+                    onRefresh: () => window.location.reload()
+                }
+            );
+        } else {
+            TennisUI.showNotification(result.message || 'Matches deleted successfully!', 'success');
+            setTimeout(() => window.location.reload(), 1500);
         }
-    }
+    };
     
-    // Show confirmation dialog
-    if (!confirm('Are you sure you want to delete the selected unscheduled matches? This action cannot be undone.')) {
-        return;
-    }
-    
-    TennisUI.executeBulkOperation(
+    executeBulkOperationWithRefresh(
         'Bulk Delete',
         '/api/bulk-delete',
         formData,
-        'bulkDeleteModal'
+        'bulkDeleteModal',
+        customSuccessCallback
     );
 }
 
-// Individual Match Operations
-function scheduleMatch(matchId) {
+/**
+ * Execute bulk operation with enhanced warning handling
+ */
+async function executeBulkOperationWithRefresh(operation, url, data, modalId, successCallback) {
+    const submitBtn = document.querySelector(`#${modalId} .btn-tennis-warning, #${modalId} .btn-tennis-danger, #${modalId} .btn-tennis-success, #${modalId} .btn-primary`);
+    
+    // Set button loading state
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.classList.add('btn-loading');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.setAttribute('data-original-text', originalText);
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+    }
+
+    try {
+        const options = {
+            method: 'POST',
+        };
+
+        if (data instanceof FormData) {
+            options.body = data;
+        } else {
+            options.body = JSON.stringify(data);
+            options.headers = {
+                'Content-Type': 'application/json'
+            };
+        }
+
+        const result = await TennisUI.apiCall(url, options);
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+        if (modal) modal.hide();
+        
+        // Execute custom success callback
+        if (successCallback) {
+            successCallback(result);
+        } else {
+            // Default behavior
+            TennisUI.showNotification(result.message || `${operation} completed successfully`, 'success');
+            setTimeout(() => window.location.reload(), 500);
+        }
+
+    } catch (error) {
+        TennisUI.showNotification(
+            error.message || `${operation} failed`,
+            'danger',
+            10000,
+            {
+                showRefresh: true,
+                refreshText: 'Try Again',
+                onRefresh: () => window.location.reload()
+            }
+        );
+        console.error(`${operation} error:`, error);
+    } finally {
+        // Reset button state
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('btn-loading');
+            const originalText = submitBtn.getAttribute('data-original-text');
+            if (originalText) {
+                submitBtn.innerHTML = originalText;
+            }
+        }
+    }
+}
+    
+// ==================== INDIVIDUAL MATCH OPERATIONS ====================
+
+async function scheduleMatch(matchId) {
     currentMatchId = matchId;
     
-    // Show loading in modal content
-    TennisUI.setModalContent('scheduleMatchModal', 'scheduleMatchContent', 
-        '<div class="text-center py-4"><div class="tennis-spinner"></div><p class="mt-2">Loading match details...</p></div>'
-    );
-    
-    // Show the modal
-    TennisUI.showModal('scheduleMatchModal');
-    
-    // Load match details
-    TennisUI.apiCall(`/api/matches/${matchId}/schedule-form`)
-        .then(data => {
-            TennisUI.setModalContent('scheduleMatchModal', 'scheduleMatchContent', data.html);
-        })
-        .catch(error => {
-            TennisUI.setModalContent('scheduleMatchModal', 'scheduleMatchContent', 
-                `<div class="alert alert-tennis-danger">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    Error loading match details: ${error.message}
-                </div>`
-            );
-        });
-}
-
-function deleteMatch(matchId) {
-    if (!confirm('Are you sure you want to delete this unscheduled match? This action cannot be undone.')) {
-        return;
+    try {
+        // Use TennisUI for modal management
+        TennisUI.setModalContent('scheduleMatchModal', 'scheduleMatchContent', 
+            '<div class="text-center py-4"><div class="tennis-spinner"></div><p class="mt-2">Loading match details...</p></div>'
+        );
+        
+        TennisUI.showModal('scheduleMatchModal');
+        
+        // Use TennisUI for API calls
+        const data = await TennisUI.apiCall(`/api/matches/${matchId}/schedule-form`);
+        TennisUI.setModalContent('scheduleMatchModal', 'scheduleMatchContent', data.html);
+        
+    } catch (error) {
+        TennisUI.setModalContent('scheduleMatchModal', 'scheduleMatchContent', 
+            `<div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i>
+                Error loading match details: ${error.message}
+            </div>`
+        );
     }
-    
-    TennisUI.apiCall(`/api/matches/${matchId}`, {
-        method: 'DELETE'
-    })
-    .then(result => {
-        TennisUI.showNotification(result.message || 'Match deleted successfully', 'success');
-        setTimeout(() => location.reload(), 1500);
-    })
-    .catch(error => {
-        TennisUI.showNotification(`Failed to delete match: ${error.message}`, 'danger');
-    });
 }
 
-// Schedule form submission (called from dynamically loaded content)
+async function unscheduleMatch(matchId, matchDescription) {
+    // Use TennisUI for confirmation dialogs
+    const confirmed = await TennisUI.showConfirmDialog(
+        'Unschedule Match',
+        `Are you sure you want to remove the schedule for "${matchDescription}"?`,
+        'Unschedule',
+        'btn-tennis-warning'
+    );
+
+    if (!confirmed) return;
+
+    try {
+        // Use TennisUI for API calls
+        const result = await TennisUI.apiCall(`/matches/${matchId}/schedule`, {
+            method: 'DELETE'
+        });
+
+        // Use TennisUI for notifications
+        TennisUI.showNotification(result.message || 'Match unscheduled successfully!', 'success');
+        setTimeout(() => window.location.reload(), 1000);
+        
+    } catch (error) {
+        TennisUI.showNotification(error.message || 'Failed to unschedule match.', 'danger');
+    }
+}
+
+async function deleteMatch(matchId, matchDescription) {
+    // Use TennisUI for confirmation dialogs
+    const confirmed = await TennisUI.showConfirmDialog(
+        'Delete Match',
+        `Are you sure you want to delete "${matchDescription}"? This action cannot be undone.`,
+        'Delete Match',
+        'btn-tennis-danger'
+    );
+
+    if (!confirmed) return;
+
+    try {
+        // Use TennisUI for API calls
+        const result = await TennisUI.apiCall(`/matches/${matchId}`, {
+            method: 'DELETE'
+        });
+
+        // Use TennisUI for notifications
+        TennisUI.showNotification(result.message || 'Match deleted successfully!', 'success');
+        setTimeout(() => window.location.reload(), 1000);
+        
+    } catch (error) {
+        TennisUI.showNotification(error.message || 'Failed to delete match.', 'danger');
+    }
+}
+
+// ==================== SCHEDULE MODAL FORM HANDLERS ====================
+
 function submitSchedule() {
     const form = document.getElementById('scheduleForm');
-    if (!form) {
-        TennisUI.showNotification('Schedule form not found', 'danger');
-        return;
-    }
-    
-    if (!TennisUI.validateForm('scheduleForm')) {
+    if (!form || !TennisUI.validateForm('scheduleForm')) {
         return;
     }
     
     const formData = new FormData(form);
     
+    // Use TennisUI for form loading states
     TennisUI.setFormLoading('scheduleForm', true);
     
-    TennisUI.apiCall(`/api/matches/${currentMatchId}/schedule`, {
+    // Use TennisUI for API calls
+    TennisUI.apiCall(`/matches/${currentMatchId}/schedule`, {
         method: 'POST',
         body: formData
     })
@@ -854,67 +760,81 @@ function submitSchedule() {
     });
 }
 
-// Clear schedule (called from dynamically loaded content)
 function clearSchedule() {
-    if (!confirm('Are you sure you want to clear the schedule for this match?')) {
-        return;
-    }
-    
-    TennisUI.apiCall(`/api/matches/${currentMatchId}/schedule`, {
-        method: 'DELETE'
-    })
-    .then(result => {
-        TennisUI.hideModal('scheduleMatchModal');
-        TennisUI.showNotification(result.message || 'Match schedule cleared successfully', 'success');
-        setTimeout(() => location.reload(), 1500);
-    })
-    .catch(error => {
-        TennisUI.showNotification(`Failed to clear schedule: ${error.message}`, 'danger');
+    // Use TennisUI for confirmation dialogs
+    TennisUI.showConfirmDialog(
+        'Clear Schedule',
+        'Are you sure you want to clear the schedule for this match?',
+        'Clear Schedule',
+        'btn-tennis-warning'
+    ).then(confirmed => {
+        if (confirmed) {
+            // Use TennisUI for API calls
+            TennisUI.apiCall(`/matches/${currentMatchId}/schedule`, {
+                method: 'DELETE'
+            })
+            .then(result => {
+                TennisUI.hideModal('scheduleMatchModal');
+                TennisUI.showNotification(result.message || 'Match schedule cleared successfully', 'success');
+                setTimeout(() => location.reload(), 1500);
+            })
+            .catch(error => {
+                TennisUI.showNotification(`Failed to clear schedule: ${error.message}`, 'danger');
+            });
+        }
     });
 }
 
-// Filter form enhancements
+// ==================== PAGE-SPECIFIC INITIALIZATION ====================
+
 document.addEventListener('DOMContentLoaded', function() {
-    const filterForm = document.querySelector('.tennis-form');
-    if (filterForm) {
-        // Auto-submit on select changes for better UX
-        const selects = filterForm.querySelectorAll('select');
-        selects.forEach(select => {
-            select.addEventListener('change', function() {
-                // Small delay to allow user to see the change
-                setTimeout(() => {
-                    filterForm.submit();
-                }, 100);
-            });
-        });
-        
-        // Clear search on Escape key
-        const searchInput = document.getElementById('search_query');
-        if (searchInput) {
-            searchInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') {
-                    this.value = '';
-                    filterForm.submit();
-                }
-            });
-        }
-    }
+    console.log('🎾 Matches page initialized');
+    
+    // Initialize filter form enhancements
+    initializeFilterForm();
+    
+    // Initialize table interactions
+    initializeTableInteractions();
     
     // Initialize tooltips for action buttons
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-    
-    // Enhanced table interactions
-    setupTableInteractions();
+    initializeTooltips();
+
+    // Initialize new standard table component
+    TennisUI.initializeScheduledMatchesTable();
 });
 
-function setupTableInteractions() {
-    const table = document.querySelector('.tennis-table');
+function initializeFilterForm() {
+    const filterForm = document.querySelector('.tennis-form');
+    if (!filterForm || !filterForm.closest('.tennis-card')) return;
+    
+    // Auto-submit on select changes for better UX
+    const selects = filterForm.querySelectorAll('select');
+    selects.forEach(select => {
+        select.addEventListener('change', function() {
+            // Small delay to allow user to see the change
+            setTimeout(() => {
+                filterForm.submit();
+            }, 100);
+        });
+    });
+    
+    // Clear search on Escape key
+    const searchInput = filterForm.querySelector('input[name="search_query"]');
+    if (searchInput) {
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                this.value = '';
+                filterForm.submit();
+            }
+        });
+    }
+}
+
+function initializeTableInteractions() {
+    const table = document.querySelector('.table-hover');
     if (!table) return;
     
-    // Add hover effects for better UX
+    // Add enhanced hover effects for better UX
     const rows = table.querySelectorAll('tbody tr');
     rows.forEach(row => {
         row.addEventListener('mouseenter', function() {
@@ -927,28 +847,37 @@ function setupTableInteractions() {
         });
     });
     
-    // Add click-to-select functionality for bulk operations
-    let selectedRows = new Set();
-    
-    rows.forEach(row => {
-        row.addEventListener('click', function(e) {
-            // Don't select if clicking on action buttons
-            if (e.target.closest('.btn-group')) return;
+    // Performance optimization for large tables
+    if (rows.length > 100) {
+        console.log('Large table detected, optimizing interactions');
+        // Reduce animation complexity for performance
+        rows.forEach(row => {
+            row.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateX(1px)';
+                this.style.transition = 'transform 0.1s ease';
+            });
             
-            const matchId = this.querySelector('.badge').textContent;
-            
-            if (this.classList.contains('selected')) {
-                this.classList.remove('selected');
-                selectedRows.delete(matchId);
-            } else {
-                this.classList.add('selected');
-                selectedRows.add(matchId);
-            }
-            
-            updateBulkOperationButtons(selectedRows.size);
+            row.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateX(0)';
+            });
         });
-    });
+    }
 }
+
+function initializeTooltips() {
+    // Use TennisUI's existing tooltip initialization if available
+    if (typeof TennisUI.initializeTooltips === 'function') {
+        TennisUI.initializeTooltips();
+    } else {
+        // Fallback tooltip initialization
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+}
+
+// ==================== UTILITY FUNCTIONS ====================
 
 function updateBulkOperationButtons(selectedCount) {
     const bulkButton = document.getElementById('bulkOperationsDropdown');
@@ -965,109 +894,19 @@ function updateBulkOperationButtons(selectedCount) {
     }
 }
 
-// Performance optimization for large tables
-document.addEventListener('DOMContentLoaded', function() {
-    const table = document.querySelector('.tennis-table tbody');
-    if (table && table.children.length > 100) {
-        // Implement virtual scrolling for very large tables
-        console.log('Large table detected, consider implementing virtual scrolling');
-    }
-});
-
 // Export functions for use in dynamically loaded content
 window.MatchesPage = {
     scheduleMatch,
+    unscheduleMatch,
     deleteMatch,
     submitSchedule,
     clearSchedule,
     handleBulkAutoSchedule,
     handleBulkUnschedule,
-    handleBulkDelete
+    handleBulkDelete,
+    updateBulkOperationButtons
 };
+
+console.log('✅ Matches page functionality loaded');
 </script>
-
-<style>
-/* Additional page-specific styles */
-.match-teams {
-    line-height: 1.2;
-}
-
-.selected {
-    background-color: rgba(45, 90, 135, 0.1) !important;
-    border-left: 4px solid var(--tennis-primary) !important;
-}
-
-.table tbody tr {
-    transition: all 0.2s ease;
-}
-
-.enhanced-table tbody tr:hover {
-    background-color: rgba(45, 90, 135, 0.05);
-    transform: translateX(2px);
-}
-
-.btn-group .btn {
-    border-radius: 0.25rem !important;
-}
-
-.btn-group .btn:not(:last-child) {
-    margin-right: 2px;
-}
-
-/* Mobile responsive improvements */
-@media (max-width: 768px) {
-    .tennis-card .card-body {
-        padding: 1rem;
-    }
-    
-    .btn-group {
-        flex-direction: column;
-        gap: 2px;
-    }
-    
-    .btn-group .btn {
-        width: 100%;
-    }
-}
-
-/* Loading state for table rows */
-.loading-row {
-    opacity: 0.6;
-    pointer-events: none;
-}
-
-/* Enhanced badge styling */
-.badge {
-    font-size: 0.8em;
-    padding: 0.4em 0.6em;
-}
-
-/* Status indicators */
-.status-scheduled {
-    color: var(--tennis-success);
-}
-
-.status-partial {
-    color: var(--tennis-warning);
-}
-
-.status-unscheduled {
-    color: var(--tennis-danger);
-}
-
-/* Improved filter section */
-.tennis-form .row.g-3 > * {
-    margin-bottom: 1rem;
-}
-
-/* Animation for filter badges */
-.badge {
-    animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-</style>
 {% endblock %}
