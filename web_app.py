@@ -23,6 +23,7 @@ Author: Tennis App Development Team
 
 from flask import Flask
 from typing import Optional, Type, Dict, Any
+import web_import_export
 import web_main
 import web_facilities
 import web_leagues
@@ -41,6 +42,7 @@ web_leagues.register_routes(app)
 web_teams.register_routes(app)
 web_matches.register_routes(app, get_db)  # Pass get_db function
 web_schedule.register_routes(app)
+web_import_export.register_routes(app)
 
 # Database cleanup
 app.teardown_appcontext(close_db)

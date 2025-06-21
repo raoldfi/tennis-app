@@ -385,7 +385,7 @@ class TennisDBInterface(ABC):
 
     # ========== Import/Export ==========
     @abstractmethod
-    def export_to_yaml(self, filename: str) -> bool:
+    def export_to_yaml(self, filename: str) -> Dict[str, Any]:
         """
         Export database to YAML file
         
@@ -395,7 +395,9 @@ class TennisDBInterface(ABC):
         pass
 
     @abstractmethod
-    def import_from_yaml(self, filename: str) -> bool:
+    def import_from_yaml(self, filename: str, *, 
+                        skip_existing: bool = True,
+                        validate_only: bool = False) -> Dict[str, Any]:
         """
         Import data from YAML file
         

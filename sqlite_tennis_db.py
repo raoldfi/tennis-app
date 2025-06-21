@@ -26,8 +26,460 @@ from sql_facility_manager import SQLFacilityManager
 from sql_match_manager import SQLMatchManager
 from sql_scheduling_manager import SQLSchedulingManager
 
+"""
+Clean YAML Import/Export Implementation for SQLiteTennisDB
+No backward compatibility - integrated directly into the class
+"""
 
-class SQLiteTennisDB(TennisDBInterface):
+import yaml
+import os
+import logging
+from typing import List, Dict, Optional, Any
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+class YAMLImportExportMixin:
+    """Mixin class providing consistent YAML import/export functionality"""
+    
+    def export_to_yaml(self, filename: str) -> Dict[str, Any]:
+        """
+        Export all database entities to YAML file
+        
+        Args:
+            filename: Path to YAML file to create
+            
+        Returns:
+            Dictionary with export statistics
+            
+        Raises:
+            RuntimeError: If export fails
+        """
+        try:
+            logger.info(f"Starting YAML export to {filename}")
+            start_time = datetime.now()
+            
+            # Collect all data in dependency order
+            export_data = {
+                'metadata': {
+                    'export_timestamp': start_time.isoformat(),
+                    'format_version': '1.0'
+                }
+            }
+            
+            stats = {'exported': 0, 'errors': []}
+            
+            # 1. Export leagues (no dependencies)
+            logger.debug("Exporting leagues...")
+            leagues = self.list_leagues()
+            export_data['leagues'] = [self._export_league(league) for league in leagues]
+            stats['leagues'] = len(export_data['leagues'])
+            stats['exported'] += len(export_data['leagues'])
+            
+            # 2. Export facilities (no dependencies)
+            logger.debug("Exporting facilities...")
+            facilities = self.list_facilities()
+            export_data['facilities'] = [self._export_facility(facility) for facility in facilities]
+            stats['facilities'] = len(export_data['facilities'])
+            stats['exported'] += len(export_data['facilities'])
+            
+            # 3. Export teams (depends on leagues and facilities)
+            logger.debug("Exporting teams...")
+            teams = self.list_teams()
+            export_data['teams'] = [self._export_team(team) for team in teams]
+            stats['teams'] = len(export_data['teams'])
+            stats['exported'] += len(export_data['teams'])
+            
+            # 4. Export matches (depends on all above)
+            logger.debug("Exporting matches...")
+            from usta_match import MatchType
+            matches = self.list_matches(match_type=MatchType.ALL)
+            export_data['matches'] = [self._export_match(match) for match in matches]
+            stats['matches'] = len(export_data['matches'])
+            stats['exported'] += len(export_data['matches'])
+            
+            # Write YAML file
+            self._write_yaml_file(filename, export_data)
+            
+            # Calculate duration and finalize stats
+            duration = (datetime.now() - start_time).total_seconds()
+            stats.update({
+                'filename': filename,
+                'duration_seconds': round(duration, 2),
+                'timestamp': start_time.isoformat()
+            })
+            
+            logger.info(f"Export completed: {stats['exported']} total records in {duration:.2f}s")
+            return stats
+            
+        except Exception as e:
+            error_msg = f"YAML export failed: {str(e)}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e
+
+    
+    def import_from_yaml(self, filename: str, *, 
+                        skip_existing: bool = True,
+                        validate_only: bool = False) -> Dict[str, Any]:
+        """
+        Import entities from YAML file
+        
+        Args:
+            filename: Path to YAML file to import
+            skip_existing: If True, skip records that already exist (by ID)
+            validate_only: If True, only validate without importing
+            
+        Returns:
+            Dictionary with detailed import statistics
+            
+        Raises:
+            FileNotFoundError: If YAML file doesn't exist
+            ValueError: If YAML format/data is invalid
+            RuntimeError: If import fails
+        """
+        self._validate_yaml_file(filename)
+        
+        try:
+            logger.info(f"Starting YAML import from {filename}")
+            start_time = datetime.now()
+            
+            # Load and validate YAML structure
+            data = self._load_yaml_file(filename)
+            self._validate_yaml_structure(data)
+            
+            # Initialize statistics
+            stats = {
+                'filename': filename,
+                'timestamp': start_time.isoformat(),
+                'skip_existing': skip_existing,
+                'validate_only': validate_only,
+                'leagues': {'processed': 0, 'imported': 0, 'skipped': 0, 'errors': []},
+                'facilities': {'processed': 0, 'imported': 0, 'skipped': 0, 'errors': []},
+                'teams': {'processed': 0, 'imported': 0, 'skipped': 0, 'errors': []},
+                'matches': {'processed': 0, 'imported': 0, 'skipped': 0, 'errors': []},
+                'total_processed': 0,
+                'total_imported': 0,
+                'total_skipped': 0,
+                'total_errors': 0
+            }
+            
+            # Import in dependency order
+            if not validate_only:
+                self._import_leagues(data.get('leagues', []), stats, skip_existing)
+                self._import_facilities(data.get('facilities', []), stats, skip_existing)
+                self._import_teams(data.get('teams', []), stats, skip_existing)
+                self._import_matches(data.get('matches', []), stats, skip_existing)
+            else:
+                # Just validate structure without importing
+                self._validate_leagues(data.get('leagues', []), stats)
+                self._validate_facilities(data.get('facilities', []), stats)
+                self._validate_teams(data.get('teams', []), stats)
+                self._validate_matches(data.get('matches', []), stats)
+            
+            # Finalize statistics
+            for entity_type in ['leagues', 'facilities', 'teams', 'matches']:
+                entity_stats = stats[entity_type]
+                stats['total_processed'] += entity_stats['processed']
+                stats['total_imported'] += entity_stats['imported']
+                stats['total_skipped'] += entity_stats['skipped']
+                stats['total_errors'] += len(entity_stats['errors'])
+            
+            duration = (datetime.now() - start_time).total_seconds()
+            stats['duration_seconds'] = round(duration, 2)
+            
+            action = "validated" if validate_only else "imported"
+            logger.info(f"YAML {action}: {stats['total_processed']} processed, "
+                       f"{stats['total_imported']} imported, {stats['total_errors']} errors")
+            
+            return stats
+            
+        except Exception as e:
+            error_msg = f"YAML import failed: {str(e)}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e
+    
+    # ========== Export Helper Methods ==========
+    
+    def _export_league(self, league) -> Dict[str, Any]:
+        """Export single league to dictionary"""
+        return league.to_dict()
+    
+    def _export_facility(self, facility) -> Dict[str, Any]:
+        """Export single facility to dictionary"""
+        return facility.to_yaml_dict()
+    
+    def _export_team(self, team) -> Dict[str, Any]:
+        """Export single team to dictionary"""
+        return team.to_dict()
+    
+    def _export_match(self, match) -> Dict[str, Any]:
+        """Export single match to dictionary"""
+        return match.to_dict()
+    
+    def _write_yaml_file(self, filename: str, data: Dict[str, Any]) -> None:
+        """Write data to YAML file with consistent formatting"""
+        with open(filename, 'w', encoding='utf-8') as f:
+            yaml.dump(
+                data,
+                f,
+                default_flow_style=False,
+                sort_keys=False,
+                allow_unicode=True,
+                indent=2,
+                width=120,
+                default_style=None
+            )
+    
+    # ========== Import Helper Methods ==========
+    
+    def _validate_yaml_file(self, filename: str) -> None:
+        """Validate YAML file exists and is readable"""
+        if not os.path.exists(filename):
+            raise FileNotFoundError(f"YAML file not found: {filename}")
+        if not os.access(filename, os.R_OK):
+            raise PermissionError(f"Cannot read YAML file: {filename}")
+    
+    def _load_yaml_file(self, filename: str) -> Dict[str, Any]:
+        """Load and parse YAML file"""
+        try:
+            with open(filename, 'r', encoding='utf-8') as f:
+                data = yaml.safe_load(f)
+            
+            if not isinstance(data, dict):
+                raise ValueError("YAML file must contain a dictionary at root level")
+            
+            return data
+        except yaml.YAMLError as e:
+            raise ValueError(f"Invalid YAML format: {e}") from e
+    
+    def _validate_yaml_structure(self, data: Dict[str, Any]) -> None:
+        """Validate basic YAML structure"""
+        expected_sections = ['leagues', 'facilities', 'teams', 'matches']
+        
+        for section in data:
+            if section not in expected_sections and section != 'metadata':
+                logger.warning(f"Unexpected section in YAML: {section}")
+        
+        for section in expected_sections:
+            if section in data and not isinstance(data[section], list):
+                raise ValueError(f"Section '{section}' must be a list")
+    
+    def _import_leagues(self, leagues_data: List[Dict], stats: Dict, skip_existing: bool) -> None:
+        """Import leagues from YAML data"""
+        from usta_league import League
+        
+        for i, record in enumerate(leagues_data):
+            stats['leagues']['processed'] += 1
+            
+            try:
+                self._validate_required_fields(record, ['id', 'name', 'year', 'section', 'region', 'age_group', 'division'], 'league', i)
+                
+                # Check if exists
+                if skip_existing and self.get_league(record['id']):
+                    stats['leagues']['skipped'] += 1
+                    continue
+                
+                league = League(**record)
+                
+                if self.add_league(league):
+                    stats['leagues']['imported'] += 1
+                    logger.debug(f"Imported league: {league.name}")
+                else:
+                    raise RuntimeError("Failed to add to database")
+                    
+            except Exception as e:
+                error_msg = f"League record {i} (ID: {record.get('id', 'Unknown')}): {str(e)}"
+                stats['leagues']['errors'].append(error_msg)
+                logger.error(error_msg)
+    
+    def _import_facilities(self, facilities_data: List[Dict], stats: Dict, skip_existing: bool) -> None:
+        """Import facilities from YAML data"""
+        from usta_facility import Facility
+        
+        for i, record in enumerate(facilities_data):
+            stats['facilities']['processed'] += 1
+            
+            try:
+                self._validate_required_fields(record, ['id', 'name'], 'facility', i)
+                
+                # Check if exists
+                if skip_existing and self.get_facility(record['id']):
+                    stats['facilities']['skipped'] += 1
+                    continue
+                
+                facility = Facility.from_yaml_dict(record)
+                
+                if self.add_facility(facility):
+                    stats['facilities']['imported'] += 1
+                    logger.debug(f"Imported facility: {facility.name}")
+                else:
+                    raise RuntimeError("Failed to add to database")
+                    
+            except Exception as e:
+                error_msg = f"Facility record {i} (ID: {record.get('id', 'Unknown')}): {str(e)}"
+                stats['facilities']['errors'].append(error_msg)
+                logger.error(error_msg)
+    
+    def _import_teams(self, teams_data: List[Dict], stats: Dict, skip_existing: bool) -> None:
+        """Import teams from YAML data"""
+        from usta_team import Team
+        
+        for i, record in enumerate(teams_data):
+            stats['teams']['processed'] += 1
+            
+            try:
+                self._validate_required_fields(record, ['id', 'name', 'league_id', 'home_facility_id'], 'team', i)
+                
+                # Check if exists
+                if skip_existing and self.get_team(record['id']):
+                    stats['teams']['skipped'] += 1
+                    continue
+                
+                # Resolve references
+                league = self.get_league(record['league_id'])
+                if not league:
+                    raise ValueError(f"League ID {record['league_id']} not found")
+                
+                home_facility = self.get_facility(record['home_facility_id'])
+                if not home_facility:
+                    raise ValueError(f"Home facility ID {record['home_facility_id']} not found")
+                
+                # Create team with object references
+                team_data = record.copy()
+                team_data.update({
+                    'league': league,
+                    'home_facility': home_facility
+                })
+                team_data.pop('league_id')
+                team_data.pop('home_facility_id')
+                
+                team = Team(**team_data)
+                
+                if self.add_team(team):
+                    stats['teams']['imported'] += 1
+                    logger.debug(f"Imported team: {team.name}")
+                else:
+                    raise RuntimeError("Failed to add to database")
+                    
+            except Exception as e:
+                error_msg = f"Team record {i} (ID: {record.get('id', 'Unknown')}): {str(e)}"
+                stats['teams']['errors'].append(error_msg)
+                logger.error(error_msg)
+    
+    def _import_matches(self, matches_data: List[Dict], stats: Dict, skip_existing: bool) -> None:
+        """Import matches from YAML data"""
+        from usta_match import Match
+        
+        for i, record in enumerate(matches_data):
+            stats['matches']['processed'] += 1
+            
+            try:
+                self._validate_required_fields(record, ['id', 'league_id', 'home_team_id', 'visitor_team_id'], 'match', i)
+                
+                # Check if exists
+                if skip_existing and self.get_match(record['id']):
+                    stats['matches']['skipped'] += 1
+                    continue
+                
+                # Resolve references
+                league = self.get_league(record['league_id'])
+                if not league:
+                    raise ValueError(f"League ID {record['league_id']} not found")
+                
+                home_team = self.get_team(record['home_team_id'])
+                if not home_team:
+                    raise ValueError(f"Home team ID {record['home_team_id']} not found")
+                
+                visitor_team = self.get_team(record['visitor_team_id'])
+                if not visitor_team:
+                    raise ValueError(f"Visitor team ID {record['visitor_team_id']} not found")
+                
+                facility = None
+                if record.get('facility_id'):
+                    facility = self.get_facility(record['facility_id'])
+                    # Don't fail if facility not found - just log warning
+                    if not facility:
+                        logger.warning(f"Facility ID {record['facility_id']} not found for match {record['id']}")
+                
+                # Create match with object references
+                match_data = {
+                    'id': record['id'],
+                    'league': league,
+                    'home_team': home_team,
+                    'visitor_team': visitor_team,
+                    'facility': facility,
+                    'date': record.get('date'),
+                    'scheduled_times': record.get('scheduled_times', [])
+                }
+                
+                match = Match(**match_data)
+                
+                if self.add_match(match):
+                    stats['matches']['imported'] += 1
+                    logger.debug(f"Imported match: {match.id}")
+                else:
+                    raise RuntimeError("Failed to add to database")
+                    
+            except Exception as e:
+                error_msg = f"Match record {i} (ID: {record.get('id', 'Unknown')}): {str(e)}"
+                stats['matches']['errors'].append(error_msg)
+                logger.error(error_msg)
+    
+    # ========== Validation Helper Methods ==========
+    
+    def _validate_required_fields(self, record: Dict, required_fields: List[str], 
+                                 entity_type: str, record_index: int) -> None:
+        """Validate that record contains all required fields"""
+        if not isinstance(record, dict):
+            raise ValueError(f"{entity_type.title()} record {record_index} must be a dictionary")
+        
+        missing_fields = [field for field in required_fields if field not in record]
+        if missing_fields:
+            raise ValueError(f"Missing required fields: {missing_fields}")
+    
+    def _validate_leagues(self, leagues_data: List[Dict], stats: Dict) -> None:
+        """Validate league records without importing"""
+        for i, record in enumerate(leagues_data):
+            stats['leagues']['processed'] += 1
+            try:
+                self._validate_required_fields(record, ['id', 'name', 'year', 'section', 'region', 'age_group', 'division'], 'league', i)
+                # Additional validation could go here
+            except Exception as e:
+                stats['leagues']['errors'].append(f"League record {i}: {str(e)}")
+    
+    def _validate_facilities(self, facilities_data: List[Dict], stats: Dict) -> None:
+        """Validate facility records without importing"""
+        for i, record in enumerate(facilities_data):
+            stats['facilities']['processed'] += 1
+            try:
+                self._validate_required_fields(record, ['id', 'name'], 'facility', i)
+                # Additional validation could go here
+            except Exception as e:
+                stats['facilities']['errors'].append(f"Facility record {i}: {str(e)}")
+    
+    def _validate_teams(self, teams_data: List[Dict], stats: Dict) -> None:
+        """Validate team records without importing"""
+        for i, record in enumerate(teams_data):
+            stats['teams']['processed'] += 1
+            try:
+                self._validate_required_fields(record, ['id', 'name', 'league_id', 'home_facility_id'], 'team', i)
+                # Additional validation could go here
+            except Exception as e:
+                stats['teams']['errors'].append(f"Team record {i}: {str(e)}")
+    
+    def _validate_matches(self, matches_data: List[Dict], stats: Dict) -> None:
+        """Validate match records without importing"""
+        for i, record in enumerate(matches_data):
+            stats['matches']['processed'] += 1
+            try:
+                self._validate_required_fields(record, ['id', 'league_id', 'home_team_id', 'visitor_team_id'], 'match', i)
+                # Additional validation could go here
+            except Exception as e:
+                stats['matches']['errors'].append(f"Match record {i}: {str(e)}")
+
+
+# Update the SQLiteTennisDB class to inherit from the mixin
+class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
     """SQLite implementation of the TennisDBInterface using modular helper classes"""
     
     def __init__(self, config: Dict[str, Any]):
@@ -378,97 +830,7 @@ class SQLiteTennisDB(TennisDBInterface):
 
     # ========== Import/Export Methods ==========
     
-    def export_to_yaml(self, filename: str) -> bool:
-        """Export database to YAML file"""
-        try:
-            data = {
-                'leagues': [league.to_dict() if hasattr(league, 'to_dict') else league.__dict__ for league in self.list_leagues()],
-                'facilities': [facility.to_yaml_dict() for facility in self.list_facilities()],
-                'teams': [team.to_dict() if hasattr(team, 'to_dict') else team.__dict__ for team in self.list_teams()],
-                'matches': [match.to_dict() for match in self.list_matches(include_unscheduled=True)]
-            }
-            
-            with open(filename, 'w') as f:
-                yaml.dump(data, f, default_flow_style=False, sort_keys=False)
-        except Exception as e:
-            raise RuntimeError(f"Failed to export to YAML: {e}")
-        return True
 
-    def import_from_yaml(self, filename: str) -> bool:
-        """Import data from YAML file with proper object reference resolution"""
-        if not os.path.exists(filename):
-            raise FileNotFoundError(f"YAML file not found: {filename}")
-        
-        try:
-            with open(filename, 'r') as f:
-                data = yaml.safe_load(f)
-            
-            # Import in dependency order: leagues -> facilities -> teams -> matches
-            for table, records in data.items():
-                if not isinstance(records, list):
-                    continue
-                
-                for i, record in enumerate(records):
-                    try:
-                        obj = None
-                        if table == "leagues":
-                            obj = League(**record)
-                            self.add_league(obj)
-                        elif table == "facilities":
-                            obj = Facility.from_yaml_dict(record)
-                            self.add_facility(obj)
-                        elif table == "teams":
-                            # Resolve object references for Team
-                            league = self.get_league(record['league_id'])
-                            home_facility = self.get_facility(record['home_facility_id'])
-                            
-                            if not league:
-                                raise ValueError(f"League with ID {record['league_id']} not found")
-                            if not home_facility:
-                                raise ValueError(f"Facility with ID {record['home_facility_id']} not found")
-                            
-                            team_data = record.copy()
-                            team_data['league'] = league
-                            team_data['home_facility'] = home_facility
-                            # Remove ID fields since we're passing objects
-                            team_data.pop('league_id', None)
-                            team_data.pop('home_facility_id', None)
-                            
-                            obj = Team(**team_data)
-                            self.add_team(obj)
-                        elif table == "matches":
-                            # Resolve object references for Match
-                            league = self.get_league(record['league_id'])
-                            home_team = self.get_team(record['home_team_id'])
-                            visitor_team = self.get_team(record['visitor_team_id'])
-                            facility = None
-                            if record.get('facility_id'):
-                                facility = self.get_facility(record['facility_id'])
-                            
-                            if not all([league, home_team, visitor_team]):
-                                raise ValueError(f"Missing references for match {record.get('id', 'Unknown')}")
-                            
-                            match_data = {
-                                'id': record['id'],
-                                'league': league,
-                                'home_team': home_team,
-                                'visitor_team': visitor_team,
-                                'facility': facility,
-                                'date': record.get('date'),
-                                'scheduled_times': record.get('scheduled_times', [])
-                            }
-                            
-                            obj = Match(**match_data)
-                            self.add_match(obj)
-                            
-                    except Exception as e:
-                        raise ValueError(f"Failed to process record {i} in table '{table}': {e}")
-    
-        except yaml.YAMLError as e:
-            raise ValueError(f"Invalid YAML format: {e}")
-        except Exception as e:
-            raise RuntimeError(f"Failed to import from YAML: {e}")
-        return True
 
     # ========== USTA Constants ==========
     

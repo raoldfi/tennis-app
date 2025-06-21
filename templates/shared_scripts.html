@@ -1604,421 +1604,199 @@ class TennisCards {
 
 // ==================== GENERALIZED IMPORT/EXPORT MANAGEMENT ====================
 
+
+// ==================== COMPLETE TENNIS IMPORT/EXPORT CLASS ====================
+
 class TennisImportExport {
+    static selectedFile = null;
+    static currentModal = null;
+    static fileAnalysis = null;
 
     /**
-     * Initialize import/export functionality (called when modal opens)
+     * Show universal import/export modal
      */
-    static init() {
-        // File input change handler
-        const fileInput = document.getElementById('yamlFileInput');
-        const uploadArea = document.getElementById('fileUploadArea');
-        const importBtn = document.getElementById('importBtn');
-    
-        if (fileInput && uploadArea && importBtn) {
-            // Remove existing listeners to prevent duplicates
-            fileInput.removeEventListener('change', this.handleFileSelect);
-            uploadArea.removeEventListener('dragover', this.handleDragOver);
-            uploadArea.removeEventListener('dragleave', this.handleDragLeave);
-            uploadArea.removeEventListener('drop', this.handleDrop);
-            uploadArea.removeEventListener('click', this.clickHandler);
-    
-            // Add fresh listeners
-            this.clickHandler = () => fileInput.click();
-            fileInput.addEventListener('change', this.handleFileSelect.bind(this));
-            uploadArea.addEventListener('dragover', this.handleDragOver.bind(this));
-            uploadArea.addEventListener('dragleave', this.handleDragLeave.bind(this));
-            uploadArea.addEventListener('drop', this.handleDrop.bind(this));
-            // Don't add click handler to entire area since button handles it
-            //uploadArea.addEventListener('click', this.clickHandler);
-        }
-    }
-    
-    /**
-     * Handle file selection
-     */
-    static handleFileSelect(event) {
-        const file = event.target.files[0];
-        this.processSelectedFile(file);
-    }
-    
-    /**
-     * Handle drag over
-     */
-    static handleDragOver(event) {
-        event.preventDefault();
-        event.target.closest('.tennis-file-upload-area').classList.add('dragover');
-    }
-    
-    /**
-     * Handle drag leave
-     */
-    static handleDragLeave(event) {
-        event.target.closest('.tennis-file-upload-area').classList.remove('dragover');
-    }
-    
-    /**
-     * Handle file drop
-     */
-    static handleDrop(event) {
-        event.preventDefault();
-        const uploadArea = event.target.closest('.tennis-file-upload-area');
-        uploadArea.classList.remove('dragover');
-        
-        const file = event.dataTransfer.files[0];
-        this.processSelectedFile(file);
-    }
-    
-    /**
-     * Process the selected file
-     */
-    static processSelectedFile(file) {
-        const importBtn = document.getElementById('importBtn');
-        
-        if (!file) {
-            importBtn.disabled = true;
-            return;
-        }
-    
-        if (!file.name.toLowerCase().endsWith('.yaml') && !file.name.toLowerCase().endsWith('.yml')) {
-            TennisUI.showNotification('Please select a YAML file (.yaml or .yml)', 'warning');
-            importBtn.disabled = true;
-            return;
-        }
-    
-        // Store file for import
-        this.selectedFile = file;
-        importBtn.disabled = false;
-        
-        // Update upload area to show selected file
-        const uploadArea = document.getElementById('fileUploadArea');
-        uploadArea.innerHTML = `
-            <div class="tennis-file-upload-content">
-                <i class="fas fa-file-check fa-2x text-tennis-success mb-2"></i>
-                <div>
-                    <strong>File Selected: ${file.name}</strong>
-                    <div class="small text-muted mt-1">Ready to import</div>
-                </div>
-            </div>
-            <button class="btn btn-outline-secondary btn-sm mt-2" onclick="TennisImportExport.resetFileUpload()">
-                <i class="fas fa-times"></i> Change File
-            </button>
-        `;
-        
-        TennisUI.showNotification(`File "${file.name}" selected and ready for import`, 'info');
-    }
-    
-    /**
-     * Reset file upload area
-     */
-    static resetFileUpload() {
-        const uploadArea = document.getElementById('fileUploadArea');
-        uploadArea.innerHTML = `
-            <div class="tennis-file-upload-content">
-                <i class="fas fa-cloud-upload-alt fa-2x text-tennis-primary mb-2"></i>
-                <div>
-                    <strong>Drop YAML file here or click to browse</strong>
-                    <div class="small text-muted mt-1">Supports .yaml and .yml files</div>
-                </div>
-            </div>
-            <input type="file" id="yamlFileInput" accept=".yaml,.yml" style="display: none;">
-            <button class="btn btn-tennis-primary mt-2" onclick="document.getElementById('yamlFileInput').click()">
-                <i class="fas fa-folder-open"></i> Select File
-            </button>
-        `;
-        
-        document.getElementById('importBtn').disabled = true;
-        this.selectedFile = null;
-        this.init(); // Reinitialize handlers
-    }
-    
-    /**
-     * Download example YAML file
-     */
-    static downloadExample() {
-        const examples = {
-            leagues: `# Example leagues.yaml file
-    - name: "Men's 4.0 Singles"
-      year: 2025
-      section: "Southwest"
-      region: "Northern New Mexico"
-      age_group: "18 & Over"
-      division: "4.0"
-      num_lines_per_match: 3
-      num_matches: 12
-      allow_split_lines: false
-      preferred_days: ["Saturday", "Sunday"]
-      backup_days: ["Friday"]
-      start_date: "2025-03-01"
-      end_date: "2025-09-30"
-    
-    - name: "Women's 3.5 Doubles"
-      year: 2025
-      section: "Southwest"
-      region: "Northern New Mexico"
-      age_group: "18 & Over"
-      division: "3.5"
-      num_lines_per_match: 3
-      num_matches: 10
-      allow_split_lines: true
-      preferred_days: ["Saturday"]
-      backup_days: ["Sunday", "Friday"]
-      start_date: "2025-03-15"
-      end_date: "2025-09-15"`,
-    
-            teams: `# Example teams.yaml file
-    - name: "Lightning Bolts"
-      league_id: 101
-      captain: "Jane Smith"
-      home_facility_id: 5
-      preferred_days: ["Saturday", "Sunday"]
-    
-    - name: "Thunder Strikes"
-      league_id: 101
-      captain: "John Doe"
-      home_facility_id: 3
-      preferred_days: ["Tuesday", "Thursday"]`,
-    
-            facilities: `# Example facilities.yaml file
-    - name: "Tennis Center North"
-      location: "123 Tennis Ave, Las Cruces, NM"
-      total_courts: 6
-      schedule:
-        Monday:
-          start_times:
-            - time: "09:00"
-              available_courts: 4
-            - time: "10:30"
-              available_courts: 4
-            - time: "12:00"
-              available_courts: 6
-        Tuesday:
-          start_times:
-            - time: "09:00"
-              available_courts: 4
-            - time: "10:30"
-              available_courts: 4
-        Wednesday:
-          start_times: []
-        Thursday:
-          start_times:
-            - time: "09:00"
-              available_courts: 6
-        Friday:
-          start_times:
-            - time: "09:00"
-              available_courts: 4
-        Saturday:
-          start_times:
-            - time: "08:00"
-              available_courts: 6
-            - time: "10:00"
-              available_courts: 6
-            - time: "12:00"
-              available_courts: 6
-        Sunday:
-          start_times:
-            - time: "08:00"
-              available_courts: 6
-            - time: "10:00"
-              available_courts: 6
-      unavailable_dates:
-        - "2025-07-04"
-        - "2025-12-25"
-    
-    - name: "Westside Tennis Club"
-      location: "456 Court St, Las Cruces, NM"
-      total_courts: 4
-      schedule:
-        Monday:
-          start_times:
-            - time: "09:00"
-              available_courts: 2
-        Tuesday:
-          start_times:
-            - time: "09:00"
-              available_courts: 2
-        Wednesday:
-          start_times: []
-        Thursday:
-          start_times:
-            - time: "09:00"
-              available_courts: 2
-        Friday:
-          start_times:
-            - time: "09:00"
-              available_courts: 2
-        Saturday:
-          start_times:
-            - time: "08:00"
-              available_courts: 4
-            - time: "10:00"
-              available_courts: 4
-        Sunday:
-          start_times:
-            - time: "08:00"
-              available_courts: 4
-      unavailable_dates: []`,
-    
-            matches: `# Example matches.yaml file
-    # Note: Matches are typically generated automatically
-    # This is an example of the expected format
-    - team1_id: 101
-      team2_id: 102
-      league_id: 1
-      date: "2025-06-15"
-      time: "09:00"
-      facility_id: 5
-    
-    - team1_id: 103
-      team2_id: 104
-      league_id: 1
-      date: "2025-06-22"
-      time: "10:00"
-      facility_id: 3`
-        };
-    
-        const exampleContent = examples[this.currentDataType] || examples.leagues;
-        const blob = new Blob([exampleContent], { type: 'text/yaml' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `example_${this.currentDataType}.yaml`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-    
-        TennisUI.showNotification('Example YAML file downloaded', 'info');
-    }
-    /**
-     * Show import/export modal for any data type
-     * @param {string} dataType - 'leagues', 'teams', 'facilities', 'matches'
-     * @param {string} title - Modal title
-     */
-    static showModal(dataType, title) {
-        this.currentDataType = dataType;
-        
-        // Create modal dynamically using shared modal structure
-        const modalHtml = this.createModalHtml(dataType, title);
-        
+    static showModal(title = 'Import/Export Data') {
         // Remove existing modal if present
-        const existingModal = document.getElementById('importExportModal');
-        if (existingModal) {
-            existingModal.remove();
-        }
+        this.removeExistingModal();
         
-        // Add modal to DOM
+        // Create and show modal
+        const modalHtml = this.createUniversalModalHtml(title);
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         
-        // Show modal
-        const modal = new bootstrap.Modal(document.getElementById('importExportModal'));
-        modal.show();
+        // Initialize modal
+        this.currentModal = new bootstrap.Modal(document.getElementById('tennisUniversalModal'));
+        this.currentModal.show();
         
-        // Initialize after modal is shown
-        setTimeout(() => this.init(), 100);
+        // Setup event handlers after modal is in DOM
+        setTimeout(() => this.setupEventHandlers(), 100);
+        
+        // Load current component info
+        this.loadComponentInfo();
         
         // Clean up on close
-        modal._element.addEventListener('hidden.bs.modal', () => {
-            document.getElementById('importExportModal').remove();
+        this.currentModal._element.addEventListener('hidden.bs.modal', () => {
+            this.removeExistingModal();
         });
     }
 
     /**
-     * Create modal HTML using shared structure
+     * Create universal modal HTML for multi-component import/export
      */
-    static createModalHtml(dataType, title) {
-        const examples = this.getExamples(dataType);
-        
+    static createUniversalModalHtml(title) {
         return `
-        <div class="modal fade tennis-modal" id="importExportModal" tabindex="-1" aria-hidden="true">
+        <div class="modal fade tennis-modal" id="tennisUniversalModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-xl">
                 <div class="modal-content">
-                    <div class="modal-header">
+                    <div class="modal-header tennis-modal-header">
                         <h5 class="modal-title">
-                            <i class="fas fa-exchange-alt"></i>
+                            <i class="fas fa-exchange-alt text-tennis-primary"></i>
                             ${title}
                         </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="tennis-import-section">
-                                    <h5><i class="fas fa-upload text-tennis-primary"></i> Import ${dataType.charAt(0).toUpperCase() + dataType.slice(1)}</h5>
-                                    <p class="text-muted">Upload a YAML file to import multiple ${dataType}.</p>
-                                    
-                                    <div class="tennis-file-upload-area" id="fileUploadArea">
-                                        <div class="tennis-file-upload-content">
-                                            <i class="fas fa-cloud-upload-alt fa-2x text-tennis-primary mb-2"></i>
-                                            <div>
-                                                <strong>Drop YAML file here or click to browse</strong>
-                                                <div class="small text-muted mt-1">Supports .yaml and .yml files</div>
-                                            </div>
-                                        </div>
-                                        <input type="file" id="yamlFileInput" accept=".yaml,.yml" style="display: none;">
-                                        <button class="btn btn-tennis-primary mt-2" onclick="document.getElementById('yamlFileInput').click()">
-                                            <i class="fas fa-folder-open"></i> Select File
-                                        </button>
-                                    </div>
-                                    
-                                    <div class="tennis-import-actions mt-3">
-                                        <button class="btn btn-tennis-success" id="importBtn" onclick="TennisImportExport.executeImport()" disabled>
-                                            <i class="fas fa-upload"></i> Import ${dataType.charAt(0).toUpperCase() + dataType.slice(1)}
-                                        </button>
-                                        <button class="btn btn-outline-info ms-2" onclick="TennisImportExport.downloadExample()">
-                                            <i class="fas fa-download"></i> Download Example
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-6">
-                                <div class="tennis-export-section">
-                                    <h5><i class="fas fa-download text-tennis-success"></i> Export ${dataType.charAt(0).toUpperCase() + dataType.slice(1)}</h5>
-                                    <p class="text-muted">Download your ${dataType} data in various formats.</p>
-                                    
-                                    <div class="tennis-export-options">
-                                        <button class="btn btn-tennis-success btn-export" onclick="TennisImportExport.executeExport('yaml')">
-                                            <i class="fas fa-file-code"></i> Export YAML
-                                        </button>
-                                        <button class="btn btn-tennis-info btn-export" onclick="TennisImportExport.executeExport('json')">
-                                            <i class="fas fa-file-download"></i> Export JSON
-                                        </button>
-                                        <button class="btn btn-outline-secondary btn-export" onclick="TennisImportExport.executeExport('csv')">
-                                            <i class="fas fa-table"></i> Export CSV
-                                        </button>
-                                    </div>
-                                    
-                                    <div class="mt-4">
-                                        <h6><i class="fas fa-info-circle text-tennis-info"></i> YAML Format Example:</h6>
-                                        <div class="tennis-example-code">${examples}</div>
+                        <!-- Component Status Section -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6><i class="fas fa-database text-info"></i> Current Database</h6>
+                                <div id="componentStatus" class="d-flex gap-2 flex-wrap">
+                                    <div class="text-center p-2">
+                                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                                        <small class="d-block">Loading...</small>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        
-                        <div class="row mt-4">
-                            <div class="col-12">
-                                <div class="alert alert-info">
-                                    <h6><i class="fas fa-lightbulb"></i> Quick Guide</h6>
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <strong>Import Process:</strong>
-                                            <ol class="mb-0">
-                                                <li>Download example to see format</li>
-                                                <li>Prepare your YAML file</li>
-                                                <li>Select or drag your file</li>
-                                                <li>Click Import button</li>
-                                            </ol>
+
+                        <div class="row">
+                            <!-- Import Section -->
+                            <div class="col-md-6">
+                                <div class="tennis-import-section">
+                                    <h5 class="mb-3">
+                                        <i class="fas fa-upload text-tennis-primary"></i> 
+                                        Smart Import
+                                    </h5>
+                                    <p class="text-muted">Upload any YAML file containing leagues, facilities, teams, or matches.</p>
+                                    
+                                    <!-- File Upload Area -->
+                                    <div class="tennis-file-upload-area border border-2 border-dashed rounded p-4 text-center mb-3" 
+                                         id="fileUploadArea">
+                                        <div class="tennis-file-upload-content">
+                                            <i class="fas fa-cloud-upload-alt fa-3x text-tennis-primary mb-3"></i>
+                                            <div>
+                                                <strong>Drop YAML file here or click to browse</strong>
+                                                <div class="small text-muted mt-1">Supports any combination of components</div>
+                                            </div>
                                         </div>
-                                        <div class="col-md-6">
-                                            <strong>Export Options:</strong>
-                                            <ul class="mb-0">
-                                                <li><strong>YAML:</strong> For importing later</li>
-                                                <li><strong>JSON:</strong> For data processing</li>
-                                                <li><strong>CSV:</strong> For spreadsheet apps</li>
-                                            </ul>
+                                        <input type="file" id="universalFileInput" accept=".yaml,.yml" style="display: none;">
+                                        <button class="btn btn-tennis-primary mt-3" onclick="document.getElementById('universalFileInput').click()">
+                                            <i class="fas fa-folder-open"></i> Select File
+                                        </button>
+                                    </div>
+
+                                    <!-- File Analysis Preview -->
+                                    <div id="fileAnalysis" class="d-none mb-3">
+                                        <div class="alert alert-info">
+                                            <div id="analysisContent"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Import Actions -->
+                                    <div class="tennis-import-actions d-flex gap-2 mb-3">
+                                        <button class="btn btn-tennis-success" id="importBtn" onclick="TennisImportExport.executeImport()" disabled>
+                                            <i class="fas fa-upload"></i> Import Data
+                                        </button>
+                                        <button class="btn btn-outline-info" id="validateBtn" onclick="TennisImportExport.validateOnly()" disabled>
+                                            <i class="fas fa-check-circle"></i> Validate Only
+                                        </button>
+                                        <button class="btn btn-outline-secondary" onclick="TennisImportExport.clearFile()" id="clearBtn" disabled>
+                                            <i class="fas fa-times"></i> Clear
+                                        </button>
+                                    </div>
+
+                                    <!-- Import Status -->
+                                    <div id="importStatus" class="d-none">
+                                        <div class="alert" role="alert">
+                                            <div id="importMessage"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Export Section -->
+                            <div class="col-md-6">
+                                <div class="tennis-export-section">
+                                    <h5 class="mb-3">
+                                        <i class="fas fa-download text-tennis-success"></i> 
+                                        Export Data
+                                    </h5>
+                                    <p class="text-muted">Download your data in YAML or JSON format.</p>
+                                    
+                                    <!-- Complete Database Export -->
+                                    <div class="mb-4">
+                                        <h6>Complete Database</h6>
+                                        <div class="d-grid gap-2">
+                                            <button class="btn btn-tennis-success" onclick="TennisImportExport.exportComplete('yaml')">
+                                                <i class="fas fa-database"></i> Export All (YAML)
+                                            </button>
+                                            <button class="btn btn-tennis-info" onclick="TennisImportExport.exportComplete('json')">
+                                                <i class="fas fa-file-export"></i> Export All (JSON)
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Component Selection Export -->
+                                    <div class="mb-4">
+                                        <h6>Select Components</h6>
+                                        <div id="componentSelection" class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" value="leagues" id="exportLeagues">
+                                                <label class="form-check-label" for="exportLeagues">
+                                                    <i class="fas fa-trophy text-warning"></i> Leagues
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" value="facilities" id="exportFacilities">
+                                                <label class="form-check-label" for="exportFacilities">
+                                                    <i class="fas fa-building text-info"></i> Facilities
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" value="teams" id="exportTeams">
+                                                <label class="form-check-label" for="exportTeams">
+                                                    <i class="fas fa-users text-success"></i> Teams
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" value="matches" id="exportMatches">
+                                                <label class="form-check-label" for="exportMatches">
+                                                    <i class="fas fa-calendar text-primary"></i> Matches
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="d-grid gap-2">
+                                            <button class="btn btn-outline-success" onclick="TennisImportExport.exportSelected('yaml')">
+                                                <i class="fas fa-download"></i> Export Selected (YAML)
+                                            </button>
+                                            <button class="btn btn-outline-info" onclick="TennisImportExport.exportSelected('json')">
+                                                <i class="fas fa-download"></i> Export Selected (JSON)
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Example Files -->
+                                    <div>
+                                        <h6>Example Files</h6>
+                                        <div class="d-grid gap-1">
+                                            <button class="btn btn-outline-secondary btn-sm" onclick="TennisImportExport.downloadExample('complete')">
+                                                <i class="fas fa-file-code"></i> Complete Example
+                                            </button>
+                                            <button class="btn btn-outline-secondary btn-sm" onclick="TennisImportExport.downloadExample('mixed')">
+                                                <i class="fas fa-file-alt"></i> Mixed Components
+                                            </button>
+                                            <button class="btn btn-outline-secondary btn-sm" onclick="TennisImportExport.downloadExample('leagues')">
+                                                <i class="fas fa-trophy"></i> Leagues Only
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -2026,7 +1804,12 @@ class TennisImportExport {
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Close
+                        </button>
+                        <button type="button" class="btn btn-tennis-primary" onclick="window.location.reload()" id="refreshBtn" style="display: none;">
+                            <i class="fas fa-sync-alt"></i> Refresh Page
+                        </button>
                     </div>
                 </div>
             </div>
@@ -2034,171 +1817,448 @@ class TennisImportExport {
     }
 
     /**
-     * Get examples for different data types
+     * Setup event handlers for the modal
      */
-    static getExamples(dataType) {
-        const examples = {
-            leagues:`
-leagues:
-  - id: 201
-    name: "2025 Adult 18+ 4.5 Women"
-    year: 2025
-    section: "Southwest"
-    region: "Northern New Mexico"
-    age_group: "18 & Over"
-    division: "4.5 Women"
-    num_lines_per_match: 5
-    num_matches: 10
-    allow_split_lines: false
-    preferred_days:
-      - "Sunday"
-      - "Thursday"
-    backup_days:
-      - "Wednesday"
-    start_date: "2025-03-01"
-    end_date: "2025-05-01"`,
-            
-            teams: `
-teams:
-    - id: 2001
-      name: "Lightning Bolts"
-      league_id: 101
-      captain: "Jane Smith"
-      home_facility_id: 5
-      preferred_days: ["Saturday"]`,
-            
-            facilities: `
-facilities:
-    - id: 14512
-      name: "Tennis Center North"
-      short_name: "TCN"
-      location: "123 Tennis Ave"
-      total_courts: 6
-      schedule:
-          Monday:
-            start_times:
-              - time: "18:00"
-                available_courts: 5
-          Tuesday:
-            start_times:
-              - time: "18:00"
-                available_courts: 5
-          Wednesday:
-            start_times:
-              - time: "18:00"
-                available_courts: 5
-          Thursday:
-            start_times:
-              - time: "18:00"
-                available_courts: 5
-          Friday:
-            start_times:
-              - time: "18:00"
-                available_courts: 5
-          Saturday:
-            start_times:
-              - time: "12:00"
-                available_courts: 5
-              - time: "14:00"
-                available_courts: 5
-          Sunday:
-            start_times:
-              - time: "12:00"
-                available_courts: 5
-              - time: "14:00"
-                available_courts: 5
-        unavailable_dates:
-          - "2025-03-09"
-          - "2025-03-23"`,
-            
-            matches: `
-matches: 
-    - team1_id: 101
-      team2_id: 102
-      league_id: 1
-      date: "2025-06-15"
-      time: "09:00"`
-        };
-        return examples[dataType] || '';
-    }
+    static setupEventHandlers() {
+        const fileInput = document.getElementById('universalFileInput');
+        const uploadArea = document.getElementById('fileUploadArea');
 
-    static async executeImport() {
-        if (!this.selectedFile) {
-            TennisUI.showNotification('Please select a YAML file first', 'warning');
-            return;
-        }
-    
-        const formData = new FormData();
-        formData.append('yaml_file', this.selectedFile);
-    
-        try {
-            TennisUI.setButtonLoading('importBtn', true, 'Importing...');
-            
-            const response = await fetch(`/api/import-${this.currentDataType}`, {
-                method: 'POST',
-                body: formData
+        if (fileInput && uploadArea) {
+            // File input change handler
+            fileInput.addEventListener('change', (e) => {
+                this.handleFileSelection(e.target.files[0]);
             });
-    
-            const result = await response.json();
-    
-            if (!response.ok) {
-                // Get the detailed error message from the server response
-                const errorMessage = result.error || result.message || `Import failed: ${response.status} ${response.statusText}`;
-                throw new Error(errorMessage);
-            }
-    
-            TennisUI.showNotification(result.message || 'Import completed successfully!', 'success');
-            
-            // Close modal and reload
-            const modal = bootstrap.Modal.getInstance(document.getElementById('importExportModal'));
-            modal.hide();
-            setTimeout(() => window.location.reload(), 500);
-    
-        } catch (error) {
-            TennisUI.showNotification(error.message || 'Import failed', 'danger');
-            TennisUI.setButtonLoading('importBtn', false);
+
+            // Drag and drop handlers
+            uploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('border-primary', 'bg-light');
+            });
+
+            uploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('border-primary', 'bg-light');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('border-primary', 'bg-light');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    this.handleFileSelection(files[0]);
+                }
+            });
         }
     }
 
     /**
-     * Execute export using dynamic API endpoint
+     * Load current component information
      */
-    static async executeExport(format) {
+    static async loadComponentInfo() {
         try {
-            TennisUI.setButtonLoading('.btn-export', true, 'Exporting...');
-
-            const response = await fetch(`/api/export-${this.currentDataType}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ format: format })
-            });
-
-            if (!response.ok) {
-                throw new Error(`Export failed: ${response.status} ${response.statusText}`);
+            const response = await fetch('/api/import-export/components');
+            const result = await response.json();
+            
+            if (result.success) {
+                this.displayComponentStatus(result.components, result.total_items);
             }
-
-            // Handle file download
-            const contentDisposition = response.headers.get('Content-Disposition');
-            let filename = `${this.currentDataType}_export.${format}`;
-            if (contentDisposition) {
-                const match = contentDisposition.match(/filename="(.+)"/);
-                if (match) filename = match[1];
-            }
-
-            const blob = await response.blob();
-            TennisUI.downloadFile(blob, filename);
-
-            TennisUI.showNotification(`${this.currentDataType.charAt(0).toUpperCase() + this.currentDataType.slice(1)} exported as ${format.toUpperCase()}`, 'success');
-
         } catch (error) {
-            TennisUI.showNotification(error.message || 'Export failed', 'danger');
-        } finally {
-            TennisUI.setButtonLoading('.btn-export', false);
+            console.error('Error loading component info:', error);
         }
     }
 
-    // ... [keep existing file handling methods but remove hardcoded references]
+    /**
+     * Display current component status
+     */
+    static displayComponentStatus(components, totalItems) {
+        const container = document.getElementById('componentStatus');
+        if (!container) return;
+
+        const badges = Object.entries(components).map(([key, info]) => {
+            const count = info.current_count || 0;
+            const colorClass = count > 0 ? info.color : 'secondary';
+            
+            return `
+                <div class="text-center">
+                    <span class="badge bg-${colorClass} d-block mb-1">
+                        <i class="${info.icon}"></i> ${count}
+                    </span>
+                    <small class="d-block">${info.display_name}</small>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = `
+            ${badges}
+            <div class="text-center">
+                <span class="badge bg-dark d-block mb-1">
+                    <i class="fas fa-database"></i> ${totalItems}
+                </span>
+                <small class="d-block">Total</small>
+            </div>
+        `;
+    }
+
+    /**
+     * Handle file selection and analysis
+     */
+    static async handleFileSelection(file) {
+        if (!file) return;
+
+        // Validate file type
+        if (!file.name.toLowerCase().endsWith('.yaml') && !file.name.toLowerCase().endsWith('.yml')) {
+            TennisUI.showNotification('Please select a YAML file (.yaml or .yml)', 'warning');
+            return;
+        }
+
+        this.selectedFile = file;
+        this.updateFileDisplay(file);
+
+        // Analyze file content
+        await this.analyzeFile(file);
+    }
+
+    /**
+     * Analyze uploaded file
+     */
+    static async analyzeFile(file) {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/api/import-export/analyze', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.fileAnalysis = result.analysis;
+                this.displayAnalysis(result.analysis);
+                this.enableImportButtons();
+            } else {
+                this.showAnalysisError(result.error);
+            }
+        } catch (error) {
+            console.error('Analysis error:', error);
+            this.showAnalysisError(`Network error: ${error.message}`);
+        }
+    }
+
+    /**
+     * Display file analysis results
+     */
+    static displayAnalysis(analysis) {
+        const analysisDiv = document.getElementById('fileAnalysis');
+        const contentDiv = document.getElementById('analysisContent');
+
+        if (!analysisDiv || !contentDiv) return;
+
+        if (analysis.is_valid) {
+            const componentBadges = analysis.components_found.map(component => {
+                const count = analysis.component_counts[component];
+                const info = ComponentInfo?.COMPONENTS?.[component] || { display_name: component, color: 'secondary', icon: 'fas fa-cube' };
+                return `<span class="badge bg-${info.color} me-1"><i class="${info.icon}"></i> ${count} ${info.display_name}</span>`;
+            }).join('');
+
+            contentDiv.innerHTML = `
+                <h6><i class="fas fa-eye text-info"></i> File Analysis</h6>
+                <p><strong>Components found:</strong></p>
+                <div class="mb-2">${componentBadges}</div>
+                <p class="small mb-0">Total: ${analysis.total_items} items ready for import</p>
+            `;
+
+            analysisDiv.className = 'alert alert-success';
+        } else {
+            contentDiv.innerHTML = `
+                <h6><i class="fas fa-exclamation-triangle text-warning"></i> File Issues</h6>
+                <p>${analysis.error || 'No valid components found in file'}</p>
+            `;
+            analysisDiv.className = 'alert alert-warning';
+        }
+
+        analysisDiv.classList.remove('d-none');
+    }
+
+    /**
+     * Show analysis error
+     */
+    static showAnalysisError(error) {
+        const analysisDiv = document.getElementById('fileAnalysis');
+        const contentDiv = document.getElementById('analysisContent');
+
+        if (analysisDiv && contentDiv) {
+            contentDiv.innerHTML = `
+                <h6><i class="fas fa-exclamation-circle text-danger"></i> Analysis Failed</h6>
+                <p>${error}</p>
+            `;
+            analysisDiv.className = 'alert alert-danger';
+            analysisDiv.classList.remove('d-none');
+        }
+    }
+
+    /**
+     * Update file display in upload area
+     */
+    static updateFileDisplay(file) {
+        const uploadArea = document.getElementById('fileUploadArea');
+        const fileSizeKB = (file.size / 1024).toFixed(1);
+        
+        uploadArea.innerHTML = `
+            <div class="text-center">
+                <i class="fas fa-file-code fa-2x text-success mb-2"></i>
+                <div>
+                    <strong>${file.name}</strong>
+                    <div class="small text-muted">${fileSizeKB} KB • Ready for analysis</div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Enable import buttons
+     */
+    static enableImportButtons() {
+        document.getElementById('importBtn').disabled = false;
+        document.getElementById('validateBtn').disabled = false;
+        document.getElementById('clearBtn').disabled = false;
+    }
+
+    /**
+     * Clear selected file
+     */
+    static clearFile() {
+        this.selectedFile = null;
+        this.fileAnalysis = null;
+        
+        // Reset upload area
+        const uploadArea = document.getElementById('fileUploadArea');
+        uploadArea.innerHTML = `
+            <div class="tennis-file-upload-content">
+                <i class="fas fa-cloud-upload-alt fa-3x text-tennis-primary mb-3"></i>
+                <div>
+                    <strong>Drop YAML file here or click to browse</strong>
+                    <div class="small text-muted mt-1">Supports any combination of components</div>
+                </div>
+            </div>
+            <input type="file" id="universalFileInput" accept=".yaml,.yml" style="display: none;">
+            <button class="btn btn-tennis-primary mt-3" onclick="document.getElementById('universalFileInput').click()">
+                <i class="fas fa-folder-open"></i> Select File
+            </button>
+        `;
+
+        // Re-setup event handlers
+        setTimeout(() => this.setupEventHandlers(), 100);
+
+        // Disable buttons
+        document.getElementById('importBtn').disabled = true;
+        document.getElementById('validateBtn').disabled = true;
+        document.getElementById('clearBtn').disabled = true;
+
+        // Hide analysis
+        document.getElementById('fileAnalysis').classList.add('d-none');
+        this.hideImportStatus();
+    }
+
+    /**
+     * Execute import
+     */
+    static async executeImport() {
+        await this.performImport(false);
+    }
+
+    /**
+     * Validate only without importing
+     */
+    static async validateOnly() {
+        await this.performImport(true);
+    }
+
+    /**
+     * Perform import or validation
+     */
+    static async performImport(validateOnly = false) {
+        if (!this.selectedFile) {
+            TennisUI.showNotification('Please select a file first', 'warning');
+            return;
+        }
+
+        try {
+            const actionText = validateOnly ? 'Validating' : 'Importing';
+            this.showImportStatus('info', `${actionText} file...`, true);
+            TennisUI.setButtonLoading(validateOnly ? 'validateBtn' : 'importBtn', true, `${actionText}...`);
+
+            const formData = new FormData();
+            formData.append('file', this.selectedFile);
+            formData.append('skip_existing', 'true');
+            formData.append('validate_only', validateOnly.toString());
+
+            const response = await fetch('/api/import-export/import', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.showImportSuccess(result, validateOnly);
+                TennisUI.showNotification(`${actionText} completed successfully!`, 'success');
+                
+                if (!validateOnly) {
+                    // Show refresh button
+                    document.getElementById('refreshBtn').style.display = 'inline-block';
+                    // Reload component info
+                    this.loadComponentInfo();
+                }
+            } else {
+                this.showImportError(result);
+                TennisUI.showNotification(`${actionText} failed: ${result.error}`, 'danger');
+            }
+
+        } catch (error) {
+            console.error('Import error:', error);
+            this.showImportStatus('danger', `Network error: ${error.message}`, false);
+            TennisUI.showNotification('Import failed: Network error', 'danger');
+        } finally {
+            TennisUI.setButtonLoading('importBtn', false);
+            TennisUI.setButtonLoading('validateBtn', false);
+        }
+    }
+
+    /**
+     * Export complete database
+     */
+    static async exportComplete(format) {
+        try {
+            const url = `/api/import-export/export?format=${format}`;
+            window.open(url, '_blank');
+            TennisUI.showNotification(`Complete database export started (${format.toUpperCase()})`, 'success');
+        } catch (error) {
+            console.error('Export error:', error);
+            TennisUI.showNotification('Export failed', 'danger');
+        }
+    }
+
+    /**
+     * Export selected components
+     */
+    static async exportSelected(format) {
+        const checkboxes = document.querySelectorAll('#componentSelection input[type="checkbox"]:checked');
+        const selectedComponents = Array.from(checkboxes).map(cb => cb.value);
+
+        if (selectedComponents.length === 0) {
+            TennisUI.showNotification('Please select at least one component to export', 'warning');
+            return;
+        }
+
+        try {
+            const params = new URLSearchParams();
+            params.append('format', format);
+            selectedComponents.forEach(component => params.append('components', component));
+            
+            const url = `/api/import-export/export?${params.toString()}`;
+            window.open(url, '_blank');
+            TennisUI.showNotification(`Selected components export started (${format.toUpperCase()})`, 'success');
+        } catch (error) {
+            console.error('Export error:', error);
+            TennisUI.showNotification('Export failed', 'danger');
+        }
+    }
+
+    /**
+     * Download example file
+     */
+    static async downloadExample(type) {
+        try {
+            const url = `/api/import-export/examples/${type}`;
+            window.open(url, '_blank');
+            TennisUI.showNotification(`Example file download started`, 'success');
+        } catch (error) {
+            console.error('Download error:', error);
+            TennisUI.showNotification('Download failed', 'danger');
+        }
+    }
+
+    /**
+     * Show import status
+     */
+    static showImportStatus(type, message, showSpinner = false) {
+        const statusDiv = document.getElementById('importStatus');
+        const messageDiv = document.getElementById('importMessage');
+
+        if (statusDiv && messageDiv) {
+            const alertClass = `alert-${type}`;
+            statusDiv.className = `alert ${alertClass}`;
+            
+            const spinnerHtml = showSpinner ? '<div class="spinner-border spinner-border-sm me-2" role="status"></div>' : '';
+            messageDiv.innerHTML = `${spinnerHtml}${message}`;
+            
+            statusDiv.classList.remove('d-none');
+        }
+    }
+
+    /**
+     * Hide import status
+     */
+    static hideImportStatus() {
+        const statusDiv = document.getElementById('importStatus');
+        if (statusDiv) {
+            statusDiv.classList.add('d-none');
+        }
+    }
+
+    /**
+     * Show import success
+     */
+    static showImportSuccess(result, validateOnly) {
+        const action = validateOnly ? 'Validation' : 'Import';
+        const componentsProcessed = result.components_processed || [];
+        
+        let message = `<h6><i class="fas fa-check-circle text-success"></i> ${action} Successful</h6>`;
+        
+        if (componentsProcessed.length > 0) {
+            message += `<p><strong>Components processed:</strong> ${componentsProcessed.join(', ')}</p>`;
+        }
+        
+        if (result.summary) {
+            message += `<p class="small">${result.summary}</p>`;
+        }
+
+        this.showImportStatus('success', message, false);
+    }
+
+    /**
+     * Show import error
+     */
+    static showImportError(result) {
+        const message = `
+            <h6><i class="fas fa-exclamation-triangle text-danger"></i> Import Failed</h6>
+            <p><strong>Error:</strong> ${result.error || 'Unknown error'}</p>
+        `;
+        this.showImportStatus('danger', message, false);
+    }
+
+    /**
+     * Remove existing modal from DOM
+     */
+    static removeExistingModal() {
+        const existingModal = document.getElementById('tennisUniversalModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        this.currentModal = null;
+        this.selectedFile = null;
+        this.fileAnalysis = null;
+    }
 }
+
+    
 
 // ==================== GLOBAL Functions ====================
 

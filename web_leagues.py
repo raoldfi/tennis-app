@@ -301,19 +301,13 @@ def register_routes(app):
                         'num_lines_per_match': request.form.get('num_lines_per_match', type=int),
                         'allow_split_lines': bool(request.form.get('allow_split_lines', type=int)),
                         'start_date': request.form.get('start_date') or None,
-                        'end_date': request.form.get('end_date') or None
-                    }
+                        'end_date': request.form.get('end_date') or None,
+                        # ADD THESE TWO LINES:
+                        'preferred_days': request.form.getlist('preferred_days'),
+                        'backup_days': request.form.getlist('backup_days')
+}
                     
                     # Validate required fields
-                    if not updated_data['name']:
-                        flash('League name is required', 'error')
-                        return render_template('edit_league.html', league=league)
-                    
-                    if not updated_data['year'] or updated_data['year'] < 2000:
-                        flash('Valid year is required', 'error')
-                        return render_template('edit_league.html', league=league)
-                    
-                    # Update league object
                     league.name = updated_data['name']
                     league.year = updated_data['year']
                     league.section = updated_data['section']
@@ -325,6 +319,9 @@ def register_routes(app):
                     league.allow_split_lines = updated_data['allow_split_lines']
                     league.start_date = updated_data['start_date']
                     league.end_date = updated_data['end_date']
+                    # ADD THESE TWO LINES:
+                    league.preferred_days = updated_data['preferred_days']
+                    league.backup_days = updated_data['backup_days']
                     
                     # Update league in database
                     success = db.update_league(league)
@@ -502,186 +499,6 @@ def register_routes(app):
 
     # ==================== MODERN API ENDPOINTS ====================
 
-    @app.route('/api/import-leagues', methods=['POST'])
-    def api_import_leagues():
-        """Modern API endpoint for importing leagues from YAML using utils.py"""
-        db = get_db()
-        if db is None:
-            return jsonify({'error': 'No database connection'}), 500
-    
-        try:
-            print(f"IMPORT_LEAGUES")
-            # Validate file upload
-            if 'yaml_file' not in request.files:
-                return jsonify({'error': 'No file uploaded'}), 400
-    
-            file = request.files['yaml_file']
-            if file.filename == '':
-                return jsonify({'error': 'No file selected'}), 400
-    
-            print(f"IMPORT_LEAGUES from file: {file}")
-    
-            if not file.filename.lower().endswith(('.yaml', '.yml')):
-                return jsonify({'error': 'File must be a YAML file (.yaml or .yml)'}), 400
-    
-            # Save uploaded file to temporary location
-            try:
-                with tempfile.NamedTemporaryFile(mode='w+b', suffix='.yaml', delete=False) as temp_file:
-                    file.save(temp_file.name)
-                    temp_filename = temp_file.name
-            except Exception as e:
-                return jsonify({'error': f'Failed to save uploaded file: {str(e)}'}), 500
-    
-            try:
-                # Use utils.py function to import leagues
-                leagues = utils.import_leagues_from_yaml(temp_filename)
-                
-                # Add leagues to database
-                imported_count = 0
-                errors = []
-                
-                for i, league in enumerate(leagues):
-                    try:
-                        # Check if league with same ID already exists
-                        existing_league = db.get_league(league.id)
-                        if existing_league:
-                            errors.append(f'League with ID {league.id} already exists: {existing_league.name}')
-                            continue
-                        
-                        # Add to database
-                        db.add_league(league)
-                        imported_count += 1
-                            
-                    except Exception as e:
-                        errors.append(f'Error adding league at index {i} ({getattr(league, "name", "Unknown")}): {str(e)}')
-    
-                result = {
-                    'imported_count': imported_count,
-                    'total_count': len(leagues),
-                    'errors': errors
-                }
-                
-                print(f"IMPORT_LEAGUES -- Import complete {result}")
-                
-                if imported_count > 0:
-                    result['message'] = f'Successfully imported {imported_count} out of {len(leagues)} leagues'
-                    if errors:
-                        result['message'] += f' ({len(errors)} errors)'
-                    return jsonify(result), 200
-                else:
-                    result['message'] = 'No leagues were imported'
-                    return jsonify(result), 400
-    
-            finally:
-                # Clean up temporary file
-                try:
-                    os.unlink(temp_filename)
-                except:
-                    pass
-    
-        except Exception as e:
-            return jsonify({'error': f'Import failed: {str(e)}'}), 500
-
-
-    @app.route('/api/export-leagues', methods=['POST'])
-    def api_export_leagues():
-        """API endpoint to export leagues using utils.py functions"""
-        db = get_db()
-        if db is None:
-            return jsonify({'error': 'No database connection'}), 500
-        
-        try:
-            data = request.get_json()
-            format_type = data.get('format', 'yaml').lower()
-            
-            if format_type not in ['yaml', 'json', 'csv']:
-                return jsonify({'error': 'Invalid format. Use yaml, json, or csv'}), 400
-            
-            # Get all leagues
-            leagues_list = db.list_leagues()
-            
-            if format_type == 'yaml':
-                # Use utils.py function for YAML export
-                with tempfile.NamedTemporaryFile(mode='w+', suffix='.yaml', delete=False) as temp_file:
-                    temp_filename = temp_file.name
-                
-                try:
-                    utils.export_leagues_to_yaml(leagues_list, temp_filename)
-                    
-                    # Read the file content
-                    with open(temp_filename, 'r') as f:
-                        yaml_content = f.read()
-                    
-                    response = make_response(yaml_content)
-                    response.headers['Content-Type'] = 'application/x-yaml'
-                    response.headers['Content-Disposition'] = f'attachment; filename="leagues_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.yaml"'
-                    return response
-                    
-                finally:
-                    # Clean up temporary file
-                    try:
-                        os.unlink(temp_filename)
-                    except:
-                        pass
-                    
-            elif format_type == 'json':
-                leagues_data = []
-                for league in leagues_list:
-                    league_dict = {
-                        'id': league.id,
-                        'name': league.name,
-                        'year': league.year,
-                        'section': league.section,
-                        'region': league.region,
-                        'age_group': league.age_group,
-                        'division': league.division,
-                        'num_matches': getattr(league, 'num_matches', None),
-                        'num_lines_per_match': getattr(league, 'num_lines_per_match', None),
-                        'allow_split_lines': getattr(league, 'allow_split_lines', None),
-                        'start_date': getattr(league, 'start_date', None),
-                        'end_date': getattr(league, 'end_date', None)
-                    }
-                    leagues_data.append(league_dict)
-                
-                response = make_response(json.dumps(leagues_data, indent=2))
-                response.headers['Content-Type'] = 'application/json'
-                response.headers['Content-Disposition'] = f'attachment; filename="leagues_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json"'
-                return response
-                
-            elif format_type == 'csv':
-                import csv
-                import io
-                
-                output = io.StringIO()
-                writer = csv.writer(output)
-                
-                # Write header
-                writer.writerow(['ID', 'Name', 'Year', 'Section', 'Region', 'Age Group', 'Division', 'Num Matches', 'Lines Per Match', 'Allow Split Lines', 'Start Date', 'End Date'])
-                
-                # Write data
-                for league in leagues_list:
-                    writer.writerow([
-                        league.id,
-                        league.name,
-                        league.year,
-                        league.section,
-                        league.region,
-                        league.age_group,
-                        league.division,
-                        getattr(league, 'num_matches', ''),
-                        getattr(league, 'num_lines_per_match', ''),
-                        getattr(league, 'allow_split_lines', ''),
-                        getattr(league, 'start_date', ''),
-                        getattr(league, 'end_date', '')
-                    ])
-                
-                response = make_response(output.getvalue())
-                response.headers['Content-Type'] = 'text/csv'
-                response.headers['Content-Disposition'] = f'attachment; filename="leagues_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
-                return response
-                
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
 
     
 

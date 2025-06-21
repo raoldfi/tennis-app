@@ -81,33 +81,68 @@
     </div>
 </div>
 
-<!-- Additional dashboard sections can be added here -->
 <div class="row mt-4">
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-chart-bar text-tennis-primary"></i> Quick Actions</h5>
+                <h5 class="mb-0">
+                    <i class="fas fa-exchange-alt text-tennis-primary"></i> 
+                    Smart Import/Export
+                </h5>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <h6>Database Management</h6>
-                        <a href="{{ url_for('stats') }}" class="btn btn-outline-tennis-primary me-2 mb-2">
-                            <i class="fas fa-chart-line"></i> View Statistics
-                        </a>
-                        <a href="{{ url_for('constants') }}" class="btn btn-outline-tennis-info mb-2">
-                            <i class="fas fa-cog"></i> USTA Constants
-                        </a>
+                        <h6><i class="fas fa-upload text-tennis-primary"></i> Quick Import</h6>
+                        <p class="text-muted small mb-3">Import any YAML file - the system automatically detects all components.</p>
+                        <button class="btn btn-tennis-primary" onclick="TennisImportExport.showModal('Smart Import/Export')">
+                            <i class="fas fa-magic"></i> Open Smart Import/Export
+                        </button>
                     </div>
                     <div class="col-md-6">
-                        <h6>Advanced Operations</h6>
-                        <button class="btn btn-outline-tennis-warning me-2 mb-2" onclick="TennisImportExport.showModal('leagues', 'Import/Export Leagues')">
-                            <i class="fas fa-exchange-alt"></i> Import/Export
-                        </button>
+                        <h6><i class="fas fa-download text-tennis-success"></i> Quick Export</h6>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-tennis-success btn-sm" onclick="TennisImportExport.exportComplete('yaml')">
+                                <i class="fas fa-database"></i> Export Complete Database (YAML)
+                            </button>
+                            <button class="btn btn-tennis-info btn-sm" onclick="TennisImportExport.exportComplete('json')">
+                                <i class="fas fa-file-export"></i> Export Complete Database (JSON)
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Define ComponentInfo for import/export functionality -->
+<script>
+window.ComponentInfo = {
+    COMPONENTS: {
+        'leagues': {
+            'display_name': 'Leagues',
+            'icon': 'fas fa-trophy',
+            'color': 'warning'
+        },
+        'facilities': {
+            'display_name': 'Facilities',
+            'icon': 'fas fa-building',
+            'color': 'info'
+        },
+        'teams': {
+            'display_name': 'Teams',
+            'icon': 'fas fa-users',
+            'color': 'success'
+        },
+        'matches': {
+            'display_name': 'Matches',
+            'icon': 'fas fa-calendar',
+            'color': 'primary'
+        }
+    }
+};
+</script>
 {% endblock %}
