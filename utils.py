@@ -9,6 +9,7 @@ from typing import List, Optional, Dict, Any, Optional
 from datetime import datetime, timedelta
 import yaml
 import os
+from tennis_db_interface import TennisDBInterface
 
 
 def generate_matches(teams: List['Team']) -> List['Match']:
@@ -281,6 +282,111 @@ def get_optimal_scheduling_dates(match: 'Match', start_date: Optional[str] = Non
         
     except Exception as e:
         raise RuntimeError(f"Error getting optimal scheduling dates for match {match.id}: {e}")
+
+
+def get_scheduling_options(db : TennisDBInterface , match: Match, 
+                         facility: Optional[Facility] = None,
+                         start_date: Optional[str] = None,
+                         end_date: Optional[str] = None,
+                         max_dates: int = 20) -> Dict[str, Any]:
+    """
+    Get optimal scheduling options for a match
+    
+    Args:
+        db: Database interface
+        match: Match object to schedule
+        facility: Optional facility to check (defaults to home team's facility)
+        start_date: Start date for search (YYYY-MM-DD)
+        end_date: End date for search (YYYY-MM-DD)
+        max_dates: Maximum number of dates to return
+        
+    Returns:
+        Dictionary containing scheduling options and metadata
+    """
+    try:
+        # Default to home team's facility if not specified
+        target_facility = facility or match.home_team.home_facility
+        
+        if not target_facility:
+            return {
+                'success': False,
+                'error': 'No facility specified and home team has no home facility',
+                'available_dates': [],
+                'facility_info': None
+            }
+        
+        # Get optimal dates using the standalone function (fixed the self-reference)
+        optimal_dates = get_optimal_scheduling_dates(
+            match=match,
+            start_date=start_date,
+            end_date=end_date,
+            num_dates=max_dates
+        )
+        
+        # Filter dates by facility availability
+        available_dates = []
+        for date in optimal_dates:
+            # Check if facility is available (simplified check)
+            facility_available = True  # Simplified - you may want to implement actual facility checking
+            
+            if facility_available:
+                # Check for team conflicts (simplified)
+                home_conflict = False  # Simplified - you may want to implement actual conflict checking
+                visitor_conflict = False  # Simplified
+                
+                if not home_conflict and not visitor_conflict:
+                    # Create a simple list of available times (simplified)
+                    # You can implement actual time slot checking here
+                    available_times = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"]
+                    
+                    if available_times:
+                        available_dates.append({
+                            'date': date,
+                            'day_of_week': datetime.strptime(date, '%Y-%m-%d').strftime('%A'),
+                            'available_times': available_times,
+                            'optimal_score': 5.0,  # Simplified static score
+                            'conflicts': []
+                        })
+                    else:
+                        available_dates.append({
+                            'date': date,
+                            'day_of_week': datetime.strptime(date, '%Y-%m-%d').strftime('%A'),
+                            'available_times': [],
+                            'optimal_score': 2.0,  # Lower score for no available times
+                            'conflicts': ['No available times at facility']
+                        })
+        
+        return {
+            'success': True,
+            'match_info': {
+                'id': match.id,
+                'home_team': match.home_team.name if match.home_team else 'TBD',
+                'visitor_team': match.visitor_team.name if match.visitor_team else 'TBD',
+                'league': match.league.name if match.league else 'Unknown',
+                'lines_needed': match.league.num_lines_per_match if match.league else 3
+            },
+            'facility_info': {
+                'id': target_facility.id,
+                'name': target_facility.name,
+                'location': getattr(target_facility, 'location', 'Unknown'),
+                'total_courts': getattr(target_facility, 'total_courts', 'Unknown')
+            },
+            'available_dates': available_dates,
+            'search_params': {
+                'start_date': start_date,
+                'end_date': end_date,
+                'max_dates': max_dates
+            }
+        }
+        
+    except Exception as e:
+        return {
+            'success': False,
+            'error': f'Error getting scheduling options: {str(e)}',
+            'available_dates': [],
+            'facility_info': None
+        }
+
 
 
 def get_date_intersection(dates_list1: List[str], dates_list2: List[str], 

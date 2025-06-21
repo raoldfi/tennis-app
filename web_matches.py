@@ -68,10 +68,19 @@ def register_routes(app, get_db):
             # FIXED: Pass original Match objects to template instead of converting to dicts
             # The template expects Match objects with methods like get_scheduled_times()
             # Sort matches with proper None handling for dates
+            # In web_matches.py, around line 85, replace the sort_key function with this:
+            
             def sort_key(match):
                 if match.date is None:
                     return (1, '')  # Put None dates last
-                return (0, match.date)
+                
+                # Convert date to string for consistent comparison
+                if hasattr(match.date, 'strftime'):
+                    date_str = match.date.strftime('%Y-%m-%d')
+                else:
+                    date_str = str(match.date)
+                
+                return (0, date_str)
             
             matches_display = sorted(filtered_matches, key=sort_key)
             
@@ -700,10 +709,16 @@ def register_routes(app, get_db):
         
         # Sort matches: scheduled dates first (by date), then unscheduled
         def sort_key(match):
-            if match.date:
-                return (0, match.date)  # 0 = scheduled, sort by date
+            if match.date is None:
+                return (1, '')  # Put None dates last
+            
+            # Convert date to string for consistent comparison
+            if hasattr(match.date, 'strftime'):
+                date_str = match.date.strftime('%Y-%m-%d')
             else:
-                return (1, 'zzzz')  # 1 = unscheduled, sort after scheduled with dummy string
+                date_str = str(match.date)
+            
+            return (0, date_str)
         
         sorted_matches = sorted(matches, key=sort_key)
         
@@ -747,16 +762,18 @@ def filter_matches(matches_list, start_date, end_date, search_query):
     if start_date:
         try:
             start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+            # FIXED: Check that parse_match_date returns a valid date before comparison
             filtered_matches = [m for m in filtered_matches 
-                              if m.date and parse_match_date(m.date) >= start_date_obj]
+                              if m.date and parse_match_date(m.date) is not None and parse_match_date(m.date) >= start_date_obj]
         except ValueError:
             pass  # Invalid date format, skip filter
     
     if end_date:
         try:
             end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+            # FIXED: Check that parse_match_date returns a valid date before comparison
             filtered_matches = [m for m in filtered_matches 
-                              if m.date and parse_match_date(m.date) <= end_date_obj]
+                              if m.date and parse_match_date(m.date) is not None and parse_match_date(m.date) <= end_date_obj]
         except ValueError:
             pass  # Invalid date format, skip filter
     

@@ -420,6 +420,7 @@
 {% endblock %}
 
 {% block scripts %}
+
 <script>
 // ==================== MATCHES PAGE FUNCTIONALITY ====================
 let currentMatchId = null;
@@ -787,21 +788,30 @@ function clearSchedule() {
 
 // ==================== PAGE-SPECIFIC INITIALIZATION ====================
 
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🎾 Matches page initialized');
     
     // Initialize filter form enhancements
     initializeFilterForm();
     
-    // Initialize table interactions
+    // Initialize table interactions (existing function)
     initializeTableInteractions();
     
     // Initialize tooltips for action buttons
     initializeTooltips();
 
-    // Initialize new standard table component
+    // Initialize the enhanced scheduled matches table component with schedule button support
     TennisUI.initializeScheduledMatchesTable();
+    
+    // Clean up any stale scheduling indicators
+    TennisUI.cleanupSchedulingState();
 });
+
+    
+
+// Keep your existing functions but remove the duplicate table initialization
+// since TennisUI.initializeScheduledMatchesTable() now handles everything
 
 function initializeFilterForm() {
     const filterForm = document.querySelector('.tennis-form');

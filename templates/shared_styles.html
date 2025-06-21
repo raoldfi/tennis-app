@@ -458,6 +458,64 @@
 }
 
 /* ==========================================================================
+   Schedule Button Styles
+   ========================================================================== */
+
+/* Action button for scheduling unscheduled matches */
+.action-btn-schedule {
+    background: linear-gradient(135deg, var(--tennis-success) 0%, var(--tennis-success-dark) 100%);
+    color: white;
+    border: 1px solid var(--tennis-success-dark);
+}
+
+.action-btn-schedule:hover {
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 0.25rem 0.5rem rgba(40, 167, 69, 0.25);
+    background: linear-gradient(135deg, var(--tennis-success-dark) 0%, var(--tennis-success) 100%);
+}
+
+.action-btn-schedule:focus {
+    color: white;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+/* Enhanced action buttons group for better spacing */
+.action-buttons .action-btn {
+    min-width: 2.5rem;
+    text-align: center;
+}
+
+/* Mobile schedule button */
+.btn-tennis-success.flex-fill {
+    background: linear-gradient(135deg, var(--tennis-success) 0%, var(--tennis-success-dark) 100%);
+    border-color: var(--tennis-success-dark);
+}
+
+.btn-tennis-success.flex-fill:hover {
+    background: linear-gradient(135deg, var(--tennis-success-dark) 0%, var(--tennis-success) 100%);
+    border-color: var(--tennis-success);
+    transform: translateY(-1px);
+}
+
+/* Status indicator colors for unscheduled matches */
+.status-unscheduled {
+    background: var(--tennis-danger);
+}
+
+/* Enhanced mobile action buttons */
+@media (max-width: 768px) {
+    .mobile-day-group-content .btn {
+        font-size: 0.8rem;
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .mobile-day-group-content .d-flex.gap-2 {
+        gap: 0.5rem !important;
+    }
+}
+    
+/* ==========================================================================
    Enhanced Notification Styles with Refresh Button
    ========================================================================== */
 

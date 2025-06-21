@@ -29,6 +29,7 @@ import web_facilities
 import web_leagues
 import web_teams
 import web_matches
+import web_schedule_match
 import web_schedule  # Added missing import
 from web_database import close_db, db_config, init_db, get_db
 
@@ -43,6 +44,7 @@ web_teams.register_routes(app)
 web_matches.register_routes(app, get_db)  # Pass get_db function
 web_schedule.register_routes(app)
 web_import_export.register_routes(app)
+web_schedule_match.register_routes(app)
 
 # Database cleanup
 app.teardown_appcontext(close_db)

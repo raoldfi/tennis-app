@@ -497,7 +497,7 @@
             TennisUI.showModal('scheduleMatchModal');
             
             // Load scheduling form
-            TennisUI.apiCall(`/api/matches/${matchId}/schedule-form`)
+            TennisUI.apiCall(`/api/matches/${matchId}/schedule`)
                 .then(data => {
                     TennisUI.setModalContent('scheduleMatchModal', 'scheduleModalContent', data.html);
                 })
