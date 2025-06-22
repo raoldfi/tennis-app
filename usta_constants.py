@@ -26,21 +26,14 @@ USTA_SECTIONS = [
     "Texas"
 ]
 
+# For now, just regions in the Southwest section
 USTA_REGIONS = [
+    "Northern Arizona",
     "Northern New Mexico",
     "Southern New Mexico", 
-    "West Texas",
-    "North Texas",
-    "Central Texas",
-    "East Texas",
-    "South Texas",
-    "Northern California",
-    "Central California",
-    "Southern California",
-    "Arizona",
-    "Nevada",
-    "Utah",
-    "Colorado"
+    "Southern Arizona",
+    "Phoenix",
+    "Greater El Paso"
 ]
 
 USTA_AGE_GROUPS = [
