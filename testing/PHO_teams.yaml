@@ -1,0 +1,284 @@
+teams:
+  # 3.0 Adult 40 & Over Men Teams (League 301)
+  - id: 3001
+    name: "3.0 ARR Old Aces M40F"
+    league_id: 301
+    home_facility_id: 50
+    captain: "Old Aces"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3002
+    name: "3.0 STRC Ball Crushers M40F"
+    league_id: 301
+    home_facility_id: 51
+    captain: "Ball Crushers"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3003
+    name: "3.0 STRC Surprise Tennis Club M40F"
+    league_id: 301
+    home_facility_id: 51
+    captain: "Surprise Tennis Club"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3004
+    name: "3.0 WIG DukesOfDadBods M40F"
+    league_id: 301
+    home_facility_id: 52
+    captain: "DukesOfDadBods"
+    preferred_days:
+      - "Wednesday"
+
+  # 3.5 Adult 40 & Over Women Teams (League 302)
+  - id: 3005
+    name: "3.5 CTC Howell W40F"
+    league_id: 302
+    home_facility_id: 53
+    captain: "Howell"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3006
+    name: "3.5 ISP Holding Court W40F"
+    league_id: 302
+    home_facility_id: 54
+    captain: "Holding Court"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3007
+    name: "3.5 PAS Pettiette Warriors W40F"
+    league_id: 302
+    home_facility_id: 55
+    captain: "Pettiette Warriors"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3008
+    name: "3.5 PTC Jessie's Girls W40F"
+    league_id: 302
+    home_facility_id: 56
+    captain: "Jessie's Girls"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3009
+    name: "3.5 PTC Zimmer W40F"
+    league_id: 302
+    home_facility_id: 56
+    captain: "Zimmer"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3010
+    name: "3.5 SRP Sunshine Love W40F"
+    league_id: 302
+    home_facility_id: 57
+    captain: "Sunshine Love"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3011
+    name: "3.5 STRC WreckingBelles W40F"
+    league_id: 302
+    home_facility_id: 51
+    captain: "WreckingBelles"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3012
+    name: "3.5 WIG Jones/Swift W40F"
+    league_id: 302
+    home_facility_id: 52
+    captain: "Jones/Swift"
+    preferred_days:
+      - "Wednesday"
+
+  # 4.0 Adult 18 & Over Men Teams (League 303)
+  - id: 3013
+    name: "4.0 CTC Colotla East Valley M18F"
+    league_id: 303
+    home_facility_id: 53
+    captain: "Colotla East Valley"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3014
+    name: "4.0 GRP Billy Goats M18F"
+    league_id: 303
+    home_facility_id: 58
+    captain: "Billy Goats"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3015
+    name: "4.0 KIW Goats M18F"
+    league_id: 303
+    home_facility_id: 59
+    captain: "Goats"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3016
+    name: "4.0 KIW Love:40 M18F"
+    league_id: 303
+    home_facility_id: 59
+    captain: "Love:40"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3017
+    name: "4.0 PAS Set2Win M18F"
+    league_id: 303
+    home_facility_id: 55
+    captain: "Set2Win"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3018
+    name: "4.0 PAS Sunshine M18F"
+    league_id: 303
+    home_facility_id: 55
+    captain: "Sunshine"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3019
+    name: "4.0 PHO YouCannotBeSerious M18F"
+    league_id: 303
+    home_facility_id: 60
+    captain: "YouCannotBeSerious"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3020
+    name: "4.0 PTC Fellowship M18F"
+    league_id: 304
+    home_facility_id: 56
+    captain: "Fellowship"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3021
+    name: "4.0 PTC GarciaGonzales M18F"
+    league_id: 304
+    home_facility_id: 56
+    captain: "GarciaGonzales"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3022
+    name: "4.0 PTC Snider M18F"
+    league_id: 304
+    home_facility_id: 56
+    captain: "Snider"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3023
+    name: "4.0 SCR Chaos M18F"
+    league_id: 304
+    home_facility_id: 61
+    captain: "Chaos"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3024
+    name: "4.0 SRP LoveBirds 1.0 M18F"
+    league_id: 304
+    home_facility_id: 51
+    captain: "LoveBirds 1.0"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3025
+    name: "4.0 STRC SwingKings M18F"
+    league_id: 304
+    home_facility_id: 51
+    captain: "SwingKings"
+    preferred_days:
+      - "Wednesday"
+
+  # 4.0 Adult 40 & Over Women Teams (League 305)
+  - id: 3026
+    name: "4.0 CTC Camacho W40F"
+    league_id: 305
+    home_facility_id: 53
+    captain: "Camacho"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3027
+    name: "4.0 PAS Love - All W40F"
+    league_id: 305
+    home_facility_id: 55
+    captain: "Love - All"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3028
+    name: "4.0 PAS Rook-Pettiette W40F"
+    league_id: 305
+    home_facility_id: 55
+    captain: "Rook-Pettiette"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3029
+    name: "4.0 PAS Schneider W40F"
+    league_id: 305
+    home_facility_id: 55
+    captain: "Schneider"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3030
+    name: "4.0 PHO Joseph W40F"
+    league_id: 305
+    home_facility_id: 60
+    captain: "Joseph"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3031
+    name: "4.0 PTC BakerSol W40F"
+    league_id: 305
+    home_facility_id: 56
+    captain: "BakerSol"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3032
+    name: "4.0 PTC Timm Brockway W40F"
+    league_id: 305
+    home_facility_id: 56
+    captain: "Timm Brockway"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3033
+    name: "4.0 PTC Wagner W40F"
+    league_id: 305
+    home_facility_id: 56
+    captain: "Wagner"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3034
+    name: "4.0 STRC HarrisNacht W40F"
+    league_id: 305
+    home_facility_id: 51
+    captain: "HarrisNacht"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3035
+    name: "4.0 STRC Schreiber% W40F"
+    league_id: 305
+    home_facility_id: 51
+    captain: "Schreiber%"
+    preferred_days:
+      - "Wednesday"

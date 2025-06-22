@@ -1,0 +1,310 @@
+
+facilities:
+
+  # ARR - Wednesday evening facility with moderate capacity
+  - id: 50
+    name: "ARR Tennis Club"
+    short_name: "ARR"
+    location: "ARR Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 3
+          - time: "19:30"
+            available_courts: 3
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # STRC - Large capacity facility with single start time
+  - id: 51
+    name: "STRC Tennis Club"
+    short_name: "STRC"
+    location: "STRC Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "19:00"
+            available_courts: 10
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # WIG - Wednesday evening facility with moderate capacity
+  - id: 52
+    name: "WIG Tennis Club"
+    short_name: "WIG"
+    location: "WIG Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 3
+          - time: "19:30"
+            available_courts: 3
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # CTC - Wednesday evening facility with moderate capacity
+  - id: 53
+    name: "CTC Tennis Club"
+    short_name: "CTC"
+    location: "CTC Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 3
+          - time: "19:30"
+            available_courts: 3
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # ISP - Wednesday evening facility with good capacity
+  - id: 54
+    name: "ISP Tennis Club"
+    short_name: "ISP"
+    location: "ISP Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+          - time: "19:30"
+            available_courts: 5
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # PAS - Large capacity facility with later second start time
+  - id: 55
+    name: "PAS Tennis Club"
+    short_name: "PAS"
+    location: "PAS Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 10
+          - time: "20:00"
+            available_courts: 10
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # PTC - Largest capacity facility
+  - id: 56
+    name: "PTC Tennis Club"
+    short_name: "PTC"
+    location: "PTC Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 15
+          - time: "19:30"
+            available_courts: 15
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # SRP - Wednesday evening facility with single start time
+  - id: 57
+    name: "SRP Tennis Club"
+    short_name: "SRP"
+    location: "SRP Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "19:00"
+            available_courts: 5
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # GRP - Wednesday evening facility with good capacity
+  - id: 58
+    name: "GRP Tennis Club"
+    short_name: "GRP"
+    location: "GRP Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+          - time: "19:30"
+            available_courts: 5
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # KIW - Wednesday evening facility with moderate-good capacity
+  - id: 59
+    name: "KIW Tennis Club"
+    short_name: "KIW"
+    location: "KIW Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 6
+          - time: "19:30"
+            available_courts: 6
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # PHO - Wednesday evening facility with later start times
+  - id: 60
+    name: "PHO Tennis Club"
+    short_name: "PHO"
+    location: "PHO Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:30"
+            available_courts: 3
+          - time: "20:00"
+            available_courts: 3
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # SCR - Wednesday evening facility with moderate capacity
+  - id: 61
+    name: "SCR Tennis Club"
+    short_name: "SCR"
+    location: "SCR Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 3
+          - time: "19:30"
+            available_courts: 3
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []

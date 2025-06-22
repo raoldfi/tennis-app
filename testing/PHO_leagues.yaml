@@ -1,0 +1,86 @@
+leagues:
+  # Fall 2025 Adult 40 & Over PM - 3.0 Men Division
+  - id: 301
+    name: "2025 FALL Adult 40&Over PM 3.0 Men"
+    year: 2025
+    section: "Southwest"
+    region: "Phoenix"
+    age_group: "40 & Over"
+    division: "3.0 Men"
+    num_lines_per_match: 4
+    num_matches: 9
+    allow_split_lines: false
+    preferred_days:
+      - "Wednesday"
+    backup_days: []
+    start_date: "2025-09-01"
+    end_date: "2025-12-01"
+
+  # Fall 2025 Adult 40 & Over PM - 3.5 Women Division
+  - id: 302
+    name: "2025 FALL Adult 40&Over PM 3.5 Women"
+    year: 2025
+    section: "Southwest"
+    region: "Phoenix"
+    age_group: "40 & Over"
+    division: "3.5 Women"
+    num_lines_per_match: 4
+    num_matches: 12
+    allow_split_lines: false
+    preferred_days:
+      - "Wednesday"
+    backup_days: []
+    start_date: "2025-09-01"
+    end_date: "2025-12-01"
+
+  # Fall 2025 Adult 18 & Over PM - 4.0 Men Division
+  - id: 303
+    name: "2025 FALL Adult 18&Over PM 4.0 Men -- F1"
+    year: 2025
+    section: "Southwest"
+    region: "Phoenix"
+    age_group: "18 & Over"
+    division: "4.0 Men"
+    num_lines_per_match: 5
+    num_matches: 12
+    allow_split_lines: false
+    preferred_days:
+      - "Wednesday"
+    backup_days: []
+    start_date: "2025-09-01"
+    end_date: "2025-12-01"
+
+  # Fall 2025 Adult 18 & Over PM - 4.0 Men Division
+  - id: 304
+    name: "2025 FALL Adult 18&Over PM 4.0 Men -- F2"
+    year: 2025
+    section: "Southwest"
+    region: "Phoenix"
+    age_group: "18 & Over"
+    division: "4.0 Men"
+    num_lines_per_match: 5
+    num_matches: 12
+    allow_split_lines: false
+    preferred_days:
+      - "Wednesday"
+    backup_days: []
+    start_date: "2025-09-01"
+    end_date: "2025-12-01"
+
+
+  # Fall 2025 Adult 40 & Over PM - 4.0 Women Division
+  - id: 305
+    name: "2025 FALL Adult 40&Over PM 4.0 Women"
+    year: 2025
+    section: "Southwest"
+    region: "Phoenix"
+    age_group: "40 & Over"
+    division: "4.0 Women"
+    num_lines_per_match: 4
+    num_matches: 12
+    allow_split_lines: false
+    preferred_days:
+      - "Wednesday"
+    backup_days: []
+    start_date: "2025-09-01"
+    end_date: "2025-12-01"

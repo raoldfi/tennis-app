@@ -9,9 +9,23 @@
    ========================================================================== */
 :root {
     /* Primary Tennis App Colors */
-    --tennis-primary: #2d5a87;
-    --tennis-primary-dark: #1e3a5f;
-    --tennis-primary-darker: #0f1c2e;
+    --tennis-primary: #1B5C7A;
+    --tennis-primary-dark: #15455A;
+    --tennis-primary-darker: #0E2F3D;
+
+    --tennis-secondary: #F4B640;
+    --tennis-secondary-dark: #D49F30;
+    --tennis-secondary-darker: #A67822;
+
+    --tennis-tertiary: #3F7BA2;
+    --tennis-tertiary-dark: #2F5F80;
+    --tennis-tertiary-darker: #1F3F55;
+
+    --tennis-quaternary: #E28AB5;
+    --tennis-quaternary-dark: #C06A95;
+    --tennis-quaternary-darker: #9A4A72;
+    
+
     
     /* Semantic Colors */
     --tennis-success: #28a745;
@@ -890,6 +904,55 @@
 }
 
 /* ==========================================================================
+   Text  Variants
+   ========================================================================== */
+/* Add to shared_styles.html */
+.text-tennis-primary {
+    color: var(--tennis-primary) !important;
+}
+
+.text-tennis-success {
+    color: var(--tennis-success) !important;
+}
+
+
+
+    
+    
+/* ==========================================================================
+    Button Variants
+   ========================================================================== */
+.btn-tennis-warning {
+    background: linear-gradient(135deg, var(--tennis-warning) 0%, var(--tennis-warning-dark) 100%);
+    border: none;
+    color: #212529;
+    font-weight: 500;
+    border-radius: var(--tennis-border-radius);
+    transition: var(--tennis-transition);
+}
+
+.btn-tennis-warning:hover {
+    background: var(--tennis-warning-dark);
+    color: #212529;
+    transform: translateY(-1px);
+}
+
+.btn-tennis-info {
+    background: linear-gradient(135deg, var(--tennis-info) 0%, var(--tennis-info-dark) 100%);
+    border: none;
+    color: white;
+    font-weight: 500;
+    border-radius: var(--tennis-border-radius);
+    transition: var(--tennis-transition);
+}
+
+.btn-tennis-info:hover {
+    background: var(--tennis-info-dark);
+    color: white;
+    transform: translateY(-1px);
+}
+    
+/* ==========================================================================
    Small Button Variants
    ========================================================================== */
 .btn-tennis-primary.btn-sm,
@@ -916,6 +979,15 @@
     transform: translateY(-1px);
 }
 
+/* ==========================================================================
+   Border 
+   ========================================================================== */
+
+.border-tennis-primary {
+    border-color: var(--tennis-primary) !important;
+}
+
+    
 /* ==========================================================================
    Loading Spinners and States
    ========================================================================== */
@@ -1591,6 +1663,50 @@
     color: var(--tennis-gray-800);
     font-size: 0.9rem;
     margin-bottom: 0.25rem;
+}
+
+/* Add these to shared_styles.html */
+.border-tennis-primary {
+    border-color: var(--tennis-primary) !important;
+}
+
+.bg-tennis-primary {
+    background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%) !important;
+    color: white !important;
+}
+
+.bg-tennis-secondary {
+    background-color: var(--tennis-secondary) !important;
+    color: white !important;
+}
+
+.bg-tennis-tertiary {
+    background: var(--tennis-tertiary) !important;
+    color: white !important;
+}
+
+.bg-tennis-quaternary {
+    background-color: var(--tennis-quaternary) !important;
+    color: white !important;
+}
+    
+
+.bg-tennis-success {
+    background: linear-gradient(135deg, var(--tennis-success) 0%, var(--tennis-success-dark) 100%) !important;
+    color: white !important;
+}
+
+.enhanced-card {
+    transition: all 0.3s ease;
+    border: 2px solid var(--tennis-primary);
+    border-radius: var(--tennis-border-radius-lg);
+    box-shadow: var(--tennis-box-shadow);
+}
+
+.enhanced-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--tennis-box-shadow-lg);
+    border-color: var(--tennis-primary-dark);
 }
 
 /* ==========================================================================

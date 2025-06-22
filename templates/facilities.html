@@ -217,8 +217,36 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
 
+<!-- Define ComponentInfo for import/export functionality -->
+<script>
+window.ComponentInfo = {
+    COMPONENTS: {
+        'leagues': {
+            'display_name': 'Leagues',
+            'icon': 'fas fa-trophy',
+            'color': 'warning'
+        },
+        'facilities': {
+            'display_name': 'Facilities',
+            'icon': 'fas fa-building',
+            'color': 'info'
+        },
+        'teams': {
+            'display_name': 'Teams',
+            'icon': 'fas fa-users',
+            'color': 'success'
+        },
+        'matches': {
+            'display_name': 'Matches',
+            'icon': 'fas fa-calendar',
+            'color': 'primary'
+        }
+    }
+};
+</script>
+
+<script>
 
 // ==================== TABLE INTERACTIONS ====================
 

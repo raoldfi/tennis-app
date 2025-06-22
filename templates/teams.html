@@ -181,7 +181,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card tennis-card bg-info text-white">
+        <div class="card tennis-card bg-tennis-primary text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
@@ -196,7 +196,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card tennis-card bg-tennis-success text-white">
+        <div class="card tennis-card bg-tennis-primary text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
@@ -211,7 +211,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card tennis-card bg-warning text-dark">
+        <div class="card tennis-card bg-tennis-secondary text-dark">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
@@ -633,7 +633,35 @@
 {% endblock %}
 
 {% block scripts %}
+
 <script>
+window.ComponentInfo = {
+    COMPONENTS: {
+        'leagues': {
+            'display_name': 'Leagues',
+            'icon': 'fas fa-trophy',
+            'color': 'warning'
+        },
+        'facilities': {
+            'display_name': 'Facilities',
+            'icon': 'fas fa-building',
+            'color': 'info'
+        },
+        'teams': {
+            'display_name': 'Teams',
+            'icon': 'fas fa-users',
+            'color': 'success'
+        },
+        'matches': {
+            'display_name': 'Matches',
+            'icon': 'fas fa-calendar',
+            'color': 'primary'
+        }
+    }
+};
+
+</script>
+<scripts>
 
 // Initialize enhanced styling and interactions
 document.addEventListener('DOMContentLoaded', function() {
