@@ -751,9 +751,32 @@ def register_routes(app, get_db):
         
         # For 3+ times, show first and last with count
         return f"{times_list[0]}+{len(times_list)-1} more"
+
+    def unique_filter(items):
+        """Return unique items from a list while preserving order"""
+        if not items:
+            return []
+        
+        seen = set()
+        result = []
+        for item in items:
+            if item not in seen:
+                seen.add(item)
+                result.append(item)
+        return result    
+
+    def count_lines_at_time(scheduled_times, target_time):
+        """Count how many lines are scheduled at a specific time"""
+        if not scheduled_times or not target_time:
+            return 0
+        return scheduled_times.count(target_time)
     
     # Register the filter
     app.jinja_env.filters['compact_times'] = format_times_compact
+    app.jinja_env.filters['unique'] = unique_filter  
+    app.jinja_env.filters['count_lines_at_time'] = count_lines_at_time
+
+
     
     # Register filters with the Flask app
     app.jinja_env.filters['format_weekday'] = format_weekday
@@ -791,6 +814,9 @@ def filter_matches(matches_list, start_date, end_date, search_query):
     
     return filtered_matches
 
+
+
+    
 
 def parse_match_date(date_value):
     """Parse match date to datetime.date object"""

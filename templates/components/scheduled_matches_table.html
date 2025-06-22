@@ -102,25 +102,44 @@
                                     {% endif %}
                                 </td>
 
-                                <!-- Times (Compact Display) -->
+
+
+
+                                <!-- Times (Enhanced Display for Split Matches) -->
                                 <td class="times-cell">
                                     {% if match.is_scheduled() %}
-                                        <div class="times-display-compact">
-                                            {% set scheduled_times = match.scheduled_times %}
-                                            
-                                            {% if scheduled_times %}
-                                                {% for time in scheduled_times[:2] %}
-                                                    <span class="time-badge-compact">{{ time }}</span>
-                                                {% endfor %}
-                                                {% if scheduled_times|length > 2 %}
-                                                    <span class="time-more">+{{ scheduled_times|length - 2 }}</span>
-                                                {% endif %}
-                                            {% else %}
-                                                <span class="no-times-badge-compact">No times</span>
-                                            {% endif %}
-                                        </div>
+                                        {% set scheduled_times = match.scheduled_times %}
+                                        {% set unique_times = scheduled_times | unique | list %}
                                         
-                                        <!-- Compact Scheduling Status -->
+                                        {% if scheduled_times %}
+                                            {% if unique_times|length == 1 %}
+                                                <!-- Same time match -->
+                                                <div class="times-display-same">
+                                                    <span class="time-badge-same">{{ unique_times[0] }}</span>
+                                                    <small class="text-muted d-block">All {{ scheduled_times|length }} lines</small>
+                                                </div>
+                                            {% else %}
+                                                <!-- Split time match -->
+                                                <div class="times-display-split">
+                                                    {% for unique_time in unique_times %}
+
+                                                    
+                                                        {% set lines_at_time = scheduled_times | count_lines_at_time(unique_time) %}
+                                                        
+
+                                                    
+                                                        <div class="split-time-group">
+                                                            <span class="time-badge-split">{{ unique_time }}</span>
+                                                            <small class="lines-count">{{ lines_at_time }} line{{ 's' if lines_at_time != 1 else '' }}</small>
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="no-times-badge-compact">No times</span>
+                                        {% endif %}
+                                        
+                                        <!-- Scheduling Status remains the same -->
                                         <div class="scheduling-status-compact">
                                             {% if match.is_fully_scheduled() %}
                                                 <small class="text-success">
@@ -137,15 +156,18 @@
                                     {% endif %}
                                 </td>
 
+
+                                
+
                                 <!-- Facility (Clickable) -->
+                                <!-- Facility (Linked Short Name) -->
                                 <td class="facility-cell">
                                     {% if match.facility %}
-                                        <button class="facility-link-btn"
-                                                onclick="window.location.href='{{ url_for('view_facility', facility_id=match.facility.id) }}'"
-                                                title="View {{ match.facility.name }} Details">
-                                            <i class="fas fa-map-marker-alt me-1"></i>
-                                            <span class="facility-short-name">{{ match.facility.name[:10] }}{% if match.facility.name|length > 10 %}...{% endif %}</span>
-                                        </button>
+                                        <a href="{{ url_for('view_facility', facility_id=match.facility.id) }}"
+                                           class="facility-link"
+                                           title="View {{ match.facility.name }} Details">
+                                            {{ match.facility.name or match.facility.short_name }}
+                                        </a>
                                     {% else %}
                                         <span class="text-muted">Not set</span>
                                     {% endif %}
@@ -169,12 +191,7 @@
                                                 <i class="fas fa-calendar-times"></i>
                                             </button>
                                             
-                                            <!-- Reschedule Button -->
-                                            <button class="action-btn-compact action-btn-edit"
-                                                    onclick="window.location.href='{{ url_for('schedule_match', match_id=match.id) }}'"
-                                                    title="Reschedule Match">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
+                                            
                                         {% else %}
                                             <!-- Schedule Button -->
                                             <button class="action-btn-compact action-btn-schedule"
@@ -253,21 +270,37 @@
                             </small>
                         </div>
 
-                        <!-- Times -->
+                        <!-- Times (Enhanced for Split Matches) -->
                         {% if match.is_scheduled() %}
                             <div class="mb-2">
-                                <small class="text-muted">Times:</small>
-                                <div>
-                                    {% set scheduled_times = match.scheduled_times %}
-                                    
-                                    {% if scheduled_times %}
-                                        {% for time in scheduled_times %}
-                                            <span class="time-badge me-1">{{ time }}</span>
+                                {% set scheduled_times = match.scheduled_times %}
+                                {% set unique_times = scheduled_times | unique | list %}
+                                
+                                {% if unique_times|length == 1 %}
+                                    <!-- Same time match -->
+                                    <small class="text-muted">All lines at:</small>
+                                    <div>
+                                        <span class="time-badge-mobile-same">{{ unique_times[0] }}</span>
+                                        <small class="text-muted">({{ scheduled_times|length }} lines)</small>
+                                    </div>
+                                {% else %}
+                                    <!-- Split time match -->
+                                    <small class="text-muted">Split times:</small>
+                                    <div class="split-times-mobile">
+                                        {% for unique_time in unique_times %}
+
+                                        
+                                            {% set lines_at_time = scheduled_times | count_lines_at_time(unique_time) %}
+                                            
+
+                                        
+                                            <div class="split-time-mobile">
+                                                <span class="time-badge-mobile-split">{{ unique_time }}</span>
+                                                <small class="lines-count-mobile">({{ lines_at_time }} line{{ 's' if lines_at_time != 1 else '' }})</small>
+                                            </div>
                                         {% endfor %}
-                                    {% else %}
-                                        <span class="no-times-badge">No times set</span>
-                                    {% endif %}
-                                </div>
+                                    </div>
+                                {% endif %}
                             </div>
                         {% endif %}
 
@@ -284,10 +317,7 @@
                                         title="Unschedule Match">
                                     <i class="fas fa-calendar-times"></i> Unschedule
                                 </button>
-                                <a href="/matches/{{ match.id }}/schedule" 
-                                   class="btn btn-sm btn-tennis-primary flex-fill">
-                                    <i class="fas fa-edit"></i> Reschedule
-                                </a>
+                                
                             {% else %}
                                 <!-- Schedule Button for Mobile -->
                                 <a href="/matches/{{ match.id }}/schedule" 
@@ -455,27 +485,63 @@
     color: var(--tennis-gray-800);
 }
 
+.facility-link {
+    color: var(--tennis-primary);
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-decoration: none;
+    padding: 0.25rem 0.375rem;
+    border-radius: var(--tennis-border-radius);
+    transition: var(--tennis-transition);
+    display: inline-block;
+    background: rgba(27, 92, 122, 0.1);
+    border: 1px solid transparent;
+    letter-spacing: 0.3px;
+}
+
+.facility-link:hover {
+    color: white;
+    background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
+    text-decoration: none;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(27, 92, 122, 0.3);
+    border-color: var(--tennis-primary-dark);
+}
+
+.facility-link:focus {
+    color: white;
+    background: var(--tennis-primary-dark);
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(27, 92, 122, 0.25);
+}
+
+.facility-cell {
+    max-width: 120px;
+    text-align: center;
+}
+    
 /* Facility Link Button Styling */
 .facility-link-btn {
-    background: linear-gradient(135deg, var(--tennis-blue) 0%, var(--tennis-blue-light) 100%);
+    background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
     color: white;
     border: none;
     padding: 0.375rem 0.5rem;
     border-radius: var(--tennis-border-radius);
     font-size: 0.8rem;
-    font-weight: 500;
+    font-weight: 700; /* Bolder font weight */
     cursor: pointer;
     transition: var(--tennis-transition);
     display: inline-flex;
     align-items: center;
     text-decoration: none;
     max-width: 100%;
+    box-shadow: 0 2px 4px rgba(27, 92, 122, 0.3); /* Tennis primary with opacity */
 }
 
 .facility-link-btn:hover {
-    background: linear-gradient(135deg, var(--tennis-blue-light) 0%, var(--tennis-blue) 100%);
+    background: linear-gradient(135deg, var(--tennis-primary-dark) 0%, var(--tennis-primary-darker) 100%);
     transform: translateY(-1px);
-    box-shadow: 0 0.25rem 0.5rem rgba(74, 140, 193, 0.3);
+    box-shadow: 0 4px 8px rgba(27, 92, 122, 0.4); /* Enhanced shadow on hover */
     color: white;
 }
 
@@ -484,10 +550,14 @@
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 80px;
+    font-weight: 700; /* Make the facility name itself bold */
+    letter-spacing: 0.3px; /* Slight letter spacing for better readability */
 }
 
-.facility-cell {
-    max-width: 120px;
+/* Enhanced "Not set" styling to match the bold theme */
+.facility-cell .text-muted {
+    font-weight: 600;
+    color: var(--tennis-gray-700) !important; /* Darker than default muted */
 }
 
 /* Compact Action Buttons */

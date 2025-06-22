@@ -1195,6 +1195,96 @@
 /* ==========================================================================
    Standard Scheduled Matches Table Component
    ========================================================================== */
+    
+/* Enhanced Times Display for Split Matches */
+.times-display-same {
+    text-align: center;
+}
+
+.time-badge-same {
+    background: linear-gradient(135deg, var(--tennis-success) 0%, var(--tennis-success-dark) 100%);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--tennis-border-radius);
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.times-display-split {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.split-time-group {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.time-badge-split {
+    background: linear-gradient(135deg, var(--tennis-warning) 0%, var(--tennis-warning-dark) 100%);
+    color: #212529;
+    padding: 0.2rem 0.4rem;
+    border-radius: var(--tennis-border-radius);
+    font-size: 0.75rem;
+    font-weight: 600;
+    min-width: 3rem;
+    text-align: center;
+}
+
+.lines-count {
+    font-size: 0.7rem;
+    color: var(--tennis-gray-600);
+    white-space: nowrap;
+}
+
+/* Mobile Split Times Styling */
+.split-times-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.split-time-mobile {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.time-badge-mobile-same {
+    background: linear-gradient(135deg, var(--tennis-success) 0%, var(--tennis-success-dark) 100%);
+    color: white;
+    padding: 0.3rem 0.6rem;
+    border-radius: var(--tennis-border-radius);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.time-badge-mobile-split {
+    background: linear-gradient(135deg, var(--tennis-warning) 0%, var(--tennis-warning-dark) 100%);
+    color: #212529;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--tennis-border-radius);
+    font-size: 0.8rem;
+    font-weight: 600;
+    min-width: 3.5rem;
+    text-align: center;
+}
+
+.lines-count-mobile {
+    font-size: 0.75rem;
+    color: var(--tennis-gray-600);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .split-time-mobile {
+        justify-content: space-between;
+    }
+}
+    
 .tennis-matches-table {
     border-radius: 0.5rem;
     overflow: hidden;
