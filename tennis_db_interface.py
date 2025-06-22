@@ -68,7 +68,11 @@ class TennisDBInterface(ABC):
     def delete_team(self, team: 'Team') -> bool:
         """Delete a team"""
         pass
-
+        
+    @abstractmethod
+    def check_team_date_conflict(self, team: 'Team', date: str, 
+                                 exclude_match: Optional['Match'] = None) -> bool:
+        pass
 
     # ========== League Management ==========
     @abstractmethod
@@ -99,7 +103,7 @@ class TennisDBInterface(ABC):
     # ========== Match Management ==========
     @abstractmethod
     def add_match(self, match: 'Match') -> bool:
-        """Add a new match to the database"""
+        """Add a match to the database"""
         pass
 
     @abstractmethod
@@ -117,10 +121,12 @@ class TennisDBInterface(ABC):
         """List matches, optionally filtered by facility, league, team"""
         pass
 
+    ''' THIS METHOD SHOULD NOT BE PUBLIC, CHANGE MATCHES THROUGH OTHER FUNCS
     @abstractmethod
     def update_match(self, match: 'Match') -> bool:
         """Update an existing match"""
         pass
+    '''
 
     @abstractmethod
     def delete_match(self, match: 'Match') -> bool:
@@ -195,6 +201,12 @@ class TennisDBInterface(ABC):
         """
         pass
 
+    @abstractmethod
+    def can_accommodate_lines_on_date(self, facility: 'Facility', date: str, 
+                                     num_lines: int, 
+                                     allow_split_lines: bool) -> bool:
+        pass
+
     # ========== Match Scheduling Operations ==========
     @abstractmethod
     def schedule_match_all_lines_same_time(self, match: 'Match', 
@@ -233,10 +245,29 @@ class TennisDBInterface(ABC):
         """
         pass
 
-
+    @abstractmethod
+    def schedule_match_split_times(self, match: 'Match', date: str, 
+                                   timeslots: Optional[List[str]]=None,
+                                   facility: Optional['Facility'] = None) -> bool:
+        """
+        Schedule match lines in split times mode - some lines at start_time, 
+        rest at the next timeslot (at least 90 minutes away)
+        
+        Args:
+            match: Match object to schedule
+            date: Date in YYYY-MM-DD format
+            start_time: First time slot in HH:MM format
+            facility: Optional facility (defaults to home team's facility)
+            
+        Returns:
+            True if successful, False if there are conflicts or other issues
+        """
+        pass
     
     @abstractmethod
-    def auto_schedule_matches(self, matches: List['Match']) -> Dict[str, Any]:
+    def auto_schedule_matches(self, 
+                              matches: List['Match'], 
+                              facilities:Optional[List['Facility']]=None) -> Dict[str, Any]:
         """
         Attempt to automatically schedule a list of matches
         
@@ -259,6 +290,13 @@ class TennisDBInterface(ABC):
         """
         pass
 
+    
+    @abstractmethod
+    def is_schedulable(self, match: Match, date: str, 
+                       facility: Optional['Facility'] = None,
+                       allow_split_lines: Optional[bool]=False) -> bool:
+        pass
+        
     @abstractmethod
     def check_time_availability(self, facility: 'Facility', date: str, time: str, courts_needed: int = 1) -> bool:
         """

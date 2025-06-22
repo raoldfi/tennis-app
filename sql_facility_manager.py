@@ -385,7 +385,10 @@ class SQLFacilityManager:
                     continue
                 
                 # Check if this date can accommodate the required lines
-                if self._can_accommodate_lines_on_date(facility, date_str, day_schedule, num_lines, allow_split_lines):
+                if self.can_accommodate_lines_on_date(facility=facility, 
+                                                      date=date_str, 
+                                                      num_lines=num_lines, 
+                                                      allow_split_lines=allow_split_lines):
                     available_dates.append(date_str)
                 
                 current_dt += timedelta(days=1)
@@ -394,9 +397,10 @@ class SQLFacilityManager:
             
         except Exception as e:
             raise RuntimeError(f"Error getting available dates for facility {facility.id}: {e}")
+
     
-    def _can_accommodate_lines_on_date(self, facility: Facility, date_str: str, 
-                                     day_schedule: DaySchedule, num_lines: int, 
+    def can_accommodate_lines_on_date(self, facility: Facility, date: str, 
+                                     num_lines: int, 
                                      allow_split_lines: bool) -> bool:
         """
         Check if a facility can accommodate the required lines on a specific date
@@ -404,7 +408,6 @@ class SQLFacilityManager:
         Args:
             facility: Facility object
             date_str: Date string in YYYY-MM-DD format
-            day_schedule: DaySchedule for the day of week
             num_lines: Number of lines needed
             allow_split_lines: Whether lines can be split across time slots
             
@@ -412,8 +415,14 @@ class SQLFacilityManager:
             True if the facility can accommodate the lines
         """
         try:
+            # Get day schedule
+            # Convert string to datetime object to get day name
+            date_obj = datetime.strptime(date, '%Y-%m-%d')
+            day_name = date_obj.strftime('%A')
+            day_schedule = facility.schedule.get_day_schedule(day_name)
+            
             # Get scheduled times at this facility on this date
-            scheduled_times = self.get_scheduled_times_at_facility(facility.id, date_str)
+            scheduled_times = self.get_scheduled_times_at_facility(facility.id, date)
             
             if not allow_split_lines:
                 # All lines must be at the same time - check each time slot individually
@@ -429,20 +438,30 @@ class SQLFacilityManager:
                 return False
             
             else:
-                # Lines can be split - check if total available courts across all time slots >= num_lines
+                # Lines can be split - check if total available courts across consecutive time slots >= num_lines
                 total_available = 0
+
+                # this variable tracks the number of courts available from previous time slot
+                prev_count = 0
                 
                 for time_slot in day_schedule.start_times:
                     time = time_slot.time
                     available_courts = time_slot.available_courts
                     used_courts = scheduled_times.count(time)
                     remaining_courts = max(0, available_courts - used_courts)
-                    total_available += remaining_courts
-                
-                return total_available >= num_lines
+
+                    # this counts number of courts on two consecutive time slots
+                    total_available = prev_count + remaining_courts
+
+                    if total_available >= num_lines:
+                        return True
+                    
+                    prev_count = remaining_courts
+
+                return False
             
         except Exception as e:
-            logger.error(f"Error checking line accommodation for facility {facility.id} on {date_str}: {e}")
+            logger.error(f"Error checking line accommodation for facility {facility.id} on {date}: {e}")
             return False
 
     def _insert_facility_schedule(self, facility_id: int, schedule: WeeklySchedule) -> None:

@@ -296,7 +296,7 @@ class SQLTeamManager:
         except Exception as e:
             raise RuntimeError(f"Database error getting teams by facility name: {e}")
 
-    def check_team_date_conflict(self, team_id: int, date: str, exclude_match_id: Optional[int] = None) -> bool:
+    def check_team_date_conflict(self, team: Team, date: str, exclude_match: Optional['Match'] = None) -> bool:
         """
         Check if a team already has a match scheduled on the given date.
         
@@ -316,11 +316,11 @@ class SQLTeamManager:
                 AND date = ?
                 AND status = 'scheduled'
             """
-            params = [team_id, team_id, date]
+            params = [team.id, team.id, date]
             
-            if exclude_match_id is not None:
+            if exclude_match is not None:
                 query += " AND id != ?"
-                params.append(exclude_match_id)
+                params.append(exclude_match.id)
                 
             self.cursor.execute(query, params)
             count = self.cursor.fetchone()['count']

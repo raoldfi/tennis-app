@@ -19,7 +19,7 @@ def register_routes(app, get_db):
         """Display matches with filtering and search"""
         db = get_db()
         if not db:
-            return redirect(url_for('connect'))
+            return redirect(url_for('index'))
         
         try:
             # Get filter parameters
@@ -154,18 +154,19 @@ def register_routes(app, get_db):
             match = db.get_match(match_id)
             if not match:
                 return jsonify({'error': 'Match not found'}), 404
-            
-            # Clear scheduling information
-            match.facility = None
-            match.date = None
-            match.scheduled_times = []
-            
-            db.update_match(match)
-            
-            return jsonify({
-                'success': True,
-                'message': f'Match {match_id} has been unscheduled successfully'
-            })
+
+            if match.is_scheduled():
+                return jsonify({'warning': f"match {match_id} is already unscheduled"})
+
+            success = db.unschedule_match(match)
+
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': f'Match {match_id} has been unscheduled successfully'
+                })
+            else:
+                return jsonify({'error': f"Could not unschedule match_id {match_id}"})
             
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -218,7 +219,8 @@ def register_routes(app, get_db):
             match.scheduled_times = times
             
             # Save to database
-            db.update_match(match)
+            db.schedule_match_split_times(match=match, facility=facility, date=match_date, 
+                                  timeslots=times)
             
             print(f"Match {match_id} scheduled successfully")
             
@@ -558,15 +560,10 @@ def register_routes(app, get_db):
             
             for match in matches_to_unschedule:
                 try:
-                    # Clear scheduling info
-                    match.facility = None
-                    match.date = None
-                    match.scheduled_times = []
-                    
                     # Save to database
-                    db.update_match(match)
-                    unscheduled_count += 1
-                    print(f"Successfully unscheduled match {match.id}")
+                    if db.unschedule_match(match):
+                        unscheduled_count += 1
+                        print(f"Successfully unscheduled match {match.id}")
                     
                 except Exception as e:
                     errors.append(f"Error unscheduling match {match.id}: {str(e)}")

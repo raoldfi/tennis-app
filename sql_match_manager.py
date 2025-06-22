@@ -13,6 +13,7 @@ import json
 from typing import List, Optional, Dict, Any
 from collections import defaultdict
 from usta import Match, MatchType, Facility
+import math
 
 
 class SQLMatchManager:
@@ -288,7 +289,7 @@ class SQLMatchManager:
 
 
     def update_match(self, match: Match) -> bool:
-        """Update match metadata and scheduled times"""
+        """Update match metadata and scheduled times."""
         if not isinstance(match, Match):
             raise TypeError(f"Expected Match object, got: {type(match)}")
         
@@ -374,7 +375,11 @@ class SQLMatchManager:
 
     # ========== Schedule Match Operations ==========
     
-    def schedule_match_all_lines_same_time(self, match: Match, facility: Facility, date: str, time: str) -> bool:
+    def schedule_match_all_lines_same_time(self, match: Match, 
+                                           facility: Facility, 
+                                           date: str, 
+                                           time: Optional[str] = None) -> bool:
+        
         """Schedule all lines of a match at the same facility, date, and time"""
         try:
             if not isinstance(match, Match):
@@ -385,9 +390,31 @@ class SQLMatchManager:
             # Verify facility exists using facility manager
             if not self.db.facility_manager.get_facility(facility.id):
                 raise ValueError(f"Facility with ID {facility.id} does not exist")
+
+            num_lines = match.league.num_lines_per_match
             
-            # Schedule all lines at the same time
-            match.schedule_all_lines_same_time(facility, date, time)
+            # If time is not provided, find first available
+            if not time:
+            
+                available_times = self.get_available_times_at_facility(facility=facility, 
+                                                                   date=date,
+                                                                   courts_needed=num_lines)
+                # Take the first available time slot
+                if available_times:
+                    time = available_times[0]
+                else:
+                    return False
+            
+            else:
+                # Need to make sure time provided as input is available
+                if not self.check_time_availability(facility=facility, 
+                                                        date=date, 
+                                                        time=time, 
+                                                        courts_needed=num_lines):
+                    return False
+
+            # At this point, time should be defined and available
+            match.schedule_all_lines_same_time(facility=facility, date=date, time=time)
             
             # Update in database
             self.update_match(match)
@@ -396,9 +423,15 @@ class SQLMatchManager:
         except Exception as e:
             # If there's any error, return False (could be due to conflicts, etc.)
             return False
+
+
     
-    def schedule_match_sequential_times(self, match: Match, facility: Facility, date: str, start_time: str, interval_minutes: int = 180) -> bool:
-        """Schedule lines sequentially with specified interval"""
+    def schedule_match_split_times(self, match: Match, facility: Facility, date: str, 
+                                  timeslots: Optional[List[str]]=None) -> bool:
+        
+        """Schedule lines in split times mode"""
+        print(f"\n\n\n ====== A: schedule_match_split_times to timeslots = {timeslots}\n\n\n")
+
         try:
             if not isinstance(match, Match):
                 raise TypeError(f"Expected Match object, got: {type(match)}")
@@ -408,17 +441,73 @@ class SQLMatchManager:
             # Verify facility exists using facility manager
             if not self.db.facility_manager.get_facility(facility.id):
                 raise ValueError(f"Facility with ID {facility.id} does not exist")
+
+            available_times = None
             
-            # Schedule lines sequentially
-            match.schedule_lines_sequential(facility, date, start_time, interval_minutes)
+            # should we try to schedule half and half? 
+            total_lines = match.league.num_lines_per_match
+
+            # if timeslots were not provided, find consecutive slots for a split match
+            if not timeslots:
+
+                print(f"\n\n\n ====== A: SCHEDULE_MATCH_SPLIT_TIMES: available_times = {available_times}\n\n\n")
+
+
+                # Calculate how many lines go in each slot
+                lines_slot1 = math.ceil(total_lines / 2)  # First slot gets extra line if odd
+                lines_slot2 = total_lines - lines_slot1   # Remaining lines
+                
+                # Find available times that can accommodate the larger requirement
+                max_lines_needed = max(lines_slot1, lines_slot2)
+                available_times = self.get_available_times_at_facility(
+                    facility=facility, 
+                    date=date,
+                    courts_needed=max_lines_needed
+                )
+                
+                if not available_times or len(available_times) < 2:
+                    raise ValueError(f"Not enough available timeslots for split scheduling. Need 2, found {len(available_times) if available_times else 0}")
+                    return False
+
+
+                # Create timeslots list: first half of lines at time 1, rest at time 2
+                timeslots = []
+                for i in range(total_lines):
+                    if i < lines_slot1:
+                        timeslots.append(available_times[0])
+                    else:
+                        timeslots.append(available_times[1])
+
+            
+            # Validate timeslots list
+            if len(timeslots) != total_lines:
+                raise ValueError(f"Timeslots list length ({len(timeslots)}) must equal total lines ({total_lines})")
+            
+            print(f"Scheduling match with timeslots: {timeslots}")
+
+            # Check availability for each unique timeslot
+            from collections import Counter
+            timeslot_counts = Counter(timeslots)
+            
+            for timeslot, count in timeslot_counts.items():
+                if not self.check_time_availability(facility, date, timeslot, count):
+                    print(f"Timeslot {timeslot} cannot accommodate {count} courts")
+                    return False
+
+            # If we got here, all timeslots are available. Go ahead and schedule
+            if not match.schedule_lines_split_times(facility, date, timeslots):
+                raise Exception(f"match.schedule_line_split_times returned an error")
+                return False
             
             # Update in database
-            self.update_match(match)
-            return True
+            return self.update_match(match)
+
             
         except Exception as e:
+            print(f"\n\n CAUGHT EXCEPTION {e}\n\n")
             return False
-    
+
+        
     def unschedule_match(self, match: Match) -> bool:
         """Unschedule a match (remove facility, date, and all times)"""
         if not isinstance(match, Match):
@@ -426,6 +515,8 @@ class SQLMatchManager:
         
         match.unschedule()
         return self.update_match(match)
+
+
     
     def get_scheduled_times_at_facility(self, facility: Facility, date: str) -> List[str]:
         """Get all scheduled times at a facility on a specific date using facility manager for validation"""

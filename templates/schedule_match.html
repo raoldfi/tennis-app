@@ -68,15 +68,19 @@
         box-shadow: var(--tennis-box-shadow);
     }
     
-    .facility-info {
+    /* Split times specific styling */
+    .time-slot.selected.split-first {
         background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
-        color: white;
-        border-radius: var(--tennis-border-radius-lg);
-        box-shadow: var(--tennis-box-shadow);
+        border-color: var(--tennis-primary-dark);
     }
     
-    .match-header {
-        background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-darker) 100%);
+    .time-slot.selected.split-second {
+        background: linear-gradient(135deg, var(--tennis-secondary) 0%, var(--tennis-secondary-dark) 100%);
+        border-color: var(--tennis-secondary-dark);
+    }
+    
+    .facility-info {
+        background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
         color: white;
         border-radius: var(--tennis-border-radius-lg);
         box-shadow: var(--tennis-box-shadow-lg);
@@ -126,6 +130,23 @@
         padding: 1rem;
         margin-bottom: 1rem;
     }
+    
+    .split-times-helper {
+        font-size: 0.875rem;
+        color: var(--tennis-gray-600);
+        margin-top: 0.5rem;
+        padding: 0.5rem;
+        background-color: var(--tennis-gray-50);
+        border-radius: 0.375rem;
+        border-left: 3px solid var(--tennis-info);
+    }
+    
+    .match-header {
+        background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-darker) 100%);
+        color: white;
+        border-radius: var(--tennis-border-radius-lg);
+        box-shadow: var(--tennis-box-shadow-lg);
+    }
 </style>
 
 <!-- Match Header -->
@@ -144,104 +165,77 @@
                         {{ match_info.visitor_team }}
                     </h3>
                     <p class="mb-0 mt-2">
-                        <i class="fas fa-trophy"></i> {{ match_info.league }}
+                        <strong>League:</strong> {{ match_info.league }}
                         <span class="lines-needed-indicator ms-3">
-                            <i class="fas fa-list-ol"></i> {{ match_info.lines_needed }} Lines Required
+                            {{ match_info.lines_needed }} Lines Needed
                         </span>
                     </p>
                 </div>
                 <div class="col-md-4 text-end">
-                    <a href="{{ url_for('view_match', match_id=match_info.id) }}" class="btn btn-outline-light">
-                        <i class="fas fa-eye"></i> View Match Details
-                    </a>
+                    {% if facility_info %}
+                    <div class="facility-info p-3">
+                        <h6 class="mb-1">
+                            <i class="fas fa-building"></i> {{ facility_info.name }}
+                        </h6>
+                        {% if facility_info.location %}
+                        <small>{{ facility_info.location }}</small><br>
+                        {% endif %}
+                        <small>{{ facility_info.total_courts }} Courts Available</small>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Facility Information -->
-{% if facility_info %}
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="facility-info p-3">
-            <h5 class="mb-2">
-                <i class="fas fa-map-marker-alt"></i> Facility: {{ facility_info.name }}
-            </h5>
-            <div class="row">
-                <div class="col-md-6">
-                    <p class="mb-1">
-                        <i class="fas fa-location-dot"></i> {{ facility_info.location or 'Location not specified' }}
-                    </p>
-                </div>
-                <div class="col-md-6">
-                    <p class="mb-1">
-                        <i class="fas fa-tennis-ball"></i> {{ facility_info.total_courts }} Total Courts
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-<!-- Error Display -->
-{% if not success %}
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="alert alert-danger" role="alert">
-            <i class="fas fa-exclamation-triangle"></i>
-            <strong>Error:</strong> {{ error }}
-        </div>
-    </div>
-</div>
-{% endif %}
-
-<!-- Available Dates and Scheduling Controls -->
+<!-- Main Content -->
 {% if success and available_dates %}
 <div class="row">
+    <!-- Available Dates -->
     <div class="col-lg-8">
         <div class="tennis-card">
             <div class="card-header">
                 <h5 class="mb-0">
                     <i class="fas fa-calendar-alt"></i> 
-                    Available Dates ({{ available_dates|length }} options)
+                    Available Dates
+                    <small class="text-muted">({{ available_dates|length }} options)</small>
                 </h5>
-                <small class="text-muted">Click a date to see available times</small>
             </div>
             <div class="card-body">
-                <div class="row" id="dates-container">
+                <div class="row">
                     {% for date_option in available_dates %}
                     <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="date-card h-100" data-date="{{ date_option.date }}" 
-                             data-times="{{ date_option.available_times|join(',') }}"
-                             data-conflicts="{{ date_option.conflicts|join(',') }}">
-                            <div class="card-body position-relative">
-                                <!-- Optimality Score -->
-                                <div class="optimal-score" title="Optimality Score (1-10)">
-                                    {{ "%.1f"|format(date_option.optimal_score) }}
-                                </div>
+                        <div class="date-card h-100 p-3 position-relative" 
+                             data-date="{{ date_option.date }}" 
+                             data-times="{{ date_option.available_times|join(',') if date_option.available_times else '' }}">
+                            
+                            <!-- Optimal Score -->
+                            {% if date_option.score %}
+                            <div class="optimal-score">{{ date_option.score }}</div>
+                            {% endif %}
+                            
+                            <div class="card-content">
+                                <!-- Date Info -->
+                                <h6 class="mb-2 fw-bold">{{ date_option.day_name }}</h6>
+                                <p class="mb-1 text-muted">{{ date_option.formatted_date }}</p>
                                 
-                                <!-- Date Information -->
-                                <h6 class="card-title mb-2" style="color: var(--tennis-primary);">
-                                    {{ date_option.date }}
-                                </h6>
-                                <p class="card-text" style="color: var(--tennis-gray-700);">
-                                    <i class="fas fa-calendar-day" style="color: var(--tennis-primary);"></i> 
-                                    {{ date_option.day_of_week }}
-                                </p>
-                                
-                                <!-- Available Times Count -->
+                                <!-- Available Times -->
                                 {% if date_option.available_times %}
-                                <p class="card-text">
-                                    <i class="fas fa-clock" style="color: var(--tennis-success);"></i>
-                                    {{ date_option.available_times|length }} time slots available
-                                </p>
-                                {% else %}
-                                <p class="card-text" style="color: var(--tennis-warning);">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                    No available times
-                                </p>
+                                <div class="mt-2">
+                                    <small class="text-success fw-bold">
+                                        <i class="fas fa-clock"></i> 
+                                        {{ date_option.available_times|length }} time slots
+                                    </small>
+                                    <div class="small mt-1">
+                                        {% for time in date_option.available_times[:3] %}
+                                        <span class="badge bg-light text-dark me-1">{{ time }}</span>
+                                        {% endfor %}
+                                        {% if date_option.available_times|length > 3 %}
+                                        <span class="text-muted">+{{ date_option.available_times|length - 3 }} more</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
                                 {% endif %}
                                 
                                 <!-- Conflicts -->
@@ -283,6 +277,11 @@
                     <!-- Times will be populated dynamically -->
                 </div>
                 <small style="color: var(--tennis-gray-600);">Click times to select them for scheduling</small>
+                <div id="split-times-helper" class="split-times-helper" style="display: none;">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Split Times:</strong> Select exactly 2 time slots. 
+                    Lines will be distributed between the slots with all lines in each slot starting at the same time.
+                </div>
             </div>
             
             <!-- Scheduling Mode -->
@@ -292,6 +291,7 @@
                     <option value="custom">Custom Times</option>
                     <option value="same_time">All Lines Same Time</option>
                     <option value="sequential">Sequential Times</option>
+                    <option value="split_times">Split Times</option>
                 </select>
                 <small style="color: var(--tennis-gray-600);">
                     <div id="mode-description" class="mt-1"></div>
@@ -335,6 +335,33 @@
                     <h4 style="color: var(--tennis-gray-700);">No Available Dates</h4>
                     <p style="color: var(--tennis-gray-600);">
                         No optimal dates are available for scheduling this match at the selected facility.
+                        This could be due to facility scheduling conflicts, team conflicts, or other constraints.
+                    </p>
+                    <div class="mt-3">
+                        <a href="{{ url_for('matches') }}" class="btn-tennis-primary">
+                            <i class="fas fa-arrow-left"></i> Back to Matches
+                        </a>
+                        <button type="button" class="btn-tennis-warning ms-2" onclick="window.location.reload()">
+                            <i class="fas fa-refresh"></i> Refresh Options
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Message -->
+{% else %}
+<div class="row">
+    <div class="col-12">
+        <div class="tennis-card">
+            <div class="card-body">
+                <div class="no-dates-available">
+                    <i class="fas fa-exclamation-triangle mb-3" style="font-size: 3rem; color: var(--tennis-danger);"></i>
+                    <h4 style="color: var(--tennis-danger);">Scheduling Error</h4>
+                    <p style="color: var(--tennis-gray-600);">
+                        {{ error or 'An error occurred while loading scheduling options.' }}
                     </p>
                     <div class="mt-3">
                         <a href="{{ url_for('matches') }}" class="btn-tennis-primary">
@@ -350,7 +377,9 @@
     </div>
 </div>
 {% endif %}
+{% endblock %}
 
+{% block modals %}
 <!-- Preview Modal -->
 <div class="modal fade" id="previewModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -385,6 +414,8 @@ class ScheduleMatchUI {
         this.selectedTimes = [];
         this.availableTimes = [];
         this.schedulingMode = 'custom';
+        this.matchId = {{ match_info.id }};
+        this.linesNeeded = {{ match_info.lines_needed }};
         this.init();
     }
 
@@ -406,7 +437,8 @@ class ScheduleMatchUI {
                 
                 // Update selected date
                 this.selectedDate = card.dataset.date;
-                this.availableTimes = card.dataset.times ? card.dataset.times.split(',') : [];
+                this.availableTimes = card.dataset.times ? 
+                    card.dataset.times.split(',') : [];
                 this.selectedTimes = [];
                 
                 this.updateSelectedDateDisplay();
@@ -420,9 +452,12 @@ class ScheduleMatchUI {
         const modeSelect = document.getElementById('scheduling-mode');
         modeSelect.addEventListener('change', (e) => {
             this.schedulingMode = e.target.value;
+            this.selectedTimes = []; // Clear selections when mode changes
             this.updateModeDescription();
             this.updateSelectedTimesDisplay();
+            this.updateAvailableTimesDisplay(); // Re-render time slots
             this.updateScheduleButton();
+            this.updateSplitTimesHelper();
         });
     }
 
@@ -480,9 +515,43 @@ class ScheduleMatchUI {
     toggleTimeSelection(time, element) {
         if (this.schedulingMode === 'same_time' || this.schedulingMode === 'sequential') {
             // For these modes, only allow one time selection
-            document.querySelectorAll('.time-slot').forEach(slot => slot.classList.remove('selected'));
+            document.querySelectorAll('.time-slot').forEach(slot => {
+                slot.classList.remove('selected');
+            });
             element.classList.add('selected');
             this.selectedTimes = [time];
+        } else if (this.schedulingMode === 'split_times') {
+            // For split times mode, allow exactly 2 time selections
+            if (this.selectedTimes.includes(time)) {
+                this.selectedTimes = this.selectedTimes.filter(t => t !== time);
+                element.classList.remove('selected', 'split-first', 'split-second');
+            } else if (this.selectedTimes.length < 2) {
+                this.selectedTimes.push(time);
+                element.classList.add('selected');
+                // Add styling to distinguish first and second slots
+                if (this.selectedTimes.length === 1) {
+                    element.classList.add('split-first');
+                } else {
+                    element.classList.add('split-second');
+                }
+            } else {
+                // Already have 2 times selected, replace the first one
+                const firstSelectedTime = this.selectedTimes[0];
+                const firstElement = document.querySelector(`[data-time="${firstSelectedTime}"]`);
+                if (firstElement) {
+                    firstElement.classList.remove('selected', 'split-first', 'split-second');
+                }
+                
+                this.selectedTimes = [this.selectedTimes[1], time];
+                element.classList.add('selected', 'split-second');
+                
+                // Update the remaining element to be first
+                const remainingElement = document.querySelector(`[data-time="${this.selectedTimes[0]}"]`);
+                if (remainingElement) {
+                    remainingElement.classList.remove('split-second');
+                    remainingElement.classList.add('split-first');
+                }
+            }
         } else {
             // Custom mode allows multiple selections
             if (this.selectedTimes.includes(time)) {
@@ -508,6 +577,22 @@ class ScheduleMatchUI {
                 content = `<strong>All lines at:</strong> ${this.selectedTimes[0]}`;
             } else if (this.schedulingMode === 'sequential') {
                 content = `<strong>Starting at:</strong> ${this.selectedTimes[0]} <small>(lines will be scheduled sequentially)</small>`;
+            } else if (this.schedulingMode === 'split_times') {
+                if (this.selectedTimes.length === 1) {
+                    content = `<strong>First slot:</strong> ${this.selectedTimes[0]} <small class="text-info">(select second slot)</small>`;
+                } else if (this.selectedTimes.length === 2) {
+                    const sortedTimes = [...this.selectedTimes].sort();
+                    const linesInFirstSlot = Math.ceil(this.linesNeeded / 2);
+                    const linesInSecondSlot = this.linesNeeded - linesInFirstSlot;
+                    content = `
+                        <div><strong>Split times:</strong></div>
+                        <div class="mt-1">
+                            <span class="badge" style="background-color: var(--tennis-primary);">${linesInFirstSlot} lines at ${sortedTimes[0]}</span>
+                            <span class="badge ms-1" style="background-color: var(--tennis-secondary);">${linesInSecondSlot} lines at ${sortedTimes[1]}</span>
+                        </div>
+                        <small class="text-muted d-block mt-1">All lines within each slot start at the same time</small>
+                    `;
+                }
             } else {
                 content = `<strong>Custom times:</strong> ${this.selectedTimes.join(', ')}`;
             }
@@ -524,15 +609,26 @@ class ScheduleMatchUI {
         const descriptions = {
             'custom': 'Specify exact times for each line',
             'same_time': 'All lines play at the same time',
-            'sequential': 'Lines start sequentially (3 hours apart)'
+            'sequential': 'Lines start sequentially (3 hours apart)',
+            'split_times': 'Some lines at one time, remaining lines at another time (same time within each slot)'
         };
         description.textContent = descriptions[this.schedulingMode];
+    }
+
+    updateSplitTimesHelper() {
+        const helper = document.getElementById('split-times-helper');
+        if (this.schedulingMode === 'split_times') {
+            helper.style.display = 'block';
+        } else {
+            helper.style.display = 'none';
+        }
     }
 
     updateUI() {
         document.getElementById('mode-section').style.display = this.selectedDate ? 'block' : 'none';
         document.getElementById('action-buttons').style.display = this.selectedDate ? 'block' : 'none';
         this.updateScheduleButton();
+        this.updateSplitTimesHelper();
     }
 
     updateScheduleButton() {
@@ -540,10 +636,18 @@ class ScheduleMatchUI {
         const hasValidSelection = this.selectedDate && this.selectedTimes.length > 0;
         
         if (this.schedulingMode === 'custom') {
-            const linesNeeded = {{ match_info.lines_needed }};
-            button.disabled = !hasValidSelection || this.selectedTimes.length !== linesNeeded;
-            if (this.selectedTimes.length !== linesNeeded && this.selectedTimes.length > 0) {
-                button.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Need ${linesNeeded} times (${this.selectedTimes.length} selected)`;
+            button.disabled = !hasValidSelection || this.selectedTimes.length !== this.linesNeeded;
+            if (this.selectedTimes.length !== this.linesNeeded && this.selectedTimes.length > 0) {
+                button.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Need ${this.linesNeeded} times (${this.selectedTimes.length} selected)`;
+            } else {
+                button.innerHTML = '<i class="fas fa-calendar-check"></i> Schedule Match';
+            }
+        } else if (this.schedulingMode === 'split_times') {
+            button.disabled = !hasValidSelection || this.selectedTimes.length !== 2;
+            if (this.selectedTimes.length === 1) {
+                button.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Select second time slot';
+            } else if (this.selectedTimes.length === 2) {
+                button.innerHTML = '<i class="fas fa-calendar-check"></i> Schedule Match';
             } else {
                 button.innerHTML = '<i class="fas fa-calendar-check"></i> Schedule Match';
             }
@@ -555,6 +659,26 @@ class ScheduleMatchUI {
 
     showPreview() {
         const previewContent = document.getElementById('preview-content');
+        let schedulingDetails = '';
+        
+        if (this.schedulingMode === 'split_times') {
+            const sortedTimes = [...this.selectedTimes].sort();
+            const linesInFirstSlot = Math.ceil(this.linesNeeded / 2);
+            const linesInSecondSlot = this.linesNeeded - linesInFirstSlot;
+            
+            schedulingDetails = `
+                <li><strong>Mode:</strong> Split Times</li>
+                <li><strong>First Slot:</strong> ${linesInFirstSlot} lines starting at ${sortedTimes[0]}</li>
+                <li><strong>Second Slot:</strong> ${linesInSecondSlot} lines starting at ${sortedTimes[1]}</li>
+                <li><small class="text-muted">Lines within each slot start at the same time</small></li>
+            `;
+        } else {
+            schedulingDetails = `
+                <li><strong>Mode:</strong> ${this.schedulingMode}</li>
+                <li><strong>Times:</strong> ${this.selectedTimes.join(', ')}</li>
+            `;
+        }
+        
         previewContent.innerHTML = `
             <div class="row">
                 <div class="col-md-6">
@@ -563,7 +687,7 @@ class ScheduleMatchUI {
                         <li><strong>Home Team:</strong> {{ match_info.home_team }}</li>
                         <li><strong>Visitor Team:</strong> {{ match_info.visitor_team }}</li>
                         <li><strong>League:</strong> {{ match_info.league }}</li>
-                        <li><strong>Lines:</strong> {{ match_info.lines_needed }}</li>
+                        <li><strong>Lines:</strong> ${this.linesNeeded}</li>
                     </ul>
                 </div>
                 <div class="col-md-6">
@@ -571,66 +695,99 @@ class ScheduleMatchUI {
                     <ul class="list-unstyled">
                         <li><strong>Date:</strong> ${this.selectedDate}</li>
                         <li><strong>Facility:</strong> {{ facility_info.name if facility_info else 'TBD' }}</li>
-                        <li><strong>Mode:</strong> ${this.schedulingMode}</li>
-                        <li><strong>Times:</strong> ${this.selectedTimes.join(', ')}</li>
+                        ${schedulingDetails}
                     </ul>
                 </div>
             </div>
         `;
         
+        // Show preview modal
         const modal = new bootstrap.Modal(document.getElementById('previewModal'));
         modal.show();
     }
 
     async scheduleMatch() {
-        const button = document.getElementById('schedule-button');
-        const spinner = button.querySelector('.loading-spinner');
-        
-        TennisUI.setButtonLoading('schedule-button', true);
-        
+        if (!this.selectedDate || this.selectedTimes.length === 0) {
+            TennisUI.showNotification('Please select a date and times', 'warning');
+            return;
+        }
+
+        // Validate selection based on mode
+        if (this.schedulingMode === 'custom' && this.selectedTimes.length !== this.linesNeeded) {
+            TennisUI.showNotification(`Custom mode requires ${this.linesNeeded} times`, 'warning');
+            return;
+        }
+
+        if (this.schedulingMode === 'split_times' && this.selectedTimes.length !== 2) {
+            TennisUI.showNotification('Split times mode requires exactly 2 time slots', 'warning');
+            return;
+        }
+
+        if ((this.schedulingMode === 'same_time' || this.schedulingMode === 'sequential') && this.selectedTimes.length !== 1) {
+            TennisUI.showNotification(`${this.schedulingMode} mode requires exactly 1 time`, 'warning');
+            return;
+        }
+
         try {
-            const response = await fetch('{{ url_for("schedule.api_schedule_match") }}', {
+            // Show loading state
+            const button = document.getElementById('schedule-button');
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scheduling...';
+
+            // Prepare request data
+            const requestData = {
+                match_id: this.matchId,
+                facility_id: {{ facility_info.id if facility_info else 'null' }},
+                date: this.selectedDate,
+                times: this.selectedTimes,
+                scheduling_mode: this.schedulingMode
+            };
+
+            // Make API call
+            const result = await TennisUI.apiCall('/api/schedule/match', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    match_id: {{ match_info.id }},
-                    facility_id: {{ facility_info.id if facility_info else 'null' }},
-                    date: this.selectedDate,
-                    times: this.selectedTimes,
-                    scheduling_mode: this.schedulingMode
-                })
+                body: JSON.stringify(requestData)
             });
 
-            const result = await response.json();
-            
             if (result.success) {
                 TennisUI.showNotification('Match scheduled successfully!', 'success');
+                
+                // Redirect to matches page after short delay
                 setTimeout(() => {
-                    window.location.href = '{{ url_for("view_match", match_id=match_info.id) }}';
+                    window.location.href = '/matches';
                 }, 1500);
             } else {
-                TennisUI.showNotification(`Scheduling failed: ${result.error}`, 'danger');
+                throw new Error(result.error || 'Scheduling failed');
             }
+
         } catch (error) {
             console.error('Scheduling error:', error);
-            TennisUI.showNotification('Network error occurred', 'danger');
-        } finally {
-            TennisUI.setButtonLoading('schedule-button', false);
+            TennisUI.showNotification(error.message || 'Failed to schedule match', 'danger');
+            
+            // Restore button state
+            const button = document.getElementById('schedule-button');
+            button.disabled = false;
+            button.innerHTML = originalText;
         }
     }
 
     confirmSchedule() {
+        // Close preview modal and schedule the match
         const modal = bootstrap.Modal.getInstance(document.getElementById('previewModal'));
         modal.hide();
         this.scheduleMatch();
     }
 }
 
-// Initialize the scheduling UI
+// Initialize the scheduling UI when the page loads
 document.addEventListener('DOMContentLoaded', function() {
-    new ScheduleMatchUI();
+    if (document.querySelector('.date-card')) {
+        window.scheduleUI = new ScheduleMatchUI();
+    }
 });
 </script>
 {% endblock %}

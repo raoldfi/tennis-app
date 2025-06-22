@@ -1645,5 +1645,19 @@ def main():
     return cli.run()
 
 
+# if __name__ == "__main__":
+#     sys.exit(main())
+
+
+def show_full_error():
+    exc_type, exc_value, exc_traceback = sys.exc_info()
+    traceback.print_exception(exc_type, exc_value, exc_traceback)
+
+# Wrap your main execution in try/except
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+        pass
+    except Exception as e:
+        print(f"Error: {e}")
+        show_full_error()

@@ -44,7 +44,7 @@ web_teams.register_routes(app)
 web_matches.register_routes(app, get_db)  # Pass get_db function
 web_schedule.register_routes(app)
 web_import_export.register_routes(app)
-web_schedule_match.register_routes(app)
+web_schedule_match.add_scheduling_routes_to_app(app)
 
 # Database cleanup
 app.teardown_appcontext(close_db)

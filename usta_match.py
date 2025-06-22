@@ -294,6 +294,54 @@ class Match:
         """Clear all scheduled times (unschedule all lines)"""
         self.scheduled_times.clear()
 
+    
+    def schedule_lines_split_times(self, facility: 'Facility', date: str, scheduled_times: List[str]) -> bool:
+        """
+        Schedule lines using an array of scheduled times (split times mode)
+        
+        Args:
+            facility: Facility where match will be played
+            date: Date in YYYY-MM-DD format
+            scheduled_times: List of times for each line (e.g., ["09:00", "09:00", "12:00"])
+                            Length must match league.num_lines_per_match
+        
+        Examples:
+            # 3-line match with 2 lines at 9:00 AM, 1 line at 12:00 PM
+            match.schedule_lines_split_times(facility, "2025-06-25", ["09:00", "09:00", "12:00"])
+            
+            # 4-line match with 2 lines at each time
+            match.schedule_lines_split_times(facility, "2025-06-25", ["09:00", "09:00", "12:00", "12:00"])
+            
+            # 5-line match with 3 lines at first time, 2 at second
+            match.schedule_lines_split_times(facility, "2025-06-25", ["09:00", "09:00", "09:00", "12:00", "12:00"])
+        """
+        # Validate that we have the correct number of times
+        expected_lines = self.league.num_lines_per_match
+        if len(scheduled_times) != expected_lines:
+            raise ValueError(f"Must provide exactly {expected_lines} scheduled times, got {len(scheduled_times)}")
+        
+        # Validate each time format
+        for i, time_str in enumerate(scheduled_times):
+            if not isinstance(time_str, str):
+                raise ValueError(f"All scheduled times must be strings, item {i} is {type(time_str)}")
+            try:
+                parts = time_str.split(':')
+                if len(parts) != 2:
+                    raise ValueError("Invalid time format")
+                hour, minute = int(parts[0]), int(parts[1])
+                if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                    raise ValueError("Invalid time values")
+            except (ValueError, IndexError):
+                raise ValueError(f"Invalid time format: '{time_str}'. Expected HH:MM format")
+        
+        # Set match details
+        self.facility = facility
+        self.date = date
+        self.scheduled_times = sorted(scheduled_times.copy())  # Sort to maintain order
+        return True
+
+
+
     # ========== Match Information ==========
     
     def get_date_time_strings(self) -> List[str]:

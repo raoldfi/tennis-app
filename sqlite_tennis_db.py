@@ -683,6 +683,10 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
     def delete_team(self, team: Team) -> bool:
         return self.team_manager.delete_team(team.id)
 
+    def check_team_date_conflict(self, team: Team, date: str, 
+                                 exclude_match: Optional[Match] = None) -> bool:
+        return self.team_manager.check_team_date_conflict(team, date, exclude_match)
+
     # ========== League Management ==========
     
     def add_league(self, league: League) -> bool:
@@ -743,6 +747,11 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
             facility, num_lines, allow_split_lines, start_date, end_date, max_dates
         )
 
+    def can_accommodate_lines_on_date(self, facility: Facility, date: str, 
+                                         num_lines: int, 
+                                         allow_split_lines: bool) -> bool:
+        return self.facility_manager.can_accommodate_lines_on_date(facility, date_str, num_lines, allow_split_lines)
+    
     # ========== Match Management ==========
     
     def add_match(self, match: Match) -> bool:
@@ -761,8 +770,6 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
                                                team=team,
                                                match_type=match_type)
 
-    def update_match(self, match: Match) -> bool:
-        return self.match_manager.update_match(match)
 
     def delete_match(self, match: Match) -> bool:
         return self.match_manager.delete_match(match.id)
@@ -789,8 +796,16 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
         )
 
 
-    def auto_schedule_matches(self, matches: List['Match']) -> Dict[str, Any]:
-        return self.scheduling_manager.auto_schedule_matches(matches)
+    def schedule_match_split_times(self, match: Match, date: str, 
+                                   timeslots: Optional[List[str]]=None,
+                                  facility: Optional[Facility] = None) -> bool:
+        facility_to_use = facility or match.home_team.home_facility
+        return self.match_manager.schedule_match_split_times(
+            match=match, date=date, timeslots=timeslots, facility=facility)
+
+    def auto_schedule_matches(self, matches: List['Match'], 
+                              facilities: Optional[List['Facility']]=None) -> Dict[str, Any]:
+        return self.scheduling_manager.auto_schedule_matches(matches,facilities)
 
     def unschedule_match(self, match: Match) -> bool:
         return self.match_manager.unschedule_match(match)
@@ -800,6 +815,11 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
     
     def get_available_times_at_facility(self, facility: Facility, date: str, courts_needed: int = 1) -> List[str]:
         return self.match_manager.get_available_times_at_facility(facility, date, courts_needed)
+
+    def is_schedulable(self, match: Match, date: str, 
+                       facility: Optional['Facility'] = None,
+                       allow_split_lines: Optional[bool]=False) -> bool:
+        return self.scheduling_manager.is_schedulable(match, date_str, facility, allow_split_lines)
 
     # ========== Advanced Scheduling Operations ==========
     
