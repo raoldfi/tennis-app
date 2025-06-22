@@ -1,0 +1,240 @@
+leagues:
+  # Existing leagues from original file - Updated with March-May dates
+  - id: 101
+    name: "2025 Adult 18+ 3.0 Women -- A"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "3.0 Women"
+    num_lines_per_match: 5
+    num_matches: 6
+    allow_split_lines: false
+    preferred_days:
+      - "Tuesday"
+      - "Saturday"
+    backup_days:
+      - "Sunday"
+    start_date: "2025-03-01"
+    end_date: "2025-05-01"
+
+  - id: 102
+    name: "2025 Adult 18+ 3.0 Women -- B"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "3.0 Women"
+    num_lines_per_match: 5
+    num_matches: 6
+    allow_split_lines: false
+    preferred_days:
+      - "Tuesday"
+      - "Saturday"
+    backup_days:
+      - "Sunday"
+    start_date: "2025-03-01"
+    end_date: "2025-05-01"
+
+  - id: 112
+    name: "2025 Adult 18+ 4.0 Mixed"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "8.0 Mixed"
+    num_lines_per_match: 3
+    num_matches: 6
+    allow_split_lines: true
+    preferred_days:
+      - "Saturday"
+    backup_days:
+      - "Sunday"
+      - "Friday"
+    start_date: "2025-03-15"
+    end_date: "2025-04-30"
+      
+  - id: 105
+    name: "2025 Adult 18+ 5.0 Men"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "5.0 Men"
+    num_lines_per_match: 5
+    num_matches: 6
+    allow_split_lines: false
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+    backup_days:
+      - "Friday"
+      - "Thursday"
+    start_date: "2025-03-01"
+    end_date: "2025-05-01"
+
+  # New leagues from division files - Updated with March-May dates
+  - id: 201
+    name: "2025 Adult 18+ 4.5 Women"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "4.5 Women"
+    num_lines_per_match: 5
+    num_matches: 10
+    allow_split_lines: false
+    preferred_days:
+      - "Sunday"
+      - "Thursday"
+    backup_days:
+      - "Wednesday"
+    start_date: "2025-03-01"
+    end_date: "2025-05-01"
+
+  - id: 202
+    name: "2025 Adult 18+ 4.5 Men"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "4.5 Men"
+    num_lines_per_match: 5
+    num_matches: 12
+    allow_split_lines: false
+    preferred_days:
+      - "Sunday"
+      - "Tuesday"
+    backup_days:
+      - "Thursday"
+      - "Saturday"
+    start_date: "2025-03-01"
+    end_date: "2025-05-01"
+
+  - id: 203
+    name: "2025 Adult 18+ 4.0 Women"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "4.0 Women"
+    num_lines_per_match: 5
+    num_matches: 14
+    allow_split_lines: false
+    preferred_days:
+      - "Sunday"
+      - "Thursday"
+    backup_days:
+      - "Tuesday"
+      - "Saturday"
+    start_date: "2025-03-01"
+    end_date: "2025-05-01"
+
+  - id: 204
+    name: "2025 Adult 18+ 4.0 Men"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "4.0 Men"
+    num_lines_per_match: 5
+    num_matches: 11
+    allow_split_lines: false
+    preferred_days:
+      - "Wednesday"
+      - "Sunday"
+    backup_days:
+      - "Friday"
+    start_date: "2025-03-01"
+    end_date: "2025-05-01"
+
+  - id: 205
+    name: "2025 Adult 18+ 3.5 Women"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "3.5 Women"
+    num_lines_per_match: 5
+    num_matches: 12
+    allow_split_lines: false
+    preferred_days:
+      - "Tuesday"
+      - "Saturday"
+    backup_days:
+      - "Thursday"
+    start_date: "2025-03-01"
+    end_date: "2025-05-01"
+
+  - id: 206
+    name: "2025 Adult 18+ 3.5 Men"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "3.5 Men"
+    num_lines_per_match: 5
+    num_matches: 10
+    allow_split_lines: false
+    preferred_days:
+      - "Saturday"
+      - "Monday"
+    backup_days:
+      - "Wednesday"
+    start_date: "2025-03-01"
+    end_date: "2025-05-01"
+
+  - id: 207
+    name: "2025 Adult 18+ 3.0 Women - 3"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "3.0 Women"
+    num_lines_per_match: 5
+    num_matches: 11
+    allow_split_lines: false
+    preferred_days:
+      - "Saturday"
+      - "Tuesday"
+    backup_days:
+      - "Thursday"
+    start_date: "2025-03-01"
+    end_date: "2025-05-01"
+
+  - id: 208
+    name: "2025 Adult 18+ 3.0 Men"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "3.0 Men"
+    num_lines_per_match: 5
+    num_matches: 8
+    allow_split_lines: false
+    preferred_days:
+      - "Sunday"
+      - "Thursday"
+    backup_days:
+      - "Tuesday"
+    start_date: "2025-03-01"
+    end_date: "2025-05-01"
+
+  - id: 209
+    name: "2025 Adult 18+ 2.5 Women"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "2.5 Women"
+    num_lines_per_match: 5
+    num_matches: 10
+    allow_split_lines: false
+    preferred_days:
+      - "Saturday"
+      - "Monday"
+    backup_days:
+      - "Thursday"
+      - "Tuesday"
+    start_date: "2025-03-01"
+    end_date: "2025-05-01"

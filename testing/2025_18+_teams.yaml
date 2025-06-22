@@ -1,0 +1,519 @@
+# teams_consolidated.yaml - All teams from division files
+teams:
+  # 4.5 Women Teams
+  - id: 2001
+    name: "NNM 4.5W Babbitt - EG"
+    league_id: 201
+    home_facility_id: 18
+    captain: "Babbitt"
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+  
+  - id: 2002
+    name: "NNM 4.5W Lowe - Lobo Club"
+    league_id: 201
+    home_facility_id: 14
+    captain: "Lowe"
+    preferred_days: []
+  
+  - id: 2003
+    name: "NNM 4.5W Romero - JC"
+    league_id: 201
+    home_facility_id: 16
+    captain: "Romero"
+    preferred_days: []
+
+  # 4.5 Men Teams
+  - id: 2004
+    name: "NNM 4.5M Contos - TCA"
+    league_id: 202
+    home_facility_id: 9
+    captain: "Contos"
+    preferred_days: []
+  
+  - id: 2005
+    name: "NNM 4.5M Hood - JC"
+    league_id: 202
+    home_facility_id: 16
+    captain: "Hood"
+    preferred_days: []
+  
+  - id: 2006
+    name: "NNM 4.5M Orozco - JC"
+    league_id: 202
+    home_facility_id: 16
+    captain: "Orozco"
+    preferred_days: []
+  
+  - id: 2007
+    name: "NNM 4.5M Pitcher - Tanoan"
+    league_id: 202
+    home_facility_id: 10
+    captain: "Pitcher"
+    preferred_days: []
+
+  # 4.0 Women Teams
+  - id: 2008
+    name: "NNM 4.0W Fate - JC"
+    league_id: 203
+    home_facility_id: 16
+    captain: "Fate"
+    preferred_days: []
+  
+  - id: 2009
+    name: "NNM 4.0W James - HP"
+    league_id: 203
+    home_facility_id: 17
+    captain: "James"
+    preferred_days: []
+  
+  - id: 2010
+    name: "NNM 4.0W Letz - Tanoan"
+    league_id: 203
+    home_facility_id: 10
+    captain: "Letz"
+    preferred_days: []
+  
+  - id: 2011
+    name: "NNM 4.0W Nevins - Lobo Club"
+    league_id: 203
+    home_facility_id: 14
+    captain: "Nevins"
+    preferred_days: []
+  
+  - id: 2012
+    name: "NNM 4.0W Slice Girls - HP"
+    league_id: 203
+    home_facility_id: 17
+    captain: "Slice"
+    preferred_days: []
+  
+  - id: 2013
+    name: "NNM 4.0W Spindler - NDB"
+    league_id: 203
+    home_facility_id: 13
+    captain: "Spindler"
+    preferred_days: []
+  
+  - id: 2014
+    name: "NNM 4.0W Stewart - Lobo Club"
+    league_id: 203
+    home_facility_id: 14
+    captain: "Stewart"
+    preferred_days: []
+  
+  - id: 2015
+    name: "NNM 4.0W Ulibarri - JC"
+    league_id: 203
+    home_facility_id: 16
+    captain: "Ulibarri"
+    preferred_days: []
+
+  # 4.0 Men Teams
+  - id: 2016
+    name: "NNM 4.0M Cunningham - LA"
+    league_id: 204
+    home_facility_id: 15
+    captain: "Cunningham"
+    preferred_days:
+      - "Sunday"
+      - "Saturday"
+  
+  - id: 2017
+    name: "NNM 4.0M Goradia - TCA"
+    league_id: 204
+    home_facility_id: 9
+    captain: "Goradia"
+    preferred_days: []
+  
+  - id: 2018
+    name: "NNM 4.0M Howell - TCA"
+    league_id: 204
+    home_facility_id: 9
+    captain: "Howell"
+    preferred_days: []
+  
+  - id: 2019
+    name: "NNM 4.0M King - TCA"
+    league_id: 204
+    home_facility_id: 9
+    captain: "King"
+    preferred_days: []
+  
+  - id: 2020
+    name: "NNM 4.0M Kunzler - JC"
+    league_id: 204
+    home_facility_id: 16
+    captain: "Kunzler"
+    preferred_days: []
+  
+  - id: 2021
+    name: "NNM 4.0M Lopez - VR"
+    league_id: 204
+    home_facility_id: 8
+    captain: "Lopez"
+    preferred_days: []
+  
+  - id: 2022
+    name: "NNM 4.0M Mamlook - HP"
+    league_id: 204
+    home_facility_id: 17
+    captain: "Mamlook"
+    preferred_days: []
+  
+  - id: 2023
+    name: "NNM 4.0M Nguyen - JC"
+    league_id: 204
+    home_facility_id: 16
+    captain: "Nguyen"
+    preferred_days: []
+  
+  - id: 2024
+    name: "NNM 4.0M Romero - JC"
+    league_id: 204
+    home_facility_id: 16
+    captain: "Romero"
+    preferred_days: []
+
+  # 3.5 Women Teams
+  - id: 2025
+    name: "NNM 3.5W Anselmo - JC"
+    league_id: 205
+    home_facility_id: 16
+    captain: "Anselmo"
+    preferred_days: []
+  
+  - id: 2026
+    name: "NNM 3.5W Bella - EG"
+    league_id: 205
+    home_facility_id: 18
+    captain: "Bella"
+    preferred_days: []
+  
+  - id: 2027
+    name: "NNM 3.5W Brock - HP"
+    league_id: 205
+    home_facility_id: 17
+    captain: "Brock"
+    preferred_days: []
+  
+  - id: 2028
+    name: "NNM 3.5W Casias - JC"
+    league_id: 205
+    home_facility_id: 16
+    captain: "Casias"
+    preferred_days: []
+  
+  - id: 2029
+    name: "NNM 3.5W Fotieo - Tanoan"
+    league_id: 205
+    home_facility_id: 10
+    captain: "Fotieo"
+    preferred_days: []
+  
+  - id: 2030
+    name: "NNM 3.5W Letz - Tanoan"
+    league_id: 205
+    home_facility_id: 10
+    captain: "Letz"
+    preferred_days: []
+  
+  - id: 2031
+    name: "NNM 3.5W Luehring - Tanoan"
+    league_id: 205
+    home_facility_id: 10
+    captain: "Luehring"
+    preferred_days: []
+  
+  - id: 2032
+    name: "NNM 3.5W Mccaughey - SFTSC"
+    league_id: 205
+    home_facility_id: 12
+    captain: "Mccaughey"
+    preferred_days:
+      - "Sunday"
+      - "Saturday"
+  
+  - id: 2033
+    name: "NNM 3.5W Mid-Court Crisis - TCA"
+    league_id: 205
+    home_facility_id: 9
+    captain: "Mid-Court"
+    preferred_days: []
+  
+  - id: 2034
+    name: "NNM 3.5W Musarra - TCA"
+    league_id: 205
+    home_facility_id: 9
+    captain: "Musarra"
+    preferred_days: []
+  
+  - id: 2035
+    name: "NNM 3.5W Stephens - HP"
+    league_id: 205
+    home_facility_id: 17
+    captain: "Stephens"
+    preferred_days: []
+  
+  - id: 2036
+    name: "NNM 3.5W Turpie - ABQ Academy"
+    league_id: 205
+    home_facility_id: 16
+    captain: "Turpie"
+    preferred_days: []
+  
+  - id: 2037
+    name: "NNM 3.5W Woolcott - SV"
+    league_id: 205
+    home_facility_id: 11
+    captain: "Woolcott"
+    preferred_days: []
+
+  # 3.5 Men Teams
+  - id: 2038
+    name: "NNM 3.5M Bowers - NDB"
+    league_id: 206
+    home_facility_id: 13
+    captain: "Bowers"
+    preferred_days: []
+  
+  - id: 2039
+    name: "NNM 3.5M Briggs - JC"
+    league_id: 206
+    home_facility_id: 16
+    captain: "Briggs"
+    preferred_days: []
+  
+  - id: 2040
+    name: "NNM 3.5M Galvis - TCA"
+    league_id: 206
+    home_facility_id: 9
+    captain: "Galvis"
+    preferred_days: []
+  
+  - id: 2041
+    name: "NNM 3.5M Gee - HP"
+    league_id: 206
+    home_facility_id: 17
+    captain: "Gee"
+    preferred_days: []
+  
+  - id: 2042
+    name: "NNM 3.5M Gruber - Tanoan"
+    league_id: 206
+    home_facility_id: 10
+    captain: "Gruber"
+    preferred_days: []
+  
+  - id: 2043
+    name: "NNM 3.5M Gruda - EG"
+    league_id: 206
+    home_facility_id: 18
+    captain: "Gruda"
+    preferred_days:
+      - "Sunday"
+      - "Saturday"
+  
+  - id: 2044
+    name: "NNM 3.5M Kurennoy - LA"
+    league_id: 206
+    home_facility_id: 15
+    captain: "Kurennoy"
+    preferred_days:
+      - "Sunday"
+      - "Saturday"
+  
+  - id: 2045
+    name: "NNM 3.5M McDermott - JC"
+    league_id: 206
+    home_facility_id: 16
+    captain: "McDermott"
+    preferred_days: []
+  
+  - id: 2046
+    name: "NNM 3.5M Nguyen - JC"
+    league_id: 206
+    home_facility_id: 16
+    captain: "Nguyen"
+    preferred_days: []
+  
+  - id: 2047
+    name: "NNM 3.5M Romero - VR"
+    league_id: 206
+    home_facility_id: 8
+    captain: "Romero"
+    preferred_days: []
+  
+  - id: 2048
+    name: "NNM 3.5M Zinn - Alto Park"
+    league_id: 206
+    home_facility_id: 19
+    captain: "Zinn"
+    preferred_days:
+      - "Sunday"
+      - "Saturday"
+
+  # 3.0 Women Teams
+  - id: 2049
+    name: "NNM 3.0W Alter - HP"
+    league_id: 207
+    home_facility_id: 17
+    captain: "Alter"
+    preferred_days: []
+  
+  - id: 2050
+    name: "NNM 3.0W Bailey-Perea - Tanoan"
+    league_id: 207
+    home_facility_id: 10
+    captain: "Bailey-Perea"
+    preferred_days: []
+  
+  - id: 2051
+    name: "NNM 3.0W Calvini - ACC"
+    league_id: 207
+    home_facility_id: 20
+    captain: "Calvini"
+    preferred_days: []
+  
+  - id: 2052
+    name: "NNM 3.0W Donner - Alto Park"
+    league_id: 207
+    home_facility_id: 19
+    captain: "Donner"
+    preferred_days:
+      - "Sunday"
+      - "Saturday"
+  
+  - id: 2053
+    name: "NNM 3.0W Dunbar - HP"
+    league_id: 207
+    home_facility_id: 17
+    captain: "Dunbar"
+    preferred_days: []
+  
+  - id: 2054
+    name: "NNM 3.0W Goodrum - Tanoan"
+    league_id: 207
+    home_facility_id: 10
+    captain: "Goodrum"
+    preferred_days: []
+  
+  - id: 2055
+    name: "NNM 3.0W Mahony - EG"
+    league_id: 207
+    home_facility_id: 18
+    captain: "Mahony"
+    preferred_days:
+      - "Sunday"
+      - "Saturday"
+  
+  - id: 2056
+    name: "NNM 3.0W Morck - Lobo Club"
+    league_id: 207
+    home_facility_id: 14
+    captain: "Morck"
+    preferred_days: []
+  
+  - id: 2057
+    name: "NNM 3.0W Poulin - Tanoan"
+    league_id: 207
+    home_facility_id: 10
+    captain: "Poulin"
+    preferred_days: []
+  
+  - id: 2058
+    name: "NNM 3.0W Romero - VR"
+    league_id: 207
+    home_facility_id: 8
+    captain: "Romero"
+    preferred_days: []
+  
+  - id: 2059
+    name: "NNM 3.0W Sanchez - TCA"
+    league_id: 207
+    home_facility_id: 9
+    captain: "Sanchez"
+    preferred_days: []
+  
+  - id: 2060
+    name: "NNM 3.0W Schloss - TCA"
+    league_id: 207
+    home_facility_id: 9
+    captain: "Schloss"
+    preferred_days: []
+
+  # 3.0 Men Teams
+  - id: 2061
+    name: "NNM 3.0M Galvis - TCA"
+    league_id: 208
+    home_facility_id: 9
+    captain: "Galvis"
+    preferred_days: []
+  
+  - id: 2062
+    name: "NNM 3.0M Ginocchio - Alto Park"
+    league_id: 208
+    home_facility_id: 19
+    captain: "Ginocchio"
+    preferred_days:
+      - "Sunday"
+      - "Saturday"
+  
+  - id: 2063
+    name: "NNM 3.0M Murphy - Tanoan"
+    league_id: 208
+    home_facility_id: 10
+    captain: "Murphy"
+    preferred_days: []
+  
+  - id: 2064
+    name: "NNM 3.0M Romero - VR"
+    league_id: 208
+    home_facility_id: 8
+    captain: "Romero"
+    preferred_days: []
+
+  # 2.5 Women Teams
+  - id: 2065
+    name: "NNM 2.5 Dolan - JC"
+    league_id: 209
+    home_facility_id: 16
+    captain: "Dolan"
+    preferred_days: []
+  
+  - id: 2066
+    name: "NNM 2.5 White - Tanoan"
+    league_id: 209
+    home_facility_id: 10
+    captain: "White"
+    preferred_days: []
+  
+  - id: 2067
+    name: "NNM 2.5W Harris - Tanoan"
+    league_id: 209
+    home_facility_id: 10
+    captain: "Harris"
+    preferred_days: []
+  
+  - id: 2068
+    name: "NNM 2.5W Morck - Lobo Club"
+    league_id: 209
+    home_facility_id: 14
+    captain: "Morck"
+    preferred_days: []
+  
+  - id: 2069
+    name: "NNM 2.5W Schick - TCA"
+    league_id: 209
+    home_facility_id: 9
+    captain: "Schick"
+    preferred_days: []
+
+
+# Notes:
+# - preferred_days is optional and defaults to an empty list
+# - Valid days are: "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+# - Empty preferred_days means the team can play on any day
+# - Teams with specific preferred days will be prioritized for scheduling on those days
+# - The system will try to match team preferences with league scheduling preferences

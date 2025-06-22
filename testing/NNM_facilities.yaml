@@ -1,0 +1,630 @@
+facilities:
+  # VR - Great availability with high concurrency on weekends
+  - id: 8
+    name: "Ventana Ranch Tennis Center"
+    short_name: "VR"
+    location: "Ventana Ranch Tennis Center, Albuquerque, NM"
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Friday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Saturday:
+        start_times:
+          - time: "12:00"
+            available_courts: 10
+          - time: "14:00"
+            available_courts: 10
+          - time: "16:00"
+            available_courts: 10
+      Sunday:
+        start_times:
+          - time: "12:00"
+            available_courts: 10
+          - time: "14:00"
+            available_courts: 10
+          - time: "16:00"
+            available_courts: 10
+    unavailable_dates:
+      - "2025-04-25"
+      - "2025-05-02"
+      - "2025-05-03"
+      - "2025-10-17"
+      - "2025-10-18"
+      - "2025-10-19"
+
+  # TCA - Weekday evenings and full afternoon weekend schedule
+  - id: 9
+    name: "Tennis Club of Albuquerque"
+    short_name: "TCA"
+    location: "Tennis Club of Albuquerque, Albuquerque, NM"
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Thursday:
+        start_times: []
+      Friday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Saturday:
+        start_times:
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 5
+    unavailable_dates:
+      - "2025-03-23"
+      - "2025-04-08"
+      - "2025-04-15"
+      - "2025-04-17"
+      - "2025-09-19"
+      - "2025-09-20"
+      - "2025-09-21"
+      - "2025-10-24"
+      - "2025-10-25"
+      - "2025-10-26"
+      - "2025-11-08"
+      - "2025-11-09"
+      - "2025-11-10"
+
+  # TANOAN - Mix of weekday evening and flexible weekend slots
+  - id: 10
+    name: "Tanoan Country Club"
+    short_name: "TANOAN"
+    location: "Tanoan Country Club, Albuquerque, NM"
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:00"
+            available_courts: 10
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Friday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Saturday:
+        start_times:
+          - time: "12:00"
+            available_courts: 5
+          - time: "14:00"
+            available_courts: 5
+          - time: "16:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "12:00"
+            available_courts: 5
+          - time: "14:00"
+            available_courts: 5
+          - time: "16:00"
+            available_courts: 5
+    unavailable_dates:
+      - "2025-05-23"
+      - "2025-05-24"
+      - "2025-05-26"
+
+  # SV - Weekend facility with higher concurrency levels
+  - id: 11
+    name: "Sierra Vista Tennis Center"
+    short_name: "SV"
+    location: "Sierra Vista Tennis Center, Albuquerque, NM"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "12:00"
+            available_courts: 10
+          - time: "14:00"
+            available_courts: 10
+      Sunday:
+        start_times:
+          - time: "12:00"
+            available_courts: 10
+          - time: "14:00"
+            available_courts: 10
+    unavailable_dates:
+      - "2025-04-26"
+      - "2025-05-02"
+      - "2025-05-03"
+      - "2025-05-11"
+      - "2025-08-10"
+      - "2025-08-22"
+      - "2025-08-23"
+      - "2025-08-24"
+      - "2025-10-17"
+      - "2025-10-18"
+      - "2025-10-19"
+
+  # SFTSC - Only available on weekends for late afternoon matches
+  - id: 12
+    name: "Santa Fe Tennis and Swim Club"
+    short_name: "SFTSC"
+    location: "Santa Fe Tennis and Swim Club, Santa Fe, NM"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "17:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "17:00"
+            available_courts: 5
+    unavailable_dates:
+      - "2025-07-25"
+      - "2025-07-26"
+      - "2025-07-27"
+
+  # NDB - North Domingo Baca
+  - id: 13
+    name: "North Domingo Baca Tennis Center"
+    short_name: "NDB"
+    location: "North Domingo Baca Tennis Center, Albuquerque, NM"
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Friday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Saturday:
+        start_times:
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 5
+    unavailable_dates:
+      - "2025-05-02"
+      - "2025-05-03"
+
+  # LOBO - Consistent weekday evening access, and midday weekend play
+  - id: 14
+    name: "Lobo Club Tennis"
+    short_name: "LOBO"
+    location: "Lobo Club Tennis, Albuquerque, NM"
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Friday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Saturday:
+        start_times:
+          - time: "12:00"
+            available_courts: 5
+          - time: "14:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "12:00"
+            available_courts: 5
+          - time: "14:00"
+            available_courts: 5
+    unavailable_dates:
+      - "2025-03-09"
+      - "2025-03-23"
+      - "2025-03-30"
+      - "2025-04-13"
+      - "2025-04-29"
+      - "2025-04-30"
+      - "2025-09-01"
+
+  # LA - Los Alamos (urban park) - Only available on weekends for late afternoon matches
+  - id: 15
+    name: "Los Alamos Urban Park Tennis Courts"
+    short_name: "LA"
+    location: "Urban Park, Los Alamos, NM"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "17:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "17:00"
+            available_courts: 5
+    unavailable_dates:
+      - "2025-07-25"
+      - "2025-07-26"
+      - "2025-07-27"
+
+  # JC - High weekday and weekend capacity, great for big leagues
+  - id: 16
+    name: "Jerry Cline Tennis Complex"
+    short_name: "JC"
+    location: "Jerry Cline Tennis Complex, Albuquerque, NM"
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:00"
+            available_courts: 15
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 15
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 15
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 15
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "10:00"
+            available_courts: 5
+          - time: "12:00"
+            available_courts: 15
+          - time: "14:00"
+            available_courts: 15
+      Sunday:
+        start_times:
+          - time: "10:00"
+            available_courts: 5
+          - time: "12:00"
+            available_courts: 15
+          - time: "14:00"
+            available_courts: 15
+    unavailable_dates:
+      - "2025-03-01"
+      - "2025-03-02"
+      - "2025-03-07"
+      - "2025-03-08"
+      - "2025-03-09"
+      - "2025-04-11"
+      - "2025-04-12"
+      - "2025-04-13"
+      - "2025-04-19"
+      - "2025-04-25"
+      - "2025-04-26"
+      - "2025-05-04"
+      - "2025-05-11"
+      - "2025-06-14"
+      - "2025-06-20"
+      - "2025-06-21"
+      - "2025-06-22"
+      - "2025-06-27"
+      - "2025-06-28"
+      - "2025-06-29"
+      - "2025-07-19"
+      - "2025-08-08"
+      - "2025-08-09"
+      - "2025-08-10"
+      - "2025-08-30"
+      - "2025-09-01"
+      - "2025-09-06"
+      - "2025-09-11"
+      - "2025-09-18"
+      - "2025-09-25"
+      - "2025-10-02"
+      - "2025-10-09"
+      - "2025-10-16"
+      - "2025-10-23"
+      - "2025-10-30"
+      - "2025-10-11"
+      - "2025-10-17"
+      - "2025-10-18"
+      - "2025-10-19"
+      - "2025-10-24"
+      - "2025-10-25"
+      - "2025-10-26"
+      - "2025-11-01"
+      - "2025-11-02"
+      - "2025-11-15"
+
+  # HP - Home Facility with weekday evenings and weekend slots
+  - id: 17
+    name: "High Point Sports and Wellness"
+    short_name: "HP"
+    location: "High Point Sports and Wellness, Albuquerque, NM"
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Friday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Saturday:
+        start_times:
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 5
+    unavailable_dates:
+      - "2025-06-20"
+      - "2025-06-21"
+      - "2025-06-22"
+      - "2025-06-27"
+      - "2025-06-28"
+      - "2025-06-29"
+      - "2025-09-13"
+      - "2025-09-14"
+      - "2025-10-25"
+      - "2025-10-26"
+
+  # EG - Weekend only facility with four match slots per day
+  - id: 18
+    name: "El Gancho Fitness Swim Club"
+    short_name: "EG"
+    location: "El Gancho Fitness Swim Club, Santa Fe, NM"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "11:00"
+            available_courts: 5
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "11:00"
+            available_courts: 5
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 5
+    unavailable_dates:
+      - "2025-03-01"
+      - "2025-08-02"
+
+  # ALTO - Only available on weekends for late afternoon matches
+  - id: 19
+    name: "Alto Tennis Courts"
+    short_name: "ALTO"
+    location: "Alto Tennis Courts, Santa Fe, NM"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "17:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "17:00"
+            available_courts: 5
+    unavailable_dates:
+      - "2025-07-25"
+      - "2025-07-26"
+      - "2025-07-27"
+
+  # ACC - Weekend facility with higher concurrency levels
+  - id: 20
+    name: "Albuquerque Country Club"
+    short_name: "ACC"
+    location: "Albuquerque Country Club, Albuquerque, NM"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "12:00"
+            available_courts: 10
+          - time: "14:00"
+            available_courts: 10
+      Sunday:
+        start_times:
+          - time: "12:00"
+            available_courts: 10
+          - time: "14:00"
+            available_courts: 10
+    unavailable_dates: []
+
+  # ACADEMY - Albuquerque Academy with weekday evenings and weekend slots
+  - id: 21
+    name: "Albuquerque Academy Tennis Courts"
+    short_name: "ACADEMY"
+    location: "Albuquerque Academy, Albuquerque, NM"
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Friday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Saturday:
+        start_times:
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 5
+    unavailable_dates:
+      - "2025-03-01"
+      - "2025-08-02"
+      - "2025-10-04"
+      - "2025-12-15"

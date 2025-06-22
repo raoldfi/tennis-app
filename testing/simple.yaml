@@ -1,0 +1,130 @@
+facilities:
+
+  # LOBO - Consistent weekday evening access, and midday weekend play
+  - id: 14
+    name: "Lobo Club Tennis"
+    short_name: "LOBO"
+    location: "Lobo Club Tennis, Albuquerque, NM"
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Friday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Saturday:
+        start_times:
+          - time: "12:00"
+            available_courts: 5
+          - time: "14:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "12:00"
+            available_courts: 5
+          - time: "14:00"
+            available_courts: 5
+    unavailable_dates:
+      - "2025-03-09"
+      - "2025-03-23"
+      - "2025-03-30"
+      - "2025-04-13"
+      - "2025-04-29"
+      - "2025-04-30"
+      - "2025-09-01"
+
+
+  # EG - Weekend only facility with four match slots per day
+  - id: 18
+    name: "El Gancho Fitness Swim Club"
+    short_name: "EG"
+    location: "El Gancho Fitness Swim Club, Santa Fe, NM"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "11:00"
+            available_courts: 5
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "11:00"
+            available_courts: 5
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 5
+    unavailable_dates:
+      - "2025-03-01"
+      - "2025-08-02"
+
+
+leagues:
+  # New leagues from division files - Updated with March-May dates
+  - id: 201
+    name: "2025 Adult 18+ 4.5 Women"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "4.5 Women"
+    num_lines_per_match: 5
+    num_matches: 10
+    allow_split_lines: false
+    preferred_days:
+      - "Sunday"
+      - "Thursday"
+    backup_days:
+      - "Wednesday"
+    start_date: "2025-03-01"
+    end_date: "2025-05-01"
+
+# teams_consolidated.yaml - All teams from division files
+teams:
+  # 4.5 Women Teams
+  - id: 2001
+    name: "Team 1"
+    league_id: 201
+    home_facility_id: 18
+    captain: "Babbitt"
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+  
+  - id: 2002
+    name: "Team 2"
+    league_id: 201
+    home_facility_id: 14
+    captain: "Lowe"
+    preferred_days: []
+  
