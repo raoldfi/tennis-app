@@ -7,6 +7,7 @@ from flask import Blueprint, render_template, request, jsonify, flash, redirect,
 from typing import Optional
 import traceback
 import utils
+import math
 
 # Create blueprint for scheduling routes
 schedule_bp = Blueprint('schedule', __name__)
@@ -36,6 +37,8 @@ def schedule_match_form(match_id: int):
         if not match:
             flash(f'Match with ID {match_id} not found', 'danger')
             return redirect(url_for('matches'))
+
+        league = match.league
         
         # Check if match is already scheduled
         if match.is_scheduled():
@@ -53,6 +56,8 @@ def schedule_match_form(match_id: int):
         
         if not facility and match.home_team:
             facility = match.home_team.home_facility
+
+        print(f"\n\n\n============ Schedule Match Form =============\n\n\n")
         
         if not facility:
             flash('No facility available for this match. Please assign a home facility to the home team or specify a facility.', 'danger')
@@ -60,14 +65,91 @@ def schedule_match_form(match_id: int):
         
         # Get scheduling options
         try:
-            scheduling_options = utils.get_scheduling_options(
-                db=db,
-                match=match,
-                facility=facility,
-                start_date=request.args.get('start_date'),
-                end_date=request.args.get('end_date'),
-                max_dates=int(request.args.get('max_dates', 20))
+
+            # This will return dates based on match and league preferences and priorities
+            optimal_dates = utils.get_optimal_scheduling_dates(
+                match,
+                num_dates=int(request.args.get('max_dates', 20))
             )
+
+            # Filter these dates based on facility availability
+            available_dates = []
+            for current_date_str in optimal_dates:
+                try:
+                    allow_split_lines = league.allow_split_lines
+                    print(f"\n\n\n============ Checking is_schedulable({current_date_str}) =============\n\n\n")
+
+                    schedulable = False
+                    try:
+                        schedulable = db.is_schedulable(match=match, 
+                                                        date=current_date_str, 
+                                                        facility=facility,
+                                                        allow_split_lines=allow_split_lines)
+                    except Exception as sched_error:
+                        print(f"\n\n==== SCHED ERROR {sched_error}")
+                        raise sched_error
+                    
+                    if schedulable:
+                        
+                        print(f"\n\n\n============ Parsing {current_date_str} =============\n\n\n")
+
+                        # Parse date for formatting
+                        date_obj = datetime.strptime(current_date_str, '%Y-%m-%d')
+                        day_name = date_obj.strftime('%A')
+
+                        print(f"\n\n\n============ Calculating score ({current_date_str}) =============\n\n\n")
+
+                        # calculate a priority score
+                        score = 10  # Base score
+                        if day_name in match.league.preferred_days:
+                            score += 5
+                        elif day_name in match.league.backup_days:
+                            score += 2
+
+                                                
+                        print(f"\n\n\n============ Score ({score}) =============\n\n\n")
+
+
+                        courts_needed = match.league.num_lines_per_match
+                        if allow_split_lines:
+                            courts_needed = math.ceil(courts_needed/2)
+                        
+                        # Use tennis_db_interface to check availability
+                        available_times = db.get_available_times_at_facility(
+                            facility, 
+                            current_date_str, 
+                            courts_needed=courts_needed
+                        )
+                        
+                        date_option = {
+                                        'date': current_date_str,
+                                        'day_name': day_name,
+                                        'formatted_date': date_obj.strftime('%B %d, %Y'),
+                                        'available_times': available_times,
+                                        'score': max(0, score),  # Don't go below 0
+                                        'courts_available': getattr(facility, 'total_courts', getattr(facility, 'court_count', 3)),
+                                        'facility_name': facility.name
+                        }
+
+                        available_dates.append(date_option)
+                
+                except Exception as e:
+                    print(f"Error processing date: {current_date_str}: {e}")
+                    continue
+
+            available_dates.sort(key=lambda x: x['score'], reverse=True)
+
+            scheduling_options = {
+                'success': True,
+                'available_dates': available_dates,
+                'search_params': {
+                    'start_date': request.args.get('start_date'),
+                    'end_date': request.args.get('end_date'),
+                    'max_dates': request.args.get('max_dates', 20)
+                }
+            }
+            
+        
         except Exception as e:
             print(f"Error getting scheduling options: {e}")
             scheduling_options = {
@@ -94,91 +176,91 @@ def schedule_match_form(match_id: int):
             'total_courts': getattr(facility, 'total_courts', getattr(facility, 'court_count', 3))
         }
         
-        # CRITICAL FIX: Transform available dates to have all required properties
-        available_dates = []
-        if scheduling_options.get('success', False) and scheduling_options.get('available_dates'):
-            for i, date_option in enumerate(scheduling_options['available_dates']):
-                try:
-                    # Handle different possible date format inputs
-                    date_str = date_option.get('date', '')
-                    if not date_str:
-                        continue
+        # # CRITICAL FIX: Transform available dates to have all required properties
+        # available_dates = []
+        # if scheduling_options.get('success', False) and scheduling_options.get('available_dates'):
+        #     for i, date_option in enumerate(scheduling_options['available_dates']):
+        #         try:
+        #             # Handle different possible date format inputs
+        #             date_str = date_option.get('date', '')
+        #             if not date_str:
+        #                 continue
                     
-                    # Parse the date
-                    date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+        #             # Parse the date
+        #             date_obj = datetime.strptime(date_str, '%Y-%m-%d')
                     
-                    # Extract or default all the properties the template expects
-                    enhanced_date = {
-                        # Core date info
-                        'date': date_str,
-                        'day_name': date_option.get('day_name', 
-                                   date_option.get('day_of_week', 
-                                   date_obj.strftime('%A'))),
-                        'formatted_date': date_option.get('formatted_date', 
-                                         date_obj.strftime('%B %d, %Y')),
+        #             # Extract or default all the properties the template expects
+        #             enhanced_date = {
+        #                 # Core date info
+        #                 'date': date_str,
+        #                 'day_name': date_option.get('day_name', 
+        #                            date_option.get('day_of_week', 
+        #                            date_obj.strftime('%A'))),
+        #                 'formatted_date': date_option.get('formatted_date', 
+        #                                  date_obj.strftime('%B %d, %Y')),
                         
-                        # Time and availability info
-                        'available_times': date_option.get('available_times', []),
+        #                 # Time and availability info
+        #                 'available_times': date_option.get('available_times', []),
                         
-                        # Scoring and conflicts
-                        'score': date_option.get('score', 
-                                date_option.get('optimal_score', 
-                                5 + i)),  # Default score with variety
-                        'conflicts': date_option.get('conflicts', []),
+        #                 # Scoring and conflicts
+        #                 'score': date_option.get('score', 
+        #                         date_option.get('optimal_score', 
+        #                         5 + i)),  # Default score with variety
+        #                 'conflicts': date_option.get('conflicts', []),
                         
-                        # Additional helpful info
-                        'courts_available': facility_info['total_courts'],
-                        'facility_name': facility_info['name'],
-                        'is_weekend': date_obj.weekday() >= 5,
-                        'short_date': date_obj.strftime('%m/%d')
-                    }
+        #                 # Additional helpful info
+        #                 'courts_available': facility_info['total_courts'],
+        #                 'facility_name': facility_info['name'],
+        #                 'is_weekend': date_obj.weekday() >= 5,
+        #                 'short_date': date_obj.strftime('%m/%d')
+        #             }
                     
-                    available_dates.append(enhanced_date)
+        #             available_dates.append(enhanced_date)
                     
-                except (ValueError, TypeError) as e:
-                    print(f"Error processing date option {date_option}: {e}")
-                    # Create a minimal valid date option
-                    try:
-                        fallback_date = {
-                            'date': date_option.get('date', ''),
-                            'day_name': 'Unknown',
-                            'formatted_date': 'Unknown Date',
-                            'available_times': [],
-                            'score': 1,
-                            'conflicts': ['Error loading date'],
-                            'courts_available': facility_info['total_courts'],
-                            'facility_name': facility_info['name']
-                        }
-                        available_dates.append(fallback_date)
-                    except:
-                        continue
+        #         except (ValueError, TypeError) as e:
+        #             print(f"Error processing date option {date_option}: {e}")
+        #             # Create a minimal valid date option
+        #             try:
+        #                 fallback_date = {
+        #                     'date': date_option.get('date', ''),
+        #                     'day_name': 'Unknown',
+        #                     'formatted_date': 'Unknown Date',
+        #                     'available_times': [],
+        #                     'score': 1,
+        #                     'conflicts': ['Error loading date'],
+        #                     'courts_available': facility_info['total_courts'],
+        #                     'facility_name': facility_info['name']
+        #                 }
+        #                 available_dates.append(fallback_date)
+        #             except:
+        #                 continue
         
-        # If no dates were successfully processed, create some sample dates for testing
-        if not available_dates and scheduling_options.get('success', False):
-            print("No dates processed successfully, creating sample dates")
-            from datetime import timedelta
-            base_date = datetime.now().date()
+        # # If no dates were successfully processed, create some sample dates for testing
+        # if not available_dates and scheduling_options.get('success', False):
+        #     print("No dates processed successfully, creating sample dates")
+        #     from datetime import timedelta
+        #     base_date = datetime.now().date()
             
-            for i in range(5):
-                sample_date = base_date + timedelta(days=i*7)  # Weekly intervals
-                sample_date_str = sample_date.strftime('%Y-%m-%d')
-                sample_date_obj = datetime.combine(sample_date, datetime.min.time())
+        #     for i in range(5):
+        #         sample_date = base_date + timedelta(days=i*7)  # Weekly intervals
+        #         sample_date_str = sample_date.strftime('%Y-%m-%d')
+        #         sample_date_obj = datetime.combine(sample_date, datetime.min.time())
                 
-                sample_option = {
-                    'date': sample_date_str,
-                    'day_name': sample_date_obj.strftime('%A'),
-                    'formatted_date': sample_date_obj.strftime('%B %d, %Y'),
-                    'available_times': ['09:00', '10:00', '14:00', '15:00'],
-                    'score': 5 - i,  # Decreasing scores
-                    'conflicts': [],
-                    'courts_available': facility_info['total_courts'],
-                    'facility_name': facility_info['name']
-                }
-                available_dates.append(sample_option)
+        #         sample_option = {
+        #             'date': sample_date_str,
+        #             'day_name': sample_date_obj.strftime('%A'),
+        #             'formatted_date': sample_date_obj.strftime('%B %d, %Y'),
+        #             'available_times': ['09:00', '10:00', '14:00', '15:00'],
+        #             'score': 5 - i,  # Decreasing scores
+        #             'conflicts': [],
+        #             'courts_available': facility_info['total_courts'],
+        #             'facility_name': facility_info['name']
+        #         }
+        #         available_dates.append(sample_option)
         
-        print(f"Final available_dates count: {len(available_dates)}")
-        for date in available_dates[:2]:  # Print first 2 for debugging
-            print(f"Date option: {date}")
+        # print(f"Final available_dates count: {len(available_dates)}")
+        # for date in available_dates[:2]:  # Print first 2 for debugging
+        #     print(f"Date option: {date}")
         
         # Get all facilities for dropdown
         all_facilities = db.list_facilities()
@@ -280,6 +362,8 @@ def api_schedule_match():
         date = data.get('date')
         times = data.get('times', [])
         scheduling_mode = data.get('scheduling_mode', 'custom')
+
+
         
         # Validation
         if not all([match_id, date, times]):
@@ -301,7 +385,7 @@ def api_schedule_match():
         # Check for team conflicts (existing logic)
         if match.home_team:
             home_conflict = db.team_manager.check_team_date_conflict(
-                match.home_team.id, date, exclude_match_id=match.id
+                team=match.home_team, date=date, exclude_match=match
             )
             if home_conflict:
                 return jsonify({
@@ -311,7 +395,7 @@ def api_schedule_match():
         
         if match.visitor_team:
             visitor_conflict = db.team_manager.check_team_date_conflict(
-                match.visitor_team.id, date, exclude_match_id=match.id
+                match.visitor_team, date, exclude_match=match
             )
             if visitor_conflict:
                 return jsonify({
@@ -376,11 +460,27 @@ def api_schedule_match():
                 )
             elif scheduling_mode == 'split_times':
                 # NEW: Handle split times scheduling
+                
+                # For split matches, the match_timeslots needs to have a time for every line
+                match_timeslots = []
+                
+                # the times only has the two start times, but the 
+                # scheduler wants times for every match.  Since we 
+                # asked for ceil(num_lines)/2, we can assign
+                # half and half.  TODO: make this a param
+                num_lines = match.league.num_lines_per_match
+                for i in range(0,math.ceil(num_lines/2)):
+                    match_timeslots.append(times[0])
+                for j in range(math.ceil(num_lines/2), num_lines):
+                    match_timeslots.append(times[1])
+                    
+                if len(match_timeslots) != num_lines:
+                    raise ValueError("WEB_SCHEDULE_MATCH: invalid number of timeslots")
+
                 success = db.schedule_match_split_times(
                     match=match,
                     date=date,
-                    timeslot1=times[0],
-                    timeslot2=times[1],
+                    timeslots=match_timeslots,
                     facility=facility
                 )
             else:  # custom mode

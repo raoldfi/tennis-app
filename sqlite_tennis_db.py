@@ -778,14 +778,12 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
         return self.match_manager.get_matches_on_date(date)
 
     # ========== Match Scheduling Operations ==========
-    
-    def schedule_match_all_lines_same_time(self, match: Match, 
-                                           date: str, time: str, 
-                                           facility: Optional[Facility] = None) -> bool:
-        facility_to_use = facility or match.home_team.home_facility
+    def schedule_match_all_lines_same_time(self, match: 'Match', 
+                                           facility: 'Facility', 
+                                           date: str, 
+                                           time: Optional[str] = None) -> bool:
         return self.match_manager.schedule_match_all_lines_same_time(
-            match, facility_to_use, date, time
-        )
+            match=match, facility=facility, date=date, time=time)
     
     def schedule_match_sequential_times(self, match: Match, 
                                         date: str, start_time: str, interval_minutes: int = 180, 
@@ -819,7 +817,7 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
     def is_schedulable(self, match: Match, date: str, 
                        facility: Optional['Facility'] = None,
                        allow_split_lines: Optional[bool]=False) -> bool:
-        return self.scheduling_manager.is_schedulable(match, date_str, facility, allow_split_lines)
+        return self.scheduling_manager.is_schedulable(match, date, facility, allow_split_lines)
 
     # ========== Advanced Scheduling Operations ==========
     

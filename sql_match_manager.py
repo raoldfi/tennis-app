@@ -375,8 +375,8 @@ class SQLMatchManager:
 
     # ========== Schedule Match Operations ==========
     
-    def schedule_match_all_lines_same_time(self, match: Match, 
-                                           facility: Facility, 
+    def schedule_match_all_lines_same_time(self, match: 'Match', 
+                                           facility: 'Facility', 
                                            date: str, 
                                            time: Optional[str] = None) -> bool:
         

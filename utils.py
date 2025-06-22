@@ -244,33 +244,39 @@ def get_optimal_scheduling_dates(match: 'Match', start_date: Optional[str] = Non
         # 5 = Day is allowed but not preferred by anyone
         
         while current <= end_dt:
-            day_name = current.strftime('%A')
-            date_str = current.strftime('%Y-%m-%d')
-            
-            # Skip days that the league doesn't allow
-            if day_name not in match.league.preferred_days and day_name not in match.league.backup_days:
-                current += timedelta(days=1)
-                continue
-            
-            # Determine priority based on team and league preferences
-            priority = 5  # Default: allowed but not preferred
-
-            if required_days:
-                if day_name in required_days and day_name in match.league.preferred_days:
-                    priority = 1  # preferred day
-                elif day_name in required_days and day_name in match.league.backup_days:
-                    priority = 2  # backup day
-                else:
+            try:
+                day_name = current.strftime('%A')
+                date_str = current.strftime('%Y-%m-%d')
+                
+                # Skip days that the league doesn't allow
+                if day_name not in match.league.preferred_days and day_name not in match.league.backup_days:
                     current += timedelta(days=1)
                     continue
-                    
-            elif day_name in match.league.preferred_days:
-                priority = 3  # League prefers this day
-            elif day_name in match.league.backup_days:
-                priority = 4  # League backup day
-            
-            candidate_dates.append((date_str, priority))
-            current += timedelta(days=1)
+                
+                # Determine priority based on team and league preferences
+                priority = 5  # Default: allowed but not preferred
+    
+                if required_days:
+                    if day_name in required_days and day_name in match.league.preferred_days:
+                        priority = 1  # preferred day
+                    elif day_name in required_days and day_name in match.league.backup_days:
+                        priority = 2  # backup day
+                    else:
+                        current += timedelta(days=1)
+                        continue
+                        
+                elif day_name in match.league.preferred_days:
+                    priority = 3  # League prefers this day
+                elif day_name in match.league.backup_days:
+                    priority = 4  # League backup day
+                
+                candidate_dates.append((date_str, priority))
+                current += timedelta(days=1)
+            except Exception as date_error:
+                # FIXED: Handle individual date processing errors without crashing
+                print(f"\n\nGET_OPTIMAL_DATES: Error processing date {current_date_str}: {date_error}")
+                current += timedelta(days=1)
+                raise date_error
         
         # Sort by priority (lower number = higher priority)
         # For same priority, maintain chronological order

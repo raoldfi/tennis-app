@@ -210,8 +210,9 @@ class TennisDBInterface(ABC):
     # ========== Match Scheduling Operations ==========
     @abstractmethod
     def schedule_match_all_lines_same_time(self, match: 'Match', 
-                                           date: str, time: str, 
-                                           facility: Optional['Facility'] = None) -> bool:
+                                           facility: 'Facility', 
+                                           date: str, 
+                                           time: Optional[str] = None) -> bool:
         """
         Schedule all lines of a match at the same facility, date, and time
         

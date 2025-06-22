@@ -8,6 +8,7 @@ Updated to work without Line class - uses match scheduled_times instead.
 """
 
 import sqlite3
+import json
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, timedelta
 from usta import Match, League, Team
@@ -211,6 +212,8 @@ class SQLSchedulingManager:
             can_schedule = db.scheduling_manager.is_schedulable(match, '2025-06-25', facility)
         """
         try:
+            print(f"\n\n IS_SCHEDULABLE: Checking {date}\n\n")
+            
             if not isinstance(match, Match):
                 return False
             
@@ -221,20 +224,29 @@ class SQLSchedulingManager:
             try:
                 from datetime import datetime
                 datetime.strptime(date, '%Y-%m-%d')
-            except ValueError:
+            except ValueError as ve:
+                print(f"DATETIME ERROR {ve}")
+                raise ve
                 return False
             
             # STEP 1: Check team conflicts first (blocking check)
             # Use same logic as auto_schedule_match and filter_dates_by_availability
-            
-            # Check home team conflicts
-            if self.db.check_team_date_conflict(match.home_team, date, exclude_match=match):
-                return False
-            
-            # Check visitor team conflicts  
-            if self.db.check_team_date_conflict(match.home_team, date, exclude_match=match):
-                return False
 
+            try:
+                # Check home team conflicts
+                if self.db.check_team_date_conflict(team=match.home_team, 
+                                                    date=date, 
+                                                    exclude_match=match):
+                    return False
+                
+                # Check visitor team conflicts  
+                if self.db.check_team_date_conflict(team=match.visitor_team, 
+                                                    date=date, 
+                                                    exclude_match=match):
+                    return False
+            except Exception as date_error:
+                print(f"\n\n ==== Team Conflict error: {date_error}\n\n")
+                raise date_error
             
             # STEP 2: Check facility availability           
             if not facility:
@@ -243,27 +255,37 @@ class SQLSchedulingManager:
             
             # Check each facility until we find one that works
             lines_needed = match.get_expected_lines()
-            
-            # Check if facility is available on this date
-            if facility.is_available_on_date(date):
-            
-                # Check to see if this facilty can accommodate the number of lines
-                can_accommodate = self.db.facility_manager.can_accommodate_lines_on_date(facility=facility,
-                                                                             date=date,
-                                                                             num_lines=lines_needed,
-                                                                             allow_split_lines=allow_split_lines)
 
-                print(f"\n\n === {can_accommodate}: Checked to see if facility {facility.short_name} "
-                      f"can accommodate {lines_needed}, allow_split_lines={allow_split_lines}")
-
-                if can_accommodate:
-                    return True
+            try:
             
-            return False
+                # Check if facility is available on this date
+                if facility.is_available_on_date(date):
+                
+                    # Check to see if this facilty can accommodate the number of lines
+                    can_accommodate = self.db.facility_manager.can_accommodate_lines_on_date(facility=facility,
+                                                                                 date=date,
+                                                                                 num_lines=lines_needed,
+                                                                                 allow_split_lines=allow_split_lines)
+    
+                    print(f"\n\n === {can_accommodate}: Checked to see if facility {facility.short_name} "
+                          f"can accommodate {lines_needed}, allow_split_lines={allow_split_lines}")
+    
+                    if can_accommodate:
+                        return True
+                
+                return False
+                
+            except Exception as accom_err:
+                # Any unexpected error means we can't schedule
+                print(f"\n\n ==== Error calling can_accommodate: {e}")
+                raise e
+                return False
+            
             
         except Exception as e:
             # Any unexpected error means we can't schedule
             print(f"Error in is_schedulable: {e}")
+            raise e
             return False
     
     
@@ -289,12 +311,12 @@ class SQLSchedulingManager:
         try:
             results = {}
             
-            for date_str in date_list:
+            for current_date_str in date_list:
                 try:
-                    results[date_str] = self.is_schedulable(match=match, date=date_str, facility=facility)
+                    results[current_date_str] = self.is_schedulable(match=match, date=current_date_str, facility=facility)
                 except Exception as e:
-                    print(f"Error checking {date_str}: {e}")
-                    results[date_str] = False
+                    print(f"Error checking {current_date_str}: {e}")
+                    results[current_date_str] = False
             
             return results
             
@@ -646,7 +668,7 @@ class SQLSchedulingManager:
             # Priority levels for dates
             while current <= end_dt:
                 day_name = current.strftime('%A')
-                date_str = current.strftime('%Y-%m-%d')
+                current_date_str = current.strftime('%Y-%m-%d')
                 
                 # Priority: 1 = preferred days, 2 = backup days, 3 = other allowed days
                 priority = 3
@@ -657,7 +679,7 @@ class SQLSchedulingManager:
                 
                 # Only include days that the league allows
                 if priority <= 3:  # All allowed days
-                    candidate_dates.append((date_str, priority))
+                    candidate_dates.append((current_date_str, priority))
                 
                 current += timedelta(days=1)
             

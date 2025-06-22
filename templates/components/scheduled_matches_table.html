@@ -1,4 +1,4 @@
-<!-- components/scheduled_matches_table.html - Fixed version with proper error handling -->
+<!-- components/scheduled_matches_table.html - Redesigned with embedded sortable tables -->
 {% if matches and matches|length > 0 %}
 
 <!-- Group matches by date for better organization -->
@@ -7,196 +7,221 @@
 <!-- Desktop Table View -->
 <div class="d-none d-lg-block">
     {% for date, day_matches in grouped_matches %}
-        <div class="tennis-matches-day-group mb-4">
-            <!-- Day Header -->
+        <div class="tennis-matches-day-group mb-4" data-day-group="{{ loop.index }}">
+            <!-- Day Header with enhanced styling -->
             <div class="day-header">
                 <div class="d-flex justify-content-between align-items-center">
-                    <div>
+                    <div class="d-flex align-items-center">
                         {% if date and date is not none %}
                             {% if date is string %}
-                                <span class="day-name">{{ date }}</span>
-                                <span class="date-display">{{ date }}</span>
+                                {% set date_obj = date | parse_date %}
+                                {% if date_obj %}
+                                    <span class="day-and-date">{{ date_obj.strftime('%A, %B %d, %Y') }}</span>
+                                {% else %}
+                                    <span class="day-and-date">{{ date }}</span>
+                                {% endif %}
                             {% else %}
-                                <span class="day-name">{{ date.strftime('%A') }}</span>
-                                <span class="date-display">{{ date.strftime('%B %d, %Y') }}</span>
+                                <span class="day-and-date">{{ date.strftime('%A, %B %d, %Y') }}</span>
                             {% endif %}
                         {% else %}
-                            <span class="day-name">Unscheduled</span>
-                            <span class="date-display">No Date Set</span>
+                            <span class="day-and-date">Unscheduled Matches</span>
                         {% endif %}
+                        <i class="fas fa-calendar-day ms-3 opacity-75"></i>
                     </div>
-                    <div>
+                    <div class="d-flex align-items-center gap-3">
                         <span class="badge bg-light text-dark">{{ day_matches|list|length }} matches</span>
+                        <button class="btn btn-sm btn-outline-light collapse-toggle" 
+                                data-bs-toggle="collapse" 
+                                data-bs-target="#dayGroup{{ loop.index }}" 
+                                aria-expanded="true"
+                                title="Toggle matches for this day">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Matches Table for this Day -->
-            <div class="tennis-matches-table">
-                <table class="table table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th width="8%">ID</th>
-                            <th width="25%">Teams</th>
-                            <th width="15%">League</th>
-                            <th width="15%">Facility</th>
-                            <th width="15%">Times</th>
-                            <th width="10%">Status</th>
-                            <th width="12%" class="text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for match in day_matches %}
-                        <tr class="match-row {% if match.is_scheduled() %}match-status-scheduled{% else %}match-status-unscheduled{% endif %}">
-                            <!-- Match ID -->
-                            <td class="match-id-cell">
-                                <strong>{{ match.id }}</strong>
-                            </td>
+            <!-- Collapsible Embedded Sortable Table for this Day -->
+            <div class="collapse show" id="dayGroup{{ loop.index }}">
+                <div class="embedded-day-table" data-table-id="dayTable{{ loop.index }}">
+                    <table class="table table-hover mb-0 sortable-table" id="dayTable{{ loop.index }}">
+                        <thead>
+                            <tr>
+                                <th width="8%" class="sortable-header" data-sort-column="0" data-sort-type="numeric">
+                                    <span>ID</span>
+                                    <i class="fas fa-sort ms-1 sort-icon"></i>
+                                </th>
+                                <th width="20%" class="sortable-header" data-sort-column="1" data-sort-type="text">
+                                    <span>Home</span>
+                                    <i class="fas fa-sort ms-1 sort-icon"></i>
+                                </th>
+                                <th width="20%" class="sortable-header" data-sort-column="2" data-sort-type="text">
+                                    <span>Visitor</span>
+                                    <i class="fas fa-sort ms-1 sort-icon"></i>
+                                </th>
+                                <th width="18%" class="sortable-header" data-sort-column="3" data-sort-type="text">
+                                    <span>Times</span>
+                                    <i class="fas fa-sort ms-1 sort-icon"></i>
+                                </th>
+                                <th width="12%" class="sortable-header" data-sort-column="4" data-sort-type="text">
+                                    <span>Facility</span>
+                                    <i class="fas fa-sort ms-1 sort-icon"></i>
+                                </th>
+                                <th width="22%" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for match in day_matches %}
+                            <tr class="match-row {% if match.is_scheduled() %}match-status-scheduled{% else %}match-status-unscheduled{% endif %}"
+                                data-match-id="{{ match.id }}">
+                                
+                                <!-- Match ID -->
+                                <td class="match-id-cell">
+                                    <strong>{{ match.id }}</strong>
+                                </td>
 
-                            <!-- Teams -->
-                            <td class="team-matchup">
-                                <div class="home-team-row">
-                                    <span class="home-team">{{ match.home_team.name if match.home_team else 'TBD' }}</span>
-                                    <span class="text-muted">(Home)</span>
-                                </div>
-                                <div class="visitor-team-row">
-                                    <span class="visitor-team">{{ match.visitor_team.name if match.visitor_team else 'TBD' }}</span>
-                                    <span class="text-muted">(Visitor)</span>
-                                </div>
-                            </td>
-
-                            <!-- League -->
-                            <td class="league-cell">
-                                <div class="fw-bold">{{ match.league.name if match.league else 'Unknown League' }}</div>
-                                {% if match.league and match.league.division %}
-                                    <small class="text-muted">{{ match.league.division }}</small>
-                                {% endif %}
-                            </td>
-
-                            <!-- Facility -->
-                            <td class="facility-cell">
-                                {% if match.facility %}
-                                    <div class="facility-name">{{ match.facility.name }}</div>
-                                    {% if match.facility.location %}
-                                        <small class="text-muted">{{ match.facility.location }}</small>
+                                <!-- Home Team -->
+                                <td class="home-team-cell">
+                                    <div class="team-name">
+                                        <i class="fas fa-home me-1 text-success"></i>
+                                        <span class="fw-bold">{{ match.home_team.name if match.home_team else 'TBD' }}</span>
+                                    </div>
+                                    {% if match.league %}
+                                        <small class="text-muted">{{ match.league.name }}</small>
                                     {% endif %}
-                                {% else %}
-                                    <span class="text-muted">Not scheduled</span>
-                                {% endif %}
-                            </td>
+                                </td>
 
-                            <!-- Times -->
-                            <td class="times-cell">
-                                {% if match.is_scheduled() %}
-                                    <div class="times-display">
-                                        {% set scheduled_times = match.scheduled_times %}
-                                        
-                                        {% if scheduled_times %}
-                                            {% for time in scheduled_times %}
-                                                <span class="time-badge">{{ time }}</span>
-                                            {% endfor %}
-                                        {% else %}
-                                            <span class="no-times-badge">No times set</span>
-                                        {% endif %}
+                                <!-- Visitor Team -->
+                                <td class="visitor-team-cell">
+                                    <div class="team-name">
+                                        <i class="fas fa-plane me-1 text-info"></i>
+                                        <span class="fw-bold">{{ match.visitor_team.name if match.visitor_team else 'TBD' }}</span>
                                     </div>
-                                    
-                                    <!-- Scheduling status -->
-                                    <div class="scheduling-status">
-                                        {% if match.is_fully_scheduled() %}
-                                            <small class="text-success">
-                                                <i class="fas fa-check-circle"></i> Fully scheduled
-                                            </small>
-                                        {% elif match.is_partially_scheduled() %}
-                                            <small class="text-warning">
-                                                <i class="fas fa-exclamation-circle"></i> Partially scheduled
-                                            </small>
-                                        {% endif %}
-                                    </div>
-                                {% else %}
-                                    <span class="text-muted">Not scheduled</span>
-                                {% endif %}
-                            </td>
+                                    {% if match.facility %}
+                                        <small class="text-muted">{{ match.facility.location if match.facility.location else '' }}</small>
+                                    {% endif %}
+                                </td>
 
-                            <!-- Status -->
-                            <td class="status-cell">
-                                {% if match.is_scheduled() %}
-                                    <span class="tennis-badge-success">Scheduled</span>
-                                {% elif match.is_partially_scheduled() %}
-                                    <span class="tennis-badge-warning">Partial</span>
-                                {% else %}
-                                    <span class="tennis-badge-secondary">Unscheduled</span>
-                                {% endif %}
-                            </td>
-
-                            <!-- Actions -->
-                            <td class="text-center">
-                                <div class="action-buttons">
-                                    <!-- View Button -->
-                                    <a href="{{ url_for('view_match', match_id=match.id) }}" 
-                                       class="action-btn action-btn-view"
-                                       data-match-id="{{ match.id }}" 
-                                       data-action="view"
-                                       title="View Match Details">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    
+                                <!-- Times (Compact Display) -->
+                                <td class="times-cell">
                                     {% if match.is_scheduled() %}
-                                        <!-- Unschedule Button -->
-                                        <button class="action-btn action-btn-unschedule"
-                                                data-match-id="{{ match.id }}" 
-                                                data-action="unschedule"
-                                                data-description="{{ match.home_team.name if match.home_team else 'TBD' }} vs {{ match.visitor_team.name if match.visitor_team else 'TBD' }}"
-                                                title="Unschedule Match">
-                                            <i class="fas fa-calendar-times"></i>
+                                        <div class="times-display-compact">
+                                            {% set scheduled_times = match.scheduled_times %}
+                                            
+                                            {% if scheduled_times %}
+                                                {% for time in scheduled_times[:2] %}
+                                                    <span class="time-badge-compact">{{ time }}</span>
+                                                {% endfor %}
+                                                {% if scheduled_times|length > 2 %}
+                                                    <span class="time-more">+{{ scheduled_times|length - 2 }}</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="no-times-badge-compact">No times</span>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <!-- Compact Scheduling Status -->
+                                        <div class="scheduling-status-compact">
+                                            {% if match.is_fully_scheduled() %}
+                                                <small class="text-success">
+                                                    <i class="fas fa-check-circle"></i> Complete
+                                                </small>
+                                            {% elif match.is_partially_scheduled() %}
+                                                <small class="text-warning">
+                                                    <i class="fas fa-exclamation-circle"></i> Partial
+                                                </small>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">Not scheduled</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Facility (Clickable) -->
+                                <td class="facility-cell">
+                                    {% if match.facility %}
+                                        <button class="facility-link-btn"
+                                                onclick="window.location.href='{{ url_for('view_facility', facility_id=match.facility.id) }}'"
+                                                title="View {{ match.facility.name }} Details">
+                                            <i class="fas fa-map-marker-alt me-1"></i>
+                                            <span class="facility-short-name">{{ match.facility.name[:10] }}{% if match.facility.name|length > 10 %}...{% endif %}</span>
+                                        </button>
+                                    {% else %}
+                                        <span class="text-muted">Not set</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Compact Actions -->
+                                <td class="text-center">
+                                    <div class="action-buttons-compact">
+                                        <!-- View Button -->
+                                        <button class="action-btn-compact action-btn-view"
+                                                onclick="window.location.href='{{ url_for('view_match', match_id=match.id) }}'"
+                                                title="View Match Details">
+                                            <i class="fas fa-eye"></i>
                                         </button>
                                         
-                                        <!-- Reschedule Button -->
-                                        <a href="/matches/{{ match.id }}/schedule" 
-                                           class="action-btn action-btn-edit"
-                                           title="Reschedule Match">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                    {% else %}
-                                        <!-- Schedule Button (NEW) -->
-                                        <a href="/matches/{{ match.id }}/schedule" 
-                                           class="action-btn action-btn-schedule"
-                                           title="Schedule Match">
-                                            <i class="fas fa-calendar-plus"></i>
-                                        </a>
-                                    {% endif %}
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                        {% if match.is_scheduled() %}
+                                            <!-- Unschedule Button -->
+                                            <button class="action-btn-compact action-btn-unschedule"
+                                                    onclick="unscheduleMatch({{ match.id }}, '{{ match.home_team.name if match.home_team else 'TBD' }} vs {{ match.visitor_team.name if match.visitor_team else 'TBD' }}')"
+                                                    title="Unschedule Match">
+                                                <i class="fas fa-calendar-times"></i>
+                                            </button>
+                                            
+                                            <!-- Reschedule Button -->
+                                            <button class="action-btn-compact action-btn-edit"
+                                                    onclick="window.location.href='{{ url_for('schedule_match', match_id=match.id) }}'"
+                                                    title="Reschedule Match">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                        {% else %}
+                                            <!-- Schedule Button -->
+                                            <button class="action-btn-compact action-btn-schedule"
+                                                    onclick="window.location.href='{{ url_for('schedule_match', match_id=match.id) }}'"
+                                                    title="Schedule Match">
+                                                <i class="fas fa-calendar-plus"></i>
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     {% endfor %}
 </div>
 
-<!-- Mobile Card View -->
+<!-- Mobile Card View (Simplified) -->
 <div class="d-lg-none">
     {% for date, day_matches in grouped_matches %}
-        <div class="mobile-day-group">
+        <div class="mobile-day-group mb-4">
             <!-- Mobile Day Header -->
             <div class="mobile-day-header">
-                {% if date and date is not none %}
-                    {% if date is string %}
-                        <h6>{{ date }}</h6>
-                    {% else %}
-                        <h6>{{ date.strftime('%A, %B %d') }}</h6>
-                    {% endif %}
-                {% else %}
-                    <h6>Unscheduled Matches</h6>
-                {% endif %}
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        {% if date and date is not none %}
+                            {% if date is string %}
+                                <h6 class="mb-0">{{ date }}</h6>
+                            {% else %}
+                                <h6 class="mb-0">{{ date.strftime('%A, %B %d') }}</h6>
+                            {% endif %}
+                        {% else %}
+                            <h6 class="mb-0">Unscheduled Matches</h6>
+                        {% endif %}
+                    </div>
+                    <span class="badge bg-light text-dark">{{ day_matches|list|length }}</span>
+                </div>
             </div>
 
             <!-- Mobile Match Cards -->
             <div class="mobile-day-group-content">
                 {% for match in day_matches %}
-                <div class="card tennis-card mb-3">
-                    <div class="card-body">
+                <div class="card tennis-card mb-2">
+                    <div class="card-body py-2">
                         <!-- Match Header -->
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <span class="match-id-cell">Match #{{ match.id }}</span>
@@ -255,9 +280,8 @@
                             
                             {% if match.is_scheduled() %}
                                 <button class="btn btn-sm btn-tennis-warning flex-fill"
-                                        data-match-id="{{ match.id }}" 
-                                        data-action="unschedule"
-                                        data-description="{{ match.home_team.name if match.home_team else 'TBD' }} vs {{ match.visitor_team.name if match.visitor_team else 'TBD' }}">
+                                        onclick="unscheduleMatch({{ match.id }}, '{{ match.home_team.name if match.home_team else 'TBD' }} vs {{ match.visitor_team.name if match.visitor_team else 'TBD' }}')"
+                                        title="Unschedule Match">
                                     <i class="fas fa-calendar-times"></i> Unschedule
                                 </button>
                                 <a href="/matches/{{ match.id }}/schedule" 
@@ -265,7 +289,7 @@
                                     <i class="fas fa-edit"></i> Reschedule
                                 </a>
                             {% else %}
-                                <!-- Schedule Button for Mobile (NEW) -->
+                                <!-- Schedule Button for Mobile -->
                                 <a href="/matches/{{ match.id }}/schedule" 
                                    class="btn btn-sm btn-tennis-success flex-fill">
                                     <i class="fas fa-calendar-plus"></i> Schedule
@@ -293,3 +317,488 @@
     </div>
 </div>
 {% endif %}
+
+<!-- Enhanced CSS for Embedded Sortable Tables -->
+<style>
+/* Enhanced Day Group Styling */
+.tennis-matches-day-group {
+    border-radius: var(--tennis-border-radius-lg);
+    overflow: hidden;
+    box-shadow: var(--tennis-box-shadow);
+    background: white;
+    border: 1px solid var(--tennis-gray-200);
+    transition: var(--tennis-transition);
+}
+
+.tennis-matches-day-group:hover {
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+/* Day Header Enhancements */
+.day-header {
+    background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
+    color: white;
+    padding: 1rem 1.25rem;
+    border-bottom: 2px solid var(--tennis-primary-dark);
+}
+
+.day-header .day-and-date {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.collapse-toggle {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    transition: var(--tennis-transition);
+}
+
+.collapse-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Embedded Table Styling */
+.embedded-day-table {
+    background: white;
+}
+
+.sortable-table {
+    margin-bottom: 0;
+}
+
+.sortable-table thead th {
+    background: linear-gradient(135deg, #2d5a87 0%, #1e3a5f 100%);
+    color: white;
+    font-weight: 600;
+    border-bottom: none;
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    position: relative;
+}
+
+.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    transition: var(--tennis-transition-fast);
+}
+
+.sortable-header:hover {
+    background: linear-gradient(135deg, #3d6a97 0%, #2e4a6f 100%);
+}
+
+.sortable-header.sort-asc .sort-icon {
+    transform: rotate(180deg);
+    color: var(--tennis-warning);
+}
+
+.sortable-header.sort-desc .sort-icon {
+    transform: rotate(0deg);
+    color: var(--tennis-warning);
+}
+
+.sort-icon {
+    transition: all 0.3s ease;
+    opacity: 0.7;
+}
+
+.sortable-header:hover .sort-icon {
+    opacity: 1;
+}
+
+/* Enhanced Row Styling */
+.sortable-table tbody tr {
+    transition: all 0.2s ease;
+    border-bottom: 1px solid var(--tennis-gray-200);
+}
+
+.sortable-table tbody tr:hover {
+    background: linear-gradient(90deg, rgba(45, 90, 135, 0.05) 0%, white 15%);
+    transform: scale(1.002);
+    box-shadow: 0 2px 8px rgba(45, 90, 135, 0.1);
+    border-left: 4px solid var(--tennis-primary);
+}
+
+.sortable-table tbody tr:nth-child(even) {
+    background-color: rgba(248, 249, 250, 0.5);
+}
+
+.sortable-table tbody tr:nth-child(even):hover {
+    background: linear-gradient(90deg, rgba(45, 90, 135, 0.05) 0%, rgba(248, 249, 250, 0.5) 15%);
+}
+
+.sortable-table tbody td {
+    vertical-align: middle;
+    padding: 0.75rem;
+}
+
+/* Enhanced Cell Styling */
+.match-id-cell {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    background-color: var(--tennis-gray-100);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--tennis-border-radius);
+    display: inline-block;
+    font-weight: 600;
+}
+
+.team-name {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+
+.team-name .fw-bold {
+    color: var(--tennis-gray-800);
+}
+
+/* Facility Link Button Styling */
+.facility-link-btn {
+    background: linear-gradient(135deg, var(--tennis-blue) 0%, var(--tennis-blue-light) 100%);
+    color: white;
+    border: none;
+    padding: 0.375rem 0.5rem;
+    border-radius: var(--tennis-border-radius);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--tennis-transition);
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    max-width: 100%;
+}
+
+.facility-link-btn:hover {
+    background: linear-gradient(135deg, var(--tennis-blue-light) 0%, var(--tennis-blue) 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 0.25rem 0.5rem rgba(74, 140, 193, 0.3);
+    color: white;
+}
+
+.facility-short-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80px;
+}
+
+.facility-cell {
+    max-width: 120px;
+}
+
+/* Compact Action Buttons */
+.action-buttons-compact {
+    display: flex;
+    gap: 0.25rem;
+    justify-content: center;
+    align-items: center;
+}
+
+.action-btn-compact {
+    padding: 0.375rem 0.5rem;
+    border-radius: var(--tennis-border-radius);
+    border: none;
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: var(--tennis-transition);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    height: 2rem;
+}
+
+.action-btn-compact:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15);
+}
+
+.action-btn-compact i {
+    font-size: 0.8rem;
+}
+
+.action-btn-view {
+    background: linear-gradient(135deg, var(--tennis-info) 0%, var(--tennis-info-dark) 100%);
+    color: white;
+}
+
+.action-btn-unschedule {
+    background: linear-gradient(135deg, var(--tennis-warning) 0%, var(--tennis-warning-dark) 100%);
+    color: #212529;
+}
+
+.action-btn-edit {
+    background: linear-gradient(135deg, var(--tennis-purple) 0%, var(--tennis-purple-dark) 100%);
+    color: white;
+}
+
+.action-btn-schedule {
+    background: linear-gradient(135deg, var(--tennis-success) 0%, var(--tennis-success-dark) 100%);
+    color: white;
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+    .mobile-day-header {
+        background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
+        color: white;
+        padding: 0.75rem 1rem;
+        border-radius: var(--tennis-border-radius) var(--tennis-border-radius) 0 0;
+        margin-bottom: 0;
+    }
+
+    .mobile-day-group .card:first-of-type {
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+    }
+    
+    .action-btn-compact {
+        padding: 0.25rem 0.375rem;
+        min-width: 1.75rem;
+        height: 1.75rem;
+    }
+}
+</style>
+
+<!-- Enhanced JavaScript for Sortable Tables -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize sortable functionality for all embedded tables
+    initializeSortableTables();
+    
+    // Initialize collapse functionality
+    initializeCollapseToggles();
+    
+    // Initialize enhanced interactions
+    initializeTableInteractions();
+});
+
+function initializeSortableTables() {
+    // Find all sortable tables
+    const sortableTables = document.querySelectorAll('.sortable-table');
+    
+    sortableTables.forEach(table => {
+        const headers = table.querySelectorAll('.sortable-header');
+        
+        headers.forEach(header => {
+            header.addEventListener('click', function() {
+                const column = parseInt(this.dataset.sortColumn);
+                const sortType = this.dataset.sortType;
+                const tableId = table.id;
+                
+                sortTableByColumn(tableId, column, sortType, this);
+            });
+        });
+    });
+}
+
+function sortTableByColumn(tableId, columnIndex, sortType, headerElement) {
+    const table = document.getElementById(tableId);
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Determine sort direction
+    const currentDirection = headerElement.dataset.sortDirection || 'asc';
+    const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+    
+    // Reset all sort indicators in this table
+    const allHeaders = table.querySelectorAll('.sortable-header');
+    allHeaders.forEach(h => {
+        h.classList.remove('sort-asc', 'sort-desc');
+        h.dataset.sortDirection = '';
+        const icon = h.querySelector('.sort-icon');
+        if (icon) {
+            icon.className = 'fas fa-sort ms-1 sort-icon';
+        }
+    });
+    
+    // Update current header
+    headerElement.classList.add(`sort-${newDirection}`);
+    headerElement.dataset.sortDirection = newDirection;
+    const icon = headerElement.querySelector('.sort-icon');
+    if (icon) {
+        icon.className = `fas fa-sort-${newDirection === 'asc' ? 'up' : 'down'} ms-1 sort-icon`;
+    }
+    
+    // Sort rows
+    rows.sort((a, b) => {
+        let aValue, bValue;
+        
+        // Handle different columns with specific sorting logic
+        if (columnIndex === 0) {
+            // ID column - numeric sort
+            aValue = parseInt(a.cells[columnIndex].textContent.trim().replace(/\D/g, '')) || 0;
+            bValue = parseInt(b.cells[columnIndex].textContent.trim().replace(/\D/g, '')) || 0;
+            return newDirection === 'asc' ? aValue - bValue : bValue - aValue;
+        } else if (columnIndex === 4) {
+            // Facility column - handle button text
+            const aButton = a.cells[columnIndex].querySelector('.facility-short-name');
+            const bButton = b.cells[columnIndex].querySelector('.facility-short-name');
+            aValue = aButton ? aButton.textContent.trim() : 'ZZZ'; // Put "Not set" at end
+            bValue = bButton ? bButton.textContent.trim() : 'ZZZ';
+        } else {
+            // Text columns
+            aValue = a.cells[columnIndex].textContent.trim();
+            bValue = b.cells[columnIndex].textContent.trim();
+        }
+        
+        // Handle text sorting
+        const result = aValue.toString().localeCompare(bValue.toString(), undefined, {
+            numeric: true,
+            sensitivity: 'base'
+        });
+        return newDirection === 'asc' ? result : -result;
+    });
+    
+    // Re-append sorted rows with animation
+    rows.forEach((row, index) => {
+        setTimeout(() => {
+            tbody.appendChild(row);
+        }, index * 10); // Stagger the animation
+    });
+    
+    // Show notification using TennisUI if available
+    if (typeof TennisUI !== 'undefined') {
+        TennisUI.showNotification(
+            `Sorted by ${headerElement.textContent.trim()} (${newDirection === 'asc' ? 'ascending' : 'descending'})`, 
+            'info'
+        );
+    }
+}
+
+function initializeCollapseToggles() {
+    document.querySelectorAll('.collapse-toggle').forEach(toggle => {
+        toggle.addEventListener('click', function() {
+            const icon = this.querySelector('i');
+            const isExpanded = this.getAttribute('aria-expanded') === 'true';
+            
+            // Toggle icon
+            if (isExpanded) {
+                icon.className = 'fas fa-chevron-down';
+            } else {
+                icon.className = 'fas fa-chevron-up';
+            }
+        });
+    });
+}
+
+function initializeTableInteractions() {
+    // Enhanced hover effects for match rows
+    document.querySelectorAll('.match-row').forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            // Add subtle glow effect
+            this.style.boxShadow = '0 4px 12px rgba(45, 90, 135, 0.15)';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            // Remove glow effect
+            this.style.boxShadow = '';
+        });
+    });
+    
+    // Initialize action button interactions
+    document.querySelectorAll('.action-btn-compact').forEach(btn => {
+        btn.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px) scale(1.05)';
+        });
+        
+        btn.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0) scale(1)';
+        });
+    });
+}
+
+// Integrate with existing TennisUI system if available
+if (typeof TennisUI !== 'undefined') {
+    // Add our initialization to the existing TennisUI system
+    const originalInit = TennisUI.initializeScheduledMatchesTable;
+    TennisUI.initializeScheduledMatchesTable = function() {
+        if (originalInit) originalInit.call(this);
+        initializeSortableTables();
+        initializeCollapseToggles();
+        initializeTableInteractions();
+    };
+}
+
+// Match Action Functions
+function unscheduleMatch(matchId, description) {
+    if (!confirm(`Are you sure you want to unschedule this match?\n\n${description}`)) {
+        return;
+    }
+    
+    // Show loading state
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    button.disabled = true;
+    
+    // Call the unschedule route using DELETE method
+    fetch(`/matches/${matchId}/schedule`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            if (typeof TennisUI !== 'undefined' && TennisUI.showNotification) {
+                TennisUI.showNotification(data.message || 'Match unscheduled successfully', 'success');
+            } else {
+                alert(data.message || 'Match unscheduled successfully');
+            }
+            
+            // Reload the page to refresh the table
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else if (data.warning) {
+            // Handle warning case (match already unscheduled)
+            if (typeof TennisUI !== 'undefined' && TennisUI.showNotification) {
+                TennisUI.showNotification(data.warning, 'warning');
+            } else {
+                alert(data.warning);
+            }
+            
+            // Still reload to refresh the view
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            // Handle error case
+            const errorMsg = data.error || 'Failed to unschedule match';
+            if (typeof TennisUI !== 'undefined' && TennisUI.showNotification) {
+                TennisUI.showNotification(errorMsg, 'error');
+            } else {
+                alert(errorMsg);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error unscheduling match:', error);
+        const errorMsg = 'Network error while unscheduling match';
+        if (typeof TennisUI !== 'undefined' && TennisUI.showNotification) {
+            TennisUI.showNotification(errorMsg, 'error');
+        } else {
+            alert(errorMsg);
+        }
+    })
+    .finally(() => {
+        // Restore button state
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function scheduleMatch(matchId) {
+    // Navigate to the schedule page
+    window.location.href = `/matches/${matchId}/schedule`;
+}
+</script>

@@ -719,10 +719,21 @@ def register_routes(app, get_db):
         
         sorted_matches = sorted(matches, key=sort_key)
         
-        # Group by date (None dates will be grouped together)
+        # Group by date, but convert string dates to datetime objects
         grouped = []
         for date, group in groupby(sorted_matches, key=lambda m: m.date):
-            grouped.append((date, list(group)))
+            # Convert string dates to datetime objects for proper formatting
+            if date and isinstance(date, str):
+                try:
+                    # Parse string date to datetime object
+                    date_obj = datetime.strptime(date, '%Y-%m-%d').date()
+                    grouped.append((date_obj, list(group)))
+                except ValueError:
+                    # If parsing fails, keep as string
+                    grouped.append((date, list(group)))
+            else:
+                # Keep datetime objects or None as-is
+                grouped.append((date, list(group)))
         
         return grouped
 
