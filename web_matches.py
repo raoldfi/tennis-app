@@ -155,7 +155,7 @@ def register_routes(app, get_db):
             if not match:
                 return jsonify({'error': 'Match not found'}), 404
 
-            if match.is_scheduled():
+            if match.is_unscheduled():
                 return jsonify({'warning': f"match {match_id} is already unscheduled"})
 
             success = db.unschedule_match(match)

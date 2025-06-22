@@ -5,6 +5,21 @@
 {% block content %}
 <style>
     /* Custom styles using TennisUI variables */
+
+    .date-card .court-availability {
+        font-size: 0.75rem;
+        color: var(--tennis-gray-600);
+    }
+    
+    .date-card .time-slot-detail {
+        padding: 2px 0;
+        border-bottom: 1px solid var(--tennis-gray-100);
+    }
+    
+    .date-card .time-slot-detail:last-child {
+        border-bottom: none;
+    }
+    
     .date-card {
         transition: var(--tennis-transition);
         cursor: pointer;
@@ -220,8 +235,40 @@
                                 <h6 class="mb-2 fw-bold">{{ date_option.day_name }}</h6>
                                 <p class="mb-1 text-muted">{{ date_option.formatted_date }}</p>
                                 
-                                <!-- Available Times -->
-                                {% if date_option.available_times %}
+
+
+                                <!-- Available Times with Court Information -->
+                                {% if date_option.time_slot_details %}
+                                <div class="mt-2">
+                                    <small class="text-success fw-bold">
+                                        <i class="fas fa-clock"></i> 
+                                        {{ date_option.time_slot_details|length }} time slots
+                                    </small>
+                                    <div class="small mt-1">
+                                        {% for slot in date_option.time_slot_details[:3] %}
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="badge bg-light text-dark">{{ slot.time }}</span>
+                                            <span class="text-muted small">
+                                                <!-- 
+                                                <i class="fas fa-tennis-ball"></i> {{ slot.available_courts }}/{{ slot.total_courts }} courts available
+                                                -->
+                                                <i class="fas fa-tennis-ball"></i> {{ slot.total_courts }} courts available
+
+                                            </span>
+
+
+                                            
+                                        </div>
+                                        {% endfor %}
+                                        {% if date_option.time_slot_details|length > 3 %}
+                                        <div class="text-center mt-1">
+                                            <small class="text-muted">+{{ date_option.time_slot_details|length - 3 }} more time slots</small>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% elif date_option.available_times %}
+                                <!-- Fallback for existing data structure -->
                                 <div class="mt-2">
                                     <small class="text-success fw-bold">
                                         <i class="fas fa-clock"></i> 
@@ -237,6 +284,8 @@
                                     </div>
                                 </div>
                                 {% endif %}
+
+                                
                                 
                                 <!-- Conflicts -->
                                 {% if date_option.conflicts %}
@@ -246,6 +295,20 @@
                                     {% endfor %}
                                 </div>
                                 {% endif %}
+
+<!--
+                                {% if date_option.time_slot_details %}
+                                {% set total_courts = date_option.time_slot_details | sum(attribute='available_courts') %}
+                                {% set max_courts = date_option.time_slot_details | map(attribute='available_courts') | max %}
+                                <div class="mt-2 pt-2 border-top">
+                                    <small class="text-info">
+                                        <i class="fas fa-info-circle"></i>
+                                        Up to {{ max_courts }} courts available per time slot
+                                    </small>
+                                </div>
+                                {% endif %}
+-->
+                                
                             </div>
                         </div>
                     </div>
@@ -270,6 +333,20 @@
                 </div>
             </div>
             
+            <!-- Scheduling Mode -->
+            <div class="schedule-form-section" id="mode-section" style="display: none;">
+                <label class="form-label">Scheduling Mode:</label>
+                <select class="form-select" id="scheduling-mode">
+                    <option value="custom">Custom Times</option>
+                    <option value="same_time">All Lines Same Time</option>
+                    <option value="sequential">Sequential Times</option>
+                    <option value="split_times">Split Times</option>
+                </select>
+                <small style="color: var(--tennis-gray-600);">
+                    <div id="mode-description" class="mt-1"></div>
+                </small>
+            </div>
+            
             <!-- Available Times -->
             <div class="schedule-form-section" id="times-section" style="display: none;">
                 <label class="form-label">Available Times:</label>
@@ -284,19 +361,7 @@
                 </div>
             </div>
             
-            <!-- Scheduling Mode -->
-            <div class="schedule-form-section" id="mode-section" style="display: none;">
-                <label class="form-label">Scheduling Mode:</label>
-                <select class="form-select" id="scheduling-mode">
-                    <option value="custom">Custom Times</option>
-                    <option value="same_time">All Lines Same Time</option>
-                    <option value="sequential">Sequential Times</option>
-                    <option value="split_times">Split Times</option>
-                </select>
-                <small style="color: var(--tennis-gray-600);">
-                    <div id="mode-description" class="mt-1"></div>
-                </small>
-            </div>
+
             
             <!-- Selected Times Display -->
             <div class="schedule-form-section" id="selected-times-section" style="display: none;">

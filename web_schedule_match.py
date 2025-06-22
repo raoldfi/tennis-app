@@ -121,14 +121,35 @@ def schedule_match_form(match_id: int):
                             courts_needed=courts_needed
                         )
                         
+                        # Get detailed court availability for each time slot
+                        # Get detailed court availability for each time slot
+                        time_slot_details = []
+                        for time in available_times:
+                            # Get available courts for this specific time
+                            available_courts = db.facility_manager.get_available_courts_at_time(
+                                facility, current_date_str, time
+                            )
+                            
+                            # Get total courts for this time slot
+                            total_courts = db.facility_manager.get_total_courts_at_time(
+                                facility, current_date_str, time
+                            )
+                            
+                            time_slot_details.append({
+                                'time': time,
+                                'available_courts': available_courts,
+                                'total_courts': total_courts
+                            })
+                        
                         date_option = {
-                                        'date': current_date_str,
-                                        'day_name': day_name,
-                                        'formatted_date': date_obj.strftime('%B %d, %Y'),
-                                        'available_times': available_times,
-                                        'score': max(0, score),  # Don't go below 0
-                                        'courts_available': getattr(facility, 'total_courts', getattr(facility, 'court_count', 3)),
-                                        'facility_name': facility.name
+                            'date': current_date_str,
+                            'day_name': day_name,
+                            'formatted_date': date_obj.strftime('%B %d, %Y'),
+                            'available_times': available_times,
+                            'time_slot_details': time_slot_details,  # NEW: detailed court info per time
+                            'score': max(0, score),
+                            'courts_available': getattr(facility, 'total_courts', getattr(facility, 'court_count', 3)),
+                            'facility_name': facility.name
                         }
 
                         available_dates.append(date_option)

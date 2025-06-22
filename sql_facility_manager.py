@@ -824,3 +824,56 @@ class SQLFacilityManager:
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error removing unavailable date: {e}")
         return True
+
+
+    def get_available_courts_at_time(self, facility: 'Facility', date: str, time: str) -> int:
+        """Get number of available courts at a specific facility, date, and time"""
+        try:
+            if not facility or not facility.is_available_on_date(date):
+                return 0
+            
+            # Get day schedule
+            date_obj = datetime.strptime(date, '%Y-%m-%d')
+            day_name = date_obj.strftime('%A')
+            day_schedule = facility.schedule.get_day_schedule(day_name)
+            
+            # Find the time slot
+            time_slot = None
+            for slot in day_schedule.start_times:
+                if slot.time == time:
+                    time_slot = slot
+                    break
+            
+            if not time_slot:
+                return 0
+            
+            # Get scheduled times and count usage
+            scheduled_times = self.get_scheduled_times_at_facility(facility_id, date)
+            times_used = scheduled_times.count(time)
+            
+            return max(0, time_slot.available_courts - times_used)
+            
+        except Exception as e:
+            return 0
+
+
+    def get_total_courts_at_time(self, facility: 'Facility', date: str, time: str) -> int:
+        """Get total number of courts at a specific facility and time slot"""
+        try:
+            if not facility:
+                return 0
+            
+            # Get day schedule
+            date_obj = datetime.strptime(date, '%Y-%m-%d')
+            day_name = date_obj.strftime('%A')
+            day_schedule = facility.schedule.get_day_schedule(day_name)
+            
+            # Find the time slot
+            for slot in day_schedule.start_times:
+                if slot.time == time:
+                    return slot.available_courts
+            
+            return 0
+            
+        except Exception as e:
+            return 0
