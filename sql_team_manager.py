@@ -9,7 +9,7 @@ Updated to work with the new match-based scheduling system.
 
 import sqlite3
 from typing import List, Optional
-from usta import Team
+from usta import Team, League, Facility, Match
 
 
 class SQLTeamManager:

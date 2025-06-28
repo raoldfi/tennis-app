@@ -751,7 +751,11 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
     def can_accommodate_lines_on_date(self, facility: Facility, date: str, 
                                          num_lines: int, 
                                          allow_split_lines: bool) -> bool:
-        return self.facility_manager.can_accommodate_lines_on_date(facility, date_str, num_lines, allow_split_lines)
+        return self.facility_manager.can_accommodate_lines_on_date(
+            facility=facility, 
+            date=date, 
+            num_lines=num_lines, 
+            allow_split_lines=allow_split_lines)
     
     # ========== Match Management ==========
     
@@ -804,7 +808,9 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
 
     def auto_schedule_matches(self, matches: List['Match'], 
                               facilities: Optional[List['Facility']]=None) -> Dict[str, Any]:
-        return self.scheduling_manager.auto_schedule_matches(matches,facilities)
+        return self.scheduling_manager.auto_schedule_matches(
+            matches=matches,
+            facilities=facilities)
 
     def unschedule_match(self, match: Match) -> bool:
         return self.match_manager.unschedule_match(match)
