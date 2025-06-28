@@ -177,6 +177,20 @@ class MatchGenerator:
             # Double round-robin (each team plays every other team twice)
             matches = generator.generate_matches(teams, league, 2*(len(teams)-1))
         """
+        # Ensure teams is a list of Team objects
+        if not isinstance(teams, list) or not all(isinstance(team, Team) for team in teams):
+            raise TypeError("teams must be a list of Team objects")
+        if not isinstance(league, League):
+            raise TypeError("league must be a League object")
+        if not teams:
+            raise ValueError("teams list cannot be empty")
+        if not isinstance(matches_per_team, (int, type(None))):
+            raise TypeError("matches_per_team must be an integer or None")
+        if matches_per_team is not None and matches_per_team < 1:
+            raise ValueError("matches_per_team must be at least 1")
+        
+
+
         # Validation
         if len(teams) < 2:
             raise ValueError("At least 2 teams are required")
@@ -198,17 +212,58 @@ class MatchGenerator:
         if matches_per_team < 1:
             raise ValueError("Matches per team must be at least 1")
         
-        # Check if total match slots is even
+        # Check if total match slots is even, auto-correct if needed
         total_match_slots = len(teams) * matches_per_team
         if total_match_slots % 2 != 0:
-            raise ValueError(
-                f"Invalid configuration: {len(teams)} teams × {matches_per_team} matches = "
-                f"{total_match_slots} total match slots. This must be even since each match uses exactly 2 slots."
-            )
+            # Auto-correct: for odd teams, round up matches_per_team to next even number
+            if len(teams) % 2 == 1:  # Odd number of teams
+                original_matches = matches_per_team
+                matches_per_team += 1  # Round up to next even number
+                total_match_slots = len(teams) * matches_per_team
+                print(f"Auto-corrected: {len(teams)} teams × {original_matches} matches would create {len(teams) * original_matches} odd slots.")
+                print(f"Adjusted to: {len(teams)} teams × {matches_per_team} matches = {total_match_slots} slots (even)")
+            else:
+                # Even teams with odd matches - this should work, but let's check
+                raise ValueError(
+                    f"Invalid configuration: {len(teams)} teams × {matches_per_team} matches = "
+                    f"{total_match_slots} total match slots. This must be even since each match uses exactly 2 slots."
+                )
         
+        print(f"DEBUG: League.generate_matches:")
+        print(f"  teams={len(teams)}")
+        print(f"  league={league.name} (ID: {league.id})")
+        print(f"  matches_per_team={matches_per_team if matches_per_team is not None else 'default (full round-robin)'}")
+        print(f"  starting_match_id={self.starting_match_id}")
+        print(f"  next_match_id={self.next_match_id}")
+        print(f"  league.num_matches={getattr(league, 'num_matches', 'N/A')}")
+
         # Generate pairings using the round-robin algorithm
         pairings = self._generate_pairings(teams, matches_per_team)
+        if not pairings:
+            raise ValueError("No valid pairings could be generated. Check team count and matches_per_team.")
+        if len(pairings) == 0:
+            raise ValueError("No pairings generated. Check team count and matches_per_team.")
+        if len(pairings) < 1:
+            raise ValueError("At least one pairing is required to generate matches.")
+        if len(pairings) < len(teams):
+            raise ValueError(f"Generated {len(pairings)} pairings, but expected at least {len(teams)}. "
+                             f"Check matches_per_team and team count.")
+        if len(pairings) < len(teams) * matches_per_team / 2:
+            raise ValueError(f"Generated {len(pairings)} pairings, but expected at least "
+                             f"{len(teams) * matches_per_team / 2} for {len(teams)} teams with "
+                             f"{matches_per_team} matches each. Check configuration.")
+        if len(pairings) > len(teams) * matches_per_team / 2:
+            print(f"DEBUG: Generated {len(pairings)} pairings, which is more than expected "
+                  f"{len(teams) * matches_per_team / 2}. This may indicate multiple cycles or rematches.")
         
+        print(f"DEBUG: League.generate_matches:")
+        print(f"  teams={len(teams)}")
+        print(f"  league={league.name} (ID: {league.id})")
+        print(f"  matches_per_team={matches_per_team if matches_per_team is not None else 'default (full round-robin)'}")
+        print(f"  starting_match_id={self.starting_match_id}")
+        print(f"  next_match_id={self.next_match_id}")
+        print(f"  league.num_matches={getattr(league, 'num_matches', 'N/A')}")
+
         # Calculate total rounds based on pairings and teams
         n = len(teams)
         matches_per_round = n if n % 2 == 0 else (n - 1)
@@ -219,6 +274,12 @@ class MatchGenerator:
         # Track how many times each pair has played to determine round number
         pair_round_counter = {}
         
+        base_id = league.generate_deterministic_start_id()
+        self.reset_match_counter(starting_id=base_id)
+        self.next_match_id = base_id
+
+
+
         # Convert pairings to Match objects
         matches = []
         for home_team, visitor_team in pairings:
@@ -229,18 +290,40 @@ class MatchGenerator:
             pair_round_counter[pair_key] = pair_round_counter.get(pair_key, 0) + 1
             current_round = pair_round_counter[pair_key]
             
-            match = Match(
-                id=self.next_match_id,
-                round=current_round,
-                num_rounds=total_rounds,
-                league=league,
-                home_team=home_team,
-                visitor_team=visitor_team,
-                facility=None,  # Unscheduled
-                date=None,      # Unscheduled
-                scheduled_times=[]  # Unscheduled
-            )
-            matches.append(match)
+            # Before creating the match, add debug logging
+            print(f"DEBUG: About to create Match with:")
+            print(f"  id={self.next_match_id} (type: {type(self.next_match_id)})")
+            print(f"  round={current_round}")
+            print(f"  num_rounds={total_rounds}")
+            print(f"  league={league.name} (ID: {league.id})")
+            print(f"  home_team={home_team.name} (ID: {home_team.id})")
+            print(f"  visitor_team={visitor_team.name} (ID: {visitor_team.id})")
+
+            # Check if next_match_id is valid
+            if not isinstance(self.next_match_id, int) or self.next_match_id <= 0:
+                print(f"DEBUG: ❌ Invalid next_match_id: {self.next_match_id}")
+                raise ValueError(f"MatchGenerator next_match_id is invalid: {self.next_match_id}")
+
+            try:
+                match = Match(
+                    id=self.next_match_id,
+                    round=current_round,
+                    num_rounds=total_rounds,
+                    league=league,
+                    home_team=home_team,
+                    visitor_team=visitor_team,
+                    facility=None,  # Unscheduled
+                    date=None,      # Unscheduled
+                    scheduled_times=[]  # Unscheduled
+                )
+                matches.append(match)
+                print(f"DEBUG: ✅ Successfully created match {match.id}")
+                self.next_match_id += 1
+            except Exception as match_error:
+                print(f"DEBUG: ❌ Error creating Match: {match_error}")
+                print(f"DEBUG: self.next_match_id = {self.next_match_id}")
+                raise
+
             self.next_match_id += 1
         
         return matches
@@ -269,6 +352,22 @@ class MatchGenerator:
         Returns:
             List of tuples (home_team, away_team) representing the complete schedule
         """
+        # Validate input
+        if not isinstance(teams, list) or not all(isinstance(team, Team) for team in teams):
+            raise TypeError("teams must be a list of Team objects")
+        if not teams:
+            raise ValueError("teams list cannot be empty")
+        if not isinstance(matches_per_team, int) or matches_per_team < 1:
+            raise ValueError("matches_per_team must be a positive integer")
+        # Ensure we have at least 2 teams
+        if len(teams) < 2:
+            raise ValueError("At least 2 teams are required to generate matches")
+        # Ensure all teams have unique IDs
+        team_ids = {team.id for team in teams}
+        if len(team_ids) != len(teams):
+            raise ValueError("All teams must have unique IDs")  
+        
+        # Number of teams
         n = len(teams)
         
         # Create tracking dictionaries
@@ -286,6 +385,8 @@ class MatchGenerator:
         # Schedule matches
         schedule = []
         
+        print(f"DEBUG: Generating pairings for {n} teams with {matches_per_team} matches per team")
+
         # Use round-robin algorithm to ensure even distribution
         if n % 2 == 0:
             # Even number of teams
@@ -298,6 +399,9 @@ class MatchGenerator:
         max_unique_opponents = n - 1
         total_rounds_needed = (matches_per_team + max_unique_opponents - 1) // max_unique_opponents
         
+        print(f"DEBUG: Total rounds needed: {total_rounds_needed} (matches_per_team={matches_per_team}, max_unique_opponents={max_unique_opponents})")
+        
+        # Cycle through rounds until all teams have enough matches
         for cycle in range(total_rounds_needed):
             for round_idx, current_round in enumerate(rounds):
                 for match in current_round:
@@ -406,20 +510,35 @@ class MatchGenerator:
         
         Each team plays (n-1) matches in full round-robin, with one bye per cycle.
         """
+        # Find a safe ID for the dummy team
+        max_team_id = max(team.id for team in teams)
+        dummy_team_id = max_team_id + 10000
+        
         # Create a dummy team for the bye
         dummy_team = Team(
-            id=-1,
+            id=dummy_team_id,
             name="BYE",
             league=teams[0].league,
-            home_facility=teams[0].home_facility  # Use any facility
+            home_facility=teams[0].home_facility,
+            preferred_days=[]
         )
+        
+        # Add dummy team to make even number
         teams_with_bye = teams + [dummy_team]
+        
+        # Generate rounds using even-team algorithm
         rounds = self._generate_even_rounds(teams_with_bye)
         
-        # Remove matches involving the bye
+        # Remove matches involving the bye team
         cleaned_rounds = []
         for round_matches in rounds:
-            cleaned_round = [(h, a) for h, a in round_matches if h.id != -1 and a.id != -1]
+            cleaned_round = []
+            for h, a in round_matches:
+                # Only keep matches that don't involve the dummy team
+                if h.id != dummy_team_id and a.id != dummy_team_id:
+                    cleaned_round.append((h, a))
+            
+            # Only add rounds that have at least one match
             if cleaned_round:
                 cleaned_rounds.append(cleaned_round)
         
@@ -748,13 +867,13 @@ Notes:
             parser.error("Matches per team must be at least 1")
         matches_per_team = args.matches_per_team
     
-    # Validate total match slots
-    total_match_slots = args.num_teams * matches_per_team
-    if total_match_slots % 2 != 0:
-        parser.error(
-            f"Invalid configuration: {args.num_teams} teams × {matches_per_team} matches = "
-            f"{total_match_slots} total match slots. This must be even since each match uses exactly 2 slots."
-        )
+    # # Validate total match slots
+    # total_match_slots = args.num_teams * matches_per_team
+    # if total_match_slots % 2 != 0:
+    #     parser.error(
+    #         f"Invalid configuration: {args.num_teams} teams × {matches_per_team} matches = "
+    #         f"{total_match_slots} total match slots. This must be even since each match uses exactly 2 slots."
+    #     )
     
     try:
         # Import USTA classes
@@ -1019,7 +1138,7 @@ def run_demo():
                     print(f"  ... and {len(matches) - 5} more matches")
                 
                 # Reset counter for next scenario
-                generator.reset_match_counter(1001)
+                # generator.reset_match_counter(1001)
                 
             except ValueError as e:
                 print(f"Error: {e}")
