@@ -69,6 +69,19 @@ class League:
         if self.num_lines_per_match > 10:
             raise ValueError(f"Number of lines per match seems unusually high: {self.num_lines_per_match}. Expected 1-10.")
 
+    
+    def generate_deterministic_start_id(self) -> int:
+        """Generate a deterministic starting match ID based on league properties"""
+        # Use league ID, year, and hash of name to create deterministic base
+        import hashlib
+        league_string = f"{self.id}-{self.year}-{self.name}-{self.section}-{self.division}"
+        hash_value = int(hashlib.md5(league_string.encode()).hexdigest()[:8], 16)
+        # Scale to a reasonable range (100000 to 999999) and ensure it's positive
+        base_id = 100000 + (hash_value % 900000)
+
+
+    
+    return base_id
     def to_dict(self) -> Dict[str, Any]:
         """Convert league to dictionary for serialization"""
         return {
