@@ -6,7 +6,6 @@ Fixed version with proper routes, data handling, and error handling
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from typing import Optional
 import traceback
-import utils
 import math
 
 # Create blueprint for scheduling routes
@@ -22,7 +21,6 @@ def schedule_match_form(match_id: int):
     Fixed to properly format data for template cards
     """
     from web_database import get_db
-    import utils
     from datetime import datetime
     
     try:
@@ -67,14 +65,17 @@ def schedule_match_form(match_id: int):
         try:
 
             # This will return dates based on match and league preferences and priorities
-            optimal_dates = utils.get_optimal_scheduling_dates(
-                match,
-                num_dates=int(request.args.get('max_dates', 20))
-            )
+            # optimal_dates = utils.get_optimal_scheduling_dates(
+            #     match,
+            #     num_dates=int(request.args.get('max_dates', 20))
+            # )
+            prioritized_dates = match.get_prioritized_scheduling_dates(
+                num_dates= int(request.args.get('max_dates', 20)))
+            
 
             # Filter these dates based on facility availability
             available_dates = []
-            for current_date_str in optimal_dates:
+            for current_date_str in prioritized_dates:
                 try:
                     allow_split_lines = league.allow_split_lines
                     print(f"\n\n\n============ Checking is_schedulable({current_date_str}) =============\n\n\n")
@@ -605,7 +606,6 @@ def refresh_scheduling_options(match_id: int):
     Refresh scheduling options with different parameters
     """
     from web_database import get_db
-    import utils  # Add local import
     
     try:
         db = get_db()
@@ -686,7 +686,6 @@ def get_match_scheduling_data(match_id: int, facility_id: Optional[int] = None) 
         Dictionary with scheduling data
     """
     from web_database import get_db
-    import utils  # Add local import
     
     try:
         db = get_db()

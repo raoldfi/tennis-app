@@ -596,6 +596,8 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
                 league_id INTEGER NOT NULL,
                 home_team_id INTEGER NOT NULL,
                 visitor_team_id INTEGER NOT NULL,
+                round INTEGER,
+                num_rounds REAL,
                 facility_id INTEGER,
                 date TEXT,
                 scheduled_times TEXT,  -- JSON array of time strings ["09:00", "12:00", "15:00"]
@@ -674,8 +676,7 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
         return self.team_manager.get_team(team_id)
     
     def list_teams(self, league: Optional[League] = None) -> List[Team]:
-        league_id = league.id if league else None
-        return self.team_manager.list_teams(league_id)
+        return self.team_manager.list_teams(league)
 
     def update_team(self, team: Team) -> bool:
         return self.team_manager.update_team(team)

@@ -39,7 +39,7 @@ class SQLMatchManager:
         query = """
         SELECT 
             m.id, m.league_id, m.home_team_id, m.visitor_team_id, 
-            m.facility_id, m.date, m.scheduled_times
+            m.facility_id, m.date, m.scheduled_times, m.round, m.num_rounds
         FROM matches m
         WHERE m.id = ?
         """
@@ -84,6 +84,8 @@ class SQLMatchManager:
             # Construct Match object
             return Match(
                 id=match_data['id'],
+                round=match_data['round'],
+                num_rounds=match_data['num_rounds'],
                 league=league,
                 home_team=home_team,
                 visitor_team=visitor_team,
@@ -137,10 +139,11 @@ class SQLMatchManager:
             # Insert match
             self.cursor.execute("""
                 INSERT INTO matches (id, league_id, home_team_id, visitor_team_id, 
-                                   facility_id, date, scheduled_times, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (match.id, league_id, home_team_id, visitor_team_id, 
-                  facility_id, match.date, scheduled_times_json, status))
+                                round, num_rounds, facility_id, date, scheduled_times, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (match.get_id(), league_id, home_team_id, visitor_team_id, 
+                match.get_round(), match.get_num_rounds(), 
+                facility_id, match.date, scheduled_times_json, status))
                 
         except sqlite3.IntegrityError as e:
             raise ValueError(f"Database integrity error adding match: {e}")
@@ -299,10 +302,10 @@ class SQLMatchManager:
             if not existing_data:
                 raise ValueError(f"Match with ID {match.id} does not exist")
             
-            # Extract IDs from objects for database storage
-            league_id = match.league.id
-            home_team_id = match.home_team.id
-            visitor_team_id = match.visitor_team.id
+            # Extract IDs from objects for database storage - use getter methods for immutable fields
+            league_id = match.get_league().id
+            home_team_id = match.get_home_team().id
+            visitor_team_id = match.get_visitor_team().id
             facility_id = match.facility.id if match.facility else None
             
             # Verify related entities exist using managers
@@ -327,10 +330,12 @@ class SQLMatchManager:
             self.cursor.execute("""
                 UPDATE matches 
                 SET league_id = ?, home_team_id = ?, visitor_team_id = ?, 
-                    facility_id = ?, date = ?, scheduled_times = ?, status = ?
+                    facility_id = ?, date = ?, scheduled_times = ?, status = ?, 
+                    round = ?, num_rounds = ?
                 WHERE id = ?
             """, (league_id, home_team_id, visitor_team_id, 
-                  facility_id, match.date, scheduled_times_json, status, match.id))
+                facility_id, match.date, scheduled_times_json, status, 
+                match.get_round(), match.get_num_rounds(), match.get_id()))
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error updating match: {e}")
         return True

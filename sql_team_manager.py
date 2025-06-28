@@ -109,8 +109,15 @@ class SQLTeamManager:
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error getting team {team_id}: {e}")
 
-    def list_teams(self, league_id: Optional[int] = None) -> List[Team]:
+    def list_teams(self, league: Optional['League'] = None) -> List[Team]:
+
         """List all teams, optionally filtered by league"""
+
+        if league is not None and not hasattr(league, 'id'):
+            raise TypeError(f"Expected League object, got: {type(league)}")
+        
+        league_id = league.id if league else None
+
         if league_id is not None and (not isinstance(league_id, int) or league_id <= 0):
             raise ValueError(f"League ID must be a positive integer, got: {league_id}")
         
@@ -142,15 +149,28 @@ class SQLTeamManager:
                 if team_data.get('preferred_days'):
                     preferred_days = [day.strip() for day in team_data['preferred_days'].split(',') if day.strip()]
                 
-                # Create Team object with all required fields
-                teams.append(Team(
-                    id=team_data['id'],
-                    name=team_data['name'],
-                    league=league,
-                    home_facility=facility,
-                    captain=team_data.get('captain'),
-                    preferred_days=preferred_days
-                ))
+                # DEBUG: Print team data before creating Team object
+                print(f"DEBUG: Creating team from data: {team_data}")
+                print(f"DEBUG: team_data['id'] = {team_data.get('id', 'MISSING')} (type: {type(team_data.get('id', 'MISSING'))})")
+                print(f"DEBUG: league = {league} (ID: {getattr(league, 'id', 'MISSING')})")
+                print(f"DEBUG: facility = {facility} (ID: {getattr(facility, 'id', 'MISSING')})")
+
+                try:
+                    # Create Team object with all required fields
+                    new_team = Team(
+                        id=team_data['id'],
+                        name=team_data['name'],
+                        league=league,
+                        home_facility=facility,
+                        captain=team_data.get('captain'),
+                        preferred_days=preferred_days
+                    )
+                    teams.append(new_team)
+                    print(f"DEBUG: Successfully created team {new_team.name} with ID {new_team.id}")
+                except Exception as team_error:
+                    print(f"DEBUG: Error creating team: {team_error}")
+                    print(f"DEBUG: team_data = {team_data}")
+                    raise
             
             return teams
         except sqlite3.Error as e:

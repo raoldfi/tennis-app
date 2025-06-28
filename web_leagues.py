@@ -13,10 +13,9 @@ import traceback
 import tempfile
 import os
 
-import utils
 from usta_league import League
 from web_database import get_db
-
+from match_generator import MatchGenerator
 
 def register_routes(app):
     """Register league-related routes with enhanced table actions"""
@@ -406,6 +405,10 @@ def register_routes(app):
                 
                 # Get teams for this league
                 teams = db.list_teams(league)
+                print(f"DEBUG: Found {len(teams)} teams for league {league.name}")
+                for i, team in enumerate(teams):
+                    print(f"DEBUG: Team {i}: ID={getattr(team, 'id', 'MISSING')}, Name={getattr(team, 'name', 'MISSING')}")
+
                 if len(teams) < 2:
                     flash(f'Need at least 2 teams to generate matches. League "{league.name}" has only {len(teams)} team(s).', 'error')
                     return redirect(url_for('generate_matches'))
@@ -416,9 +419,10 @@ def register_routes(app):
                     flash(f'League "{league.name}" already has {len(existing_matches)} matches. Delete existing matches first if you want to regenerate.', 'warning')
                     return redirect(url_for('generate_matches'))
                 
-                # Generate matches using the utils function
-                generated_matches = utils.generate_matches(teams)
-                
+                # Generate matches using the match_generator class
+                match_generator = MatchGenerator()
+                generated_matches = match_generator.generate_matches(teams=teams, league=league)
+
                 if generated_matches and len(generated_matches) > 0:
                     # Save matches to database
                     try: 
@@ -528,8 +532,9 @@ def register_routes(app):
                 }), 400
             
             # Generate matches
-            generated_matches = utils.generate_matches(teams)
-            
+            match_generator = MatchGenerator()
+            generated_matches = match_generator.generate_matches(teams=teams, league=league)
+
             if not generated_matches:
                 return jsonify({'error': 'No matches were generated'}), 400
             
@@ -562,7 +567,7 @@ def register_routes(app):
             
             for league in leagues_list:
                 # Get team and match counts
-                teams = db.list_teams(league)
+                teams = db.list_teams(league=league)
                 matches = db.list_matches(league=league)
                 
                 league_data = {

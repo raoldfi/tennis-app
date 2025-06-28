@@ -153,9 +153,7 @@ from typing import Dict, Any, Optional, List
 import traceback
 import logging
 
-import utils
 from usta import Match, MatchType, League, Team, Facility
-
 
 logging.basicConfig(
     level=logging.INFO,
@@ -1151,6 +1149,9 @@ class TennisCLI:
 
     def handle_generate_matches_command(self, args, db):
         """Handle match generation for single league or multiple leagues"""
+
+        from match_generator import MatchGenerator
+
         try:
             target_league_ids = None
             
@@ -1253,8 +1254,9 @@ class TennisCLI:
                         print(f"  GENERATING MATCHES FOR {len(teams)} TEAMS")
                     
                     # Generate matches using USTA generate_matches method
-                    matches = utils.generate_matches(teams)
-                    
+                    match_generator = MatchGenerator()                    
+                    matches = match_generator.generate_matches(teams=teams, league=league)
+
                     # Add generated matches to database
                     for match in matches:
                         db.add_match(match)

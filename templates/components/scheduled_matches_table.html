@@ -51,23 +51,29 @@
                                     <span>ID</span>
                                     <i class="fas fa-sort ms-1 sort-icon"></i>
                                 </th>
-                                <th width="20%" class="sortable-header" data-sort-column="1" data-sort-type="text">
+                                <th width="18%" class="sortable-header" data-sort-column="1" data-sort-type="text">
                                     <span>Home</span>
                                     <i class="fas fa-sort ms-1 sort-icon"></i>
                                 </th>
-                                <th width="20%" class="sortable-header" data-sort-column="2" data-sort-type="text">
+                                <th width="18%" class="sortable-header" data-sort-column="2" data-sort-type="text">
                                     <span>Visitor</span>
                                     <i class="fas fa-sort ms-1 sort-icon"></i>
                                 </th>
-                                <th width="18%" class="sortable-header" data-sort-column="3" data-sort-type="text">
+
+                                <th width="15%" class="sortable-header" data-sort-column="3" data-sort-type="text">
+                                    <span>League</span>
+                                    <i class="fas fa-sort ms-1 sort-icon"></i>
+                                </th>
+                                
+                                <th width="16%" class="sortable-header" data-sort-column="4" data-sort-type="text">
                                     <span>Times</span>
                                     <i class="fas fa-sort ms-1 sort-icon"></i>
                                 </th>
-                                <th width="12%" class="sortable-header" data-sort-column="4" data-sort-type="text">
+                                <th width="12%" class="sortable-header" data-sort-column="5" data-sort-type="text">
                                     <span>Facility</span>
                                     <i class="fas fa-sort ms-1 sort-icon"></i>
                                 </th>
-                                <th width="22%" class="text-center">Actions</th>
+                                <th width="13%" class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -78,31 +84,50 @@
                                 <!-- Match ID -->
                                 <td class="match-id-cell">
                                     <strong>{{ match.id }}</strong>
+                                    {% if match.round %}
+                                        <br><small class="text-muted">Round {{ match.round }}/{{ "%.1f"|format(match.num_rounds) }}</small>
+                                    {% endif %}
                                 </td>
 
                                 <!-- Home Team -->
                                 <td class="home-team-cell">
                                     <div class="team-name">
                                         <i class="fas fa-home me-1 text-success"></i>
-                                        <span class="fw-bold">{{ match.home_team.name if match.home_team else 'TBD' }}</span>
+                                        {% if match.home_team %}
+                                            <a href="{{ url_for('view_team', team_id=match.home_team.id) }}" class="fw-bold text-decoration-none">
+                                                {{ match.home_team.name }}
+                                            </a>
+                                        {% else %}
+                                            <span class="fw-bold text-muted">TBD</span>
+                                        {% endif %}
                                     </div>
-                                    {% if match.league %}
-                                        <small class="text-muted">{{ match.league.name }}</small>
-                                    {% endif %}
                                 </td>
 
                                 <!-- Visitor Team -->
                                 <td class="visitor-team-cell">
                                     <div class="team-name">
                                         <i class="fas fa-plane me-1 text-info"></i>
-                                        <span class="fw-bold">{{ match.visitor_team.name if match.visitor_team else 'TBD' }}</span>
+                                        {% if match.visitor_team %}
+                                            <a href="{{ url_for('view_team', team_id=match.visitor_team.id) }}" class="fw-bold text-decoration-none">
+                                                {{ match.visitor_team.name }}
+                                            </a>
+                                        {% else %}
+                                            <span class="fw-bold text-muted">TBD</span>
+                                        {% endif %}
                                     </div>
-                                    {% if match.facility %}
-                                        <small class="text-muted">{{ match.facility.location if match.facility.location else '' }}</small>
-                                    {% endif %}
                                 </td>
 
-
+                                <!-- League -->
+                                <td class="league-cell">
+                                    {% if match.league %}
+                                        <a href="{{ url_for('view_league', league_id=match.league.id) }}" class="text-tennis-primary text-decoration-none">
+                                            <i class="fas fa-trophy me-1"></i>
+                                            {{ match.league.name }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">No League</span>
+                                    {% endif %}
+                                </td>
 
 
                                 <!-- Times (Enhanced Display for Split Matches) -->

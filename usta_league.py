@@ -19,8 +19,6 @@ if TYPE_CHECKING:
 
 
 
-
-
 @dataclass
 class League:
     """Represents a tennis league"""
@@ -78,10 +76,9 @@ class League:
         hash_value = int(hashlib.md5(league_string.encode()).hexdigest()[:8], 16)
         # Scale to a reasonable range (100000 to 999999) and ensure it's positive
         base_id = 100000 + (hash_value % 900000)
-
-
+        return base_id
     
-    return base_id
+    
     def to_dict(self) -> Dict[str, Any]:
         """Convert league to dictionary for serialization"""
         return {

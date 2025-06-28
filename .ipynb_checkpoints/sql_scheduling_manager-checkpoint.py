@@ -12,7 +12,6 @@ import json
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, timedelta
 from usta import Match, League, Team
-import utils
 
 
 class SQLSchedulingManager:

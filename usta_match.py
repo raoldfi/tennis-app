@@ -253,6 +253,131 @@ class Match:
             return "fully_scheduled"
         else:
             return "over_scheduled"  # More lines than expected
+        
+    def get_prioritized_scheduling_dates(self, start_date: Optional[str] = None,
+                                end_date: Optional[str] = None,
+                                schedule_within_round: Optional[bool] = False, # 
+                                num_dates: Optional[int] = 50) -> List[str]:
+        """
+        Find prioritized dates for scheduling a specific match, prioritizing team and league preferences.
+        
+        Args:
+            start_date: Start date for search (defaults to league start_date)
+            end_date: End date for search (defaults to league end_date)
+            schedule_within_round: If True, only consider dates within the current match rou
+            num_dates: Number of dates to return
+            
+        Returns:
+            List of date strings in YYYY-MM-DD format, ordered by preference
+            (team preferred days first, then league preferred days, then backup days)
+        """
+
+        
+        print(f"DEBUG: Getting optimal dates for match {self.get_id}")
+        print(f"DEBUG: League start_date: {self.league.start_date}")
+        print(f"DEBUG: League end_date: {self.league.end_date}")
+        print(f"DEBUG: League preferred_days: {self.league.preferred_days}")
+        print(f"DEBUG: League backup_days: {self.league.backup_days}")
+        print(f"DEBUG: Home team preferred_days: {getattr(self.home_team, 'preferred_days', 'NOT_SET')}")
+        print(f"DEBUG: Visitor team preferred_days: {getattr(self.visitor_team, 'preferred_days', 'NOT_SET')}")
+
+
+        try:
+            # Use league dates or reasonable defaults
+            search_start = start_date or self.league.start_date or datetime.now().strftime('%Y-%m-%d')
+            search_end = end_date or self.league.end_date
+            
+            if not search_end:
+                # Default to 16 weeks from start
+                start_dt = datetime.strptime(search_start, '%Y-%m-%d')
+                end_dt = start_dt + timedelta(weeks=16)
+                search_end = end_dt.strftime('%Y-%m-%d')
+            
+            # Generate candidate dates with priority system
+            start_dt = datetime.strptime(search_start, '%Y-%m-%d')
+            end_dt = datetime.strptime(search_end, '%Y-%m-%d')
+            
+            candidate_dates = []
+            current = start_dt
+            
+            # Create combined team preferred days (intersection is highest priority)
+            # RON's ASSUMPTION -- THESE ARE REQUIRED
+            hp = set(self.home_team.preferred_days)
+            vp = set(self.visitor_team.preferred_days)
+
+            # Start with no required days
+            required_days = None
+            
+            # if both teams have preferred days, but the intersection is null-set, error.
+            if (hp and vp):
+                rd = hp & vp
+                if not rd:
+                    raise ValueError(f"Teams have preferred dates that don't overlap: "
+                                    f"h={hp}, v={vp}")
+                    
+            # One is non-empty, so we use the union
+            elif (hp or vp):
+                required_days = hp | vp
+
+            # If both are empty, anyday works.  Set required_days to None
+            else:
+                required_days = None
+
+            print(f"\n\n===== REQUIRED DAYS {required_days}\n\n") 
+            
+            # Priority levels:
+            # 1 = required days (no other days matter)
+            # 2 = One team prefers this day
+            # 3 = League prefers this day (but no team preference)
+            # 4 = League backup day (but no team preference)
+            # 5 = Day is allowed but not preferred by anyone
+            
+            while current <= end_dt:
+                try:
+                    day_name = current.strftime('%A')
+                    date_str = current.strftime('%Y-%m-%d')
+                    
+                    # Skip days that the league doesn't allow
+                    if day_name not in self.league.preferred_days and day_name not in self.league.backup_days:
+                        current += timedelta(days=1)
+                        continue
+                    
+                    # Determine priority based on team and league preferences
+                    priority = 5  # Default: allowed but not preferred
+        
+                    if required_days:
+                        if day_name in required_days and day_name in self.league.preferred_days:
+                            priority = 1  # preferred day
+                        elif day_name in required_days and day_name in self.league.backup_days:
+                            priority = 2  # backup day
+                        else:
+                            current += timedelta(days=1)
+                            continue
+                            
+                    elif day_name in self.league.preferred_days:
+                        priority = 3  # League prefers this day
+                    elif day_name in self.league.backup_days:
+                        priority = 4  # League backup day
+                    
+                    candidate_dates.append((date_str, priority))
+                    current += timedelta(days=1)
+                except Exception as date_error:
+                    # FIXED: Handle individual date processing errors without crashing
+                    print(f"\n\nGET_OPTIMAL_DATES: Error processing date {current_date_str}: {date_error}")
+                    current += timedelta(days=1)
+                    raise date_error
+            
+            # Sort by priority (lower number = higher priority)
+            # For same priority, maintain chronological order
+            candidate_dates.sort(key=lambda x: (x[1], x[0]))
+
+            print(f"\n\n===== CANDIDATE DATES: num_dates={num_dates}, dates={candidate_dates}\n\n")
+            # Return the requested number of dates
+            return [date for date, _ in candidate_dates[:num_dates]]
+            
+        except Exception as e:
+            raise RuntimeError(f"Error getting optimal scheduling dates for self {self.id}: {e}")
+
 
     # ========== Match Line Management ==========
 

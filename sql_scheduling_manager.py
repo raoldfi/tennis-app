@@ -12,7 +12,6 @@ import json
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, timedelta
 from usta import Match, League, Team
-import utils
 
 
 class SQLSchedulingManager:
@@ -514,19 +513,27 @@ class SQLSchedulingManager:
                 attempted_matches += 1
                 
                 # Get optimal dates for this specific match (prioritizing team preferences)
-                optimal_dates = utils.get_optimal_scheduling_dates(match)
+                #optimal_dates = utils.get_optimal_scheduling_dates(match)
+                prioritized_dates = match.get_prioritized_scheduling_dates()
+
+
+
+
+
                 
                 results['matches_attempted'].append({
                     'match_id': match.id,
                     'home_team': match.home_team.name,
                     'visitor_team': match.visitor_team.name,
-                    'optimal_dates_tried': optimal_dates[:5]  # Show first 5 dates tried
+                    'dates_tried': prioritized_dates[:5]  # Show first 5 dates tried
                 })
 
-                print (f"\n\nTRYING TO SCHEDULE MATCH ON THESE DATES {optimal_dates}\n\n")
+                print (f"\n\nTRYING TO SCHEDULE MATCH ON THESE DATES {prioritized_dates}\n\n")
                 
                 
-                success = self.auto_schedule_match(match=match, preferred_dates=optimal_dates, facilities=facilities)
+                success = self.auto_schedule_match(match=match, 
+                                                   preferred_dates=prioritized_dates, 
+                                                   facilities=facilities)
                 
                 if success:
                     results['scheduled'] += 1
