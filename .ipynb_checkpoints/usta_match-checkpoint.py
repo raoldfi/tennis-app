@@ -142,14 +142,6 @@ class Match:
         """Get the league object (immutable)"""
         return self._immutable_league if self._initialized else self.league
     
-    def get_round(self) -> int:
-        """Get the match round number (immutable)"""
-        return self._immutable_round if self._initialized else self.round   
-    
-    def get_num_rounds(self) -> float: 
-        """Get the number of rounds for this league (immutable)"""
-        return self._immutable_num_rounds if self._initialized else self.num_rounds
-    
     def get_home_team(self) -> 'Team':
         """Get the home team object (immutable)"""
         return self._immutable_home_team if self._initialized else self.home_team
