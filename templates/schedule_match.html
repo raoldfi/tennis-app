@@ -337,10 +337,9 @@
             <div class="schedule-form-section" id="mode-section" style="display: none;">
                 <label class="form-label">Scheduling Mode:</label>
                 <select class="form-select" id="scheduling-mode">
-                    <option value="custom">Custom Times</option>
                     <option value="same_time">All Lines Same Time</option>
-                    <option value="sequential">Sequential Times</option>
                     <option value="split_times">Split Times</option>
+                    <option value="custom">Custom Times</option>
                 </select>
                 <small style="color: var(--tennis-gray-600);">
                     <div id="mode-description" class="mt-1"></div>
@@ -600,8 +599,8 @@ class ScheduleMatchUI {
     }
 
     toggleTimeSelection(time, element) {
-        if (this.schedulingMode === 'same_time' || this.schedulingMode === 'sequential') {
-            // For these modes, only allow one time selection
+        if (this.schedulingMode === 'same_time') {
+            // For this mode, only allow one time selection
             document.querySelectorAll('.time-slot').forEach(slot => {
                 slot.classList.remove('selected');
             });
@@ -662,8 +661,6 @@ class ScheduleMatchUI {
             let content = '';
             if (this.schedulingMode === 'same_time') {
                 content = `<strong>All lines at:</strong> ${this.selectedTimes[0]}`;
-            } else if (this.schedulingMode === 'sequential') {
-                content = `<strong>Starting at:</strong> ${this.selectedTimes[0]} <small>(lines will be scheduled sequentially)</small>`;
             } else if (this.schedulingMode === 'split_times') {
                 if (this.selectedTimes.length === 1) {
                     content = `<strong>First slot:</strong> ${this.selectedTimes[0]} <small class="text-info">(select second slot)</small>`;
@@ -696,7 +693,6 @@ class ScheduleMatchUI {
         const descriptions = {
             'custom': 'Specify exact times for each line',
             'same_time': 'All lines play at the same time',
-            'sequential': 'Lines start sequentially (3 hours apart)',
             'split_times': 'Some lines at one time, remaining lines at another time (same time within each slot)'
         };
         description.textContent = descriptions[this.schedulingMode];
@@ -715,8 +711,7 @@ class ScheduleMatchUI {
         // Validate that the correct number of times are selected for each mode
         switch (this.schedulingMode) {
             case 'same_time':
-            case 'sequential':
-                // These modes require exactly 1 time
+                // This mode requires exactly 1 time
                 return this.selectedTimes.length === 1;
             
             case 'split_times':

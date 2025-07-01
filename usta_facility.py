@@ -1329,7 +1329,7 @@ class FacilityAvailabilityInfo:
         
         Args:
             times: List of requested time strings
-            scheduling_mode: Mode ('same_time', 'sequential', 'split_times', 'custom')
+            scheduling_mode: Mode ('same_time', 'split_times', 'custom')
             lines_needed: Number of lines/courts needed
             
         Returns:
@@ -1340,8 +1340,6 @@ class FacilityAvailabilityInfo:
         
         if scheduling_mode == 'same_time':
             return self._validate_same_time(times, lines_needed)
-        elif scheduling_mode == 'sequential':
-            return self._validate_sequential(times, lines_needed)
         elif scheduling_mode == 'split_times':
             return self._validate_split_times(times, lines_needed)
         elif scheduling_mode == 'custom':
@@ -1364,20 +1362,6 @@ class FacilityAvailabilityInfo:
         
         return True, None
 
-    def _validate_sequential(self, times: List[str], lines_needed: int) -> Tuple[bool, Optional[str]]:
-        """Validate sequential scheduling"""
-        if len(times) != 1:
-            return False, "Sequential mode requires exactly one start time"
-        
-        start_time = times[0]
-        if not self.check_time_availability(start_time, 1):
-            available_alternatives = self.get_available_times_for_courts(1)
-            if available_alternatives:
-                return False, f"Start time {start_time} not available. Available: {', '.join(available_alternatives)}"
-            else:
-                return False, f"No time slots available on {self.date}"
-        
-        return True, None
 
     def _validate_split_times(self, times: List[str], lines_needed: int) -> Tuple[bool, Optional[str]]:
         """Validate split times scheduling"""
@@ -1471,11 +1455,5 @@ class FacilityAvailabilityInfo:
         else:
             suggestions['split_times'] = {'possible': False}
         
-        # Sequential suggestions
-        sequential_options = self.get_available_times_for_courts(1)
-        suggestions['sequential'] = {
-            'possible': len(sequential_options) > 0,
-            'options': sequential_options[:5]
-        }
         
         return suggestions

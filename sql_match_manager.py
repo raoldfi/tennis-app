@@ -266,11 +266,6 @@ class SQLMatchManager:
                     match.schedule_all_lines_same_time(match.facility, date, times[0])
                     success = True
                     
-            elif mode == 'sequential':
-                if len(times) >= 1:
-                    match.schedule_lines_sequential(match.facility, date, times[0])
-                    success = True
-                    
             elif mode == 'split_times':
                 if len(times) >= 2:
                     # Generate split times using Match logic
@@ -339,11 +334,6 @@ class SQLMatchManager:
                         if result['success']:
                             return True
                     
-                    # Strategy 3: Try sequential scheduling if allowed
-                    if match.league.allow_split_lines:
-                        result = self.schedule_match(match, date, [], 'sequential')
-                        if result['success']:
-                            return True
                         
                 except Exception as e:
                     raise RuntimeError(f"{e}")
@@ -598,10 +588,6 @@ class SQLMatchManager:
             available_times = facility_info.get_available_times_for_courts(courts_per_slot)
             return available_times[:2] if len(available_times) >= 2 else []
         
-        elif mode == 'sequential':
-            # Need one start time, which can be any available time
-            available_times = facility_info.get_available_times_for_courts(1)
-            return available_times[:1] if len(available_times) >= 1 else []
         
         elif mode == 'custom':
             # For custom mode, return all available times
@@ -638,12 +624,6 @@ class SQLMatchManager:
             except ValueError:
                 return "Invalid time format"
                 
-        elif mode == 'sequential':
-            if len(times) != 1:
-                return "Sequential mode requires exactly one start time"
-            if not facility_info.check_time_availability(times[0], 1):
-                return f"Start time {times[0]} not available"
-                
         elif mode == 'custom':
             if len(times) != lines_needed:
                 return f"Custom mode requires exactly {lines_needed} time slots"
@@ -666,21 +646,6 @@ class SQLMatchManager:
         """Generate final scheduled times based on mode"""
         if mode == 'same_time':
             return [times[0]] * lines_needed
-            
-        elif mode == 'sequential':
-            # Generate sequential times with 3-hour intervals
-            start_parts = times[0].split(':')
-            start_hour = int(start_parts[0])
-            start_minute = int(start_parts[1])
-            
-            scheduled_times = []
-            for i in range(lines_needed):
-                total_minutes = start_hour * 60 + start_minute + (i * 180)  # 3 hours = 180 minutes
-                hour = (total_minutes // 60) % 24
-                minute = total_minutes % 60
-                time_str = f"{hour:02d}:{minute:02d}"
-                scheduled_times.append(time_str)
-            return scheduled_times
             
         elif mode == 'split_times':
             # Split lines between two time slots

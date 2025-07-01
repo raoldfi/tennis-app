@@ -484,33 +484,6 @@ class SQLSchedulingManager:
                                 print(f"Successfully scheduled match {match.id} (split) at {facility.name} on {date} at {available_times[:2]}")
                                 return True
 
-            # Strategy 3: Try sequential scheduling if league allows split lines (as fallback)
-            if match.league.allow_split_lines:
-                for date in preferred_dates:
-                    # Check for team date conflicts first
-                    if (self.db.team_manager.check_team_date_conflict(match.home_team.id, date, exclude_match_id=match.id) or
-                        self.db.team_manager.check_team_date_conflict(match.visitor_team.id, date, exclude_match_id=match.id)):
-                        continue
-                    
-                    for facility in facilities_to_check:
-                        # Check if facility is available on this date
-                        if not facility.is_available_on_date(date):
-                            continue
-                        
-                        # For sequential, we just need one court at a time
-                        available_times = self.db.facility_manager.get_available_times_at_facility(
-                            facility.id, date, 1  # Only need 1 court for sequential
-                        )
-                        
-                        if available_times:
-                            # Try sequential scheduling
-                            result = self.db.match_manager.schedule_match(
-                                match, facility, date, [available_times[0]], 'sequential'
-                            )
-                            
-                            if result['success']:
-                                print(f"Successfully scheduled match {match.id} (sequential) at {facility.name} on {date} starting at {available_times[0]}")
-                                return True
 
             print(f"Failed to schedule match {match.id} - no suitable slots found")
             return False

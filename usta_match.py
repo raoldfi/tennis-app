@@ -546,24 +546,6 @@ class Match:
         self.date = date
         self.scheduled_times = [time] * self.league.num_lines_per_match
     
-    def schedule_lines_sequential(self, facility: 'Facility', date: str, start_time: str, interval_minutes: int = 180) -> None:
-        """Schedule lines sequentially with specified interval between start times"""
-        self.facility = facility
-        self.date = date
-        self.scheduled_times = []
-        
-        # Parse start time
-        start_parts = start_time.split(':')
-        start_hour = int(start_parts[0])
-        start_minute = int(start_parts[1])
-        
-        # Generate sequential times
-        for i in range(self.league.num_lines_per_match):
-            total_minutes = start_hour * 60 + start_minute + (i * interval_minutes)
-            hour = (total_minutes // 60) % 24
-            minute = total_minutes % 60
-            time_str = f"{hour:02d}:{minute:02d}"
-            self.scheduled_times.append(time_str)
     
 
     def schedule_lines_custom_times(self, facility: 'Facility', date: str, times: List[str]) -> bool:

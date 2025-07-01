@@ -297,7 +297,9 @@ def api_schedule_match():
         facility_id = data.get('facility_id')
         date = data.get('date')
         times = data.get('times', [])
-        scheduling_mode = data.get('scheduling_mode', 'custom')
+        scheduling_mode = data.get('scheduling_mode', 'same_time')  # Default to 'same_time' if not provided
+        if scheduling_mode not in ['same_time', 'split_times', 'custom']:
+            return jsonify({'success': False, 'error': 'Invalid scheduling mode'})
         
         # Basic validation
         if not all([match_id, date, times]):
