@@ -1,25 +1,33 @@
 """
-Updated SQLite Match Manager - Using Modular Managers
+Refactored SQLite Match Manager - Consolidated Scheduling Functions
 
-Handles match-related database operations without using a separate Line class.
-Instead, scheduled times are stored as a JSON array in the matches table.
+This refactored version eliminates redundant scheduling functions and consolidates
+similar functionality into unified, flexible methods.
 
-Updated to use SQLLeagueManager, SQLTeamManager, and SQLFacilityManager
-for all related entity operations instead of direct database access.
+Key improvements:
+1. Single auto_schedule_match method instead of multiple versions
+2. Unified schedule_match method that handles all scheduling modes
+3. Consolidated validation logic
+4. Simplified scheduling execution
+5. Removed duplicate helper functions
 """
 
 import sqlite3
 import json
-from typing import List, Optional, Dict, Any
-from collections import defaultdict
-from usta import Match, MatchType, Facility
+from typing import List, Optional, Dict, Any, Tuple
+from collections import defaultdict, Counter
+from datetime import datetime, timedelta
+from tennis_db_interface import TennisDBInterface
+from usta import Match, MatchType, Facility, League, Team
 import math
+from tennis_db_interface import TennisDBInterface
+
 
 
 class SQLMatchManager:
-    """Match manager that stores scheduled times as JSON array in matches table"""
+    """Match manager with consolidated scheduling functions"""
     
-    def __init__(self, cursor: sqlite3.Cursor, db_instance):
+    def __init__(self, cursor: sqlite3.Cursor, db_instance: TennisDBInterface):
         """
         Initialize SQLMatchManager
         
@@ -34,6 +42,8 @@ class SQLMatchManager:
         """Convert sqlite Row object to dictionary"""
         return dict(row) if row else {}
     
+    # ========== Core Match Operations (unchanged) ==========
+    
     def get_match(self, match_id: int) -> Optional[Match]:
         """Get a match with all related objects populated using modular managers"""
         query = """
@@ -45,39 +55,31 @@ class SQLMatchManager:
         """
         
         try:
-            result = self.cursor.execute(query, (match_id,)).fetchone()
-            if not result:
+            self.cursor.execute(query, (match_id,))
+            row = self.cursor.fetchone()
+            if not row:
                 return None
             
-            match_data = self._dictify(result)
+            match_data = self._dictify(row)
             
-            # Use managers to get related objects
+            # Get related objects using modular managers
             league = self.db.league_manager.get_league(match_data['league_id'])
-            if not league:
-                raise RuntimeError(f"League {match_data['league_id']} not found for match {match_id}")
-            
             home_team = self.db.team_manager.get_team(match_data['home_team_id'])
-            if not home_team:
-                raise RuntimeError(f"Home team {match_data['home_team_id']} not found for match {match_id}")
-            
             visitor_team = self.db.team_manager.get_team(match_data['visitor_team_id'])
-            if not visitor_team:
-                raise RuntimeError(f"Visitor team {match_data['visitor_team_id']} not found for match {match_id}")
+            match_facility = self.db.facility_manager.get_facility(match_data['facility_id']) if match_data['facility_id'] else None
             
-            # Get match facility if assigned
-            match_facility = None
-            if match_data['facility_id']:
-                match_facility = self.db.facility_manager.get_facility(match_data['facility_id'])
-                if not match_facility:
-                    raise RuntimeError(f"Facility {match_data['facility_id']} not found for match {match_id}")
+            if not league or not home_team or not visitor_team:
+                raise ValueError(f"Could not load related objects for match {match_id}")
             
             # Parse scheduled times from JSON
             scheduled_times = []
-            if match_data['scheduled_times']:
+            if match_data.get('scheduled_times'):
                 try:
-                    scheduled_times = json.loads(match_data['scheduled_times'])
-                    if not isinstance(scheduled_times, list):
-                        scheduled_times = []
+                    parsed_times = json.loads(match_data['scheduled_times'])
+                    if isinstance(parsed_times, list):
+                        scheduled_times = parsed_times
+                    else:
+                        scheduled_times = [parsed_times] if parsed_times is not None else []
                 except (json.JSONDecodeError, TypeError):
                     scheduled_times = []
             
@@ -113,20 +115,13 @@ class SQLMatchManager:
             visitor_team_id = match.visitor_team.id
             facility_id = match.facility.id if match.facility else None
             
-            # Validate that teams belong to the league using team manager
-            home_team = self.db.team_manager.get_team(home_team_id)
-            visitor_team = self.db.team_manager.get_team(visitor_team_id)
-            
-            if not home_team or home_team.league.id != league_id:
-                raise ValueError("Home team must belong to the match league")
-            if not visitor_team or visitor_team.league.id != league_id:
-                raise ValueError("Visitor team must belong to the match league")
-            
-            # Verify related entities exist using managers
+            # Validate related entities exist
             if not self.db.league_manager.get_league(league_id):
                 raise ValueError(f"League with ID {league_id} does not exist")
-            
-            # Verify facility exists if provided
+            if not self.db.team_manager.get_team(home_team_id):
+                raise ValueError(f"Home team with ID {home_team_id} does not exist")
+            if not self.db.team_manager.get_team(visitor_team_id):
+                raise ValueError(f"Visitor team with ID {visitor_team_id} does not exist")
             if facility_id and not self.db.facility_manager.get_facility(facility_id):
                 raise ValueError(f"Facility with ID {facility_id} does not exist")
             
@@ -137,55 +132,808 @@ class SQLMatchManager:
             status = 'scheduled' if match.is_scheduled() else 'unscheduled'
             
             # Insert match
-            self.cursor.execute("""
+            query = """
                 INSERT INTO matches (id, league_id, home_team_id, visitor_team_id, 
-                                round, num_rounds, facility_id, date, scheduled_times, status)
+                                   facility_id, date, scheduled_times, status, round, num_rounds)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (match.get_id(), league_id, home_team_id, visitor_team_id, 
-                match.get_round(), match.get_num_rounds(), 
-                facility_id, match.date, scheduled_times_json, status))
-                
-        except sqlite3.IntegrityError as e:
-            raise ValueError(f"Database integrity error adding match: {e}")
+            """
+            
+            params = (
+                match.id, league_id, home_team_id, visitor_team_id,
+                facility_id, match.date, scheduled_times_json, status,
+                match.round, match.num_rounds
+            )
+            
+            # Execute with transaction awareness
+            if hasattr(self.db, 'execute_operation'):
+                self.db.execute_operation('add_match', query, params, f"Add match {match.id}: {match.home_team.name} vs {match.visitor_team.name}")
+            else:
+                self.cursor.execute(query, params)
+            return True
+            
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error adding match: {e}")
+
+    def delete_match(self, match_id: int) -> bool:
+        """Delete a match from the database"""
+        try:
+            # Execute with transaction awareness
+            if hasattr(self.db, 'execute_operation'):
+                self.db.execute_operation('delete_match', "DELETE FROM matches WHERE id = ?", (match_id,), f"Delete match {match_id}")
+            else:
+                self.cursor.execute("DELETE FROM matches WHERE id = ?", (match_id,))
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error deleting match: {e}")
         return True
 
-    def get_match_simple(self, match_id: int) -> Optional[Dict[str, Any]]:
-        """Get a match as a simple dictionary (for performance)"""
-        if not isinstance(match_id, int) or match_id <= 0:
-            raise ValueError(f"Match ID must be a positive integer, got: {match_id}")
+    def get_matches_on_date(self, date: str) -> List[Match]:
+        """Get all scheduled matches on a specific date"""
+        try:
+            where_conditions = ["date = ?", "status = 'scheduled'"]
+            params = [date]
+            
+            query = "SELECT id FROM matches WHERE " + " AND ".join(where_conditions)
+            query += " ORDER BY id"
+            
+            self.cursor.execute(query, params)
+            
+            matches = []
+            for row in self.cursor.fetchall():
+                match = self.get_match(row['id'])
+                if match:
+                    matches.append(match)
+            
+            return matches
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error getting matches on date: {e}")
+
+    # ========== CONSOLIDATED SCHEDULING METHODS ==========
+    
+
+    # ========== SIMPLIFIED SCHEDULING - Use Match Methods ==========
+    
+    def schedule_match(self, match: Match, date: str, 
+                      times: List[str], mode: str = 'auto') -> Dict[str, Any]:
+        """
+        Simplified scheduling that uses Match class methods directly
+        """
+        try:
+            if not isinstance(match, Match):
+                raise TypeError(f"Expected Match object, got: {type(match)}")
+            
+            # Check if match has a facility assigned
+            if not match.facility:
+                return {
+                    'success': False,
+                    'error': "No facility assigned to match",
+                    'error_type': 'no_facility'
+                }
+            
+            # Get detailed facility availability information
+            facility_availability = self.db.facility_manager.get_facility_availability(
+                facility=match.facility, dates=[date], max_days=1
+            )
+            
+            if not facility_availability or not facility_availability[0].available:
+                reason = facility_availability[0].reason if facility_availability else "Unknown reason"
+                return {
+                    'success': False,
+                    'error': f"Facility {match.facility.name} not available on {date}: {reason}",
+                    'error_type': 'facility_unavailable'
+                }
+            
+            facility_info = facility_availability[0]
+            
+            # Check for team conflicts
+            if self._has_team_date_conflicts(match, date):
+                return {
+                    'success': False,
+                    'error': f"Team conflict detected on {date}",
+                    'error_type': 'team_conflict'
+                }
+            
+            # Auto-determine times if not provided. Since nothing was provided, 
+            # we will try to get available times based on the mode, then select 
+            # the appropriate times based on the mode.
+            if not times:
+                times = self._get_times_for_mode(match, facility_info, mode)
+                if not times:
+                    return {
+                        'success': False,
+                        'error': f"No available times for mode '{mode}'",
+                        'error_type': 'no_available_times'
+                    }
+            
+            # Validate scheduling request using FacilityAvailabilityInfo
+            lines_needed = match.league.num_lines_per_match if match.league else 3
+            is_valid, validation_error = facility_info.validate_scheduling_request(
+                times=times, scheduling_mode=mode, lines_needed=lines_needed
+            )
+            
+
+            if not is_valid:
+                return {
+                    'success': False,
+                    'error': f"Scheduling validation failed: {validation_error}",
+                    'error_type': 'validation_failed'
+                }
+            
+            # Use Match class methods based on mode
+            success = False
+            
+            if mode == 'same_time':
+                if len(times) >= 1:
+                    match.schedule_all_lines_same_time(match.facility, date, times[0])
+                    success = True
+                    
+            elif mode == 'sequential':
+                if len(times) >= 1:
+                    match.schedule_lines_sequential(match.facility, date, times[0])
+                    success = True
+                    
+            elif mode == 'split_times':
+                if len(times) >= 2:
+                    # Generate split times using Match logic
+                    lines_needed = match.get_expected_lines()
+                    courts_per_slot = math.ceil(lines_needed / 2)
+                    lines_in_second_slot = lines_needed - courts_per_slot
+                    split_times = ([times[0]] * courts_per_slot + [times[1]] * lines_in_second_slot)
+                    match.schedule_lines_split_times(match.facility, date, split_times)
+                    success = True
+                    
+            elif mode == 'custom':
+                success = match.schedule_lines_custom_times(match.facility, date, times)
+            
+            if success:
+                # Update database
+                self._update_match_in_db(match)
+                return {
+                    'success': True,
+                    'scheduled_times': match.get_scheduled_times(),
+                    'mode_used': mode
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': f"Could not schedule using mode '{mode}'",
+                    'error_type': 'scheduling_failed'
+                }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'error_type': 'exception'
+            }
+    
+    def auto_schedule_match(self, match: Match, preferred_dates: List[str]) -> bool:
+        """
+        Simplified auto-scheduling that tries different scheduling modes
+        """
+        try:
+            # Skip already scheduled matches
+            if match.is_scheduled():
+                return True
+                        
+            # Try each date and facility combination
+            for date in preferred_dates:
+                    
+                try:
+                    # Strategy 1: Try same time scheduling
+                    result = self.schedule_match(match, date, [], 'same_time')
+                    if result['success']:
+                        return True
+                    
+                    # Strategy 2: Try split scheduling if allowed
+                    if match.league.allow_split_lines:
+                        result = self.schedule_match(match, date, [], 'split_times')
+                        if result['success']:
+                            return True
+                    
+                    # Strategy 3: Try sequential scheduling if allowed
+                    if match.league.allow_split_lines:
+                        result = self.schedule_match(match, date, [], 'sequential')
+                        if result['success']:
+                            return True
+                        
+                except Exception as e:
+                    raise RuntimeError(f"{e}")
+            
+            return False
+            
+        except Exception as e:
+            raise RuntimeError(f"Error auto-scheduling match {match.id}: {e}")
+    
+    def auto_schedule_matches(self, matches: List[Match], dry_run: bool = True) -> Dict[str, Any]:
+        """
+        Simplified batch auto-scheduling
+        """
+        try:
+            results = {
+                'total_matches': len(matches),
+                'scheduled': 0,
+                'failed': 0,
+                'scheduling_details': [],
+                'errors': [],
+                'dry_run': dry_run
+            }
+            
+            # Filter unscheduled matches
+            unscheduled_matches = [m for m in matches if m.is_unscheduled()]
+            
+            if not unscheduled_matches:
+                return results
+            
+            # Begin transaction
+            self.db.begin_transaction(dry_run=dry_run)
+            
+            try:
+                # Shuffle for fairness
+                import random
+                shuffled_matches = unscheduled_matches.copy()
+                random.shuffle(shuffled_matches)
+                
+                for match in shuffled_matches:
+                    # Use Match class method to get optimal dates
+                    optimal_dates = match.get_prioritized_scheduling_dates()
+                    
+                    success = self.auto_schedule_match(match, optimal_dates)
+                    
+                    if success:
+                        results['scheduled'] += 1
+                        results['scheduling_details'].append({
+                            'match_id': match.id,
+                            'status': 'would_be_scheduled' if dry_run else 'scheduled',
+                            'home_team': match.home_team_name,
+                            'visitor_team': match.visitor_team_name,
+                            'facility': match.facility_name,
+                            'date': match.date,
+                            'times': match.get_scheduled_times()
+                        })
+                    else:
+                        results['failed'] += 1
+                        results['errors'].append({
+                            'match_id': match.id,
+                            'status': 'scheduling_failed',
+                            'home_team': match.home_team_name,
+                            'visitor_team': match.visitor_team_name,
+                            'reason': 'No available time slots found'
+                        })
+                
+                # Commit transaction
+                self.db.commit_transaction()
+                return results
+                
+            except Exception as e:
+                self.db.rollback_transaction()
+                results['errors'].append({'type': 'transaction_error', 'message': str(e)})
+                raise e
+        
+        except Exception as e:
+            raise RuntimeError(f"Error in auto_schedule_matches: {e}")
+    
+    def unschedule_match(self, match: Match) -> bool:
+        """Unschedule a match using Match class method"""
+        try:
+            match.unschedule()  # Use Match class method
+            return self._update_match_in_db(match)
+        except Exception as e:
+            raise RuntimeError(f"Error unscheduling match: {e}")
+
+
+
+    def _get_optimal_scheduling_dates(self, match: Match, days_ahead: int = 90) -> List[str]:
+        """
+        Get optimal scheduling dates for a match based on team and league preferences
+        
+        Args:
+            match: Match object
+            days_ahead: Number of days to look ahead (default 90)
+            
+        Returns:
+            List of dates in order of preference
+        """
+        from datetime import datetime, timedelta
         
         try:
-            self.cursor.execute("SELECT * FROM matches WHERE id = ?", (match_id,))
-            row = self.cursor.fetchone()
-            if not row:
-                return None
+            start_date = datetime.now().date()
+            end_date = start_date + timedelta(days=days_ahead)
             
-            match_data = self._dictify(row)
+            candidate_dates = []
+            current = start_date
             
-            # Parse scheduled times from JSON
-            if match_data.get('scheduled_times'):
-                try:
-                    parsed_times = json.loads(match_data['scheduled_times'])
-                    # Ensure it's always a list
-                    if isinstance(parsed_times, list):
-                        match_data['scheduled_times'] = parsed_times
-                    else:
-                        # Convert single value to list
-                        match_data['scheduled_times'] = [parsed_times] if parsed_times is not None else []
-                except (json.JSONDecodeError, TypeError):
-                    match_data['scheduled_times'] = []
+            while current <= end_date:
+                day_name = current.strftime('%A')
+                date_str = current.strftime('%Y-%m-%d')
+                
+                # Calculate priority based on league and team preferences
+                priority = 10  # Default priority
+                
+                # League preferences
+                if hasattr(match.league, 'preferred_days') and match.league.preferred_days:
+                    if day_name in match.league.preferred_days:
+                        priority = 1  # Highest priority
+                    elif hasattr(match.league, 'backup_days') and day_name in match.league.backup_days:
+                        priority = 3
+                
+                # Team preferences (home team gets priority)
+                if hasattr(match.home_team, 'preferred_days') and match.home_team.preferred_days:
+                    if day_name in match.home_team.preferred_days:
+                        priority = min(priority, 2)  # High priority, but after league preferred
+                
+                # Weekend bonus for recreational leagues
+                if day_name in ['Saturday', 'Sunday']:
+                    priority = min(priority, 4)
+                
+                candidate_dates.append((date_str, priority))
+                current += timedelta(days=1)
+            
+            # Sort by priority, then by date
+            candidate_dates.sort(key=lambda x: (x[1], x[0]))
+            
+            # Return just the date strings
+            return [date for date, _ in candidate_dates]
+            
+        except Exception as e:
+            # Fallback to simple date range if preference calculation fails
+            simple_dates = []
+            current = start_date
+            while current <= end_date:
+                simple_dates.append(current.strftime('%Y-%m-%d'))
+                current += timedelta(days=1)
+            return simple_dates
+
+
+    def _has_team_conflict_with_scheduling_state(self, match: Match, date: str) -> bool:
+        """
+        Check team conflicts considering both database and in-memory scheduling state
+        
+        Args:
+            match: Match to check
+            date: Date to check
+            
+        Returns:
+            True if there's a conflict
+        """
+        # Check database conflicts
+        if self._has_team_date_conflicts(match, date):
+            return True
+        
+        # Check scheduling state (for conflicts within current transaction/dry-run)
+        if hasattr(self.db, 'scheduling_state') and self.db.scheduling_state:
+            if (self.db.scheduling_state.has_team_conflict(match.home_team.id, date) or
+                self.db.scheduling_state.has_team_conflict(match.visitor_team.id, date)):
+                return True
+        
+        return False
+
+
+    def get_auto_scheduling_summary(self, league: Optional[League] = None) -> Dict[str, Any]:
+        """
+        Get summary of auto-scheduling opportunities and constraints
+        
+        Args:
+            league: Optional league to filter by
+            
+        Returns:
+            Dictionary with scheduling analysis
+        """
+        try:
+            # Get unscheduled matches
+            if league:
+                unscheduled_matches = self.list_matches(league=league, match_type=MatchType.UNSCHEDULED)
             else:
-                match_data['scheduled_times'] = []
+                unscheduled_matches = self.list_matches(match_type=MatchType.UNSCHEDULED)
             
-            return match_data
-        except sqlite3.Error as e:
-            raise RuntimeError(f"Database error retrieving match {match_id}: {e}")
+            if not unscheduled_matches:
+                return {
+                    'total_unscheduled': 0,
+                    'message': 'No unscheduled matches found'
+                }
+            
+            # Analyze scheduling constraints
+            facilities_available = len(self.db.facility_manager.list_facilities())
+            
+            # Count matches by league
+            league_breakdown = {}
+            for match in unscheduled_matches:
+                league_name = match.league.name
+                if league_name not in league_breakdown:
+                    league_breakdown[league_name] = {
+                        'count': 0,
+                        'allow_split_lines': match.league.allow_split_lines,
+                        'lines_per_match': match.league.num_lines_per_match
+                    }
+                league_breakdown[league_name]['count'] += 1
+            
+            return {
+                'total_unscheduled': len(unscheduled_matches),
+                'facilities_available': facilities_available,
+                'league_breakdown': league_breakdown,
+                'schedulable': facilities_available > 0,
+                'recommendation': (
+                    f"Ready to auto-schedule {len(unscheduled_matches)} matches across "
+                    f"{len(league_breakdown)} league(s) using {facilities_available} facilities"
+                    if facilities_available > 0 else
+                    "Cannot auto-schedule: no facilities available"
+                )
+            }
+            
+        except Exception as e:
+            return {
+                'error': f"Error analyzing auto-scheduling opportunities: {e}",
+                'total_unscheduled': 0
+            }
+
+    # ========== PRIVATE HELPER METHODS ==========
+
+    from usta import FacilityAvailabilityInfo
+    
+    def _get_times_for_mode(self, match: Match, facility_info: 'FacilityAvailabilityInfo', mode: str) -> List[str]:
+        """
+        Try to get available times based on the mode, then select the appropriate times based on the mode.
+        """
+        lines_needed = match.league.num_lines_per_match if match.league else 3
+        
+        if mode == 'same_time':
+            # Need exactly one time slot that can accommodate all lines
+            available_times = facility_info.get_available_times_for_courts(lines_needed)
+            return available_times[:1] if len(available_times) >= 1 else []
+
+        elif mode == 'split_times':
+            # Need exactly two time slots that can accommodate half the lines each
+            courts_per_slot = math.ceil(lines_needed / 2)
+            available_times = facility_info.get_available_times_for_courts(courts_per_slot)
+            return available_times[:2] if len(available_times) >= 2 else []
+        
+        elif mode == 'sequential':
+            # Need one start time, which can be any available time
+            available_times = facility_info.get_available_times_for_courts(1)
+            return available_times[:1] if len(available_times) >= 1 else []
+        
+        elif mode == 'custom':
+            # For custom mode, return all available times
+            return facility_info.get_available_times()
+            
+        return []
+    
+    def _validate_scheduling_times(self, times: List[str], mode: str, 
+                                 lines_needed: int, facility_info) -> Optional[str]:
+        """Validate scheduling times based on mode"""
+        if mode == 'same_time':
+            if len(times) != 1:
+                return "Same time mode requires exactly one time slot"
+            if not facility_info.check_time_availability(times[0], lines_needed):
+                return f"Time {times[0]} cannot accommodate {lines_needed} courts"
+                
+        elif mode == 'split_times':
+            if len(times) != 2:
+                return "Split times mode requires exactly two time slots"
+            courts_per_slot = math.ceil(lines_needed / 2)
+            if not facility_info.check_time_availability(times[0], courts_per_slot):
+                return f"Time {times[0]} cannot accommodate {courts_per_slot} courts"
+            if not facility_info.check_time_availability(times[1], courts_per_slot):
+                return f"Time {times[1]} cannot accommodate {courts_per_slot} courts"
+            
+            # Check time gap (at least 1 hour apart)
+            try:
+                dt1 = datetime.strptime(times[0], '%H:%M')
+                dt2 = datetime.strptime(times[1], '%H:%M')
+                if dt2 < dt1:
+                    dt2 += timedelta(days=1)
+                if dt2 - dt1 < timedelta(hours=1):
+                    return "Split time slots must be at least 1 hour apart"
+            except ValueError:
+                return "Invalid time format"
+                
+        elif mode == 'sequential':
+            if len(times) != 1:
+                return "Sequential mode requires exactly one start time"
+            if not facility_info.check_time_availability(times[0], 1):
+                return f"Start time {times[0]} not available"
+                
+        elif mode == 'custom':
+            if len(times) != lines_needed:
+                return f"Custom mode requires exactly {lines_needed} time slots"
+            for i, time in enumerate(times):
+                if not facility_info.check_time_availability(time, 1):
+                    return f"Time {time} (line {i+1}) is not available"
+            
+            # Check for duplicate times that exceed capacity
+            time_counts = Counter(times)
+            for time, count in time_counts.items():
+                if not facility_info.check_time_availability(time, count):
+                    return f"Time {time} cannot accommodate {count} courts"
+                    
+        elif mode != 'auto':
+            return f"Unknown scheduling mode: {mode}"
+        
+        return None  # No validation errors
+
+    def _generate_scheduled_times(self, times: List[str], mode: str, lines_needed: int) -> List[str]:
+        """Generate final scheduled times based on mode"""
+        if mode == 'same_time':
+            return [times[0]] * lines_needed
+            
+        elif mode == 'sequential':
+            # Generate sequential times with 3-hour intervals
+            start_parts = times[0].split(':')
+            start_hour = int(start_parts[0])
+            start_minute = int(start_parts[1])
+            
+            scheduled_times = []
+            for i in range(lines_needed):
+                total_minutes = start_hour * 60 + start_minute + (i * 180)  # 3 hours = 180 minutes
+                hour = (total_minutes // 60) % 24
+                minute = total_minutes % 60
+                time_str = f"{hour:02d}:{minute:02d}"
+                scheduled_times.append(time_str)
+            return scheduled_times
+            
+        elif mode == 'split_times':
+            # Split lines between two time slots
+            courts_per_slot = math.ceil(lines_needed / 2)
+            lines_in_second_slot = lines_needed - courts_per_slot
+            return ([times[0]] * courts_per_slot + [times[1]] * lines_in_second_slot)
+            
+        elif mode == 'custom':
+            return times.copy()
+            
+        return []
+
+    def _get_facilities_to_try(self, match: Match, facilities: Optional[List[Facility]], 
+                             prefer_home_facility: bool) -> List[Facility]:
+        """Get ordered list of facilities to try for scheduling"""
+        if facilities:
+            return facilities
+        
+        # Get all facilities
+        all_facilities = self.db.facility_manager.list_facilities()
+        
+        if prefer_home_facility and match.home_team.home_facility:
+            # Put home facility first
+            home_facility = match.home_team.home_facility
+            other_facilities = [f for f in all_facilities if f.id != home_facility.id]
+            return [home_facility] + other_facilities
+        
+        return all_facilities
+
+    def _has_team_date_conflicts(self, match: Match, date: str) -> bool:
+        """Check if either team has a conflict on the given date"""
+        return (self.db.team_manager.check_team_date_conflict(match.home_team, date, exclude_match=match) or
+                self.db.team_manager.check_team_date_conflict(match.visitor_team, date, exclude_match=match))
 
 
 
+    def _execute_scheduling(self, match: Match, facility: Facility, date: str, 
+                          scheduled_times: List[str]) -> bool:
+        """Execute the actual scheduling operation"""
+        try:
+            # Update match object
+            match.facility = facility
+            match.date = date
+            match.scheduled_times = scheduled_times
+            
+            # Update scheduling state for conflict detection
+            if hasattr(self.db, 'scheduling_state') and self.db.scheduling_state:
+                for time in scheduled_times:
+                    self.db.scheduling_state.book_time_slot(match.id, facility.id, date, time)
+                self.db.scheduling_state.book_team_date(match.id, match.home_team.id, date)
+                self.db.scheduling_state.book_team_date(match.id, match.visitor_team.id, date)
+            
+            # Update database
+            return self._update_match_in_db(match)
+            
+        except Exception as e:
+            print(f"Error executing scheduling: {e}")
+            return False
 
+    def _update_match_in_db(self, match: Match) -> bool:
+        """Update match in database with transaction awareness"""
+        try:
+            # Verify related entities exist (skip in dry-run for performance)
+            if not getattr(self.db, 'dry_run_active', False):
+                if not self.db.league_manager.get_league(match.league.id):
+                    raise ValueError(f"League with ID {match.league.id} does not exist")
+                if not self.db.team_manager.get_team(match.home_team.id):
+                    raise ValueError(f"Home team with ID {match.home_team.id} does not exist")
+                if not self.db.team_manager.get_team(match.visitor_team.id):
+                    raise ValueError(f"Visitor team with ID {match.visitor_team.id} does not exist")
+                if match.facility and not self.db.facility_manager.get_facility(match.facility.id):
+                    raise ValueError(f"Facility with ID {match.facility.id} does not exist")
+            
+            # Serialize scheduled times to JSON
+            scheduled_times_json = json.dumps(match.scheduled_times) if match.scheduled_times else None
+            
+            # Determine status
+            status = 'scheduled' if match.is_scheduled() else 'unscheduled'
+            
+            # Prepare operation description for transaction logging
+            operation_desc = f"Update match {match.id}: {match.home_team.name} vs {match.visitor_team.name}"
+            if match.facility:
+                operation_desc += f" at {match.facility.name}"
+            if match.date:
+                operation_desc += f" on {match.date}"
+            if match.scheduled_times:
+                operation_desc += f" at {', '.join(match.scheduled_times)}"
+            
+            # Update the match using transaction-aware execution
+            query = """
+                UPDATE matches 
+                SET league_id = ?, home_team_id = ?, visitor_team_id = ?, 
+                    facility_id = ?, date = ?, scheduled_times = ?, status = ?, 
+                    round = ?, num_rounds = ?
+                WHERE id = ?
+            """
+            
+            params = (
+                match.league.id,
+                match.home_team.id,
+                match.visitor_team.id,
+                match.facility.id if match.facility else None,
+                match.date,
+                scheduled_times_json,
+                status,
+                match.round,
+                match.num_rounds,
+                match.id
+            )
+            
+            # Execute with transaction awareness
+            if hasattr(self.db, 'execute_operation'):
+                self.db.execute_operation('update_match', query, params, operation_desc)
+            else:
+                self.cursor.execute(query, params)
+            
+            return True
+            
+        except Exception as e:
+            raise RuntimeError(f"Error updating match in database: {e}")
+
+    # ========== ADDITIONAL UTILITY METHODS ==========
+    
+    def preview_match_scheduling(self, match: Match, 
+                               date: str, times: List[str], mode: str) -> Dict[str, Any]:
+        """
+        Preview what would happen if scheduling a match without actually doing it
+        
+        Returns detailed information about conflicts, availability, and proposed schedule
+        """
+        try:
+            lines_needed = match.league.num_lines_per_match if match.league else 3
+            
+            # Check if match has a facility assigned
+            if not match.facility:
+                return {
+                    'schedulable': False,
+                    'conflicts': [{'type': 'no_facility', 'message': 'No facility assigned to match'}],
+                    'proposed_times': [],
+                    'mode': mode,
+                    'lines_needed': lines_needed
+                }
+            
+            # Get facility availability
+            availability_list = self.db.facility_manager.get_facility_availability(
+                facility=match.facility, dates=[date], max_days=1
+            )
+            
+            preview_result = {
+                'schedulable': False,
+                'conflicts': [],
+                'proposed_times': [],
+                'mode': mode,
+                'lines_needed': lines_needed
+            }
+            
+            if not availability_list or not availability_list[0].available:
+                preview_result['conflicts'].append({
+                    'type': 'facility_unavailable',
+                    'message': f"Facility {match.facility.name} not available on {date}"
+                })
+                return preview_result
+            
+            facility_info = availability_list[0]
+            
+            # Validate times
+            validation_error = self._validate_scheduling_times(times, mode, lines_needed, facility_info)
+            if validation_error:
+                preview_result['conflicts'].append({
+                    'type': 'validation_error',
+                    'message': validation_error
+                })
+                return preview_result
+            
+            # Generate proposed times
+            proposed_times = self._generate_scheduled_times(times, mode, lines_needed)
+            if not proposed_times:
+                preview_result['conflicts'].append({
+                    'type': 'generation_failed',
+                    'message': f"Could not generate schedule for mode '{mode}'"
+                })
+                return preview_result
+            
+            preview_result['proposed_times'] = proposed_times
+            preview_result['schedulable'] = True
+            
+            # Check for potential conflicts with existing matches
+            for time in set(proposed_times):  # Check unique times only
+                conflicts = self._check_facility_time_conflicts(match.facility.id, date, time, match.id)
+                if conflicts:
+                    preview_result['conflicts'].extend(conflicts)
+                    preview_result['schedulable'] = False
+            
+            return preview_result
+            
+        except Exception as e:
+            return {
+                'schedulable': False,
+                'conflicts': [{'type': 'exception', 'message': str(e)}],
+                'proposed_times': [],
+                'mode': mode
+            }
+
+    def _check_facility_time_conflicts(self, facility_id: int, date: str, 
+                                     time: str, exclude_match_id: Optional[int] = None) -> List[Dict]:
+        """Check for conflicts at a specific facility, date, and time"""
+        try:
+            conflicts = []
+            duration_hours = 3  # Standard match duration
+            
+            # Parse the proposed time
+            start_time = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
+            end_time = start_time + timedelta(hours=duration_hours)
+            
+            # Query for overlapping matches
+            query = """
+            SELECT m.id, m.scheduled_times, 
+                   ht.name as home_team_name, vt.name as visitor_team_name
+            FROM matches m
+            JOIN teams ht ON m.home_team_id = ht.id
+            JOIN teams vt ON m.visitor_team_id = vt.id
+            WHERE m.facility_id = ? 
+                AND m.date = ?
+                AND m.status = 'scheduled'
+                AND m.scheduled_times IS NOT NULL
+            """
+            params = [facility_id, date]
+            
+            if exclude_match_id:
+                query += " AND m.id != ?"
+                params.append(exclude_match_id)
+            
+            self.cursor.execute(query, params)
+            
+            for row in self.cursor.fetchall():
+                match_data = self._dictify(row)
+                
+                if match_data['scheduled_times']:
+                    try:
+                        scheduled_times = json.loads(match_data['scheduled_times'])
+                        if isinstance(scheduled_times, list):
+                            for scheduled_time in scheduled_times:
+                                # Check if there's a time overlap
+                                scheduled_start = datetime.strptime(f"{date} {scheduled_time}", "%Y-%m-%d %H:%M")
+                                scheduled_end = scheduled_start + timedelta(hours=duration_hours)
+                                
+                                # Check for overlap
+                                if (start_time < scheduled_end and end_time > scheduled_start):
+                                    conflicts.append({
+                                        'type': 'facility_time_conflict',
+                                        'match_id': match_data['id'],
+                                        'conflicting_time': scheduled_time,
+                                        'home_team': match_data['home_team_name'],
+                                        'visitor_team': match_data['visitor_team_name'],
+                                        'message': f"Facility already has match at {scheduled_time}"
+                                    })
+                    except (json.JSONDecodeError, TypeError):
+                        continue
+            
+            return conflicts
+            
+        except Exception as e:
+            return [{'type': 'error', 'message': f"Error checking conflicts: {e}"}]
+
+    # ========== OTHER EXISTING METHODS (unchanged) ==========
     
     def list_matches(self, 
                      facility: Optional['Facility'] = None,
@@ -289,453 +1037,14 @@ class SQLMatchManager:
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error listing matches: {e}")
 
-
-
-    def update_match(self, match: Match) -> bool:
-        """Update match metadata and scheduled times."""
-        if not isinstance(match, Match):
-            raise TypeError(f"Expected Match object, got: {type(match)}")
-        
-        try:
-            # Check if match exists
-            existing_data = self.get_match_simple(match.id)
-            if not existing_data:
-                raise ValueError(f"Match with ID {match.id} does not exist")
-            
-            # Extract IDs from objects for database storage - use getter methods for immutable fields
-            league_id = match.get_league().id
-            home_team_id = match.get_home_team().id
-            visitor_team_id = match.get_visitor_team().id
-            facility_id = match.facility.id if match.facility else None
-            
-            # Verify related entities exist using managers
-            if not self.db.league_manager.get_league(league_id):
-                raise ValueError(f"League with ID {league_id} does not exist")
-            if not self.db.team_manager.get_team(home_team_id):
-                raise ValueError(f"Home team with ID {home_team_id} does not exist")
-            if not self.db.team_manager.get_team(visitor_team_id):
-                raise ValueError(f"Visitor team with ID {visitor_team_id} does not exist")
-            
-            # Verify facility exists if provided
-            if facility_id and not self.db.facility_manager.get_facility(facility_id):
-                raise ValueError(f"Facility with ID {facility_id} does not exist")
-            
-            # Serialize scheduled times to JSON
-            scheduled_times_json = json.dumps(match.scheduled_times) if match.scheduled_times else None
-            
-            # Determine status
-            status = 'scheduled' if match.is_scheduled() else 'unscheduled'
-            
-            # Update the match
-            self.cursor.execute("""
-                UPDATE matches 
-                SET league_id = ?, home_team_id = ?, visitor_team_id = ?, 
-                    facility_id = ?, date = ?, scheduled_times = ?, status = ?, 
-                    round = ?, num_rounds = ?
-                WHERE id = ?
-            """, (league_id, home_team_id, visitor_team_id, 
-                facility_id, match.date, scheduled_times_json, status, 
-                match.get_round(), match.get_num_rounds(), match.get_id()))
-        except sqlite3.Error as e:
-            raise RuntimeError(f"Database error updating match: {e}")
-        return True
-
-    def delete_match(self, match_id: int) -> bool:
-        """Delete a match"""
-        if not isinstance(match_id, int) or match_id <= 0:
-            raise ValueError(f"Match ID must be a positive integer, got: {match_id}")
-        
-        try:
-            # Check if match exists
-            existing_data = self.get_match_simple(match_id)
-            if not existing_data:
-                raise ValueError(f"Match with ID {match_id} does not exist")
-            
-            # Delete the match
-            self.cursor.execute("DELETE FROM matches WHERE id = ?", (match_id,))
-        except sqlite3.Error as e:
-            raise RuntimeError(f"Database error deleting match: {e}")
-        return True
-
-    def get_matches_on_date(self, date: str) -> List[Match]:
-        """Get all scheduled matches on a specific date"""
-        try:
-            where_conditions = ["date = ?", "status = 'scheduled'"]
-            params = [date]
-            
-            query = "SELECT id FROM matches WHERE " + " AND ".join(where_conditions)
-            query += " ORDER BY id"
-            
-            self.cursor.execute(query, params)
-            
-            matches = []
-            for row in self.cursor.fetchall():
-                match = self.get_match(row['id'])
-                if match:
-                    matches.append(match)
-            
-            return matches
-        except sqlite3.Error as e:
-            raise RuntimeError(f"Database error getting matches on date: {e}")
-
-    # ========== Schedule Match Operations ==========
-    
-    def schedule_match_all_lines_same_time(self, match: 'Match', 
-                                           facility: 'Facility', 
-                                           date: str, 
-                                           time: Optional[str] = None) -> bool:
-        
-        """Schedule all lines of a match at the same facility, date, and time"""
-        try:
-            if not isinstance(match, Match):
-                raise TypeError(f"Expected Match object, got: {type(match)}")
-            if not isinstance(facility, Facility):
-                raise TypeError(f"Expected Facility object, got: {type(facility)}")
-            
-            # Verify facility exists using facility manager
-            if not self.db.facility_manager.get_facility(facility.id):
-                raise ValueError(f"Facility with ID {facility.id} does not exist")
-
-            num_lines = match.league.num_lines_per_match
-            
-            # If time is not provided, find first available
-            if not time:
-            
-                available_times = self.get_available_times_at_facility(facility=facility, 
-                                                                   date=date,
-                                                                   courts_needed=num_lines)
-                # Take the first available time slot
-                if available_times:
-                    time = available_times[0]
-                else:
-                    return False
-            
-            else:
-                # Need to make sure time provided as input is available
-                if not self.check_time_availability(facility=facility, 
-                                                        date=date, 
-                                                        time=time, 
-                                                        courts_needed=num_lines):
-                    return False
-
-            # At this point, time should be defined and available
-            match.schedule_all_lines_same_time(facility=facility, date=date, time=time)
-            
-            # Update in database
-            self.update_match(match)
-            return True
-            
-        except Exception as e:
-            # If there's any error, return False (could be due to conflicts, etc.)
-            return False
-
-
-    
-    def schedule_match_split_times(self, match: Match, facility: Facility, date: str, 
-                                  timeslots: Optional[List[str]]=None) -> bool:
-        
-        """Schedule lines in split times mode"""
-        print(f"\n\n\n ====== A: schedule_match_split_times to timeslots = {timeslots}\n\n\n")
-
-        try:
-            if not isinstance(match, Match):
-                raise TypeError(f"Expected Match object, got: {type(match)}")
-            if not isinstance(facility, Facility):
-                raise TypeError(f"Expected Facility object, got: {type(facility)}")
-            
-            # Verify facility exists using facility manager
-            if not self.db.facility_manager.get_facility(facility.id):
-                raise ValueError(f"Facility with ID {facility.id} does not exist")
-
-            available_times = None
-            
-            # should we try to schedule half and half? 
-            total_lines = match.league.num_lines_per_match
-
-            # if timeslots were not provided, find consecutive slots for a split match
-            if not timeslots:
-
-                print(f"\n\n\n ====== A: SCHEDULE_MATCH_SPLIT_TIMES: available_times = {available_times}\n\n\n")
-
-
-                # Calculate how many lines go in each slot
-                lines_slot1 = math.ceil(total_lines / 2)  # First slot gets extra line if odd
-                lines_slot2 = total_lines - lines_slot1   # Remaining lines
-                
-                # Find available times that can accommodate the larger requirement
-                max_lines_needed = max(lines_slot1, lines_slot2)
-                available_times = self.get_available_times_at_facility(
-                    facility=facility, 
-                    date=date,
-                    courts_needed=max_lines_needed
-                )
-                
-                if not available_times or len(available_times) < 2:
-                    raise ValueError(f"Not enough available timeslots for split scheduling. Need 2, found {len(available_times) if available_times else 0}")
-                    return False
-
-
-                # Create timeslots list: first half of lines at time 1, rest at time 2
-                timeslots = []
-                for i in range(total_lines):
-                    if i < lines_slot1:
-                        timeslots.append(available_times[0])
-                    else:
-                        timeslots.append(available_times[1])
-
-            
-            # Validate timeslots list
-            if len(timeslots) != total_lines:
-                raise ValueError(f"Timeslots list length ({len(timeslots)}) must equal total lines ({total_lines})")
-            
-            print(f"Scheduling match with timeslots: {timeslots}")
-
-            # Check availability for each unique timeslot
-            from collections import Counter
-            timeslot_counts = Counter(timeslots)
-            
-            for timeslot, count in timeslot_counts.items():
-                if not self.check_time_availability(facility, date, timeslot, count):
-                    print(f"Timeslot {timeslot} cannot accommodate {count} courts")
-                    return False
-
-            # If we got here, all timeslots are available. Go ahead and schedule
-            if not match.schedule_lines_split_times(facility, date, timeslots):
-                raise Exception(f"match.schedule_line_split_times returned an error")
-                return False
-            
-            # Update in database
-            return self.update_match(match)
-
-            
-        except Exception as e:
-            print(f"\n\n CAUGHT EXCEPTION {e}\n\n")
-            return False
-
-        
     def unschedule_match(self, match: Match) -> bool:
-        """Unschedule a match (remove facility, date, and all times)"""
-        if not isinstance(match, Match):
-            raise TypeError(f"Expected Match object, got: {type(match)}")
-        
-        match.unschedule()
-        return self.update_match(match)
-
-
-    
-    def get_scheduled_times_at_facility(self, facility: Facility, date: str) -> List[str]:
-        """Get all scheduled times at a facility on a specific date using facility manager for validation"""
-        if not isinstance(facility, Facility):
-            raise TypeError(f"Expected Facility object, got: {type(facility)}")
-        
-        # Verify facility exists using facility manager
-        if not self.db.facility_manager.get_facility(facility.id):
-            raise ValueError(f"Facility with ID {facility.id} does not exist")
-        
+        """Remove scheduling information from a match"""
         try:
-            self.cursor.execute("""
-                SELECT scheduled_times 
-                FROM matches 
-                WHERE facility_id = ? AND date = ? AND status = 'scheduled' AND scheduled_times IS NOT NULL
-            """, (facility.id, date))
+            match.facility = None
+            match.date = None
+            match.scheduled_times = []
             
-            all_times = []
-            for row in self.cursor.fetchall():
-                if row['scheduled_times']:
-                    try:
-                        times = json.loads(row['scheduled_times'])
-                        if isinstance(times, list):
-                            all_times.extend(times)
-                    except (json.JSONDecodeError, TypeError):
-                        continue
-            
-            return sorted(list(set(all_times)))  # Remove duplicates and sort
-            
-        except sqlite3.Error as e:
-            raise RuntimeError(f"Database error getting scheduled times: {e}")
-    
-    def check_time_availability(self, facility: Facility, date: str, time: str, courts_needed: int = 1) -> bool:
-        """Check if a specific time slot is available at a facility using facility manager"""
-        if not isinstance(facility, Facility):
-            raise TypeError(f"Expected Facility object, got: {type(facility)}")
-        
-        # Use facility manager to check availability
-        return self.db.facility_manager.check_time_availability(facility.id, date, time, courts_needed)
-    
-    def get_available_times_at_facility(self, facility: Facility, date: str, courts_needed: int = 1) -> List[str]:
-        """Get all available times at a facility for the specified number of courts using facility manager"""
-        if not isinstance(facility, Facility):
-            raise TypeError(f"Expected Facility object, got: {type(facility)}")
-        
-        # Use facility manager to get available times
-        return self.db.facility_manager.get_available_times_at_facility(facility.id, date, courts_needed)
-
-    # ========== Statistics and Reporting ==========
-    
-    def get_match_statistics(self, league_id: Optional[int] = None) -> Dict[str, Any]:
-        """Get statistics about matches"""
-        try:
-            where_clause = "WHERE league_id = ?" if league_id else ""
-            params = [league_id] if league_id else []
-            
-            # Get basic counts
-            self.cursor.execute(f"""
-                SELECT 
-                    COUNT(*) as total_matches,
-                    SUM(CASE WHEN status = 'scheduled' THEN 1 ELSE 0 END) as scheduled_matches,
-                    SUM(CASE WHEN status = 'unscheduled' THEN 1 ELSE 0 END) as unscheduled_matches
-                FROM matches {where_clause}
-            """, params)
-            
-            row = self.cursor.fetchone()
-            stats = self._dictify(row)
-            
-            # Calculate scheduled lines
-            self.cursor.execute(f"""
-                SELECT scheduled_times 
-                FROM matches 
-                {where_clause} AND scheduled_times IS NOT NULL
-            """, params)
-            
-            total_scheduled_lines = 0
-            partially_scheduled_matches = 0
-            fully_scheduled_matches = 0
-            
-            # Get league info for expected lines per match
-            expected_lines = 3  # Default
-            if league_id:
-                league = self.db.league_manager.get_league(league_id)
-                if league:
-                    expected_lines = league.num_lines_per_match
-            
-            for row in self.cursor.fetchall():
-                if row['scheduled_times']:
-                    try:
-                        times = json.loads(row['scheduled_times'])
-                        if isinstance(times, list):
-                            num_lines = len(times)
-                            total_scheduled_lines += num_lines
-                            
-                            # Determine if match is fully or partially scheduled
-                            if num_lines == expected_lines:
-                                fully_scheduled_matches += 1
-                            elif 0 < num_lines < expected_lines:
-                                partially_scheduled_matches += 1
-                    except (json.JSONDecodeError, TypeError):
-                        continue
-            
-            stats.update({
-                'total_scheduled_lines': total_scheduled_lines,
-                'partially_scheduled_matches': partially_scheduled_matches,
-                'fully_scheduled_matches': fully_scheduled_matches,
-                'scheduling_percentage': round((stats['scheduled_matches'] / stats['total_matches'] * 100) if stats['total_matches'] > 0 else 0, 2)
-            })
-            
-            return stats
-            
-        except sqlite3.Error as e:
-            raise RuntimeError(f"Database error getting match statistics: {e}")
-    
-    def get_facility_usage_report(self, facility: Facility, start_date: str, end_date: str) -> Dict[str, Any]:
-        """Get facility usage report for a date range using facility manager for validation"""
-        if not isinstance(facility, Facility):
-            raise TypeError(f"Expected Facility object, got: {type(facility)}")
-        
-        # Verify facility exists using facility manager
-        if not self.db.facility_manager.get_facility(facility.id):
-            raise ValueError(f"Facility with ID {facility.id} does not exist")
-        
-        try:
-            self.cursor.execute("""
-                SELECT date, scheduled_times 
-                FROM matches 
-                WHERE facility_id = ? AND date BETWEEN ? AND ? AND status = 'scheduled'
-                ORDER BY date
-            """, (facility.id, start_date, end_date))
-            
-            usage_by_date = defaultdict(list)
-            total_lines_scheduled = 0
-            
-            for row in self.cursor.fetchall():
-                date = row['date']
-                if row['scheduled_times']:
-                    try:
-                        times = json.loads(row['scheduled_times'])
-                        if isinstance(times, list):
-                            usage_by_date[date].extend(times)
-                            total_lines_scheduled += len(times)
-                    except (json.JSONDecodeError, TypeError):
-                        continue
-            
-            # Calculate peak usage times
-            all_times = []
-            for times_list in usage_by_date.values():
-                all_times.extend(times_list)
-            
-            time_counts = defaultdict(int)
-            for time in all_times:
-                time_counts[time] += 1
-            
-            peak_times = sorted(time_counts.items(), key=lambda x: x[1], reverse=True)[:5]
-            
-            return {
-                'facility_id': facility.id,
-                'facility_name': facility.name,
-                'start_date': start_date,
-                'end_date': end_date,
-                'total_days_used': len(usage_by_date),
-                'total_lines_scheduled': total_lines_scheduled,
-                'usage_by_date': dict(usage_by_date),
-                'peak_times': peak_times,
-                'average_lines_per_day': round(total_lines_scheduled / len(usage_by_date) if usage_by_date else 0, 2)
-            }
-            
-        except sqlite3.Error as e:
-            raise RuntimeError(f"Database error getting facility usage report: {e}")
-    
-    def get_scheduling_conflicts(self, facility: Facility, date: str) -> List[Dict[str, Any]]:
-        """Find potential scheduling conflicts at a facility on a specific date using facility manager"""
-        if not isinstance(facility, Facility):
-            raise TypeError(f"Expected Facility object, got: {type(facility)}")
-        
-        # Verify facility exists using facility manager
-        if not self.db.facility_manager.get_facility(facility.id):
-            raise ValueError(f"Facility with ID {facility.id} does not exist")
-        
-        try:
-            matches = self.get_matches_on_date(date)
-            # Filter matches for this facility
-            facility_matches = [m for m in matches if m.facility and m.facility.id == facility.id]
-            
-            conflicts = []
-            time_usage = defaultdict(list)
-            
-            # Group matches by time
-            for match in facility_matches:
-                for time in match.scheduled_times:
-                    time_usage[time].append({
-                        'match_id': match.id,
-                        'home_team': match.home_team.name,
-                        'visitor_team': match.visitor_team.name,
-                        'league': match.league.name
-                    })
-            
-            # Use facility manager to get facility capacity information
-            facility_obj = self.db.facility_manager.get_facility(facility.id)
-            max_courts = facility_obj.total_courts if facility_obj else 0
-            
-            # Find times with multiple matches exceeding court capacity
-            for time, matches_at_time in time_usage.items():
-                if len(matches_at_time) > max_courts:
-                    conflicts.append({
-                        'time': time,
-                        'courts_needed': len(matches_at_time),
-                        'courts_available': max_courts,
-                        'excess_demand': len(matches_at_time) - max_courts,
-                        'matches': matches_at_time
-                    })
-            
-            return conflicts
+            return self._update_match_in_db(match)
             
         except Exception as e:
-            raise RuntimeError(f"Error finding scheduling conflicts: {e}")
+            raise RuntimeError(f"Error unscheduling match: {e}")
