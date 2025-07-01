@@ -373,14 +373,12 @@
             
             <!-- Action Buttons -->
             <div class="d-grid gap-2" id="action-buttons" style="display: none;">
-                <button type="button" id="schedule-button" class="btn-tennis-success" disabled>
-                    <i class="fas fa-calendar-check"></i>
-                    <span class="loading-spinner spinner-border spinner-border-sm me-2" role="status"></span>
-                    Schedule Match
-                </button>
-                <button type="button" id="preview-button" class="btn-tennis-primary">
+                <button type="button" id="preview-button" class="btn-tennis-primary" disabled>
                     <i class="fas fa-eye"></i> Preview Schedule
                 </button>
+                <small class="text-muted text-center">
+                    Preview shows what changes would be made without actually scheduling
+                </small>
                 <a href="{{ url_for('matches') }}" class="btn btn-outline-secondary">
                     <i class="fas fa-arrow-left"></i> Back to Matches
                 </a>
@@ -461,14 +459,42 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" id="confirm-schedule" class="btn-tennis-success">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-success" id="confirm-schedule" disabled>
                     <i class="fas fa-check"></i> Confirm Schedule
                 </button>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Add CSS for operations preview -->
+<style>
+.operations-preview {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 0.5rem;
+    background-color: #f8f9fa;
+}
+
+.operation-item {
+    padding: 0.25rem 0;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 0.875rem;
+}
+
+.operation-item:last-child {
+    border-bottom: none;
+}
+
+.preview-status .alert {
+    margin-bottom: 0;
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
@@ -527,10 +553,6 @@ class ScheduleMatchUI {
     }
 
     initializeButtons() {
-        document.getElementById('schedule-button').addEventListener('click', () => {
-            this.scheduleMatch();
-        });
-
         document.getElementById('preview-button').addEventListener('click', () => {
             this.showPreview();
         });
@@ -689,6 +711,27 @@ class ScheduleMatchUI {
         }
     }
 
+    validateTimeSelection() {
+        // Validate that the correct number of times are selected for each mode
+        switch (this.schedulingMode) {
+            case 'same_time':
+            case 'sequential':
+                // These modes require exactly 1 time
+                return this.selectedTimes.length === 1;
+            
+            case 'split_times':
+                // Split times mode requires exactly 2 times
+                return this.selectedTimes.length === 2;
+            
+            case 'custom':
+                // Custom mode requires exact number of times for lines needed
+                return this.selectedTimes.length === this.linesNeeded;
+            
+            default:
+                return false;
+        }
+    }
+
     updateUI() {
         document.getElementById('mode-section').style.display = this.selectedDate ? 'block' : 'none';
         document.getElementById('action-buttons').style.display = this.selectedDate ? 'block' : 'none';
@@ -697,53 +740,116 @@ class ScheduleMatchUI {
     }
 
     updateScheduleButton() {
-        const button = document.getElementById('schedule-button');
-        const hasValidSelection = this.selectedDate && this.selectedTimes.length > 0;
+        const previewButton = document.getElementById('preview-button');
+        const canSchedule = this.selectedDate && this.selectedTimes.length > 0 && this.validateTimeSelection();
         
-        if (this.schedulingMode === 'custom') {
-            button.disabled = !hasValidSelection || this.selectedTimes.length !== this.linesNeeded;
-            if (this.selectedTimes.length !== this.linesNeeded && this.selectedTimes.length > 0) {
-                button.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Need ${this.linesNeeded} times (${this.selectedTimes.length} selected)`;
-            } else {
-                button.innerHTML = '<i class="fas fa-calendar-check"></i> Schedule Match';
-            }
-        } else if (this.schedulingMode === 'split_times') {
-            button.disabled = !hasValidSelection || this.selectedTimes.length !== 2;
-            if (this.selectedTimes.length === 1) {
-                button.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Select second time slot';
-            } else if (this.selectedTimes.length === 2) {
-                button.innerHTML = '<i class="fas fa-calendar-check"></i> Schedule Match';
-            } else {
-                button.innerHTML = '<i class="fas fa-calendar-check"></i> Schedule Match';
-            }
+        previewButton.disabled = !canSchedule;
+        
+        if (canSchedule) {
+            previewButton.classList.remove('btn-outline-primary');
+            previewButton.classList.add('btn-tennis-primary');
         } else {
-            button.disabled = !hasValidSelection;
-            button.innerHTML = '<i class="fas fa-calendar-check"></i> Schedule Match';
+            previewButton.classList.remove('btn-tennis-primary');
+            previewButton.classList.add('btn-outline-primary');
         }
     }
 
-    showPreview() {
+    async showPreview() {
+        if (!this.selectedDate || this.selectedTimes.length === 0) {
+            TennisUI.showNotification('Please select a date and at least one time', 'warning');
+            return;
+        }
+
+        if (!this.validateTimeSelection()) {
+            return;
+        }
+
+        try {
+            // Show loading state
+            const previewButton = document.getElementById('preview-button');
+            const originalText = previewButton.textContent;
+            previewButton.textContent = 'Loading Preview...';
+            previewButton.disabled = true;
+
+            // Make preview API call
+            const response = await fetch('/api/schedule/match/preview', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    match_id: this.matchId,
+                    facility_id: {{ facility_info.id if facility_info else 'null' }},
+                    date: this.selectedDate,
+                    times: this.selectedTimes,
+                    scheduling_mode: this.schedulingMode
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.preview) {
+                this.displayPreview(result.preview, result.can_schedule);
+            } else {
+                TennisUI.showNotification(result.error || 'Failed to generate preview', 'danger');
+            }
+
+        } catch (error) {
+            console.error('Error generating preview:', error);
+            TennisUI.showNotification('Error generating preview: ' + error.message, 'danger');
+        } finally {
+            // Restore button state
+            const previewButton = document.getElementById('preview-button');
+            previewButton.textContent = originalText;
+            previewButton.disabled = false;
+        }
+    }
+
+    displayPreview(preview, canSchedule) {
         const previewContent = document.getElementById('preview-content');
-        let schedulingDetails = '';
         
-        if (this.schedulingMode === 'split_times') {
-            const sortedTimes = [...this.selectedTimes].sort();
-            const linesInFirstSlot = Math.ceil(this.linesNeeded / 2);
-            const linesInSecondSlot = this.linesNeeded - linesInFirstSlot;
-            
-            schedulingDetails = `
-                <li><strong>Mode:</strong> Split Times</li>
-                <li><strong>First Slot:</strong> ${linesInFirstSlot} lines starting at ${sortedTimes[0]}</li>
-                <li><strong>Second Slot:</strong> ${linesInSecondSlot} lines starting at ${sortedTimes[1]}</li>
-                <li><small class="text-muted">Lines within each slot start at the same time</small></li>
-            `;
-        } else {
-            schedulingDetails = `
-                <li><strong>Mode:</strong> ${this.schedulingMode}</li>
-                <li><strong>Times:</strong> ${this.selectedTimes.join(', ')}</li>
+        // Generate conflicts/warnings display
+        let conflictsHtml = '';
+        if (preview.conflicts && preview.conflicts.length > 0) {
+            conflictsHtml = `
+                <div class="alert alert-warning mt-3">
+                    <h6><i class="fas fa-exclamation-triangle"></i> Potential Conflicts:</h6>
+                    <ul class="mb-0">
+                        ${preview.conflicts.map(conflict => `<li>${conflict}</li>`).join('')}
+                    </ul>
+                </div>
             `;
         }
-        
+
+        if (preview.warnings && preview.warnings.length > 0) {
+            conflictsHtml += `
+                <div class="alert alert-info mt-3">
+                    <h6><i class="fas fa-info-circle"></i> Warnings:</h6>
+                    <ul class="mb-0">
+                        ${preview.warnings.map(warning => `<li>${warning}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        // Generate operations preview
+        let operationsHtml = '';
+        if (preview.operations && preview.operations.length > 0) {
+            operationsHtml = `
+                <div class="mt-3">
+                    <h6>Database Operations (Preview):</h6>
+                    <div class="operations-preview">
+                        ${preview.operations.map(op => `
+                            <div class="operation-item">
+                                <span class="badge bg-secondary">${op.type}</span>
+                                ${op.description}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
         previewContent.innerHTML = `
             <div class="row">
                 <div class="col-md-6">
@@ -752,99 +858,91 @@ class ScheduleMatchUI {
                         <li><strong>Home Team:</strong> {{ match_info.home_team }}</li>
                         <li><strong>Visitor Team:</strong> {{ match_info.visitor_team }}</li>
                         <li><strong>League:</strong> {{ match_info.league }}</li>
-                        <li><strong>Lines:</strong> ${this.linesNeeded}</li>
+                        <li><strong>Lines:</strong> ${preview.expected_lines}</li>
                     </ul>
                 </div>
                 <div class="col-md-6">
                     <h6>Scheduling Details</h6>
                     <ul class="list-unstyled">
-                        <li><strong>Date:</strong> ${this.selectedDate}</li>
-                        <li><strong>Facility:</strong> {{ facility_info.name if facility_info else 'TBD' }}</li>
-                        ${schedulingDetails}
+                        <li><strong>Date:</strong> ${preview.date}</li>
+                        <li><strong>Facility:</strong> ${preview.facility_name}</li>
+                        <li><strong>Mode:</strong> ${preview.scheduling_mode}</li>
+                        <li><strong>Details:</strong> ${preview.scheduling_details}</li>
                     </ul>
                 </div>
             </div>
+            
+            ${conflictsHtml}
+            
+            <div class="preview-status mt-3">
+                ${preview.success 
+                    ? '<div class="alert alert-success"><i class="fas fa-check"></i> Scheduling is feasible</div>'
+                    : '<div class="alert alert-danger"><i class="fas fa-times"></i> Scheduling would fail</div>'
+                }
+            </div>
+            
+            ${operationsHtml}
         `;
+        
+        // Update confirm button state
+        const confirmButton = document.getElementById('confirm-schedule');
+        confirmButton.disabled = !canSchedule;
+        confirmButton.textContent = canSchedule ? 'Confirm Schedule' : 'Cannot Schedule';
         
         // Show preview modal
         const modal = new bootstrap.Modal(document.getElementById('previewModal'));
         modal.show();
     }
 
-    async scheduleMatch() {
-        if (!this.selectedDate || this.selectedTimes.length === 0) {
-            TennisUI.showNotification('Please select a date and times', 'warning');
-            return;
-        }
-
-        // Validate selection based on mode
-        if (this.schedulingMode === 'custom' && this.selectedTimes.length !== this.linesNeeded) {
-            TennisUI.showNotification(`Custom mode requires ${this.linesNeeded} times`, 'warning');
-            return;
-        }
-
-        if (this.schedulingMode === 'split_times' && this.selectedTimes.length !== 2) {
-            TennisUI.showNotification('Split times mode requires exactly 2 time slots', 'warning');
-            return;
-        }
-
-        if ((this.schedulingMode === 'same_time' || this.schedulingMode === 'sequential') && this.selectedTimes.length !== 1) {
-            TennisUI.showNotification(`${this.schedulingMode} mode requires exactly 1 time`, 'warning');
-            return;
-        }
-
+    async confirmSchedule() {
+        // This performs the actual scheduling
         try {
             // Show loading state
-            const button = document.getElementById('schedule-button');
-            const originalText = button.innerHTML;
-            button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scheduling...';
+            const confirmButton = document.getElementById('confirm-schedule');
+            const originalText = confirmButton.textContent;
+            confirmButton.textContent = 'Scheduling...';
+            confirmButton.disabled = true;
 
-            // Prepare request data
-            const requestData = {
-                match_id: this.matchId,
-                facility_id: {{ facility_info.id if facility_info else 'null' }},
-                date: this.selectedDate,
-                times: this.selectedTimes,
-                scheduling_mode: this.schedulingMode
-            };
+            // Close preview modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('previewModal'));
+            if (modal) modal.hide();
 
-            // Make API call
-            const result = await TennisUI.apiCall('/api/schedule/match', {
+            // Make actual scheduling API call (existing endpoint)
+            const response = await fetch('/api/schedule/match', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(requestData)
+                body: JSON.stringify({
+                    match_id: this.matchId,
+                    facility_id: {{ facility_info.id if facility_info else 'null' }},
+                    date: this.selectedDate,
+                    times: this.selectedTimes,
+                    scheduling_mode: this.schedulingMode
+                })
             });
+
+            const result = await response.json();
 
             if (result.success) {
                 TennisUI.showNotification('Match scheduled successfully!', 'success');
-                
-                // Redirect to matches page after short delay
+                // Redirect to matches page or refresh
                 setTimeout(() => {
                     window.location.href = '/matches';
                 }, 1500);
             } else {
-                throw new Error(result.error || 'Scheduling failed');
+                TennisUI.showNotification(result.error || 'Failed to schedule match', 'danger');
             }
 
         } catch (error) {
-            console.error('Scheduling error:', error);
-            TennisUI.showNotification(error.message || 'Failed to schedule match', 'danger');
-            
+            console.error('Error scheduling match:', error);
+            TennisUI.showNotification('Error scheduling match: ' + error.message, 'danger');
+        } finally {
             // Restore button state
-            const button = document.getElementById('schedule-button');
-            button.disabled = false;
-            button.innerHTML = originalText;
+            const confirmButton = document.getElementById('confirm-schedule');
+            confirmButton.textContent = originalText;
+            confirmButton.disabled = false;
         }
-    }
-
-    confirmSchedule() {
-        // Close preview modal and schedule the match
-        const modal = bootstrap.Modal.getInstance(document.getElementById('previewModal'));
-        modal.hide();
-        this.scheduleMatch();
     }
 }
 

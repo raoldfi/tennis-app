@@ -31,19 +31,19 @@ class MatchType(Enum):
     SCHEDULED = "scheduled"
     UNSCHEDULED = "unscheduled"
     
-    def __str__(self):
+    def __str__(self) -> str:
         """String representation returns the value for easy printing"""
         return self.value
     
     @property
-    def description(self):
+    def description(self) -> str:
         """Human-readable description of the match type"""
-        descriptions = {
-            self.ALL: "All matches (scheduled and unscheduled)",
-            self.SCHEDULED: "Only fully scheduled matches",
-            self.UNSCHEDULED: "Only unscheduled matches"
+        descriptions: Dict[str, str] = {
+            "all": "All matches (scheduled and unscheduled)",
+            "scheduled": "Only fully scheduled matches",
+            "unscheduled": "Only unscheduled matches"
         }
-        return descriptions[self]
+        return descriptions[self.value]
     
     @classmethod
     def from_string(cls, value: str) -> 'MatchType':
@@ -83,7 +83,7 @@ class Match:
     _immutable_visitor_team: Optional['Team'] = field(init=False, repr=False, default=None)
     _initialized: bool = field(init=False, repr=False, default=False)
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate match data and set up immutable fields"""
         
         # Store immutable values in private fields
@@ -147,11 +147,17 @@ class Match:
     
     def get_id(self) -> int:
         """Get the match ID (immutable)"""
-        return self._immutable_id if self._initialized else self.id
+        result = self._immutable_id if self._initialized else self.id
+        if result is None:
+            raise ValueError("Match ID is not initialized")
+        return result
     
     def get_league(self) -> 'League':
         """Get the league object (immutable)"""
-        return self._immutable_league if self._initialized else self.league
+        result = self._immutable_league if self._initialized else self.league
+        if result is None:
+            raise ValueError("League is not initialized")
+        return result
     
     def get_round(self) -> int:
         """Get the match round number (immutable)"""
@@ -163,17 +169,23 @@ class Match:
     
     def get_home_team(self) -> 'Team':
         """Get the home team object (immutable)"""
-        return self._immutable_home_team if self._initialized else self.home_team
+        result = self._immutable_home_team if self._initialized else self.home_team
+        if result is None:
+            raise ValueError("Home team is not initialized")
+        return result
     
     def get_visitor_team(self) -> 'Team':
         """Get the visitor team object (immutable)"""
-        return self._immutable_visitor_team if self._initialized else self.visitor_team
+        result = self._immutable_visitor_team if self._initialized else self.visitor_team
+        if result is None:
+            raise ValueError("Visitor team is not initialized")
+        return result
     
     def get_facility(self) -> Optional['Facility']:
         """Get the facility object (mutable)"""
         return self.facility
     
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: Any) -> None:
         """Override setattr to protect immutable fields after initialization"""
         if hasattr(self, '_initialized') and self._initialized:
             if name in ('id', 'league', 'home_team', 'visitor_team'):
@@ -251,7 +263,7 @@ class Match:
         return len(self.scheduled_times) == expected_lines
 
 
-    def is_split(self):
+    def is_split(self) -> bool:
         """Check if the match is a split match or if all lines are scheduled for the same time"""
         if not self.scheduled_times:
             return True  # An empty list is not split

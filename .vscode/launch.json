@@ -5,6 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Web App Debug",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "web_app.py",
+            "console": "integratedTerminal",
+            "args": ""
+        },
+        {
             "name": "Python Debugger: Current File with Arguments",
             "type": "debugpy",
             "request": "launch",
@@ -13,13 +21,20 @@
             "args": "${command:pickArgs}"
         },
         {
-            "name": "Python Debugger: Current File",
+            "name": "CLI auto-schedule",
             "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
-            "args": [
-                "auto-schedule"
-            ]
+            "program": "simple_cli.py",
+            "console": "integratedTerminal",
+            "args": "--db-path tennis.db auto-schedule"
+        },
+        {
+            "name": "CLI generate-matches",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "simple_cli.py",
+            "console": "integratedTerminal",
+            "args": "--db-path tennis.db generate-matches --execute"
         }
     ]
 }

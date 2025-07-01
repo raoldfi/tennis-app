@@ -249,9 +249,23 @@
                         </select>
                     </div>
                     
+                    <!-- DRY RUN CHECKBOX -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="dry-run-checkbox" 
+                                   name="dry_run" value="true" checked>
+                            <label class="form-check-label" for="dry-run-checkbox">
+                                <i class="fas fa-eye"></i> <strong>Preview Only (Dry Run)</strong>
+                            </label>
+                        </div>
+                        <small class="text-muted">Check to preview changes without actually scheduling matches</small>
+                    </div>
+                    
                     <div class="alert alert-tennis-info">
                         <i class="fas fa-info-circle"></i>
-                        This will attempt to automatically schedule unscheduled matches to available facilities and time slots.
+                        <span id="auto-schedule-description">
+                            This will show you which matches can be automatically scheduled without making any changes.
+                        </span>
                     </div>
                 </form>
             </div>
@@ -259,15 +273,14 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times"></i> Cancel
                 </button>
-                <button type="button" class="btn btn-tennis-warning" onclick="handleBulkAutoSchedule()">
-                    <i class="fas fa-magic"></i> Auto-Schedule Matches
+                <button type="button" class="btn btn-primary" id="auto-schedule-modal-btn" onclick="handleBulkAutoSchedule()">
+                    <i class="fas fa-eye"></i> <span id="auto-schedule-modal-text">Preview Auto-Schedule</span>
                 </button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Bulk Unschedule Modal -->
 <!-- Bulk Unschedule Modal -->
 <div class="modal fade tennis-modal" id="bulkUnscheduleModal" tabindex="-1">
     <div class="modal-dialog">
@@ -420,6 +433,40 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+// Add this script to handle the dry-run checkbox behavior
+document.addEventListener('DOMContentLoaded', function() {
+    const dryRunCheckbox = document.getElementById('dry-run-checkbox');
+    if (dryRunCheckbox) {
+        dryRunCheckbox.addEventListener('change', function() {
+            const btn = document.getElementById('auto-schedule-modal-btn');
+            const text = document.getElementById('auto-schedule-modal-text');
+            const description = document.getElementById('auto-schedule-description');
+            
+            if (this.checked) {
+                btn.className = 'btn btn-primary';
+                btn.innerHTML = '<i class="fas fa-eye"></i> <span id="auto-schedule-modal-text">Preview Auto-Schedule</span>';
+                description.textContent = 'This will show you which matches can be automatically scheduled without making any changes.';
+            } else {
+                btn.className = 'btn btn-tennis-warning';
+                btn.innerHTML = '<i class="fas fa-magic"></i> <span id="auto-schedule-modal-text">Execute Auto-Schedule</span>';
+                description.textContent = 'This will actually schedule the matches to available facilities and time slots.';
+            }
+        });
+    }
+    
+    // Show/hide league selection based on scope
+    const scopeRadios = document.querySelectorAll('input[name="scope"]');
+    scopeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            const leagueSelection = document.getElementById('leagueSelection');
+            if (leagueSelection) {
+                leagueSelection.style.display = this.value === 'league' ? 'block' : 'none';
+            }
+        });
+    });
+});
+</script>
 
 <script>
 // ==================== MATCHES PAGE FUNCTIONALITY ====================
@@ -486,27 +533,33 @@ function showBulkDeleteModal() {
 
 function handleBulkAutoSchedule() {
     const formData = new FormData(document.getElementById('bulkAutoScheduleForm'));
+    const isDryRun = formData.get('dry_run') === 'true';
     TennisUI.addCurrentFiltersToFormData(formData, 'selected');
     
-    // Custom success callback to handle warnings with refresh button
+    console.log('Auto-schedule:', { isDryRun, scope: formData.get('scope') });
+    
+    // Custom success callback to handle dry-run vs execution
     const customSuccessCallback = (result) => {
-        // Check if there were partial failures
-        if (result.warning && result.failed_count > 0) {
-            // Show warning with refresh button
-            TennisUI.showNotification(
-                result.message || `Auto-scheduled ${result.scheduled_count} of ${result.total_count} matches. ${result.failed_count} could not be scheduled.`,
-                'warning',
-                15000, // Longer duration for warnings
-                {
-                    showRefresh: true,
-                    refreshText: 'Refresh Page',
-                    onRefresh: () => window.location.reload()
-                }
-            );
+        if (result.dry_run) {
+            // Show preview results
+            displayAutoSchedulePreview(result);
         } else {
-            // Show success normally
-            TennisUI.showNotification(result.message || 'All matches scheduled successfully!', 'success');
-            setTimeout(() => window.location.reload(), 1500);
+            // Show execution results
+            if (result.warning && result.failed_count > 0) {
+                TennisUI.showNotification(
+                    result.message || `Auto-scheduled ${result.scheduled_count} of ${result.total_count} matches. ${result.failed_count} could not be scheduled.`,
+                    'warning',
+                    15000,
+                    {
+                        showRefresh: true,
+                        refreshText: 'Refresh Page',
+                        onRefresh: () => window.location.reload()
+                    }
+                );
+            } else {
+                TennisUI.showNotification(result.message || 'All matches scheduled successfully!', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            }
         }
     };
 
@@ -518,6 +571,155 @@ function handleBulkAutoSchedule() {
         'bulkAutoScheduleModal',
         customSuccessCallback
     );
+}
+
+function displayAutoSchedulePreview(result) {
+    // Close the original modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('bulkAutoScheduleModal'));
+    if (modal) modal.hide();
+    
+    // Create preview modal content
+    let previewHtml = `
+        <div class="modal fade" id="autoSchedulePreviewModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-eye"></i> Auto-Schedule Preview Results
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <div class="text-center">
+                                    <div class="display-6 text-primary">${result.total_matches}</div>
+                                    <small class="text-muted">Total Matches</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-center">
+                                    <div class="display-6 text-success">${result.scheduled}</div>
+                                    <small class="text-muted">Would Schedule</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-center">
+                                    <div class="display-6 text-danger">${result.failed}</div>
+                                    <small class="text-muted">Cannot Schedule</small>
+                                </div>
+                            </div>
+                        </div>
+    `;
+
+    if (result.scheduled > 0) {
+        previewHtml += `
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i>
+                <strong>Good news!</strong> ${result.scheduled} matches can be automatically scheduled.
+            </div>
+        `;
+    }
+
+    if (result.failed > 0) {
+        previewHtml += `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Note:</strong> ${result.failed} matches cannot be scheduled due to conflicts or lack of available facilities.
+            </div>
+        `;
+    }
+
+    previewHtml += `
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            Close Preview
+                        </button>
+    `;
+    
+    if (result.scheduled > 0) {
+        previewHtml += `
+            <button type="button" class="btn btn-success" onclick="executeSchedulingFromPreview()">
+                <i class="fas fa-play"></i> Execute Scheduling
+            </button>
+        `;
+    }
+    
+    previewHtml += `
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to page and show it
+    document.body.insertAdjacentHTML('beforeend', previewHtml);
+    const previewModal = new bootstrap.Modal(document.getElementById('autoSchedulePreviewModal'));
+    previewModal.show();
+    
+    // Clean up modal when hidden
+    document.getElementById('autoSchedulePreviewModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+function executeSchedulingFromPreview() {
+    // Close preview modal
+    const previewModal = bootstrap.Modal.getInstance(document.getElementById('autoSchedulePreviewModal'));
+    if (previewModal) previewModal.hide();
+    
+    // Re-run the same operation but without dry-run
+    const formData = new FormData(document.getElementById('bulkAutoScheduleForm'));
+    formData.set('dry_run', 'false'); // Override to execute
+    TennisUI.addCurrentFiltersToFormData(formData, 'selected');
+    
+    const customSuccessCallback = (result) => {
+        TennisUI.showNotification(result.message || 'Matches scheduled successfully!', 'success');
+        setTimeout(() => window.location.reload(), 1500);
+    };
+
+    executeBulkOperationWithRefresh(
+        'Execute Auto-Schedule',
+        '/api/bulk-auto-schedule',
+        formData,
+        null, // No modal to close
+        customSuccessCallback
+    );
+}
+
+// Also need to add this helper function if it doesn't exist:
+function executeBulkOperationWithRefresh(title, endpoint, formData, modalId, successCallback) {
+    // Show loading state
+    TennisUI.showNotification('Processing...', 'info', 3000);
+    
+    fetch(endpoint, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        // Close modal if specified
+        if (modalId) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+            if (modal) modal.hide();
+        }
+        
+        // Call custom success callback
+        if (successCallback) {
+            successCallback(data);
+        } else {
+            TennisUI.showNotification(data.message || 'Operation completed successfully!', 'success');
+            setTimeout(() => window.location.reload(), 1500);
+        }
+    })
+    .catch(error => {
+        TennisUI.showNotification(error.message || 'Operation failed', 'danger');
+    });
 }
 
 function handleBulkUnschedule() {
@@ -541,7 +743,7 @@ function handleBulkUnschedule() {
             setTimeout(() => window.location.reload(), 1500);
         }
     };
-    
+
     executeBulkOperationWithRefresh(
         'Bulk Unschedule',
         '/api/bulk-unschedule',
@@ -556,23 +758,10 @@ function handleBulkDelete() {
     TennisUI.addCurrentFiltersToFormData(formData, 'selected');
     
     const customSuccessCallback = (result) => {
-        if (result.warning) {
-            TennisUI.showNotification(
-                result.message || 'Deletion completed with some issues.',
-                'warning',
-                12000,
-                {
-                    showRefresh: true,
-                    refreshText: 'Refresh Page', 
-                    onRefresh: () => window.location.reload()
-                }
-            );
-        } else {
-            TennisUI.showNotification(result.message || 'Matches deleted successfully!', 'success');
-            setTimeout(() => window.location.reload(), 1500);
-        }
+        TennisUI.showNotification(result.message || 'Matches deleted successfully!', 'success');
+        setTimeout(() => window.location.reload(), 1500);
     };
-    
+
     executeBulkOperationWithRefresh(
         'Bulk Delete',
         '/api/bulk-delete',
@@ -580,75 +769,6 @@ function handleBulkDelete() {
         'bulkDeleteModal',
         customSuccessCallback
     );
-}
-
-/**
- * Execute bulk operation with enhanced warning handling
- */
-async function executeBulkOperationWithRefresh(operation, url, data, modalId, successCallback) {
-    const submitBtn = document.querySelector(`#${modalId} .btn-tennis-warning, #${modalId} .btn-tennis-danger, #${modalId} .btn-tennis-success, #${modalId} .btn-primary`);
-    
-    // Set button loading state
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.classList.add('btn-loading');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.setAttribute('data-original-text', originalText);
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
-    }
-
-    try {
-        const options = {
-            method: 'POST',
-        };
-
-        if (data instanceof FormData) {
-            options.body = data;
-        } else {
-            options.body = JSON.stringify(data);
-            options.headers = {
-                'Content-Type': 'application/json'
-            };
-        }
-
-        const result = await TennisUI.apiCall(url, options);
-
-        // Close modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
-        if (modal) modal.hide();
-        
-        // Execute custom success callback
-        if (successCallback) {
-            successCallback(result);
-        } else {
-            // Default behavior
-            TennisUI.showNotification(result.message || `${operation} completed successfully`, 'success');
-            setTimeout(() => window.location.reload(), 500);
-        }
-
-    } catch (error) {
-        TennisUI.showNotification(
-            error.message || `${operation} failed`,
-            'danger',
-            10000,
-            {
-                showRefresh: true,
-                refreshText: 'Try Again',
-                onRefresh: () => window.location.reload()
-            }
-        );
-        console.error(`${operation} error:`, error);
-    } finally {
-        // Reset button state
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('btn-loading');
-            const originalText = submitBtn.getAttribute('data-original-text');
-            if (originalText) {
-                submitBtn.innerHTML = originalText;
-            }
-        }
-    }
 }
     
 // ==================== INDIVIDUAL MATCH OPERATIONS ====================

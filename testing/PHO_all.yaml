@@ -1,0 +1,680 @@
+
+facilities:
+
+  # ARR - Wednesday evening facility with moderate capacity
+  - id: 50
+    name: "ARR Tennis Club"
+    short_name: "ARR"
+    location: "ARR Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 3
+          - time: "19:30"
+            available_courts: 3
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # STRC - Large capacity facility with single start time
+  - id: 51
+    name: "STRC Tennis Club"
+    short_name: "STRC"
+    location: "STRC Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "19:00"
+            available_courts: 10
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # WIG - Wednesday evening facility with moderate capacity
+  - id: 52
+    name: "WIG Tennis Club"
+    short_name: "WIG"
+    location: "WIG Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 3
+          - time: "19:30"
+            available_courts: 3
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # CTC - Wednesday evening facility with moderate capacity
+  - id: 53
+    name: "CTC Tennis Club"
+    short_name: "CTC"
+    location: "CTC Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 3
+          - time: "19:30"
+            available_courts: 3
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # ISP - Wednesday evening facility with good capacity
+  - id: 54
+    name: "ISP Tennis Club"
+    short_name: "ISP"
+    location: "ISP Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+          - time: "19:30"
+            available_courts: 5
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # PAS - Large capacity facility with later second start time
+  - id: 55
+    name: "PAS Tennis Club"
+    short_name: "PAS"
+    location: "PAS Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 10
+          - time: "20:00"
+            available_courts: 10
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # PTC - Largest capacity facility
+  - id: 56
+    name: "PTC Tennis Club"
+    short_name: "PTC"
+    location: "PTC Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 15
+          - time: "19:30"
+            available_courts: 15
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # SRP - Wednesday evening facility with single start time
+  - id: 57
+    name: "SRP Tennis Club"
+    short_name: "SRP"
+    location: "SRP Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "19:00"
+            available_courts: 5
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # GRP - Wednesday evening facility with good capacity
+  - id: 58
+    name: "GRP Tennis Club"
+    short_name: "GRP"
+    location: "GRP Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+          - time: "19:30"
+            available_courts: 5
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # KIW - Wednesday evening facility with moderate-good capacity
+  - id: 59
+    name: "KIW Tennis Club"
+    short_name: "KIW"
+    location: "KIW Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 6
+          - time: "19:30"
+            available_courts: 6
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # PHO - Wednesday evening facility with later start times
+  - id: 60
+    name: "PHO Tennis Club"
+    short_name: "PHO"
+    location: "PHO Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:30"
+            available_courts: 3
+          - time: "20:00"
+            available_courts: 3
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+
+  # SCR - Wednesday evening facility with moderate capacity
+  - id: 61
+    name: "SCR Tennis Club"
+    short_name: "SCR"
+    location: "SCR Tennis Club, Phoenix, AZ"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 3
+          - time: "19:30"
+            available_courts: 3
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates: []
+leagues:
+  # Fall 2025 Adult 40 & Over PM - 3.0 Men Division
+  - id: 301
+    name: "2025 FALL Adult 40&Over PM 3.0 Men"
+    year: 2025
+    section: "Southwest"
+    region: "Phoenix"
+    age_group: "40 & Over"
+    division: "3.0 Men"
+    num_lines_per_match: 4
+    num_matches: 9
+    allow_split_lines: false
+    preferred_days:
+      - "Wednesday"
+    backup_days: []
+    start_date: "2025-09-01"
+    end_date: "2025-12-01"
+
+  # Fall 2025 Adult 40 & Over PM - 3.5 Women Division
+  - id: 302
+    name: "2025 FALL Adult 40&Over PM 3.5 Women"
+    year: 2025
+    section: "Southwest"
+    region: "Phoenix"
+    age_group: "40 & Over"
+    division: "3.5 Women"
+    num_lines_per_match: 4
+    num_matches: 12
+    allow_split_lines: false
+    preferred_days:
+      - "Wednesday"
+    backup_days: []
+    start_date: "2025-09-01"
+    end_date: "2025-12-01"
+
+  # Fall 2025 Adult 18 & Over PM - 4.0 Men Division
+  - id: 303
+    name: "2025 FALL Adult 18&Over PM 4.0 Men -- F1"
+    year: 2025
+    section: "Southwest"
+    region: "Phoenix"
+    age_group: "18 & Over"
+    division: "4.0 Men"
+    num_lines_per_match: 5
+    num_matches: 12
+    allow_split_lines: false
+    preferred_days:
+      - "Wednesday"
+    backup_days: []
+    start_date: "2025-09-01"
+    end_date: "2025-12-01"
+
+  # Fall 2025 Adult 18 & Over PM - 4.0 Men Division
+  - id: 304
+    name: "2025 FALL Adult 18&Over PM 4.0 Men -- F2"
+    year: 2025
+    section: "Southwest"
+    region: "Phoenix"
+    age_group: "18 & Over"
+    division: "4.0 Men"
+    num_lines_per_match: 5
+    num_matches: 12
+    allow_split_lines: false
+    preferred_days:
+      - "Wednesday"
+    backup_days: []
+    start_date: "2025-09-01"
+    end_date: "2025-12-01"
+
+
+  # Fall 2025 Adult 40 & Over PM - 4.0 Women Division
+  - id: 305
+    name: "2025 FALL Adult 40&Over PM 4.0 Women"
+    year: 2025
+    section: "Southwest"
+    region: "Phoenix"
+    age_group: "40 & Over"
+    division: "4.0 Women"
+    num_lines_per_match: 4
+    num_matches: 12
+    allow_split_lines: false
+    preferred_days:
+      - "Wednesday"
+    backup_days: []
+    start_date: "2025-09-01"
+    end_date: "2025-12-01"
+teams:
+  # 3.0 Adult 40 & Over Men Teams (League 301)
+  - id: 3001
+    name: "3.0 ARR Old Aces M40F"
+    league_id: 301
+    home_facility_id: 50
+    captain: "Old Aces"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3002
+    name: "3.0 STRC Ball Crushers M40F"
+    league_id: 301
+    home_facility_id: 51
+    captain: "Ball Crushers"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3003
+    name: "3.0 STRC Surprise Tennis Club M40F"
+    league_id: 301
+    home_facility_id: 51
+    captain: "Surprise Tennis Club"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3004
+    name: "3.0 WIG DukesOfDadBods M40F"
+    league_id: 301
+    home_facility_id: 52
+    captain: "DukesOfDadBods"
+    preferred_days:
+      - "Wednesday"
+
+  # 3.5 Adult 40 & Over Women Teams (League 302)
+  - id: 3005
+    name: "3.5 CTC Howell W40F"
+    league_id: 302
+    home_facility_id: 53
+    captain: "Howell"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3006
+    name: "3.5 ISP Holding Court W40F"
+    league_id: 302
+    home_facility_id: 54
+    captain: "Holding Court"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3007
+    name: "3.5 PAS Pettiette Warriors W40F"
+    league_id: 302
+    home_facility_id: 55
+    captain: "Pettiette Warriors"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3008
+    name: "3.5 PTC Jessie's Girls W40F"
+    league_id: 302
+    home_facility_id: 56
+    captain: "Jessie's Girls"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3009
+    name: "3.5 PTC Zimmer W40F"
+    league_id: 302
+    home_facility_id: 56
+    captain: "Zimmer"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3010
+    name: "3.5 SRP Sunshine Love W40F"
+    league_id: 302
+    home_facility_id: 57
+    captain: "Sunshine Love"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3011
+    name: "3.5 STRC WreckingBelles W40F"
+    league_id: 302
+    home_facility_id: 51
+    captain: "WreckingBelles"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3012
+    name: "3.5 WIG Jones/Swift W40F"
+    league_id: 302
+    home_facility_id: 52
+    captain: "Jones/Swift"
+    preferred_days:
+      - "Wednesday"
+
+  # 4.0 Adult 18 & Over Men Teams (League 303)
+  - id: 3013
+    name: "4.0 CTC Colotla East Valley M18F"
+    league_id: 303
+    home_facility_id: 53
+    captain: "Colotla East Valley"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3014
+    name: "4.0 GRP Billy Goats M18F"
+    league_id: 303
+    home_facility_id: 58
+    captain: "Billy Goats"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3015
+    name: "4.0 KIW Goats M18F"
+    league_id: 303
+    home_facility_id: 59
+    captain: "Goats"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3016
+    name: "4.0 KIW Love:40 M18F"
+    league_id: 303
+    home_facility_id: 59
+    captain: "Love:40"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3017
+    name: "4.0 PAS Set2Win M18F"
+    league_id: 303
+    home_facility_id: 55
+    captain: "Set2Win"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3018
+    name: "4.0 PAS Sunshine M18F"
+    league_id: 303
+    home_facility_id: 55
+    captain: "Sunshine"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3019
+    name: "4.0 PHO YouCannotBeSerious M18F"
+    league_id: 303
+    home_facility_id: 60
+    captain: "YouCannotBeSerious"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3020
+    name: "4.0 PTC Fellowship M18F"
+    league_id: 304
+    home_facility_id: 56
+    captain: "Fellowship"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3021
+    name: "4.0 PTC GarciaGonzales M18F"
+    league_id: 304
+    home_facility_id: 56
+    captain: "GarciaGonzales"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3022
+    name: "4.0 PTC Snider M18F"
+    league_id: 304
+    home_facility_id: 56
+    captain: "Snider"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3023
+    name: "4.0 SCR Chaos M18F"
+    league_id: 304
+    home_facility_id: 61
+    captain: "Chaos"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3024
+    name: "4.0 SRP LoveBirds 1.0 M18F"
+    league_id: 304
+    home_facility_id: 51
+    captain: "LoveBirds 1.0"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3025
+    name: "4.0 STRC SwingKings M18F"
+    league_id: 304
+    home_facility_id: 51
+    captain: "SwingKings"
+    preferred_days:
+      - "Wednesday"
+
+  # 4.0 Adult 40 & Over Women Teams (League 305)
+  - id: 3026
+    name: "4.0 CTC Camacho W40F"
+    league_id: 305
+    home_facility_id: 53
+    captain: "Camacho"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3027
+    name: "4.0 PAS Love - All W40F"
+    league_id: 305
+    home_facility_id: 55
+    captain: "Love - All"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3028
+    name: "4.0 PAS Rook-Pettiette W40F"
+    league_id: 305
+    home_facility_id: 55
+    captain: "Rook-Pettiette"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3029
+    name: "4.0 PAS Schneider W40F"
+    league_id: 305
+    home_facility_id: 55
+    captain: "Schneider"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3030
+    name: "4.0 PHO Joseph W40F"
+    league_id: 305
+    home_facility_id: 60
+    captain: "Joseph"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3031
+    name: "4.0 PTC BakerSol W40F"
+    league_id: 305
+    home_facility_id: 56
+    captain: "BakerSol"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3032
+    name: "4.0 PTC Timm Brockway W40F"
+    league_id: 305
+    home_facility_id: 56
+    captain: "Timm Brockway"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3033
+    name: "4.0 PTC Wagner W40F"
+    league_id: 305
+    home_facility_id: 56
+    captain: "Wagner"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3034
+    name: "4.0 STRC HarrisNacht W40F"
+    league_id: 305
+    home_facility_id: 51
+    captain: "HarrisNacht"
+    preferred_days:
+      - "Wednesday"
+
+  - id: 3035
+    name: "4.0 STRC Schreiber% W40F"
+    league_id: 305
+    home_facility_id: 51
+    captain: "Schreiber%"
+    preferred_days:
+      - "Wednesday"

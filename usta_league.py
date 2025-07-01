@@ -37,7 +37,7 @@ class League:
     start_date: Optional[str] = None  # League start date in YYYY-MM-DD format
     end_date: Optional[str] = None  # League end date in YYYY-MM-DD format
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate league data against USTA constants"""
         if not isinstance(self.id, int) or self.id <= 0:
             raise ValueError(f"League ID must be a positive integer, got: {self.id}")

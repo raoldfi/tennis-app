@@ -22,7 +22,7 @@ class Team:
     captain: Optional[str] = None
     preferred_days: List[str] = field(default_factory=list)
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate team data"""
         if not isinstance(self.id, int) or self.id <= 0:
             raise ValueError(f"Team ID must be a positive integer, got: {self.id}")

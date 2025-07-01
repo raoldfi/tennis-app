@@ -23,7 +23,7 @@ class TimeSlot:
     time: str  # Format: "HH:MM" (24-hour format)
     available_courts: int
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate time format and court count"""
         if not isinstance(self.time, str):
             raise ValueError("Time must be a string")
@@ -69,7 +69,7 @@ class DaySchedule:
     """Represents the schedule for a single day"""
     start_times: List[TimeSlot] = field(default_factory=list)
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate that all start_times are TimeSlot objects"""
         if not isinstance(self.start_times, list):
             raise ValueError("start_times must be a list")
@@ -265,7 +265,7 @@ class Line:
     time: Optional[str] = None  # HH:MM format, None for unscheduled
     court_number: Optional[int] = None  # Specific court number if facility tracks them
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate line data"""
         if not isinstance(self.id, int) or self.id <= 0:
             raise ValueError(f"Line ID must be a positive integer, got: {self.id}")
@@ -408,7 +408,7 @@ class Facility:
     unavailable_dates: List[str] = field(default_factory=list)  # List of dates in "YYYY-MM-DD" format
     total_courts: int = 0  # Total number of courts at the facility
     
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         """Check equality based on ID and name"""
         if not isinstance(other, Facility):
             return False
@@ -428,7 +428,7 @@ class Facility:
                 f"location='{self.location}', total_courts={self.total_courts}, "
                 f"unavailable_dates={self.unavailable_dates}, schedule={self.schedule})")
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate facility data"""
         if not isinstance(self.id, int) or self.id <= 0:
             raise ValueError(f"Facility ID must be a positive integer, got: {self.id}")
@@ -582,15 +582,15 @@ class Facility:
             
             for combo in combinations:
                 if len(combo) <= max_length:
-                    return combo
+                    return str(combo)
         
         # Strategy 4: Truncate first word if single word or nothing else works
         if len(meaningful_words) >= 1:
             first_word = meaningful_words[0].upper()
             if len(first_word) <= max_length:
-                return first_word
+                return str(first_word)
             else:
-                return first_word[:max_length]
+                return str(first_word[:max_length])
         
         # Fallback: Just truncate the original name
         clean_name = re.sub(r'[^A-Za-z0-9]', '', name).upper()
@@ -837,9 +837,14 @@ class Facility:
             raise ValueError(f"Facility '{name}' (ID: {facility_id}) is missing required 'unavailable_dates' field")
         
         # Create the facility with basic info first
+        if facility_id is None:
+            raise ValueError("Facility ID is required")
+        if name is None:
+            raise ValueError("Facility name is required")
+        
         facility = cls(
-            id=facility_id, 
-            name=name, 
+            id=int(facility_id), 
+            name=str(name), 
             short_name=short_name,
             location=location, 
             total_courts=total_courts
@@ -980,7 +985,7 @@ class TimeSlotAvailability:
     available_courts: int  # Courts still available for booking
     utilization_percentage: float  # Percentage of courts being used (0-100)
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate time slot availability data"""
         # Validate time format
         if not isinstance(self.time, str):
@@ -1078,7 +1083,7 @@ class FacilityAvailabilityInfo:
     overall_utilization_percentage: float = 0.0  # Overall utilization across all time slots
     reason: Optional[str] = None  # Reason if facility is not available
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate facility availability info"""
         if not isinstance(self.facility_id, int) or self.facility_id <= 0:
             raise ValueError(f"Facility ID must be a positive integer, got: {self.facility_id}")
@@ -1247,8 +1252,8 @@ class FacilityAvailabilityInfo:
                 'fully_booked': self.is_fully_booked(),
                 'has_availability': self.has_any_availability(),
                 'available_times_count': len(self.get_available_times()),
-                'peak_utilization': self.get_peak_utilization_time().utilization_percentage if self.get_peak_utilization_time() else 0,
-                'lowest_utilization': self.get_lowest_utilization_time().utilization_percentage if self.get_lowest_utilization_time() else 0,
+                'peak_utilization': (lambda x: x.utilization_percentage if x else 0)(self.get_peak_utilization_time()),
+                'lowest_utilization': (lambda x: x.utilization_percentage if x else 0)(self.get_lowest_utilization_time()),
                 'utilization_distribution': self.get_utilization_summary()
             }
         }
