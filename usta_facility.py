@@ -399,7 +399,7 @@ class Line:
 
 @dataclass
 class Facility:
-    """Represents a tennis facility with scheduling capabilities"""
+    """Represents a tennis facility with its schedule constraints. """
     id: int
     name: str
     short_name: Optional[str] = None  # Short name for display (e.g., "VR", "TCA")
@@ -408,6 +408,26 @@ class Facility:
     unavailable_dates: List[str] = field(default_factory=list)  # List of dates in "YYYY-MM-DD" format
     total_courts: int = 0  # Total number of courts at the facility
     
+    def __eq__(self, other) -> bool:
+        """Check equality based on ID and name"""
+        if not isinstance(other, Facility):
+            return False
+        return self.id == other.id and self.name == other.name
+    
+    def __hash__(self) -> int:
+        """Hash based on ID and name for use in sets/dictionaries"""
+        return hash((self.id, self.name))
+    
+    def __str__(self) -> str:
+        """String representation of the facility"""
+        return f"Facility(id={self.id}, name='{self.name}', short_name='{self.short_name}', location='{self.location}', total_courts={self.total_courts})"
+    
+    def __repr__(self) -> str:
+        """Detailed string representation for debugging"""
+        return (f"Facility(id={self.id}, name='{self.name}', short_name='{self.short_name}', "
+                f"location='{self.location}', total_courts={self.total_courts}, "
+                f"unavailable_dates={self.unavailable_dates}, schedule={self.schedule})")
+
     def __post_init__(self):
         """Validate facility data"""
         if not isinstance(self.id, int) or self.id <= 0:
@@ -450,6 +470,7 @@ class Facility:
             except (ValueError, IndexError):
                 raise ValueError(f"Invalid date format: '{date_str}'. Expected YYYY-MM-DD format")
 
+    
     # ========== Facility Class Getters ==========
 
     def get_id(self) -> int:
@@ -496,22 +517,6 @@ class Facility:
             'has_schedule': any(day.has_availability() for day in self.schedule.get_all_days().values())
         }
     
-    def get_available_dates_in_range(self, start_date: str, end_date: str) -> List[str]:
-        """Get all available dates in a date range"""
-        from datetime import datetime, timedelta
-        
-        start_dt = datetime.strptime(start_date, '%Y-%m-%d')
-        end_dt = datetime.strptime(end_date, '%Y-%m-%d')
-        
-        available_dates = []
-        current_dt = start_dt
-        while current_dt <= end_dt:
-            date_str = current_dt.strftime('%Y-%m-%d')
-            if self.is_available_on_date(date_str):
-                available_dates.append(date_str)
-            current_dt += timedelta(days=1)
-        
-        return available_dates
 
 
     def generate_short_name(self, max_length: int = 10) -> str:
@@ -685,133 +690,133 @@ class Facility:
         except ValueError:
             return False
     
-    def can_accommodate_lines(self, day: str, time: str, num_lines: int) -> bool:
-        """
-        Check if the facility can accommodate the required number of lines at a specific day/time
+    # def can_accommodate_lines(self, day: str, time: str, num_lines: int) -> bool:
+    #     """
+    #     Check if the facility can accommodate the required number of lines at a specific day/time
         
-        Args:
-            day: Day of the week
-            time: Time in HH:MM format
-            num_lines: Number of lines (courts) needed
+    #     Args:
+    #         day: Day of the week
+    #         time: Time in HH:MM format
+    #         num_lines: Number of lines (courts) needed
             
-        Returns:
-            True if facility has enough courts available
-        """
-        available_courts = self.get_available_courts_on_day_time(day, time)
-        return available_courts is not None and available_courts >= num_lines
+    #     Returns:
+    #         True if facility has enough courts available
+    #     """
+    #     available_courts = self.get_available_courts_on_day_time(day, time)
+    #     return available_courts is not None and available_courts >= num_lines
     
-    def get_available_times_for_lines(self, day: str, num_lines: int) -> List[str]:
-        """
-        Get all available times on a day that can accommodate the required number of lines
+    # def get_available_times_for_lines(self, day: str, num_lines: int) -> List[str]:
+    #     """
+    #     Get all available times on a day that can accommodate the required number of lines
         
-        Args:
-            day: Day of the week
-            num_lines: Number of lines (courts) needed
+    #     Args:
+    #         day: Day of the week
+    #         num_lines: Number of lines (courts) needed
             
-        Returns:
-            List of time strings that have enough courts available
-        """
-        try:
-            day_schedule = self.schedule.get_day_schedule(day)
-            return day_schedule.get_times_with_min_courts(num_lines)
-        except ValueError:
-            return []
+    #     Returns:
+    #         List of time strings that have enough courts available
+    #     """
+    #     try:
+    #         day_schedule = self.schedule.get_day_schedule(day)
+    #         return day_schedule.get_times_with_min_courts(num_lines)
+    #     except ValueError:
+    #         return []
     
-    def get_scheduling_options_for_match(self, league, date_str: str) -> Dict[str, List[str]]:
-        """
-        Get all scheduling options for a match on a specific date
+    # def get_scheduling_options_for_match(self, league, date_str: str) -> Dict[str, List[str]]:
+    #     """
+    #     Get all scheduling options for a match on a specific date
         
-        Args:
-            league: League object to get line requirements
-            date_str: Date in YYYY-MM-DD format
+    #     Args:
+    #         league: League object to get line requirements
+    #         date_str: Date in YYYY-MM-DD format
             
-        Returns:
-            Dictionary mapping day of week to list of available times
-        """
-        if not self.is_available_on_date(date_str):
-            return {}
+    #     Returns:
+    #         Dictionary mapping day of week to list of available times
+    #     """
+    #     if not self.is_available_on_date(date_str):
+    #         return {}
         
-        # Get day of week from date
-        try:
-            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-            day_name = date_obj.strftime('%A')  # Full day name (Monday, Tuesday, etc.)
-        except ValueError:
-            return {}
+    #     # Get day of week from date
+    #     try:
+    #         date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+    #         day_name = date_obj.strftime('%A')  # Full day name (Monday, Tuesday, etc.)
+    #     except ValueError:
+    #         return {}
         
-        num_lines = league.get_total_courts_needed()
-        available_times = self.get_available_times_for_lines(day_name, num_lines)
+    #     num_lines = league.get_total_courts_needed()
+    #     available_times = self.get_available_times_for_lines(day_name, num_lines)
         
-        if available_times:
-            return {day_name: available_times}
-        else:
-            return {}
+    #     if available_times:
+    #         return {day_name: available_times}
+    #     else:
+    #         return {}
     
-    def find_scheduling_slots_for_split_lines(self, day: str, num_lines: int, 
-                                            max_time_gap_minutes: int = 120) -> List[List[Tuple[str, int]]]:
-        """
-        Find scheduling slots when lines can be split across different times
+    # def find_scheduling_slots_for_split_lines(self, day: str, num_lines: int, 
+    #                                         max_time_gap_minutes: int = 120) -> List[List[Tuple[str, int]]]:
+    #     """
+    #     Find scheduling slots when lines can be split across different times
         
-        Args:
-            day: Day of the week
-            num_lines: Total number of lines needed
-            max_time_gap_minutes: Maximum time gap between line start times (default 2 hours)
+    #     Args:
+    #         day: Day of the week
+    #         num_lines: Total number of lines needed
+    #         max_time_gap_minutes: Maximum time gap between line start times (default 2 hours)
             
-        Returns:
-            List of scheduling options, where each option is a list of (time, courts_at_time) tuples
-        """
-        try:
-            day_schedule = self.schedule.get_day_schedule(day)
-        except ValueError:
-            return []
+    #     Returns:
+    #         List of scheduling options, where each option is a list of (time, courts_at_time) tuples
+    #     """
+    #     try:
+    #         day_schedule = self.schedule.get_day_schedule(day)
+    #     except ValueError:
+    #         return []
         
-        if not day_schedule.start_times:
-            return []
+    #     if not day_schedule.start_times:
+    #         return []
         
-        # Get all available time slots with court counts
-        time_slots = [(slot.time, slot.available_courts) for slot in day_schedule.start_times 
-                     if slot.available_courts > 0]
+    #     # Get all available time slots with court counts
+    #     time_slots = [(slot.time, slot.available_courts) for slot in day_schedule.start_times 
+    #                  if slot.available_courts > 0]
         
-        if not time_slots:
-            return []
+    #     if not time_slots:
+    #         return []
         
-        # Convert times to minutes for gap calculation
-        def time_to_minutes(time_str):
-            parts = time_str.split(':')
-            return int(parts[0]) * 60 + int(parts[1])
+    #     # Convert times to minutes for gap calculation
+    #     def time_to_minutes(time_str):
+    #         parts = time_str.split(':')
+    #         return int(parts[0]) * 60 + int(parts[1])
         
-        # Find combinations that sum to required lines
-        scheduling_options = []
+    #     # Find combinations that sum to required lines
+    #     scheduling_options = []
         
-        # Try single time slot first (preferred)
-        for time_str, courts in time_slots:
-            if courts >= num_lines:
-                scheduling_options.append([(time_str, num_lines)])
+    #     # Try single time slot first (preferred)
+    #     for time_str, courts in time_slots:
+    #         if courts >= num_lines:
+    #             scheduling_options.append([(time_str, num_lines)])
         
-        # Try combinations of time slots if single slot isn't enough
-        if not scheduling_options:
-            for r in range(2, min(len(time_slots) + 1, num_lines + 1)):
-                for combination in itertools.combinations(time_slots, r):
-                    # Check if times are within max gap
-                    times_minutes = [time_to_minutes(time_str) for time_str, _ in combination]
-                    if max(times_minutes) - min(times_minutes) <= max_time_gap_minutes:
-                        # Check if total courts meet requirement
-                        total_available = sum(courts for _, courts in combination)
-                        if total_available >= num_lines:
-                            # Distribute lines across time slots
-                            lines_distribution = []
-                            remaining_lines = num_lines
-                            for time_str, courts in combination:
-                                lines_for_slot = min(courts, remaining_lines)
-                                if lines_for_slot > 0:
-                                    lines_distribution.append((time_str, lines_for_slot))
-                                    remaining_lines -= lines_for_slot
-                                if remaining_lines == 0:
-                                    break
+    #     # Try combinations of time slots if single slot isn't enough
+    #     if not scheduling_options:
+    #         for r in range(2, min(len(time_slots) + 1, num_lines + 1)):
+    #             for combination in itertools.combinations(time_slots, r):
+    #                 # Check if times are within max gap
+    #                 times_minutes = [time_to_minutes(time_str) for time_str, _ in combination]
+    #                 if max(times_minutes) - min(times_minutes) <= max_time_gap_minutes:
+    #                     # Check if total courts meet requirement
+    #                     total_available = sum(courts for _, courts in combination)
+    #                     if total_available >= num_lines:
+    #                         # Distribute lines across time slots
+    #                         lines_distribution = []
+    #                         remaining_lines = num_lines
+    #                         for time_str, courts in combination:
+    #                             lines_for_slot = min(courts, remaining_lines)
+    #                             if lines_for_slot > 0:
+    #                                 lines_distribution.append((time_str, lines_for_slot))
+    #                                 remaining_lines -= lines_for_slot
+    #                             if remaining_lines == 0:
+    #                                 break
                             
-                            if remaining_lines == 0:
-                                scheduling_options.append(lines_distribution)
+    #                         if remaining_lines == 0:
+    #                             scheduling_options.append(lines_distribution)
         
-        return scheduling_options
+    #     return scheduling_options
     
     @classmethod
     def from_yaml_dict(cls, data: Dict[str, Any]) -> 'Facility':
@@ -949,3 +954,523 @@ class Facility:
         except Exception as e:
             logger.exception("Error converting facility %s to YAML dict", self.id)
             raise Exception(f"Error converting facility {self.id} to YAML dict: {str(e)}")
+
+
+"""
+Facility Availability Classes
+
+These classes provide structured return types for facility availability queries,
+replacing dictionary returns with type-safe, documented objects.
+"""
+
+from dataclasses import dataclass, field
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+
+
+
+@dataclass
+class TimeSlotAvailability:
+    """
+    Represents availability information for a specific time slot at a facility
+    """
+    time: str  # Time in HH:MM format
+    total_courts: int  # Total courts available at this time slot
+    used_courts: int  # Courts currently scheduled/booked
+    available_courts: int  # Courts still available for booking
+    utilization_percentage: float  # Percentage of courts being used (0-100)
+    
+    def __post_init__(self):
+        """Validate time slot availability data"""
+        # Validate time format
+        if not isinstance(self.time, str):
+            raise ValueError("Time must be a string")
+        
+        try:
+            parts = self.time.split(':')
+            if len(parts) != 2:
+                raise ValueError("Invalid time format")
+            hour, minute = int(parts[0]), int(parts[1])
+            if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                raise ValueError("Invalid time values")
+        except (ValueError, IndexError):
+            raise ValueError(f"Invalid time format: '{self.time}'. Expected HH:MM format")
+        
+        # Validate court counts
+        if not isinstance(self.total_courts, int) or self.total_courts < 0:
+            raise ValueError(f"Total courts must be a non-negative integer, got: {self.total_courts}")
+        
+        if not isinstance(self.used_courts, int) or self.used_courts < 0:
+            raise ValueError(f"Used courts must be a non-negative integer, got: {self.used_courts}")
+        
+        if not isinstance(self.available_courts, int) or self.available_courts < 0:
+            raise ValueError(f"Available courts must be a non-negative integer, got: {self.available_courts}")
+        
+        # Validate logical consistency
+        if self.used_courts > self.total_courts:
+            raise ValueError(f"Used courts ({self.used_courts}) cannot exceed total courts ({self.total_courts})")
+        
+        if self.available_courts != (self.total_courts - self.used_courts):
+            raise ValueError(f"Available courts ({self.available_courts}) must equal total ({self.total_courts}) minus used ({self.used_courts})")
+        
+        # Validate utilization percentage
+        if not isinstance(self.utilization_percentage, (int, float)) or not (0 <= self.utilization_percentage <= 100):
+            raise ValueError(f"Utilization percentage must be between 0 and 100, got: {self.utilization_percentage}")
+    
+    def is_fully_booked(self) -> bool:
+        """Check if this time slot is fully booked"""
+        return self.available_courts == 0
+    
+    def has_availability(self) -> bool:
+        """Check if this time slot has any available courts"""
+        return self.available_courts > 0
+    
+    def can_accommodate(self, courts_needed: int) -> bool:
+        """Check if this time slot can accommodate the requested number of courts"""
+        return self.available_courts >= courts_needed
+    
+    def get_utilization_level(self) -> str:
+        """Get a descriptive utilization level"""
+        if self.utilization_percentage == 0:
+            return "Empty"
+        elif self.utilization_percentage < 25:
+            return "Light"
+        elif self.utilization_percentage < 50:
+            return "Moderate"
+        elif self.utilization_percentage < 75:
+            return "Heavy"
+        elif self.utilization_percentage < 100:
+            return "Nearly Full"
+        else:
+            return "Full"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization"""
+        return {
+            'time': self.time,
+            'total_courts': self.total_courts,
+            'used_courts': self.used_courts,
+            'available_courts': self.available_courts,
+            'utilization_percentage': self.utilization_percentage,
+            'utilization_level': self.get_utilization_level(),
+            'fully_booked': self.is_fully_booked(),
+            'has_availability': self.has_availability()
+        }
+
+
+
+
+
+@dataclass
+class FacilityAvailabilityInfo:
+    """
+    Comprehensive availability information for a facility on a specific date
+    """
+    facility_id: int
+    facility_name: str
+    date: str  # YYYY-MM-DD format
+    day_of_week: str  # Full day name (Monday, Tuesday, etc.)
+    available: bool  # Whether facility is available on this date
+    time_slots: List[TimeSlotAvailability] = field(default_factory=list)
+    total_court_slots: int = 0  # Total court-time slots across all times
+    used_court_slots: int = 0  # Used court-time slots across all times
+    available_court_slots: int = 0  # Available court-time slots across all times
+    overall_utilization_percentage: float = 0.0  # Overall utilization across all time slots
+    reason: Optional[str] = None  # Reason if facility is not available
+    
+    def __post_init__(self):
+        """Validate facility availability info"""
+        if not isinstance(self.facility_id, int) or self.facility_id <= 0:
+            raise ValueError(f"Facility ID must be a positive integer, got: {self.facility_id}")
+        
+        if not isinstance(self.facility_name, str) or not self.facility_name.strip():
+            raise ValueError("Facility name must be a non-empty string")
+        
+        # Validate date format
+        if not isinstance(self.date, str):
+            raise ValueError("Date must be a string")
+        
+        try:
+            parts = self.date.split('-')
+            if len(parts) != 3:
+                raise ValueError("Invalid date format")
+            year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+            if not (1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31):
+                raise ValueError("Invalid date values")
+        except (ValueError, IndexError):
+            raise ValueError(f"Invalid date format: '{self.date}'. Expected YYYY-MM-DD format")
+        
+        # Validate day of week
+        valid_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        if self.day_of_week not in valid_days:
+            raise ValueError(f"Invalid day of week: {self.day_of_week}. Must be one of: {valid_days}")
+        
+        # Validate time slots
+        if not isinstance(self.time_slots, list):
+            raise ValueError("Time slots must be a list")
+        
+        for i, slot in enumerate(self.time_slots):
+            if not isinstance(slot, TimeSlotAvailability):
+                raise ValueError(f"All time slots must be TimeSlotAvailability objects, item {i} is {type(slot)}")
+        
+        # Validate court slot counts
+        if not isinstance(self.total_court_slots, int) or self.total_court_slots < 0:
+            raise ValueError(f"Total court slots must be a non-negative integer, got: {self.total_court_slots}")
+        
+        if not isinstance(self.used_court_slots, int) or self.used_court_slots < 0:
+            raise ValueError(f"Used court slots must be a non-negative integer, got: {self.used_court_slots}")
+        
+        if not isinstance(self.available_court_slots, int) or self.available_court_slots < 0:
+            raise ValueError(f"Available court slots must be a non-negative integer, got: {self.available_court_slots}")
+        
+        # Validate utilization percentage
+        if not isinstance(self.overall_utilization_percentage, (int, float)) or not (0 <= self.overall_utilization_percentage <= 100):
+            raise ValueError(f"Overall utilization percentage must be between 0 and 100, got: {self.overall_utilization_percentage}")
+    
+    def is_fully_booked(self) -> bool:
+        """Check if facility is fully booked for the entire day"""
+        return self.available and self.available_court_slots == 0
+    
+    def has_any_availability(self) -> bool:
+        """Check if facility has any availability during the day"""
+        return self.available and self.available_court_slots > 0
+    
+    def get_available_times(self) -> List[str]:
+        """Get list of times that have at least one available court"""
+        return [slot.time for slot in self.time_slots if slot.has_availability()]
+    
+    def get_times_with_min_courts(self, min_courts: int) -> List[str]:
+        """Get list of times that have at least the specified number of courts available"""
+        return [slot.time for slot in self.time_slots if slot.can_accommodate(min_courts)]
+    
+    def get_peak_utilization_time(self) -> Optional[TimeSlotAvailability]:
+        """Get the time slot with highest utilization"""
+        if not self.time_slots:
+            return None
+        return max(self.time_slots, key=lambda slot: slot.utilization_percentage)
+    
+    def get_lowest_utilization_time(self) -> Optional[TimeSlotAvailability]:
+        """Get the time slot with lowest utilization"""
+        if not self.time_slots:
+            return None
+        return min(self.time_slots, key=lambda slot: slot.utilization_percentage)
+    
+    def get_utilization_summary(self) -> Dict[str, int]:
+        """Get summary of utilization levels across time slots"""
+        summary = {"Empty": 0, "Light": 0, "Moderate": 0, "Heavy": 0, "Nearly Full": 0, "Full": 0}
+        for slot in self.time_slots:
+            level = slot.get_utilization_level()
+            summary[level] += 1
+        return summary
+    
+    def find_consecutive_available_slots(self, courts_needed: int, slots_needed: int) -> List[List[str]]:
+        """
+        Find consecutive time slots that can accommodate the required courts
+        
+        Args:
+            courts_needed: Number of courts needed per time slot
+            slots_needed: Number of consecutive time slots needed
+            
+        Returns:
+            List of consecutive time slot sequences that meet the requirements
+        """
+        if slots_needed <= 0 or courts_needed <= 0:
+            return []
+        
+        suitable_times = [slot.time for slot in self.time_slots if slot.can_accommodate(courts_needed)]
+        
+        if len(suitable_times) < slots_needed:
+            return []
+        
+        consecutive_sequences = []
+        
+        # Find consecutive sequences of the required length
+        for i in range(len(suitable_times) - slots_needed + 1):
+            sequence = suitable_times[i:i + slots_needed]
+            
+            # Check if times are actually consecutive (this is a simplified check)
+            # In a real implementation, you'd want to check actual time intervals
+            consecutive_sequences.append(sequence)
+        
+        return consecutive_sequences
+    
+    def check_time_availability(self, time: str, courts_needed: int = 1) -> bool:
+        """
+        Check if a specific time slot has availability for the required number of courts
+        
+        Args:
+            time: Time in HH:MM format
+            courts_needed: Number of courts needed
+            
+        Returns:
+            True if the time slot can accommodate the request, False otherwise
+        """
+        if not self.available:
+            return False
+            
+        for time_slot in self.time_slots:
+            if time_slot.time == time:
+                return time_slot.can_accommodate(courts_needed)
+        
+        return False
+
+    def get_available_times_for_courts(self, courts_needed: int = 1) -> List[str]:
+        """
+        Get all available times that can accommodate the required number of courts
+        
+        Args:
+            courts_needed: Number of courts needed
+            
+        Returns:
+            List of available time strings in HH:MM format
+        """
+        if not self.available:
+            return []
+            
+        return [slot.time for slot in self.time_slots if slot.can_accommodate(courts_needed)]
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization"""
+        return {
+            'facility_id': self.facility_id,
+            'facility_name': self.facility_name,
+            'date': self.date,
+            'day_of_week': self.day_of_week,
+            'available': self.available,
+            'reason': self.reason,
+            'total_court_slots': self.total_court_slots,
+            'used_court_slots': self.used_court_slots,
+            'available_court_slots': self.available_court_slots,
+            'overall_utilization_percentage': self.overall_utilization_percentage,
+            'time_slots': [slot.to_dict() for slot in self.time_slots],
+            'summary': {
+                'fully_booked': self.is_fully_booked(),
+                'has_availability': self.has_any_availability(),
+                'available_times_count': len(self.get_available_times()),
+                'peak_utilization': self.get_peak_utilization_time().utilization_percentage if self.get_peak_utilization_time() else 0,
+                'lowest_utilization': self.get_lowest_utilization_time().utilization_percentage if self.get_lowest_utilization_time() else 0,
+                'utilization_distribution': self.get_utilization_summary()
+            }
+        }
+    
+    @classmethod
+    def create_unavailable(cls, facility_id: int, facility_name: str, date: str, 
+                          day_of_week: str, reason: str) -> 'FacilityAvailabilityInfo':
+        """
+        Create a FacilityAvailabilityInfo for an unavailable facility
+        
+        Args:
+            facility_id: ID of the facility
+            facility_name: Name of the facility
+            date: Date in YYYY-MM-DD format
+            day_of_week: Day of the week
+            reason: Reason why facility is unavailable
+            
+        Returns:
+            FacilityAvailabilityInfo instance marked as unavailable
+        """
+        return cls(
+            facility_id=facility_id,
+            facility_name=facility_name,
+            date=date,
+            day_of_week=day_of_week,
+            available=False,
+            time_slots=[],
+            total_court_slots=0,
+            used_court_slots=0,
+            available_court_slots=0,
+            overall_utilization_percentage=0.0,
+            reason=reason
+        )
+    
+    @classmethod
+    def from_time_slots(cls, facility_id: int, facility_name: str, date: str, 
+                       day_of_week: str, time_slots: List[TimeSlotAvailability]) -> 'FacilityAvailabilityInfo':
+        """
+        Create a FacilityAvailabilityInfo from a list of time slots
+        
+        Args:
+            facility_id: ID of the facility
+            facility_name: Name of the facility
+            date: Date in YYYY-MM-DD format
+            day_of_week: Day of the week
+            time_slots: List of TimeSlotAvailability objects
+            
+        Returns:
+            FacilityAvailabilityInfo instance with calculated totals
+        """
+        total_court_slots = sum(slot.total_courts for slot in time_slots)
+        used_court_slots = sum(slot.used_courts for slot in time_slots)
+        available_court_slots = total_court_slots - used_court_slots
+        
+        overall_utilization = (used_court_slots / total_court_slots * 100) if total_court_slots > 0 else 0.0
+        
+        return cls(
+            facility_id=facility_id,
+            facility_name=facility_name,
+            date=date,
+            day_of_week=day_of_week,
+            available=True,
+            time_slots=time_slots,
+            total_court_slots=total_court_slots,
+            used_court_slots=used_court_slots,
+            available_court_slots=available_court_slots,
+            overall_utilization_percentage=round(overall_utilization, 1)
+        )
+
+    def validate_scheduling_request(self, times: List[str], scheduling_mode: str, lines_needed: int) -> Tuple[bool, Optional[str]]:
+        """
+        Validate a scheduling request against this facility's availability
+        
+        Args:
+            times: List of requested time strings
+            scheduling_mode: Mode ('same_time', 'sequential', 'split_times', 'custom')
+            lines_needed: Number of lines/courts needed
+            
+        Returns:
+            (is_valid, error_message)
+        """
+        if not self.available:
+            return False, f"Facility not available on {self.date}: {self.reason}"
+        
+        if scheduling_mode == 'same_time':
+            return self._validate_same_time(times, lines_needed)
+        elif scheduling_mode == 'sequential':
+            return self._validate_sequential(times, lines_needed)
+        elif scheduling_mode == 'split_times':
+            return self._validate_split_times(times, lines_needed)
+        elif scheduling_mode == 'custom':
+            return self._validate_custom(times, lines_needed)
+        else:
+            return False, f"Unknown scheduling mode: {scheduling_mode}"
+
+    def _validate_same_time(self, times: List[str], lines_needed: int) -> Tuple[bool, Optional[str]]:
+        """Validate same time scheduling"""
+        if len(times) != 1:
+            return False, "Same time mode requires exactly one time slot"
+        
+        time = times[0]
+        if not self.check_time_availability(time, lines_needed):
+            available_alternatives = self.get_available_times_for_courts(lines_needed)
+            if available_alternatives:
+                return False, f"Time {time} cannot accommodate {lines_needed} courts. Available: {', '.join(available_alternatives)}"
+            else:
+                return False, f"No time slots can accommodate {lines_needed} courts on {self.date}"
+        
+        return True, None
+
+    def _validate_sequential(self, times: List[str], lines_needed: int) -> Tuple[bool, Optional[str]]:
+        """Validate sequential scheduling"""
+        if len(times) != 1:
+            return False, "Sequential mode requires exactly one start time"
+        
+        start_time = times[0]
+        if not self.check_time_availability(start_time, 1):
+            available_alternatives = self.get_available_times_for_courts(1)
+            if available_alternatives:
+                return False, f"Start time {start_time} not available. Available: {', '.join(available_alternatives)}"
+            else:
+                return False, f"No time slots available on {self.date}"
+        
+        return True, None
+
+    def _validate_split_times(self, times: List[str], lines_needed: int) -> Tuple[bool, Optional[str]]:
+        """Validate split times scheduling"""
+        if len(times) != 2:
+            return False, "Split times mode requires exactly two time slots"
+        
+        import math
+        from datetime import datetime, timedelta
+        
+        time1, time2 = sorted(times)
+        courts_per_slot = math.ceil(lines_needed / 2)
+        
+        # Check time gap
+        try:
+            dt1 = datetime.strptime(time1, '%H:%M')
+            dt2 = datetime.strptime(time2, '%H:%M')
+            if dt2 < dt1:
+                dt2 += timedelta(days=1)
+            if dt2 - dt1 < timedelta(hours=1):
+                return False, "Split time slots must be at least 1 hour apart"
+        except ValueError:
+            return False, "Invalid time format"
+        
+        # Check availability for both slots
+        if not self.check_time_availability(time1, courts_per_slot):
+            return False, f"Time {time1} cannot accommodate {courts_per_slot} courts"
+        
+        if not self.check_time_availability(time2, courts_per_slot):
+            return False, f"Time {time2} cannot accommodate {courts_per_slot} courts"
+        
+        return True, None
+
+    def _validate_custom(self, times: List[str], lines_needed: int) -> Tuple[bool, Optional[str]]:
+        """Validate custom scheduling"""
+        if len(times) != lines_needed:
+            return False, f"Custom mode requires exactly {lines_needed} time slots"
+        
+        # Check each time individually
+        for i, time in enumerate(times):
+            if not self.check_time_availability(time, 1):
+                return False, f"Time {time} (line {i+1}) is not available"
+        
+        # Check for duplicate times that exceed capacity
+        from collections import Counter
+        time_counts = Counter(times)
+        for time, count in time_counts.items():
+            if not self.check_time_availability(time, count):
+                return False, f"Time {time} cannot accommodate {count} courts"
+        
+        return True, None
+
+    def get_scheduling_suggestions(self, lines_needed: int) -> Dict[str, Any]:
+        """
+        Get scheduling suggestions for this facility/date
+        
+        Returns:
+            Dictionary with suggestions for different scheduling modes
+        """
+        suggestions = {
+            'date': self.date,
+            'facility_name': self.facility_name,
+            'available': self.available
+        }
+        
+        if not self.available:
+            suggestions['reason'] = self.reason
+            return suggestions
+        
+        # Same time suggestions
+        same_time_options = self.get_available_times_for_courts(lines_needed)
+        suggestions['same_time'] = {
+            'possible': len(same_time_options) > 0,
+            'options': same_time_options[:5]  # Limit to first 5
+        }
+        
+        # Split times suggestions
+        import math
+        courts_per_slot = math.ceil(lines_needed / 2)
+        split_time_options = self.get_available_times_for_courts(courts_per_slot)
+        
+        if len(split_time_options) >= 2:
+            suggestions['split_times'] = {
+                'possible': True,
+                'options': [
+                    {'time1': split_time_options[i], 'time2': split_time_options[j]}
+                    for i in range(len(split_time_options))
+                    for j in range(i+1, min(i+4, len(split_time_options)))  # Limit combinations
+                ][:5],
+                'courts_per_slot': courts_per_slot
+            }
+        else:
+            suggestions['split_times'] = {'possible': False}
+        
+        # Sequential suggestions
+        sequential_options = self.get_available_times_for_courts(1)
+        suggestions['sequential'] = {
+            'possible': len(sequential_options) > 0,
+            'options': sequential_options[:5]
+        }
+        
+        return suggestions

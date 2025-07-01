@@ -4,7 +4,6 @@ Updated SQLite Tennis Database Implementation - Updated for Object-Based Interfa
 This version updates the implementation to match the new TennisDBInterface
 that uses actual object instances instead of IDs for many operations.
 
-Added get_available_dates API for finding available dates at facilities.
 """
 
 import sqlite3
@@ -14,9 +13,10 @@ from typing import List, Dict, Optional, Tuple, Any
 
 # Import the interface
 from tennis_db_interface import TennisDBInterface
+from scheduling_state import SchedulingState
 
-from usta import League, Team, Match, Facility, MatchType
-
+from usta import League, Team, Match, Facility, MatchType, FacilityAvailabilityInfo, TimeSlotAvailability
+# Import constants for USTA sections, regions, age groups, and divisions
 from usta_constants import USTA_SECTIONS, USTA_REGIONS, USTA_AGE_GROUPS, USTA_DIVISIONS
 
 # Import helper classes
@@ -503,6 +503,13 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
         self.conn = None
         self.cursor = None
         
+        # Add these instance variables to __init__ method:
+        self.transaction_active = False
+        self.dry_run_active = False
+        self.dry_run_operations = []
+        self.scheduling_state = None
+
+
         # Initialize helper managers (will be set after database connection)
         self.team_manager = None
         self.league_manager = None
@@ -667,6 +674,120 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
         """Ensure database connection is properly closed"""
         return self.disconnect()
 
+    # ========== Transaction Management ==========
+    def begin_transaction(self, dry_run: bool = True):
+        """Start a transaction with optional dry-run mode"""
+        if self.transaction_active:
+            raise RuntimeError("Transaction already active")
+        
+        self.transaction_active = True
+        self.dry_run_active = dry_run
+        self.dry_run_operations = []
+        
+        if dry_run:
+            self.scheduling_state = SchedulingState()
+            self.scheduling_state.initialize_from_database(self)
+            logger.info("Dry-run transaction started")
+
+        if not dry_run:
+            self.cursor.execute("BEGIN TRANSACTION")
+    
+    def commit_transaction(self):
+        """Commit the current transaction"""
+        if not self.transaction_active:
+            raise RuntimeError("No active transaction")
+        
+        try:
+            if self.dry_run_active:
+                self._output_dry_run_summary()
+            else:
+                self.conn.commit()
+        finally:
+            self._reset_transaction_state()
+    
+    def rollback_transaction(self):
+        """Rollback the current transaction"""
+        if not self.transaction_active:
+            raise RuntimeError("No active transaction")
+        
+        try:
+            if not self.dry_run_active:
+                self.conn.rollback()
+        finally:
+            self._reset_transaction_state()
+    
+    def _output_dry_run_summary(self):
+        """Output summary of operations that would have been executed in dry-run mode"""
+        if not self.dry_run_operations:
+            print("📋 DRY RUN SUMMARY: No operations would have been executed")
+            return
+        
+        print(f"\n📋 DRY RUN SUMMARY: {len(self.dry_run_operations)} operations would have been executed:")
+        print("=" * 80)
+        
+        # Group operations by type for better readability
+        operation_groups = {}
+        for op in self.dry_run_operations:
+            op_type = op['type']
+            if op_type not in operation_groups:
+                operation_groups[op_type] = []
+            operation_groups[op_type].append(op)
+        
+        # Display each operation type
+        for op_type, operations in operation_groups.items():
+            print(f"\n🔸 {op_type.upper()} Operations ({len(operations)}):")
+            for i, op in enumerate(operations, 1):
+                description = op.get('description', '')
+                query = op['query']
+                params = op['params']
+                
+                if description:
+                    print(f"  {i}. {description}")
+                else:
+                    # Generate description from query if not provided
+                    if query.strip().upper().startswith('INSERT'):
+                        print(f"  {i}. Insert record into database")
+                    elif query.strip().upper().startswith('UPDATE'):
+                        print(f"  {i}. Update record in database")
+                    elif query.strip().upper().startswith('DELETE'):
+                        print(f"  {i}. Delete record from database")
+                    else:
+                        print(f"  {i}. Execute database operation")
+                
+                # Show query details if verbose logging enabled
+                if logger.isEnabledFor(logging.DEBUG):
+                    print(f"     Query: {query}")
+                    if params:
+                        print(f"     Params: {params}")
+        
+        print("\n" + "=" * 80)
+        print("💡 To execute these operations, run the command again with --execute flag")
+    
+    def _reset_transaction_state(self):
+        """Reset transaction state"""
+        self.transaction_active = False
+        self.dry_run_active = False
+        self.dry_run_operations = []
+        self.scheduling_state = None
+    
+    def execute_operation(self, operation_type: str, query: str, params: tuple, 
+                         description: str = "") -> bool:
+        """Execute operation with dry-run awareness"""
+        if self.dry_run_active:
+            self.dry_run_operations.append({
+                'type': operation_type,
+                'query': query,
+                'params': params,
+                'description': description
+            })
+            return True
+        else:
+            self.cursor.execute(query, params)
+            return self.cursor.rowcount > 0
+        
+        
+        
+
     # ========== Team Management ==========
     
     def add_team(self, team: Team) -> bool:
@@ -720,42 +841,45 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
         return self.facility_manager.update_facility(facility)
 
     def delete_facility(self, facility: Facility) -> bool:
-        return self.facility_manager.delete_facility(facility.id)
+        return self.facility_manager.delete_facility(facility)
 
-    def get_facility_availability(self, facility: Facility, date: str) -> Dict[str, Any]:
-        return self.facility_manager.get_facility_availability(facility.id, date)
+    def get_facility_availability(self, 
+                                  facility: Facility, 
+                                  dates: List[str],
+                                  max_days: int = 50) -> List['FacilityAvailabilityInfo']:
+        return self.facility_manager.get_facility_availability(facility, dates, max_days)
 
-    def get_available_dates(self, facility: Facility, num_lines: int, 
-                           allow_split_lines: bool = False, 
-                           start_date: Optional[str] = None,
-                           end_date: Optional[str] = None,
-                           max_dates: int = 50) -> List[str]:
-        """
-        Get available dates for a facility that can accommodate the required number of lines
+    # def get_available_dates(self, facility: Facility, num_lines: int, 
+    #                        allow_split_lines: bool = False, 
+    #                        start_date: Optional[str] = None,
+    #                        end_date: Optional[str] = None,
+    #                        max_dates: int = 50) -> List[str]:
+    #     """
+    #     Get available dates for a facility that can accommodate the required number of lines
         
-        Args:
-            facility: Facility object to check availability for
-            num_lines: Number of lines (courts) needed
-            allow_split_lines: Whether lines can be split across different time slots
-            start_date: Start date for search (YYYY-MM-DD format). If None, uses today's date
-            end_date: End date for search (YYYY-MM-DD format). If None, searches 16 weeks from start
-            max_dates: Maximum number of dates to return
+    #     Args:
+    #         facility: Facility object to check availability for
+    #         num_lines: Number of lines (courts) needed
+    #         allow_split_lines: Whether lines can be split across different time slots
+    #         start_date: Start date for search (YYYY-MM-DD format). If None, uses today's date
+    #         end_date: End date for search (YYYY-MM-DD format). If None, searches 16 weeks from start
+    #         max_dates: Maximum number of dates to return
             
-        Returns:
-            List of available date strings in YYYY-MM-DD format, ordered by preference
-        """
-        return self.facility_manager.get_available_dates(
-            facility, num_lines, allow_split_lines, start_date, end_date, max_dates
-        )
+    #     Returns:
+    #         List of available date strings in YYYY-MM-DD format, ordered by preference
+    #     """
+    #     return self.facility_manager.get_available_dates(
+    #         facility, num_lines, allow_split_lines, start_date, end_date, max_dates
+    #     )
 
-    def can_accommodate_lines_on_date(self, facility: Facility, date: str, 
-                                         num_lines: int, 
-                                         allow_split_lines: bool) -> bool:
-        return self.facility_manager.can_accommodate_lines_on_date(
-            facility=facility, 
-            date=date, 
-            num_lines=num_lines, 
-            allow_split_lines=allow_split_lines)
+    # def can_accommodate_lines_on_date(self, facility: Facility, date: str, 
+    #                                      num_lines: int, 
+    #                                      allow_split_lines: bool) -> bool:
+    #     return self.facility_manager.can_accommodate_lines_on_date(
+    #         facility=facility, 
+    #         date=date, 
+    #         num_lines=num_lines, 
+    #         allow_split_lines=allow_split_lines)
     
     # ========== Match Management ==========
     
@@ -783,34 +907,37 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
         return self.match_manager.get_matches_on_date(date)
 
     # ========== Match Scheduling Operations ==========
-    def schedule_match_all_lines_same_time(self, match: 'Match', 
-                                           facility: 'Facility', 
-                                           date: str, 
-                                           time: Optional[str] = None) -> bool:
-        return self.match_manager.schedule_match_all_lines_same_time(
-            match=match, facility=facility, date=date, time=time)
-    
-    def schedule_match_sequential_times(self, match: Match, 
-                                        date: str, start_time: str, interval_minutes: int = 180, 
-                                        facility: Optional[Facility] = None) -> bool:
-        facility_to_use = facility or match.home_team.home_facility
-        return self.match_manager.schedule_match_sequential_times(
-            match, facility_to_use, date, start_time, interval_minutes
-        )
+
+    def schedule_match(self, 
+                       match: Match, 
+                       facility: Facility, 
+                       date: str, 
+                       times: List[str],
+                       scheduling_mode: str) -> Dict[str, Any]:
+        return self.match_manager.schedule_match(
+            match, facility, date, times, scheduling_mode )
+
+    def preview_match_scheduling(self, match: Match, facility: Facility, date: str, 
+                            times: List[str], scheduling_mode: str) -> Dict[str, Any]:
+        """
+        Preview the scheduling of a match at a given facility, date, and times with a specified scheduling mode.
+
+        Args:
+            match: The Match object to be scheduled.
+            facility: The Facility object where the match is to be scheduled.
+            date: The date (YYYY-MM-DD) for the match.
+            times: List of time strings representing proposed match times.
+            scheduling_mode: The scheduling mode to use (e.g., 'all_lines_same_time', 'split_times', etc.).
+
+        Returns:
+            Dictionary containing the preview results, including any conflicts or scheduling details.
+        """
+        return self.match_manager.preview_match_scheduling(match, facility,
+                                                           date, times, scheduling_mode)
 
 
-    def schedule_match_split_times(self, match: Match, date: str, 
-                                   timeslots: Optional[List[str]]=None,
-                                  facility: Optional[Facility] = None) -> bool:
-        facility_to_use = facility or match.home_team.home_facility
-        return self.match_manager.schedule_match_split_times(
-            match=match, date=date, timeslots=timeslots, facility=facility)
-
-    def auto_schedule_matches(self, matches: List['Match'], 
-                              facilities: Optional[List['Facility']]=None) -> Dict[str, Any]:
-        return self.scheduling_manager.auto_schedule_matches(
-            matches=matches,
-            facilities=facilities)
+    def auto_schedule_matches(self, matches: List['Match'], dry_run: bool = True) -> Dict:
+        return self.match_manager.auto_schedule_matches(matches=matches, dry_run=dry_run)
 
     def unschedule_match(self, match: Match) -> bool:
         return self.match_manager.unschedule_match(match)
@@ -885,23 +1012,14 @@ if __name__ == "__main__":
     leagues = db.list_leagues()
     print(f"✓ Found {len(leagues)} leagues")
     
-    # Test get_available_dates if we have facilities
+    # Show facilities information
     facilities = db.list_facilities()
-    if facilities:
-        facility = facilities[0]
-        print(f"✓ Testing get_available_dates for {facility.name}")
-        
-        # Test with 3 lines, no split lines allowed
-        available_dates = db.get_available_dates(facility, 3, allow_split_lines=False, max_dates=10)
-        print(f"✓ Found {len(available_dates)} available dates (no split lines)")
-        if available_dates:
-            print(f"✓ Sample dates: {available_dates[:3]}")
-        
-        # Test with split lines allowed
-        available_dates_split = db.get_available_dates(facility, 3, allow_split_lines=True, max_dates=10)
-        print(f"✓ Found {len(available_dates_split)} available dates (split lines allowed)")
-        if available_dates_split:
-            print(f"✓ Sample dates: {available_dates_split[:3]}")
-    
+    print(f"✓ Found {len(facilities)} facilities")
+    teams = db.list_teams()
+    print(f"✓ Found {len(teams)} teams")
+    matches = db.list_matches()
+    print(f"✓ Found {len(matches)} matches")
+
+
     db.disconnect()
     print("✓ Database disconnected successfully")

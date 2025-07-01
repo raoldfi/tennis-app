@@ -14,6 +14,7 @@ from typing import List, Dict, Optional, Tuple, Any, TYPE_CHECKING
 # Use TYPE_CHECKING to avoid circular imports for type hints
 if TYPE_CHECKING:
     from usta import Team, League, Match, Facility, MatchType
+    from usta_facility import FacilityAvailabilityInfo
 
 
 
@@ -121,12 +122,6 @@ class TennisDBInterface(ABC):
         """List matches, optionally filtered by facility, league, team"""
         pass
 
-    ''' THIS METHOD SHOULD NOT BE PUBLIC, CHANGE MATCHES THROUGH OTHER FUNCS
-    @abstractmethod
-    def update_match(self, match: 'Match') -> bool:
-        """Update an existing match"""
-        pass
-    '''
 
     @abstractmethod
     def delete_match(self, match: 'Match') -> bool:
@@ -165,110 +160,42 @@ class TennisDBInterface(ABC):
         pass
 
     @abstractmethod
-    def get_facility_availability(self, facility: 'Facility', date: str) -> Dict[str, Any]:
-        """Get facility availability information for a specific date"""
+    def get_facility_availability(self, 
+                                  facility: 'Facility', 
+                                  dates: List[str],
+                                  max_days: int = 50) -> List['FacilityAvailabilityInfo']:
+        """ Get availability information for a facility over a date range """
         pass
 
-    @abstractmethod
-    def get_available_dates(self, facility: 'Facility', num_lines: int, 
-                           allow_split_lines: bool = False, 
-                           start_date: Optional[str] = None,
-                           end_date: Optional[str] = None,
-                           max_dates: int = 50) -> List[str]:
-        """
-        Get available dates for a facility that can accommodate the required number of lines
-        
-        Args:
-            facility: Facility object to check availability for
-            num_lines: Number of lines (courts) needed
-            allow_split_lines: Whether lines can be split across different time slots
-            start_date: Start date for search (YYYY-MM-DD format). If None, uses today's date
-            end_date: End date for search (YYYY-MM-DD format). If None, searches 16 weeks from start
-            max_dates: Maximum number of dates to return
-            
-        Returns:
-            List of available date strings in YYYY-MM-DD format, ordered by preference
-            
-        Examples:
-            # Find dates for 3 lines at same time
-            dates = db.get_available_dates(facility, 3)
-            
-            # Find dates allowing split lines
-            dates = db.get_available_dates(facility, 3, allow_split_lines=True)
-            
-            # Find dates in specific range
-            dates = db.get_available_dates(facility, 3, start_date="2025-01-01", end_date="2025-03-31")
-        """
-        pass
-
-    @abstractmethod
-    def can_accommodate_lines_on_date(self, facility: 'Facility', date: str, 
-                                     num_lines: int, 
-                                     allow_split_lines: bool) -> bool:
-        pass
-
+ 
     # ========== Match Scheduling Operations ==========
     @abstractmethod
-    def schedule_match_all_lines_same_time(self, match: 'Match', 
-                                           facility: 'Facility', 
-                                           date: str, 
-                                           time: Optional[str] = None) -> bool:
+    def schedule_match(self, 
+                       match: Match,
+                       facility: 'Facility', 
+                       date: str, 
+                       times: List[str], 
+                       scheduling_mode: str) -> Dict[str, Any]:
         """
-        Schedule all lines of a match at the same facility, date, and time
-        
-        Args:
-            match_id: ID of the match to schedule
-            facility_id: Facility where match will be played
-            date: Date in YYYY-MM-DD format
-            time: Time in HH:MM format
-            
-        Returns:
-            True if successful, False if there are conflicts or other issues
-        """
-        pass
+        Schedules a tennis match with validation checks for facility availability and scheduling constraints.
 
-    @abstractmethod
-    def schedule_match_sequential_times(self, match: 'Match', 
-                                        date: str, start_time: str, interval_minutes: int = 180, 
-                                        facility: Optional['Facility'] = None) -> bool:
-        """
-        Schedule match lines sequentially with specified interval between start times
-        
         Args:
-            match_id: ID of the match to schedule
-            facility_id: Facility where match will be played
-            date: Date in YYYY-MM-DD format
-            start_time: Start time for first line in HH:MM format
-            interval_minutes: Minutes between line start times
-            
-        Returns:
-            True if successful, False if there are conflicts or other issues
-        """
-        pass
+            match (Match): The match object containing details of the match to be scheduled.
+            facility (Facility): The facility where the match is to be played.
+            date (str): The date for the match in 'YYYY-MM-DD' format.
+            times (List[str]): A list of time slots (e.g., ['10:00', '11:00']) requested for the match.
+            scheduling_mode (str): The mode of scheduling (e.g., 'automatic', 'manual').
 
-    @abstractmethod
-    def schedule_match_split_times(self, match: 'Match', date: str, 
-                                   timeslots: Optional[List[str]]=None,
-                                   facility: Optional['Facility'] = None) -> bool:
-        """
-        Schedule match lines in split times mode - some lines at start_time, 
-        rest at the next timeslot (at least 90 minutes away)
-        
-        Args:
-            match: Match object to schedule
-            date: Date in YYYY-MM-DD format
-            start_time: First time slot in HH:MM format
-            facility: Optional facility (defaults to home team's facility)
-            
         Returns:
-            True if successful, False if there are conflicts or other issues
+            Dict[str, Any]: A dictionary containing the result of the scheduling operation, including success status,
+                            scheduled match details, and any validation errors or messages.
         """
-        pass
+                                        
+
+
     
     @abstractmethod
-    def auto_schedule_matches(self, 
-                              matches: List['Match'], 
-                              facilities:Optional[List['Facility']]=None) -> Dict[str, Any]:
+    def auto_schedule_matches(self, matches: List['Match'], dry_run: bool = True) -> Dict:
         """
         Attempt to automatically schedule a list of matches
         
@@ -330,22 +257,7 @@ class TennisDBInterface(ABC):
         pass
 
     # ========== Advanced Scheduling Operations ==========
-    @abstractmethod
-    def get_team_conflicts(self, team: 'Team', date: str, time: str, duration_hours: int = 3) -> List[Dict]:
-        """
-        Check for scheduling conflicts for a team at a specific date/time
-        
-        Args:
-            team_id: Team to check
-            date: Date in YYYY-MM-DD format
-            time: Time in HH:MM format
-            duration_hours: Duration of the event in hours
-            
-        Returns:
-            List of conflict descriptions
-        """
-        pass
-
+ 
     @abstractmethod
     def get_facility_conflicts(self, facility: 'Facility', date: str, time: str, duration_hours: int = 3, 
                              exclude_match_id: Optional[int] = None) -> List[Dict]:

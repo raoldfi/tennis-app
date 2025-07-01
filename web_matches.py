@@ -314,7 +314,7 @@ def register_routes(app, get_db):
     
     @app.route('/api/bulk-auto-schedule', methods=['POST'])
     def bulk_auto_schedule():
-        """Bulk auto-schedule matches using db.scheduling_manager.auto_schedule_matches"""
+        """Bulk auto-schedule matches using db.match_manager.auto_schedule_matches"""
         print(f"\n=== BULK AUTO-SCHEDULE ===")
         db = get_db()
         if db is None:
@@ -377,16 +377,23 @@ def register_routes(app, get_db):
             
             # Call the database auto_schedule_matches method with list of Match objects
             try:
-                print(f"Calling db.scheduling_manager.auto_schedule_matches with {len(matches_to_schedule)} matches")
-                results = db.auto_schedule_matches(matches_to_schedule)
+                print(f"Calling db.match_manager.auto_schedule_matches with {len(matches_to_schedule)} matches")
+                # Get dry_run parameter from form, default to True
+                dry_run = request.form.get('dry_run', 'true').lower() in ['true', '1', 'yes']
+
+                # UPDATED: Use match_manager instead of scheduling_manager
+                scheduling_results = db.match_manager.auto_schedule_matches(
+                    matches=matches_to_schedule, dry_run=dry_run)
                 
-                # Extract results based on sql_scheduling_manager.py return format
-                scheduled_count = results.get('scheduled', 0)
-                failed_count = results.get('failed', 0)
-                total_count = results.get('total_matches', len(matches_to_schedule))
-                success_rate = results.get('success_rate', 0.0)
-                scheduling_details = results.get('scheduling_details', [])
-                errors = results.get('errors', [])
+                # Extract results based on match_manager return format
+                scheduled_count = scheduling_results.get('scheduled', 0)
+                failed_count = scheduling_results.get('failed', 0)
+                total_count = scheduling_results.get('total_matches', len(matches_to_schedule))
+                scheduling_details = scheduling_results.get('scheduling_details', [])
+                errors = scheduling_results.get('errors', [])
+                
+                # Calculate success rate
+                success_rate = round((scheduled_count / total_count * 100) if total_count > 0 else 0, 1)
                 
                 print(f"Auto-scheduling results: {scheduled_count} scheduled, {failed_count} failed, success rate: {success_rate}%")
                 
@@ -409,13 +416,15 @@ def register_routes(app, get_db):
                             print(f"    ... and {len(errors) - 5} more errors")
                     
                     # Log scheduling details for failed matches
-                    failed_details = [detail for detail in scheduling_details if not detail.get('success', True)]
+                    failed_details = [detail for detail in scheduling_details if detail.get('status') == 'scheduling_failed']
                     if failed_details:
                         print(f"  - Failed match details:")
                         for i, detail in enumerate(failed_details[:3], 1):  # Show first 3 failed matches
                             match_info = f"Match {detail.get('match_id', 'Unknown')}"
-                            if detail.get('teams'):
-                                match_info += f" ({detail['teams']})"
+                            home_team = detail.get('home_team', '')
+                            visitor_team = detail.get('visitor_team', '')
+                            if home_team and visitor_team:
+                                match_info += f" ({home_team} vs {visitor_team})"
                             print(f"    {i}. {match_info}: {detail.get('reason', 'Unknown reason')}")
                         if len(failed_details) > 3:
                             print(f"    ... and {len(failed_details) - 3} more failed matches")
@@ -441,21 +450,29 @@ def register_routes(app, get_db):
                 # Enhanced response structure for partial failures
                 response_data = {
                     'success': True,
-                    'message': response_message,
-                    'scheduled_count': scheduled_count,
-                    'failed_count': failed_count,
-                    'total_count': total_count,
-                    'success_rate': success_rate,
-                    'scheduling_details': scheduling_details[:10] if scheduling_details else [],  # Limit details
-                    'errors': errors[:5] if errors else []  # Limit error details
+                    'total_matches': len(matches_to_schedule),
+                    'scheduled': scheduled_count,
+                    'failed': failed_count,
+                    'dry_run': dry_run,
+                    'scheduling_details': scheduling_details,
+                    'operations': scheduling_results.get('operations_performed', []) if dry_run else []
                 }
+
+                # Update message based on mode
+                if dry_run:
+                    if response_data['scheduled'] > 0:
+                        response_data['message'] = f'Preview: Would schedule {response_data["scheduled"]} matches'
+                    else:
+                        response_data['message'] = f'Preview: No matches can be scheduled'
+                else:
+                    response_data['message'] = response_message
                 
                 # Add warning flag and refresh option for partial failures
                 if failed_count > 0:
                     response_data['warning'] = True
                     response_data['warning_message'] = f"Not all matches could be scheduled. {failed_count} of {total_count} matches failed."
-                    response_data['show_refresh'] = True  # NEW: Enable refresh button
-                    response_data['refresh_text'] = 'Refresh Page'  # NEW: Custom refresh text
+                    response_data['show_refresh'] = True
+                    response_data['refresh_text'] = 'Refresh Page'
                     
                     # Include detailed failure information in response
                     response_data['failure_summary'] = {
@@ -465,12 +482,12 @@ def register_routes(app, get_db):
                         'failed_match_details': [
                             {
                                 'match_id': detail.get('match_id'),
-                                'teams': detail.get('teams', 'Unknown teams'),
+                                'home_team': detail.get('home_team', ''),
+                                'visitor_team': detail.get('visitor_team', ''),
                                 'reason': detail.get('reason', 'Unknown reason')
                             }
-                            for detail in scheduling_details 
-                            if not detail.get('success', True)
-                        ][:5]  # Limit to first 5 failed matches
+                            for detail in failed_details[:5]  # Limit to first 5 failed matches
+                        ]
                     }
                 
                 return jsonify(response_data)
@@ -486,8 +503,6 @@ def register_routes(app, get_db):
             print(f"Bulk auto-schedule error: {str(e)}")
             traceback.print_exc()
             return jsonify({'error': f'Bulk auto-schedule failed: {str(e)}'}), 500
-
-
     
 
 

@@ -10,9 +10,9 @@ Added get_available_dates API for finding available dates for matches.
 
 import sqlite3
 import json
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, timedelta
-from usta import Facility, WeeklySchedule, DaySchedule, TimeSlot
+from usta import Facility, WeeklySchedule, DaySchedule, TimeSlot, FacilityAvailabilityInfo, TimeSlotAvailability
 
 # Logging
 import logging
@@ -62,10 +62,10 @@ class SQLFacilityManager:
             ))
             
             # Insert schedule data
-            self._insert_facility_schedule(facility.id, facility.schedule)
+            self._insert_facility_schedule(facility, facility.schedule)
             
             # Insert unavailable dates
-            self._insert_facility_unavailable_dates(facility.id, facility.unavailable_dates)
+            self._insert_facility_unavailable_dates(facility, facility.unavailable_dates)
             
         except sqlite3.IntegrityError as e:
             raise ValueError(f"Database integrity error adding facility: {e}")
@@ -97,10 +97,10 @@ class SQLFacilityManager:
             )
             
             # Load schedule data
-            facility.schedule = self._load_facility_schedule(facility_id)
+            facility.schedule = self._load_facility_schedule(facility)
             
             # Load unavailable dates
-            facility.unavailable_dates = self._load_facility_unavailable_dates(facility_id)
+            facility.unavailable_dates = self._load_facility_unavailable_dates(facility)
             
             return facility
         except sqlite3.Error as e:
@@ -146,13 +146,14 @@ class SQLFacilityManager:
             raise RuntimeError(f"Database error updating facility: {e}")
         return True
     
-    def delete_facility(self, facility_id: int) -> bool:
+    def delete_facility(self, facility: Facility) -> bool:
         """Delete a facility from the database"""
-        if not isinstance(facility_id, int) or facility_id <= 0:
-            raise ValueError(f"Facility ID must be a positive integer, got: {facility_id}")
+        if not isinstance(facility, Facility):
+            raise TypeError(f"Expected Facility object, got: {type(facility)}")
         
         try:
-            # Check if facility exists
+            # Check if facility_id exists in the database
+            facility_id = facility.id
             existing_facility = self.get_facility(facility_id)
             if not existing_facility:
                 raise ValueError(f"Facility with ID {facility_id} does not exist")
@@ -223,7 +224,7 @@ class SQLFacilityManager:
                     # Load schedule data separately with error handling
                     logger.debug("Loading schedule for facility id=%s", facility.id)
                     try:
-                        loaded_schedule = self._load_facility_schedule(facility.id)
+                        loaded_schedule = self._load_facility_schedule(facility)
                         if loaded_schedule and isinstance(loaded_schedule, WeeklySchedule):
                             facility.schedule = loaded_schedule
                             logger.debug("Schedule loaded successfully for facility id=%s", facility.id)
@@ -237,12 +238,12 @@ class SQLFacilityManager:
                     # Load unavailable dates with error handling
                     logger.debug("Loading unavailable dates for facility id=%s", facility.id)
                     try:
-                        unavailable_dates = self._load_facility_unavailable_dates(facility.id)
+                        unavailable_dates = self._load_facility_unavailable_dates(facility)
                         if unavailable_dates and isinstance(unavailable_dates, list):
                             facility.unavailable_dates = unavailable_dates
                             logger.debug("Unavailable dates loaded for facility id=%s: %s", facility.id, facility.unavailable_dates)
                         else:
-                            logger.warning("Invalid unavailable dates returned for facility id=%s, using empty list", facility.id)
+                            # Empty list just means its always available
                             facility.unavailable_dates = []
                     except Exception as dates_error:
                         logger.error("Error loading unavailable dates for facility id=%s: %s", facility.id, dates_error)
@@ -317,8 +318,8 @@ class SQLFacilityManager:
                 )
                 
                 # Load schedule and unavailable dates
-                facility.schedule = self._load_facility_schedule(facility.id)
-                facility.unavailable_dates = self._load_facility_unavailable_dates(facility.id)
+                facility.schedule = self._load_facility_schedule(facility)
+                facility.unavailable_dates = self._load_facility_unavailable_dates(facility)
                 
                 facilities.append(facility)
             
@@ -326,146 +327,15 @@ class SQLFacilityManager:
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error getting facilities by name: {e}")
 
-    def get_available_dates(self, facility: Facility, num_lines: int, 
-                           allow_split_lines: bool = False, 
-                           start_date: Optional[str] = None,
-                           end_date: Optional[str] = None,
-                           max_dates: int = 50) -> List[str]:
-        """
-        Get available dates for a facility that can accommodate the required number of lines
-        
-        Args:
-            facility: Facility object to check availability for
-            num_lines: Number of lines (courts) needed
-            allow_split_lines: Whether lines can be split across different time slots
-            start_date: Start date for search (YYYY-MM-DD format). If None, uses today's date
-            end_date: End date for search (YYYY-MM-DD format). If None, searches 16 weeks from start
-            max_dates: Maximum number of dates to return
-            
-        Returns:
-            List of available date strings in YYYY-MM-DD format, ordered by preference
-        """
-        try:
-            # Set default date range if not provided
-            if start_date is None:
-                start_date = datetime.now().strftime('%Y-%m-%d')
-            
-            if end_date is None:
-                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
-                end_dt = start_dt + timedelta(weeks=16)
-                end_date = end_dt.strftime('%Y-%m-%d')
-            
-            # Validate date range
-            start_dt = datetime.strptime(start_date, '%Y-%m-%d')
-            end_dt = datetime.strptime(end_date, '%Y-%m-%d')
-            
-            if start_dt > end_dt:
-                raise ValueError("Start date must be before or equal to end date")
-            
-            available_dates = []
-            current_dt = start_dt
-            
-            while current_dt <= end_dt and len(available_dates) < max_dates:
-                date_str = current_dt.strftime('%Y-%m-%d')
-                
-                # Check if facility is available on this date
-                if not facility.is_available_on_date(date_str):
-                    current_dt += timedelta(days=1)
-                    continue
-                
-                # Get day of week
-                day_name = current_dt.strftime('%A')
-                
-                # Get day schedule
-                try:
-                    day_schedule = facility.schedule.get_day_schedule(day_name)
-                except ValueError:
-                    # Invalid day name or no schedule for this day
-                    current_dt += timedelta(days=1)
-                    continue
-                
-                # Check if this date can accommodate the required lines
-                if self.can_accommodate_lines_on_date(facility=facility, 
-                                                      date=date_str, 
-                                                      num_lines=num_lines, 
-                                                      allow_split_lines=allow_split_lines):
-                    available_dates.append(date_str)
-                
-                current_dt += timedelta(days=1)
-            
-            return available_dates
-            
-        except Exception as e:
-            raise RuntimeError(f"Error getting available dates for facility {facility.id}: {e}")
 
-    
-    def can_accommodate_lines_on_date(self, facility: Facility, date: str, 
-                                     num_lines: int, 
-                                     allow_split_lines: bool) -> bool:
-        """
-        Check if a facility can accommodate the required lines on a specific date
-        
-        Args:
-            facility: Facility object
-            date_str: Date string in YYYY-MM-DD format
-            num_lines: Number of lines needed
-            allow_split_lines: Whether lines can be split across time slots
-            
-        Returns:
-            True if the facility can accommodate the lines
-        """
-        try:
-            # Get day schedule
-            # Convert string to datetime object to get day name
-            date_obj = datetime.strptime(date, '%Y-%m-%d')
-            day_name = date_obj.strftime('%A')
-            day_schedule = facility.schedule.get_day_schedule(day_name)
-            
-            # Get scheduled times at this facility on this date
-            scheduled_times = self.get_scheduled_times_at_facility(facility.id, date)
-            
-            if not allow_split_lines:
-                # All lines must be at the same time - check each time slot individually
-                for time_slot in day_schedule.start_times:
-                    time = time_slot.time
-                    available_courts = time_slot.available_courts
-                    used_courts = scheduled_times.count(time)
-                    remaining_courts = available_courts - used_courts
-                    
-                    if remaining_courts >= num_lines:
-                        return True
-                
-                return False
-            
-            else:
-                # Lines can be split - check if total available courts across consecutive time slots >= num_lines
-                total_available = 0
+    # ======= Facility Schedule Methods ========
 
-                # this variable tracks the number of courts available from previous time slot
-                prev_count = 0
-                
-                for time_slot in day_schedule.start_times:
-                    time = time_slot.time
-                    available_courts = time_slot.available_courts
-                    used_courts = scheduled_times.count(time)
-                    remaining_courts = max(0, available_courts - used_courts)
-
-                    # this counts number of courts on two consecutive time slots
-                    total_available = prev_count + remaining_courts
-
-                    if total_available >= num_lines:
-                        return True
-                    
-                    prev_count = remaining_courts
-
-                return False
-            
-        except Exception as e:
-            logger.error(f"Error checking line accommodation for facility {facility.id} on {date}: {e}")
-            return False
-
-    def _insert_facility_schedule(self, facility_id: int, schedule: WeeklySchedule) -> None:
+    def _insert_facility_schedule(self, facility: Facility, schedule: WeeklySchedule) -> None:
         """Insert facility schedule data into the database"""
+        if not isinstance(facility, Facility):
+            raise TypeError(f"Expected Facility object, got: {type(facility)}")
+        
+        facility_id = facility.id
         try:
             # Clear existing schedule data for this facility
             self.cursor.execute("DELETE FROM facility_schedules WHERE facility_id = ?", (facility_id,))
@@ -480,30 +350,17 @@ class SQLFacilityManager:
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error inserting facility schedule: {e}")
 
-    def _insert_facility_unavailable_dates(self, facility_id: int, unavailable_dates: List[str]) -> None:
-        """Insert facility unavailable dates into the database"""
-        try:
-            # Clear existing unavailable dates for this facility
-            self.cursor.execute("DELETE FROM facility_unavailable_dates WHERE facility_id = ?", (facility_id,))
-            
-            # Insert unavailable dates
-            for date_str in unavailable_dates:
-                self.cursor.execute("""
-                    INSERT INTO facility_unavailable_dates (facility_id, date)
-                    VALUES (?, ?)
-                """, (facility_id, date_str))
-        except sqlite3.Error as e:
-            raise RuntimeError(f"Database error inserting facility unavailable dates: {e}")
 
 
 
-    def _load_facility_schedule(self, facility_id: int) -> WeeklySchedule:
+
+    def _load_facility_schedule(self, facility: Facility) -> WeeklySchedule:
         """Load facility schedule from the database with enhanced error handling"""
         
-        logger.setLevel(logging.INFO)
-        
         try:
-            logger.debug("Loading schedule for facility_id=%s", facility_id)
+            if not isinstance(facility, Facility):
+                raise TypeError(f"Expected Facility object, got: {type(facility)}")
+            facility_id = facility.id
             self.cursor.execute("""
                 SELECT day, time, available_courts 
                 FROM facility_schedules 
@@ -515,7 +372,6 @@ class SQLFacilityManager:
             schedule = WeeklySchedule()
             
             rows = self.cursor.fetchall()
-            logger.debug("Found %d schedule rows for facility_id=%s", len(rows), facility_id)
             
             for row in rows:
                 try:
@@ -546,7 +402,7 @@ class SQLFacilityManager:
                 logger.error("Schedule validation failed for facility_id=%s: %s", facility_id, validation_error)
                 return WeeklySchedule()  # Return empty schedule
             
-            logger.debug("Successfully loaded schedule for facility_id=%s", facility_id)
+            #logger.debug("Successfully loaded schedule for facility_id=%s", facility_id)
             return schedule
             
         except sqlite3.Error as e:
@@ -557,11 +413,71 @@ class SQLFacilityManager:
             return WeeklySchedule()  # Return empty schedule instead of raising
 
 
+    # ======== Facility Unavailable Dates Methods ========
+
+    def add_unavailable_date(self, facility: Facility, date: str) -> bool:
+        """Add an unavailable date to a facility"""
+
+        try:
+            if not isinstance(facility, Facility):
+                raise TypeError(f"Expected Facility object, got: {type(facility)}")
+            facility_id = facility.id
+
+            self.cursor.execute("""
+                INSERT OR IGNORE INTO facility_unavailable_dates (facility_id, date)
+                VALUES (?, ?)
+            """, (facility_id, date))
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error adding unavailable date: {e}")
+        
+        return True
+
+
+    def remove_unavailable_date(self, facility: Facility, date: str) -> bool:
+        """Remove an unavailable date from a facility"""
+
+        try:
+            if not isinstance(facility, Facility):
+                raise TypeError(f"Expected Facility object, got: {type(facility)}")
+            facility_id = facility.id
+            # Delete the unavailable date
+            self.cursor.execute("""
+                DELETE FROM facility_unavailable_dates 
+                WHERE facility_id = ? AND date = ?
+            """, (facility_id, date))
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error removing unavailable date: {e}")
+        return True
     
 
-    def _load_facility_unavailable_dates(self, facility_id: int) -> List[str]:
+    def _insert_facility_unavailable_dates(self, facility: Facility, unavailable_dates: List[str]) -> None:
+        """Insert facility unavailable dates into the database"""
+        try:
+            if not isinstance(facility, Facility):
+                raise TypeError(f"Expected Facility object, got: {type(facility)}")
+            facility_id = facility.id
+
+            # Clear existing unavailable dates for this facility
+            self.cursor.execute("DELETE FROM facility_unavailable_dates WHERE facility_id = ?", (facility_id,))
+            
+            # Insert unavailable dates
+            for date_str in unavailable_dates:
+                self.cursor.execute("""
+                    INSERT INTO facility_unavailable_dates (facility_id, date)
+                    VALUES (?, ?)
+                """, (facility_id, date_str))
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error inserting facility unavailable dates: {e}")
+        
+
+
+    def _load_facility_unavailable_dates(self, facility: Facility) -> List[str]:
         """Load facility unavailable dates from the database"""
         try:
+            if not isinstance(facility, Facility):
+                raise TypeError(f"Expected Facility object, got: {type(facility)}")
+            facility_id = facility.id
+
             self.cursor.execute("""
                 SELECT date 
                 FROM facility_unavailable_dates 
@@ -573,307 +489,309 @@ class SQLFacilityManager:
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error loading facility unavailable dates: {e}")
 
-    def get_facility_availability(self, facility_id: int, date: str) -> Dict[str, Any]:
-        """Get facility availability information for a specific date"""
+
+
+
+
+
+    # ======== Facility Availability Methods ========
+
+    def get_facility_availability(self, 
+                                facility: Facility, 
+                                dates: List[str],
+                                max_days: int = 50) -> List['FacilityAvailabilityInfo']:
+        """
+        Get availability information for a facility over a list of dates.
+        
+        Args:
+            facility: Facility object to check availability for
+            dates: List of dates in YYYY-MM-DD format to check
+            max_days: Maximum number of days to return
+            
+        Returns:
+            List of FacilityAvailabilityInfo objects containing availability details for each date where 
+            the facility is available.              
+        Raises:
+            TypeError: If facility is not a Facility object
+            ValueError: If dates is invalid
+            RuntimeError: If there is a database error
+        """
         try:
-            facility = self.get_facility(facility_id)
-            if not facility:
-                raise ValueError(f"Facility with ID {facility_id} does not exist")
+            # Validate inputs
+            self._validate_facility_availability_inputs(facility, dates, max_days)
             
-            # Check if facility is available on this date
-            if not facility.is_available_on_date(date):
-                return {
-                    'facility_id': facility_id,
-                    'date': date,
-                    'available': False,
-                    'reason': 'Facility marked as unavailable'
-                }
+            # Filter dates by facility availability first to minimize database queries
+            available_dates, unavailable_dates_info = self._filter_dates_by_facility_availability(facility, dates)
             
-            # Get day of week and schedule
-            try:
-                date_obj = datetime.strptime(date, '%Y-%m-%d')
-                day_name = date_obj.strftime('%A')
-            except ValueError:
-                return {
-                    'facility_id': facility_id,
-                    'date': date,
-                    'available': False,
-                    'reason': 'Invalid date format'
-                }
+            facility_availability_info = []
             
-            day_schedule = facility.schedule.get_day_schedule(day_name)
+            # Add unavailable date info first
+            facility_availability_info.extend(unavailable_dates_info)
             
-            # Get scheduled times at this facility on this date
-            scheduled_times = self.get_scheduled_times_at_facility(facility_id, date)
-            
-            # Calculate availability for each time slot
-            time_slot_availability = []
-            total_available_slots = 0
-            total_used_slots = 0
-            
-            for time_slot in day_schedule.start_times:
-                time = time_slot.time
-                available_courts = time_slot.available_courts
-                used_courts = scheduled_times.count(time)
-                remaining_courts = max(0, available_courts - used_courts)
+            # Only query database for dates when facility is actually available
+            if available_dates:
+                # Single database query to get scheduled times for available dates only
+                scheduled_times_by_date = self._get_scheduled_times_batch(facility, available_dates)
                 
-                time_slot_availability.append({
-                    'time': time,
-                    'total_courts': available_courts,
-                    'used_courts': used_courts,
-                    'available_courts': remaining_courts,
-                    'utilization_percentage': (used_courts / available_courts * 100) if available_courts > 0 else 0
-                })
-                
-                total_available_slots += available_courts
-                total_used_slots += used_courts
-            
-            overall_utilization = (total_used_slots / total_available_slots * 100) if total_available_slots > 0 else 0
-            
-            return {
-                'facility_id': facility_id,
-                'facility_name': facility.name,
-                'date': date,
-                'day_of_week': day_name,
-                'available': True,
-                'overall_utilization_percentage': round(overall_utilization, 1),
-                'total_court_slots': total_available_slots,
-                'used_court_slots': total_used_slots,
-                'available_court_slots': total_available_slots - total_used_slots,
-                'time_slots': time_slot_availability
-            }
+                for date in available_dates:
+                    # Get scheduled times for this specific date (from batch query)
+                    scheduled_times = scheduled_times_by_date.get(date, [])
+                    
+                    # Get availability for this date using cached scheduled times
+                    availability_info = self._get_facility_availability_for_date(
+                        facility, date, scheduled_times
+                    )
+                    
+                    if availability_info:
+                        facility_availability_info.append(availability_info)
+
+            return facility_availability_info
             
         except Exception as e:
+            if isinstance(e, (TypeError, ValueError)):
+                raise  # Re-raise validation errors as-is
             raise RuntimeError(f"Error getting facility availability: {e}")
 
-    def get_scheduled_times_at_facility(self, facility_id: int, date: str) -> List[str]:
-        """Get all scheduled times at a facility on a specific date"""
-        try:
-            self.cursor.execute("""
-                SELECT scheduled_times 
-                FROM matches 
-                WHERE facility_id = ? AND date = ? AND status = 'scheduled' AND scheduled_times IS NOT NULL
-            """, (facility_id, date))
+
+    def _filter_dates_by_facility_availability(self, facility: Facility, dates: List[str]) -> Tuple[List[str], List['FacilityAvailabilityInfo']]:
+        """
+        Filter dates based on facility availability, splitting into available and unavailable dates.
+        This reduces the database query size by filtering out dates that don't need database checks.
+        
+        Args:
+            facility: Facility object to check
+            dates: List of date strings to filter
             
-            all_times = []
-            for row in self.cursor.fetchall():
-                if row['scheduled_times']:
+        Returns:
+            Tuple of (available_dates, unavailable_dates_info) where:
+            - available_dates: List of dates where facility is available (need DB query)
+            - unavailable_dates_info: List of FacilityAvailabilityInfo for unavailable dates
+        """
+        available_dates = []
+        unavailable_dates_info = []
+        
+        for date in dates:
+            day_name = self._get_day_name_safe(date)
+            
+            # Check facility unavailable dates first (fastest check)
+            if not facility.is_available_on_date(date):
+                unavailable_info = FacilityAvailabilityInfo.create_unavailable(
+                    facility_id=facility.id,
+                    facility_name=facility.name,
+                    date=date,
+                    day_of_week=day_name,
+                    reason='Facility marked as unavailable'
+                )
+                unavailable_dates_info.append(unavailable_info)
+                continue
+            
+            # Check if facility has schedule for this day of week
+            try:
+                day_schedule = facility.schedule.get_day_schedule(day_name)
+                if not day_schedule.start_times:
+                    unavailable_info = FacilityAvailabilityInfo.create_unavailable(
+                        facility_id=facility.id,
+                        facility_name=facility.name,
+                        date=date,
+                        day_of_week=day_name,
+                        reason=f'No time slots available on {day_name}'
+                    )
+                    unavailable_dates_info.append(unavailable_info)
+                    continue
+            except ValueError:
+                unavailable_info = FacilityAvailabilityInfo.create_unavailable(
+                    facility_id=facility.id,
+                    facility_name=facility.name,
+                    date=date,
+                    day_of_week=day_name,
+                    reason=f'No schedule available for {day_name}'
+                )
+                unavailable_dates_info.append(unavailable_info)
+                continue
+            
+            # If we get here, facility is available and has schedule - needs DB query
+            available_dates.append(date)
+        
+        return available_dates, unavailable_dates_info
+
+
+    def _validate_facility_availability_inputs(self, facility: Facility, dates: List[str], max_days: int) -> None:
+        """
+        Validate inputs for facility availability methods
+        
+        Args:
+            facility: Facility object to validate
+            dates: List of date strings to validate
+            max_days: Maximum days limit to validate
+            
+        Raises:
+            TypeError: If facility is wrong type or dates is invalid
+            ValueError: If dates format is invalid or too many dates
+        """
+        if not isinstance(facility, Facility):
+            raise TypeError(f"Expected Facility object, got: {type(facility)}")
+        
+        if not isinstance(dates, list) or not all(isinstance(date, str) for date in dates):
+            raise TypeError("dates must be a list of date strings in YYYY-MM-DD format")
+        
+        if not dates:
+            raise ValueError("dates list cannot be empty")
+        
+        if len(dates) > max_days:
+            raise ValueError(f"Cannot check more than {max_days} dates at once")
+        
+        # Validate all date formats in one pass
+        for date in dates:
+            try:
+                datetime.strptime(date, '%Y-%m-%d')
+            except ValueError:
+                raise ValueError(f"Invalid date format: {date}. Expected YYYY-MM-DD")
+
+
+    def _get_scheduled_times_batch(self, facility: Facility, dates: List[str]) -> Dict[str, List[str]]:
+        """
+        Get scheduled times for multiple dates in a single database query
+        
+        Args:
+            facility: Facility object
+            dates: List of date strings in YYYY-MM-DD format
+            
+        Returns:
+            Dictionary mapping date -> list of scheduled times for that date
+            
+        Raises:
+            RuntimeError: If there is a database error
+        """
+        try:
+            if not dates:
+                return {}
+            
+            # Build parameterized query for multiple dates
+            placeholders = ','.join('?' for _ in dates)
+            query = f"""
+                SELECT date, scheduled_times 
+                FROM matches 
+                WHERE facility_id = ? AND date IN ({placeholders}) AND status = 'scheduled'
+            """
+            
+            # Execute single query with facility_id + all dates
+            params = [facility.id] + dates
+            self.cursor.execute(query, params)
+            rows = self.cursor.fetchall()
+            
+            # Parse results and group by date
+            scheduled_times_by_date = {date: [] for date in dates}
+            
+            for row in rows:
+                date = row['date']
+                times_json = row['scheduled_times']
+                
+                if times_json:
                     try:
-                        times = json.loads(row['scheduled_times'])
+                        import json
+                        times = json.loads(times_json)
                         if isinstance(times, list):
-                            all_times.extend(times)
+                            scheduled_times_by_date[date].extend(times)
                     except (json.JSONDecodeError, TypeError):
+                        # Skip invalid JSON, log warning if needed
+                        logger.warning(f"Invalid scheduled_times JSON for match on {date}: {times_json}")
                         continue
             
-            return all_times
+            return scheduled_times_by_date
             
         except sqlite3.Error as e:
-            raise RuntimeError(f"Database error getting scheduled times: {e}")
+            raise RuntimeError(f"Database error getting scheduled times batch: {e}")
+        except Exception as e:
+            raise RuntimeError(f"Error getting scheduled times for facility {facility.id}: {e}")
 
-    def check_time_availability(self, facility_id: int, date: str, time: str, courts_needed: int = 1) -> bool:
-        """Check if a specific time slot is available at a facility"""
+
+    def _get_facility_availability_for_date(self, facility: Facility, date: str, 
+                                        scheduled_times: List[str]) -> Optional['FacilityAvailabilityInfo']:
+        """
+        Get availability information for a facility on a specific date using pre-fetched scheduled times.
+        
+        This method assumes the date has already been pre-filtered for basic facility availability,
+        so it focuses on building detailed time slot information.
+        
+        Args:
+            facility: Facility object to check availability for
+            date: Date string in YYYY-MM-DD format (pre-validated as available)
+            scheduled_times: Pre-fetched list of scheduled times for this date
+            
+        Returns:
+            FacilityAvailabilityInfo object (should not be None for pre-filtered dates)
+            
+        Raises:
+            RuntimeError: If there is an error processing the data
+        """
         try:
-            # Get all scheduled times at this facility/date
-            scheduled_times = self.get_scheduled_times_at_facility(facility_id, date)
-            
-            # Count how many times this specific time is already used
-            times_used = scheduled_times.count(time)
-            
-            # Get facility information to check total courts
-            facility = self.get_facility(facility_id)
-            if not facility:
-                return False
-            
-            # Get day of week and check if time slot exists
-            try:
-                date_obj = datetime.strptime(date, '%Y-%m-%d')
-                day_name = date_obj.strftime('%A')
-            except ValueError:
-                return False
-            
+            # Get day of week and schedule (these should be valid since date was pre-filtered)
+            day_name = self._get_day_name_safe(date)
             day_schedule = facility.schedule.get_day_schedule(day_name)
             
-            # Find the time slot
-            time_slot = None
-            for slot in day_schedule.start_times:
-                if slot.time == time:
-                    time_slot = slot
-                    break
+            # Create TimeSlotAvailability objects for each time slot
+            time_slot_availabilities = self._build_time_slot_availabilities(
+                day_schedule, scheduled_times
+            )
             
-            if not time_slot:
-                return False  # Time slot not available at this facility
-            
-            # Check if there are enough courts available
-            available_courts = time_slot.available_courts - times_used
-            return available_courts >= courts_needed
-            
-        except Exception as e:
-            return False
-
-    def get_available_times_at_facility(self, facility_id: int, date: str, courts_needed: int = 1) -> List[str]:
-        """Get all available times at a facility for the specified number of courts"""
-        try:
-            facility = self.get_facility(facility_id)
-            if not facility:
-                return []
-            
-            # Check if facility is available on this date
-            if not facility.is_available_on_date(date):
-                return []
-            
-            # Get day of week
-            try:
-                date_obj = datetime.strptime(date, '%Y-%m-%d')
-                day_name = date_obj.strftime('%A')
-            except ValueError:
-                return []
-            
-            day_schedule = facility.schedule.get_day_schedule(day_name)
-            
-            available_times = []
-            for time_slot in day_schedule.start_times:
-                if self.check_time_availability(facility_id, date, time_slot.time, courts_needed):
-                    available_times.append(time_slot.time)
-            
-            return available_times
+            # Create and return the comprehensive availability info
+            return FacilityAvailabilityInfo.from_time_slots(
+                facility_id=facility.id,
+                facility_name=facility.name,
+                date=date,
+                day_of_week=day_name,
+                time_slots=time_slot_availabilities
+            )
             
         except Exception as e:
-            return []
+            raise RuntimeError(f"Error processing facility availability for {date}: {e}")
 
-    def get_facility_utilization(self, facility_id: int, start_date: str, end_date: str) -> Dict[str, Any]:
-        """Get facility utilization statistics for a date range"""
-        try:
-            # Verify facility exists
-            facility = self.get_facility(facility_id)
-            if not facility:
-                raise ValueError(f"Facility with ID {facility_id} does not exist")
-            
-            # Calculate total available court-hours in the date range
-            total_available_hours = 0
-            total_used_hours = 0
-            
-            current_date = datetime.strptime(start_date, '%Y-%m-%d')
-            end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
-            
-            while current_date <= end_date_obj:
-                date_str = current_date.strftime('%Y-%m-%d')
-                day_name = current_date.strftime('%A')
-                
-                if facility.is_available_on_date(date_str):
-                    day_schedule = facility.schedule.get_day_schedule(day_name)
-                    scheduled_times = self.get_scheduled_times_at_facility(facility_id, date_str)
-                    
-                    for time_slot in day_schedule.start_times:
-                        # Each time slot is typically 3 hours (for tennis matches)
-                        hours_per_slot = 3.0
-                        slot_available_hours = time_slot.available_courts * hours_per_slot
-                        total_available_hours += slot_available_hours
-                        
-                        # Count used courts at this time slot
-                        used_courts = scheduled_times.count(time_slot.time)
-                        slot_used_hours = used_courts * hours_per_slot
-                        total_used_hours += slot_used_hours
-                
-                current_date += timedelta(days=1)
-            
-            # Calculate utilization metrics
-            utilization_percentage = (total_used_hours / total_available_hours * 100) if total_available_hours > 0 else 0
-            
-            return {
-                'facility_id': facility_id,
-                'facility_name': facility.name,
-                'start_date': start_date,
-                'end_date': end_date,
-                'total_available_hours': total_available_hours,
-                'total_used_hours': total_used_hours,
-                'utilization_percentage': round(utilization_percentage, 2),
-                'days_analyzed': (end_date_obj - datetime.strptime(start_date, '%Y-%m-%d')).days + 1
-            }
-            
-        except Exception as e:
-            raise RuntimeError(f"Error calculating facility utilization: {e}")
 
-    def add_unavailable_date(self, facility_id: int, date: str) -> bool:
-        """Add an unavailable date to a facility"""
-        if not isinstance(facility_id, int) or facility_id <= 0:
-            raise ValueError(f"Facility ID must be a positive integer, got: {facility_id}")
+    def _get_day_name_safe(self, date: str) -> str:
+        """
+        Safely get day name from date string
         
-        # Verify facility exists
-        if not self.get_facility(facility_id):
-            raise ValueError(f"Facility with ID {facility_id} does not exist")
-        
-        try:
-            self.cursor.execute("""
-                INSERT OR IGNORE INTO facility_unavailable_dates (facility_id, date)
-                VALUES (?, ?)
-            """, (facility_id, date))
-        except sqlite3.Error as e:
-            raise RuntimeError(f"Database error adding unavailable date: {e}")
-        return True
-
-    def remove_unavailable_date(self, facility_id: int, date: str) -> bool:
-        """Remove an unavailable date from a facility"""
-        if not isinstance(facility_id, int) or facility_id <= 0:
-            raise ValueError(f"Facility ID must be a positive integer, got: {facility_id}")
-        
-        try:
-            self.cursor.execute("""
-                DELETE FROM facility_unavailable_dates 
-                WHERE facility_id = ? AND date = ?
-            """, (facility_id, date))
-        except sqlite3.Error as e:
-            raise RuntimeError(f"Database error removing unavailable date: {e}")
-        return True
-
-
-    def get_available_courts_at_time(self, facility: 'Facility', date: str, time: str) -> int:
-        """Get number of available courts at a specific facility, date, and time"""
-        try:
-            if not facility or not facility.is_available_on_date(date):
-                return 0
+        Args:
+            date: Date string in YYYY-MM-DD format
             
-            # Get day schedule
+        Returns:
+            Day name (Monday, Tuesday, etc.) or "Unknown" if parsing fails
+        """
+        try:
             date_obj = datetime.strptime(date, '%Y-%m-%d')
-            day_name = date_obj.strftime('%A')
-            day_schedule = facility.schedule.get_day_schedule(day_name)
-            
-            # Find the time slot
-            time_slot = None
-            for slot in day_schedule.start_times:
-                if slot.time == time:
-                    time_slot = slot
-                    break
-            
-            if not time_slot:
-                return 0
-            
-            # Get scheduled times and count usage
-            scheduled_times = self.get_scheduled_times_at_facility(facility_id, date)
-            times_used = scheduled_times.count(time)
-            
-            return max(0, time_slot.available_courts - times_used)
-            
-        except Exception as e:
-            return 0
+            return date_obj.strftime('%A')
+        except ValueError:
+            return "Unknown"
 
 
-    def get_total_courts_at_time(self, facility: 'Facility', date: str, time: str) -> int:
-        """Get total number of courts at a specific facility and time slot"""
-        try:
-            if not facility:
-                return 0
+    def _build_time_slot_availabilities(self, day_schedule: 'DaySchedule', 
+                                    scheduled_times: List[str]) -> List['TimeSlotAvailability']:
+        """
+        Build TimeSlotAvailability objects for all time slots in a day schedule
+        
+        Args:
+            day_schedule: DaySchedule object containing time slots
+            scheduled_times: List of scheduled times (HH:MM format) for this date
             
-            # Get day schedule
-            date_obj = datetime.strptime(date, '%Y-%m-%d')
-            day_name = date_obj.strftime('%A')
-            day_schedule = facility.schedule.get_day_schedule(day_name)
+        Returns:
+            List of TimeSlotAvailability objects
+        """
+        time_slot_availabilities = []
+        
+        for time_slot in day_schedule.start_times:
+            time = time_slot.time
+            total_courts = time_slot.available_courts
+            used_courts = scheduled_times.count(time)
+            available_courts = max(0, total_courts - used_courts)
+            utilization_percentage = (used_courts / total_courts * 100) if total_courts > 0 else 0
             
-            # Find the time slot
-            for slot in day_schedule.start_times:
-                if slot.time == time:
-                    return slot.available_courts
-            
-            return 0
-            
-        except Exception as e:
-            return 0
+            slot_availability = TimeSlotAvailability(
+                time=time,
+                total_courts=total_courts,
+                used_courts=used_courts,
+                available_courts=available_courts,
+                utilization_percentage=round(utilization_percentage, 1)
+            )
+            time_slot_availabilities.append(slot_availability)
+        
+        return time_slot_availabilities

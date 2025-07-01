@@ -52,17 +52,25 @@ class SQLTeamManager:
             # Convert preferred_days list to comma-separated string for storage
             preferred_days_str = ','.join(team.preferred_days) if team.preferred_days else ''
             
-            self.cursor.execute("""
+            query = """
                 INSERT INTO teams (id, name, league_id, home_facility_id, captain, preferred_days)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, (
+            """
+            params = (
                 team.id,
                 team.name,
                 team.league.id,
                 team.home_facility.id,
                 team.captain,
                 preferred_days_str
-            ))
+            )
+            
+            description = f"Add team {team.id}: {team.name} (League: {team.league.name}, Home: {team.home_facility.name})"
+            
+            if hasattr(self.db, 'execute_operation'):
+                self.db.execute_operation('add_team', query, params, description)
+            else:
+                self.cursor.execute(query, params)
         except sqlite3.IntegrityError as e:
             raise ValueError(f"Database integrity error adding team: {e}")
         except sqlite3.Error as e:
@@ -198,18 +206,26 @@ class SQLTeamManager:
             # Convert preferred_days list to comma-separated string for storage
             preferred_days_str = ','.join(team.preferred_days) if team.preferred_days else ''
             
-            self.cursor.execute("""
+            query = """
                 UPDATE teams 
                 SET name = ?, league_id = ?, home_facility_id = ?, captain = ?, preferred_days = ?
                 WHERE id = ?
-            """, (
+            """
+            params = (
                 team.name,
                 team.league.id,
                 team.home_facility.id,
                 team.captain,
                 preferred_days_str,
                 team.id
-            ))
+            )
+            
+            description = f"Update team {team.id}: {team.name} (League: {team.league.name}, Home: {team.home_facility.name})"
+            
+            if hasattr(self.db, 'execute_operation'):
+                self.db.execute_operation('update_team', query, params, description)
+            else:
+                self.cursor.execute(query, params)
             
             # Check if the update was successful
             if self.cursor.rowcount == 0:
@@ -243,7 +259,14 @@ class SQLTeamManager:
                 raise ValueError(f"Cannot delete team {team_id}: it is referenced by {match_count} match(es)")
             
             # Delete the team
-            self.cursor.execute("DELETE FROM teams WHERE id = ?", (team_id,))
+            query = "DELETE FROM teams WHERE id = ?"
+            params = (team_id,)
+            description = f"Delete team {team_id}: {existing_team.name}"
+            
+            if hasattr(self.db, 'execute_operation'):
+                self.db.execute_operation('delete_team', query, params, description)
+            else:
+                self.cursor.execute(query, params)
             
             # Check if the deletion was successful
             if self.cursor.rowcount == 0:

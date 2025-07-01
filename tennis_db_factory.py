@@ -173,7 +173,6 @@ class TennisDBFactory:
                 for match in matches:
                     match.lines = [line for line in self.data['lines'].values() if line.match_id == match.id]
                 return matches
-            def update_match(self, match): self.data['matches'][match.id] = match
             def delete_match(self, match_id): self.data['matches'].pop(match_id, None)
             
             def add_facility(self, facility): self.data['facilities'][facility.id] = facility
@@ -205,7 +204,7 @@ class TennisDBFactory:
                     match.facility_id = facility_id
                     match.date = date
                     match.time = time
-                    self.update_match(match)
+                    self._update_match(match)
                     return True
                 return False
             
@@ -221,7 +220,7 @@ class TennisDBFactory:
                     match.facility_id = None
                     match.date = None
                     match.time = None
-                    self.update_match(match)
+                    self._update_match(match)
             
             def check_court_availability(self, facility_id, date, time, courts_needed): return True
             def get_available_courts_count(self, facility_id, date, time): return 10

@@ -11,7 +11,7 @@ in the individual modules. Do not use this until the modules are fixed.
 from usta_constants import USTA_SECTIONS, USTA_REGIONS, USTA_AGE_GROUPS, USTA_DIVISIONS
 
 # Import facility next (minimal dependencies)  
-from usta_facility import Facility, WeeklySchedule, DaySchedule, TimeSlot
+from usta_facility import Facility, WeeklySchedule, DaySchedule, TimeSlot, FacilityAvailabilityInfo, TimeSlotAvailability
 
 # Import league (depends on constants only after fixing imports)
 from usta_league import League
@@ -28,7 +28,7 @@ from usta_match import Match, MatchType
 # Export all classes for easy importing
 __all__ = [
     'USTA_SECTIONS', 'USTA_REGIONS', 'USTA_AGE_GROUPS', 'USTA_DIVISIONS'
-    'Facility', 'WeeklySchedule', 'DaySchedule', 'TimeSlot',
+    'Facility', 'WeeklySchedule', 'DaySchedule', 'TimeSlot', 'FacilityAvailabilityInfo', 'TimeSlotAvailability',
     'League',
     'Team',
     'Match',

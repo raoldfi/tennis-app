@@ -287,6 +287,15 @@ class SQLMatchManager:
             if success:
                 # Update database
                 self._update_match_in_db(match)
+                
+                # Update scheduling state for conflict detection in dry-run mode
+                if hasattr(self.db, 'scheduling_state') and self.db.scheduling_state:
+                    scheduled_times = match.get_scheduled_times()
+                    for time in scheduled_times:
+                        self.db.scheduling_state.book_time_slot(match.id, match.facility.id, date, time)
+                    self.db.scheduling_state.book_team_date(match.id, match.home_team.id, date)
+                    self.db.scheduling_state.book_team_date(match.id, match.visitor_team.id, date)
+                
                 return {
                     'success': True,
                     'scheduled_times': match.get_scheduled_times(),
@@ -495,8 +504,11 @@ class SQLMatchManager:
         Returns:
             True if there's a conflict
         """
-        # Check database conflicts
-        if self._has_team_date_conflicts(match, date):
+        # Check database conflicts first
+        database_conflicts = (self.db.team_manager.check_team_date_conflict(match.home_team, date, exclude_match=match) or
+                             self.db.team_manager.check_team_date_conflict(match.visitor_team, date, exclude_match=match))
+        
+        if database_conflicts:
             return True
         
         # Check scheduling state (for conflicts within current transaction/dry-run)
@@ -699,9 +711,8 @@ class SQLMatchManager:
         return all_facilities
 
     def _has_team_date_conflicts(self, match: Match, date: str) -> bool:
-        """Check if either team has a conflict on the given date"""
-        return (self.db.team_manager.check_team_date_conflict(match.home_team, date, exclude_match=match) or
-                self.db.team_manager.check_team_date_conflict(match.visitor_team, date, exclude_match=match))
+        """Check if either team has a conflict on the given date, considering both database and scheduling state"""
+        return self._has_team_conflict_with_scheduling_state(match, date)
 
 
 

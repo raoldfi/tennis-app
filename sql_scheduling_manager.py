@@ -11,7 +11,7 @@ import sqlite3
 import json
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, timedelta
-from usta import Match, League, Team
+from usta import Match, League, Team, Facility
 
 
 class SQLSchedulingManager:
@@ -395,15 +395,13 @@ class SQLSchedulingManager:
     
     
     
-    def auto_schedule_match(self, match: Match, preferred_dates: List[str], 
-                          facilities : Optional[List['Facility']] = None) -> bool:
+    def auto_schedule_match(self, match: Match, preferred_dates: List[str]) -> bool:
         """
-        Attempt to automatically schedule a single match
+        Attempt to automatically schedule a single match using the new consolidated scheduling methods
         
         Args:
             match: Match object to schedule
             preferred_dates: List of dates to try (in order of preference)
-            facilities: List of facilities to check. If none, use home facility
             
         Returns:
             True if match was successfully scheduled
@@ -412,180 +410,166 @@ class SQLSchedulingManager:
             if not isinstance(match, Match):
                 raise TypeError(f"Expected Match object, got: {type(match)}")
             
-            # If no facilities were provided as input, use the home facility
-            facilities_to_check = facilities
-            if not facilities_to_check:
-                facilities_to_check = [match.home_team.home_facility]
-
-            print(f"\n\n====== Trying to schedule match, preferred_dates = {preferred_dates}\n\n")
-
-            # --- Reasonable preferences are to first look for opportunities to schedule
-            # --- all lines at the same time.  If no dates are available for that, schedule
-            # --- split lines, if allowed. 
+            # Get all available facilities
+            all_facilities = self.db.facility_manager.list_facilities()
             
-            # Try each date in order (first try all lines at the same time)
+            # Prioritize home team's facility if it exists
+            facilities_to_check = []
+            if match.home_team.home_facility:
+                facilities_to_check.append(match.home_team.home_facility)
+                # Add other facilities after home facility
+                other_facilities = [f for f in all_facilities if f.id != match.home_team.home_facility.id]
+                facilities_to_check.extend(other_facilities)
+            else:
+                facilities_to_check = all_facilities
+
+            print(f"\n\n====== Trying to schedule match {match.id}, preferred_dates = {preferred_dates[:3]}...\n\n")
+
+            # Strategy 1: Try to schedule all lines at the same time (preferred)
             for date in preferred_dates:
-
-                for facility in facilities_to_check:
-                    # If we can schedule all lines together, do it
-                    if self.is_schedulable(match=match, date=date, 
-                                      facility=facility, 
-                                      allow_split_lines=False):
-                        success = self.db.match_manager.schedule_match_all_lines_same_time(
-                            match, facility, date)
-                            
-                        if success:
-                            return True
-                        else:
-                            raise RuntimeError(f"COMPLETE MATCH: MATCH {match} @ {facility} IS SCHEDULABLE, BUT DID NOT SCHEDULE")
-
-
-            # If we're able to split lines, try again
-            if match.league.allow_split_lines: 
-                for date in preferred_dates:
-
-                    for facility in facilities_to_check: 
-                        # If we can put schedule all lines together, do it
-                        if self.is_schedulable(match=match, date=date, 
-                                          facility=facility, 
-                                          allow_split_lines=True):
-                            success = self.db.match_manager.schedule_match_split_times(
-                                match, facility, date)
-                                
-                            if success:
-                                return True
-                            else:
-                                raise RuntimeError(f"SPLIT MATCH, MATCH IS SCHEDULABLE, BUT DID NOT SCHEDULE")
+                # Check for team date conflicts first using existing method
+                if (self.db.team_manager.check_team_date_conflict(match.home_team.id, date, exclude_match_id=match.id) or
+                    self.db.team_manager.check_team_date_conflict(match.visitor_team.id, date, exclude_match_id=match.id)):
+                    continue
                 
+                for facility in facilities_to_check:
+                    # Check if facility is available on this date
+                    if not facility.is_available_on_date(date):
+                        continue
+                    
+                    # Get available times that can accommodate all lines
+                    available_times = self.db.facility_manager.get_available_times_at_facility(
+                        facility.id, date, match.league.num_lines_per_match
+                    )
+                    
+                    if available_times:
+                        # Try to schedule all lines at the same time
+                        result = self.db.match_manager.schedule_match(
+                            match, facility, date, [available_times[0]], 'same_time'
+                        )
+                        
+                        if result['success']:
+                            print(f"Successfully scheduled match {match.id} (same time) at {facility.name} on {date} at {available_times[0]}")
+                            return True
+
+            # Strategy 2: Try split scheduling if league allows it
+            if match.league.allow_split_lines:
+                for date in preferred_dates:
+                    # Check for team date conflicts first
+                    if (self.db.team_manager.check_team_date_conflict(match.home_team.id, date, exclude_match_id=match.id) or
+                        self.db.team_manager.check_team_date_conflict(match.visitor_team.id, date, exclude_match_id=match.id)):
+                        continue
+                    
+                    for facility in facilities_to_check:
+                        # Check if facility is available on this date
+                        if not facility.is_available_on_date(date):
+                            continue
+                        
+                        # For split scheduling, we need times that can accommodate half the lines
+                        import math
+                        lines_per_slot = math.ceil(match.league.num_lines_per_match / 2)
+                        
+                        # Get available times that can accommodate split scheduling
+                        available_times = self.db.facility_manager.get_available_times_at_facility(
+                            facility.id, date, lines_per_slot
+                        )
+                        
+                        if len(available_times) >= 2:
+                            # Try split scheduling with first two available times
+                            result = self.db.match_manager.schedule_match(
+                                match, facility, date, available_times[:2], 'split_times'
+                            )
+                            
+                            if result['success']:
+                                print(f"Successfully scheduled match {match.id} (split) at {facility.name} on {date} at {available_times[:2]}")
+                                return True
+
+            # Strategy 3: Try sequential scheduling if league allows split lines (as fallback)
+            if match.league.allow_split_lines:
+                for date in preferred_dates:
+                    # Check for team date conflicts first
+                    if (self.db.team_manager.check_team_date_conflict(match.home_team.id, date, exclude_match_id=match.id) or
+                        self.db.team_manager.check_team_date_conflict(match.visitor_team.id, date, exclude_match_id=match.id)):
+                        continue
+                    
+                    for facility in facilities_to_check:
+                        # Check if facility is available on this date
+                        if not facility.is_available_on_date(date):
+                            continue
+                        
+                        # For sequential, we just need one court at a time
+                        available_times = self.db.facility_manager.get_available_times_at_facility(
+                            facility.id, date, 1  # Only need 1 court for sequential
+                        )
+                        
+                        if available_times:
+                            # Try sequential scheduling
+                            result = self.db.match_manager.schedule_match(
+                                match, facility, date, [available_times[0]], 'sequential'
+                            )
+                            
+                            if result['success']:
+                                print(f"Successfully scheduled match {match.id} (sequential) at {facility.name} on {date} starting at {available_times[0]}")
+                                return True
+
+            print(f"Failed to schedule match {match.id} - no suitable slots found")
             return False
             
         except Exception as e:
+            print(f"Error auto-scheduling match {match.id}: {e}")
             raise RuntimeError(f"Error auto-scheduling match {match.id}: {e}")
 
 
+    def _get_facility_dates_to_check(self, matches: List['Match']) -> Dict['Facility', set]:
+        """Get facility dates to check for all matches"""
+        facility_dates = {}
         
-    def auto_schedule_matches(self, matches: List['Match'], 
-                              facilities: Optional[List['Facility']]=None) -> Dict[str, Any]:
-        """
-        Attempt to automatically schedule a list of matches
-        
-        Args:
-            matches: List of Match objects to schedule
+        for match in matches:
+            facility = match.get_facility()
+            if not facility:
+                continue
+
+            # Add prioritized scheduling dates for this match based on team and league preferences
+            prioritized_dates = match.get_prioritized_scheduling_dates()
             
-        Returns:
-            Dictionary with scheduling results and statistics
-        """
-        try:
-            if not isinstance(matches, list):
-                raise TypeError(f"Expected list of Match objects, got: {type(matches)}")
-            
-            for match in matches:
-                if not isinstance(match, Match):
-                    raise TypeError(f"All items in matches list must be Match objects, got: {type(match)}")
-            
-            results = {
-                'total_matches': len(matches),
-                'scheduled': 0,
-                'failed': 0,
-                'scheduling_details': [],  # for successful scheduling
-                'errors': [],  # for failed scheduling
-                'matches_attempted': []
-            }
+            if not prioritized_dates:
+                print(f"No prioritized dates for match {match.id}, skipping")
+                continue
 
-            attempted_matches = 0
-            already_scheduled = 0
-            
-            for match in matches:
-                # Skip already scheduled matches
-                if match.is_scheduled():
-                    results['errors'].append({
-                        'match_id': match.id,
-                        'status': 'already_scheduled',
-                        'home_team': match.home_team.name,
-                        'visitor_team': match.visitor_team.name,
-                        'facility': match.facility.name if match.facility else 'Unknown',
-                        'date': match.date,
-                        'times': match.scheduled_times
-                    })
-                    already_scheduled += 1
-                    continue
-                    
-                attempted_matches += 1
-                
-                # Get optimal dates for this specific match (prioritizing team preferences)
-                #optimal_dates = utils.get_optimal_scheduling_dates(match)
-                prioritized_dates = match.get_prioritized_scheduling_dates()
+            for date in prioritized_dates:
 
-
-
-
-
-                
-                results['matches_attempted'].append({
-                    'match_id': match.id,
-                    'home_team': match.home_team.name,
-                    'visitor_team': match.visitor_team.name,
-                    'dates_tried': prioritized_dates[:5]  # Show first 5 dates tried
-                })
-
-                print (f"\n\nTRYING TO SCHEDULE MATCH ON THESE DATES {prioritized_dates}\n\n")
-                
-                
-                success = self.auto_schedule_match(match=match, 
-                                                   preferred_dates=prioritized_dates, 
-                                                   facilities=facilities)
-                
-                if success:
-                    results['scheduled'] += 1
-                    # Reload match to get updated scheduling info (if not dry run)
-                    updated_match = self.db.match_manager.get_match(match.id)
-                    if updated_match:
-                        results['scheduling_details'].append({
-                            'match_id': match.id,
-                            'status': 'scheduled',
-                            'home_team': match.home_team.name,
-                            'visitor_team': match.visitor_team.name,
-                            'facility': updated_match.facility.name if updated_match.facility else 'Unknown',
-                            'date': updated_match.date,
-                            'times': updated_match.scheduled_times
-                        })
-                    else:
-                        results['scheduling_details'].append({
-                            'match_id': match.id,
-                            'status': 'scheduled',
-                            'home_team': match.home_team.name,
-                            'visitor_team': match.visitor_team.name,
-                            'note': 'Scheduled but unable to reload match details'
-                        })
-
+                # Ensure date is a string in YYYY-MM-DD format or a datetime object
+                if isinstance(date, str):
+                    # Ensure date is in YYYY-MM-DD format
+                    try:
+                        datetime.strptime(date, '%Y-%m-%d')
+                    except ValueError:
+                        print(f"Invalid date format for {date}, skipping")
+                        continue
+                elif isinstance(date, datetime):
+                    # Convert datetime to string in YYYY-MM-DD format
+                    date = date.strftime('%Y-%m-%d')
                 else:
-                    results['failed'] += 1
-                    results['errors'].append({
-                        'match_id': match.id,
-                        'status': 'failed',
-                        'home_team': match.home_team.name,
-                        'visitor_team': match.visitor_team.name,
-                        'reason': 'No available time slots found'
-                    })
-            
-            # Calculate success rate
-            if attempted_matches > 0:
-                success_rate = (results['scheduled'] / attempted_matches) * 100
-                results['success_rate'] = round(success_rate, 2)
-            else:
-                results['success_rate'] = 100.0  # All matches were already scheduled
-            
-            results['already_scheduled'] = already_scheduled
-            
-            return results
-            
-        except Exception as e:
-            raise RuntimeError(f"Error auto-scheduling matches: {e}")
-    
-    
+                    print(f"Unsupported date type {type(date)} for match {match.id}, skipping")
+                    continue
+                
+                # Initialize facility_dates if not already present
+                if facility not in facility_dates:
+                    facility_dates[facility] = set()
 
+                # Add the date to the facility's set of dates
+                if date not in facility_dates[facility]:
+                    facility_dates[facility].add(date)
+        
+        # Convert sets to lists for consistent ordering
+        for facility, dates in facility_dates.items():
+            facility_dates[facility] = list(dates)
+        
+        
+        # Return a dictionary mapping Facility to list of dates
+        return facility_dates
     
-
+        
 
 
     def get_scheduling_summary(self, league_id: Optional[int] = None) -> Dict[str, Any]:
