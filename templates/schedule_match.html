@@ -294,27 +294,29 @@
                                 <p class="mb-1 text-muted">{{ date_option.formatted_date }}</p>
                                 
                                 <!-- Match Priority -->
-                                {% if date_option.priority_label %}
+                                {% if date_option.priority_description %}
                                 <div class="mt-2 mb-2">
-                                    <span class="badge 
-                                        {% if date_option.match_priority <= 2 %}bg-success
-                                        {% elif date_option.match_priority <= 4 %}bg-primary
-                                        {% elif date_option.match_priority <= 14 %}bg-warning
-                                        {% else %}bg-secondary
-                                        {% endif %} 
-                                        priority-badge" 
-                                        title="{{ date_option.priority_label }}">
-                                        {% if date_option.match_priority == 1 %}★ Ideal
-                                        {% elif date_option.match_priority == 2 %}★ Good
-                                        {% elif date_option.match_priority == 3 %}◉ Preferred
-                                        {% elif date_option.match_priority == 4 %}◉ Acceptable
-                                        {% elif date_option.in_round %}✓ In Round
-                                        {% else %}○ Available
-                                        {% endif %}
-                                    </span>
-                                    {% if not date_option.in_round %}
-                                    <small class="text-muted ms-1">(Out of round)</small>
-                                    {% endif %}
+                                    <div class="d-flex align-items-center">
+                                        <span class="badge 
+                                            {% if date_option.match_priority <= 2 %}bg-success
+                                            {% elif date_option.match_priority <= 4 %}bg-primary
+                                            {% elif date_option.match_priority <= 14 %}bg-warning
+                                            {% else %}bg-secondary
+                                            {% endif %} 
+                                            priority-badge me-2" 
+                                            title="{{ date_option.priority_description }}">
+                                            {% if date_option.match_priority == 1 %}★ Optimal
+                                            {% elif date_option.match_priority == 2 %}★ Good
+                                            {% elif date_option.match_priority == 3 %}◉ Fair
+                                            {% elif date_option.match_priority == 4 %}◉ Acceptable
+                                            {% elif date_option.match_priority <= 14 %}○ Suboptimal
+                                            {% else %}○ Poor
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    <small class="text-muted" style="font-size: 0.7rem; line-height: 1.2;">
+                                        {{ date_option.priority_description }}
+                                    </small>
                                 </div>
                                 {% endif %}
                                 
@@ -618,7 +620,7 @@ class ScheduleMatchUI {
         this.selectedDate = null;
         this.selectedTimes = [];
         this.availableTimes = [];
-        this.schedulingMode = 'custom';
+        this.schedulingMode = 'same_time';
         this.matchId = {{ match_info.id }};
         this.linesNeeded = {{ match_info.lines_needed }};
         this.init();

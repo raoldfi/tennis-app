@@ -147,10 +147,8 @@ def schedule_match_form(match_id: int):
                     date_obj = datetime.strptime(facility_info.date, '%Y-%m-%d')
                     day_name = facility_info.day_of_week
                     
-                    # Calculate scheduling score using Match class priority scoring
+                    # Calculate match priority score directly
                     match_priority = match.calculate_date_priority_score(facility_info.date)
-                    # Convert priority to score (lower priority number = higher score)
-                    score = max(20 - match_priority, 1) if match_priority < 99 else 1
                     
                     # Check for team conflicts and get existing matches (optional - can be resource intensive)
                     conflicts = []
@@ -165,6 +163,13 @@ def schedule_match_form(match_id: int):
                     # Get match priority for this date
                     match_priority = priority_lookup.get(facility_info.date, 99)  # Default to low priority if not found
                     
+                    # Get priority description using the match object's method
+                    # Temporarily set the priority score to get the description
+                    original_priority_score = match.priority_score
+                    match.priority_score = match_priority
+                    priority_description = match.get_priority_score_description()
+                    match.priority_score = original_priority_score  # Restore original value
+                    
                     # Create date option in the format expected by the template
                     date_option = {
                         'date': facility_info.date,
@@ -172,9 +177,9 @@ def schedule_match_form(match_id: int):
                         'formatted_date': date_obj.strftime('%B %d, %Y'),
                         'available_times': available_times,
                         'time_slot_details': time_slot_details,  # Enhanced court info per time
-                        'score': max(0, score),
+                        'score': match_priority,
                         'match_priority': match_priority,  # Add match priority for display
-                        'priority_label': get_priority_label(match_priority),  # Human-readable priority
+                        'priority_description': priority_description,  # Use match object's method
                         'in_round': match_priority <= 4,  # Priorities 1-4 are within round
                         'conflicts': conflicts,
                         'existing_matches': existing_matches,  # Add existing match details
@@ -185,7 +190,7 @@ def schedule_match_form(match_id: int):
                     }
                     
                     available_dates.append(date_option)
-                    print(f"Added date option: {facility_info.date} with {len(available_times)} times, score: {score}")
+                    print(f"Added date option: {facility_info.date} with {len(available_times)} times, priority: {match_priority}")
                     
                 except Exception as date_processing_error:
                     print(f"Error processing facility info for {facility_info.date}: {date_processing_error}")

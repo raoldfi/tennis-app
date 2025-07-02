@@ -900,7 +900,7 @@ class SQLMatchManager:
                 {'type': 'update_match', 'description': f'Update match {match.id} with {scheduling_mode} scheduling'},
                 {'type': 'set_facility', 'description': f'Set facility to {match.facility.name}'},
                 {'type': 'set_date', 'description': f'Set date to {date}'},
-                {'type': 'set_times', 'description': f'Set times to {", ".join(proposed_times)}'}
+                {'type': 'set_times', 'description': f'Set times to {", ".join(times)}'}
             ]
 
             return preview_result

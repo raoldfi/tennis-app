@@ -87,6 +87,13 @@
                                     {% if match.round %}
                                         <br><small class="text-muted">Round {{ match.round }}/{{ "%.1f"|format(match.num_rounds) }}</small>
                                     {% endif %}
+                                    <!-- Display priority score for scheduled matches -->
+                                    {% if match.is_scheduled() and match.date %}
+                                        {% set calculated_priority = match.calculate_date_priority_score(match.date) %}
+                                        {% if calculated_priority and calculated_priority < 99 %}
+                                            <br><small class="text-info">Priority: {{ calculated_priority }}</small>
+                                        {% endif %}
+                                    {% endif %}
                                 </td>
 
                                 <!-- Home Team -->
@@ -211,7 +218,7 @@
                                         {% if match.is_scheduled() %}
                                             <!-- Unschedule Button -->
                                             <button class="action-btn-compact action-btn-unschedule"
-                                                    onclick="unscheduleMatch({{ match.id }}, '{{ match.home_team.name if match.home_team else 'TBD' }} vs {{ match.visitor_team.name if match.visitor_team else 'TBD' }}')"
+                                                    onclick="unscheduleMatch({{ match.id }}, 'Match {{ match.id }}')"
                                                     title="Unschedule Match">
                                                 <i class="fas fa-calendar-times"></i>
                                             </button>
@@ -266,7 +273,19 @@
                     <div class="card-body py-2">
                         <!-- Match Header -->
                         <div class="d-flex justify-content-between align-items-start mb-2">
-                            <span class="match-id-cell">Match #{{ match.id }}</span>
+                            <div>
+                                <span class="match-id-cell">Match #{{ match.id }}</span>
+                                {% if match.round %}
+                                    <br><small class="text-muted">Round {{ match.round }}/{{ "%.1f"|format(match.num_rounds) }}</small>
+                                {% endif %}
+                                <!-- Display priority score for scheduled matches -->
+                                {% if match.is_scheduled() and match.date %}
+                                    {% set calculated_priority = match.calculate_date_priority_score(match.date) %}
+                                    {% if calculated_priority and calculated_priority < 99 %}
+                                        <br><small class="text-info">Priority: {{ calculated_priority }}</small>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
                             {% if match.is_scheduled() %}
                                 <span class="tennis-badge-success">Scheduled</span>
                             {% elif match.is_partially_scheduled() %}
@@ -338,7 +357,7 @@
                             
                             {% if match.is_scheduled() %}
                                 <button class="btn btn-sm btn-tennis-warning flex-fill"
-                                        onclick="unscheduleMatch({{ match.id }}, '{{ match.home_team.name if match.home_team else 'TBD' }} vs {{ match.visitor_team.name if match.visitor_team else 'TBD' }}')"
+                                        onclick="unscheduleMatch({{ match.id }}, 'Match {{ match.id }}')"
                                         title="Unschedule Match">
                                     <i class="fas fa-calendar-times"></i> Unschedule
                                 </button>
