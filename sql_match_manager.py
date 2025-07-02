@@ -373,8 +373,9 @@ class SQLMatchManager:
                 random.shuffle(shuffled_matches)
                 
                 for match in shuffled_matches:
-                    # Use Match class method to get optimal dates
-                    optimal_dates = match.get_prioritized_scheduling_dates()
+                    # Use Match class method to get optimal dates with priorities
+                    optimal_dates_with_priority = match.get_prioritized_scheduling_dates()
+                    optimal_dates = [date for date, priority in optimal_dates_with_priority]
                     
                     success = self.auto_schedule_match(match, optimal_dates)
                     
@@ -768,39 +769,83 @@ class SQLMatchManager:
 
     # ========== ADDITIONAL UTILITY METHODS ==========
     
-    def preview_match_scheduling(self, match: Match, 
-                               date: str, times: List[str], mode: str) -> Dict[str, Any]:
+    def preview_match_scheduling(self, 
+                                 match: Match,
+                                 date: str, 
+                                 times: List[str], 
+                                 scheduling_mode: str) -> Dict[str, Any]:
         """
-        Preview what would happen if scheduling a match without actually doing it
+        Preview what would happen if scheduling a match without actually doing it.
+
+        Args:
+            match: Match object to preview scheduling for
+            date: Date to schedule the match
+            times: List of proposed times for the match
+            mode: Scheduling mode ('same_time', 'split_times', 'custom', etc.)
         
         Returns detailed information about conflicts, availability, and proposed schedule
         """
         try:
             lines_needed = match.league.num_lines_per_match if match.league else 3
-            
+
+            # Validate input parameters
+            if not isinstance(match, Match):
+                raise TypeError(f"Expected Match object, got: {type(match)}")
+            if not isinstance(date, str):
+                raise TypeError(f"Expected date as string, got: {type(date)}")
+            if not isinstance(times, list):
+                raise TypeError(f"Expected times as list, got: {type(times)}")
+            if scheduling_mode not in ['same_time', 'split_times', 'custom', 'auto']:
+                raise ValueError(f"Invalid scheduling mode: {scheduling_mode}")
+            if not times:
+                raise ValueError("Times list cannot be empty for scheduling preview")
+
+
+            # Check to see if there are team conflicts for the match on the given date
+            valid_dates = self.filter_match_conflicts(match, [date])
+            if not valid_dates:
+                return {
+                    'schedulable': False,
+                    'conflicts': [{'type': 'team_conflict', 'message': 'Team conflict detected on the given date'}],
+                    'proposed_times': [],
+                    'mode': scheduling_mode,
+                    'lines_needed': lines_needed
+                }
+            date = valid_dates[0]  # Use the first valid date
+
+
             # Check if match has a facility assigned
             if not match.facility:
                 return {
                     'schedulable': False,
                     'conflicts': [{'type': 'no_facility', 'message': 'No facility assigned to match'}],
                     'proposed_times': [],
-                    'mode': mode,
+                    'mode': scheduling_mode,
                     'lines_needed': lines_needed
                 }
             
+
+            # Initialize preview result
+            preview_result = {
+                'schedulable': False,
+                'conflicts': [],
+                'proposed_times': times,
+                'mode': scheduling_mode,
+                'lines_needed': lines_needed,
+                'date': date,
+                'facility_name': match.facility.name if match.facility else 'Unknown Facility',
+                'scheduling_mode': scheduling_mode,
+                'scheduling_details': f'Attempting to schedule {lines_needed} lines using {scheduling_mode} mode',
+                'success': False,
+                'warnings': [],
+                'operations': []
+            }
+
             # Get facility availability
             availability_list = self.db.facility_manager.get_facility_availability(
                 facility=match.facility, dates=[date], max_days=1
             )
-            
-            preview_result = {
-                'schedulable': False,
-                'conflicts': [],
-                'proposed_times': [],
-                'mode': mode,
-                'lines_needed': lines_needed
-            }
-            
+            # If no availability or facility is not available, return conflict
             if not availability_list or not availability_list[0].available:
                 preview_result['conflicts'].append({
                     'type': 'facility_unavailable',
@@ -809,35 +854,55 @@ class SQLMatchManager:
                 return preview_result
             
             facility_info = availability_list[0]
+
+            # Validate scheduling times based on mode
+            proposed_times = []
             
-            # Validate times
-            validation_error = self._validate_scheduling_times(times, mode, lines_needed, facility_info)
-            if validation_error:
-                preview_result['conflicts'].append({
-                    'type': 'validation_error',
-                    'message': validation_error
-                })
-                return preview_result
+            # For 'same_time' mode, we need each time slot to accommodate all lines.
+            if scheduling_mode == 'same_time':
+                valid_times = facility_info.get_times_with_min_courts(lines_needed)
+                if not valid_times:
+                    preview_result['conflicts'].append({
+                        'type': 'no_available_times',
+                        'message': f"No available times for mode '{scheduling_mode}' with {lines_needed} lines"
+                    })
+                    return preview_result
+                
+                # any time is fine for same time mode
+                proposed_times = valid_times 
+
+            elif scheduling_mode == 'split_times':
+                # For 'split_times', we need two time slots that can accommodate half the lines each
+                courts_per_slot = math.ceil(lines_needed / 2)
+                valid_times = facility_info.get_times_with_min_courts(courts_per_slot)
+                if len(valid_times) < 2:
+                    preview_result['conflicts'].append({
+                        'type': 'no_available_times',
+                        'message': f"Not enough available times for mode '{scheduling_mode}' with {lines_needed} lines"
+                    })
+                    return preview_result
+                proposed_times = valid_times[:2]
+
+            elif scheduling_mode == 'custom':
+                # Raise an unimplemented error for custom mode
+                raise NotImplementedError("Custom scheduling mode is not implemented")
             
-            # Generate proposed times
-            proposed_times = self._generate_scheduled_times(times, mode, lines_needed)
-            if not proposed_times:
-                preview_result['conflicts'].append({
-                    'type': 'generation_failed',
-                    'message': f"Could not generate schedule for mode '{mode}'"
-                })
-                return preview_result
+            elif scheduling_mode == 'auto':
+                # Raise and unimplemented error for auto mode
+                raise NotImplementedError("Auto scheduling mode is not implemented")
             
-            preview_result['proposed_times'] = proposed_times
+            # if we reach here, we have valid proposed times
             preview_result['schedulable'] = True
-            
-            # Check for potential conflicts with existing matches
-            for time in set(proposed_times):  # Check unique times only
-                conflicts = self._check_facility_time_conflicts(match.facility.id, date, time, match.id)
-                if conflicts:
-                    preview_result['conflicts'].extend(conflicts)
-                    preview_result['schedulable'] = False
-            
+            preview_result['proposed_times'] = proposed_times
+            preview_result['success'] = True
+            preview_result['scheduling_details'] = f'Successfully found {len(proposed_times)} available time slots for {lines_needed} lines using {scheduling_mode} mode'
+            preview_result['operations'] = [
+                {'type': 'update_match', 'description': f'Update match {match.id} with {scheduling_mode} scheduling'},
+                {'type': 'set_facility', 'description': f'Set facility to {match.facility.name}'},
+                {'type': 'set_date', 'description': f'Set date to {date}'},
+                {'type': 'set_times', 'description': f'Set times to {", ".join(proposed_times)}'}
+            ]
+
             return preview_result
             
         except Exception as e:
@@ -845,7 +910,7 @@ class SQLMatchManager:
                 'schedulable': False,
                 'conflicts': [{'type': 'exception', 'message': str(e)}],
                 'proposed_times': [],
-                'mode': mode
+                'mode': scheduling_mode
             }
 
     def _check_facility_time_conflicts(self, facility_id: int, date: str, 
@@ -1013,14 +1078,52 @@ class SQLMatchManager:
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error listing matches: {e}")
 
-    def unschedule_match(self, match: Match) -> bool:
-        """Remove scheduling information from a match"""
+    def filter_match_conflicts(self, match: Match, dates: List[str]) -> List[str]:
+        """
+        Filter out dates where either team is already scheduled
+        
+        Args:
+            match: Match object to check conflicts for
+            dates: List of candidate dates in YYYY-MM-DD format
+            
+        Returns:
+            List of dates with no team conflicts (subset of input dates)
+        """
+        if not isinstance(match, Match):
+            raise TypeError(f"Expected Match object, got: {type(match)}")
+        
+        if not isinstance(dates, list):
+            raise TypeError(f"Expected list of dates, got: {type(dates)}")
+        
+        if not dates:
+            return []
+        
         try:
-            match.facility = None
-            match.date = None
-            match.scheduled_times = []
+            # Query database for existing scheduled matches for both teams on these dates
+            placeholders = ','.join(['?' for _ in dates])
+            query = """
+            SELECT DISTINCT date 
+            FROM matches 
+            WHERE status = 'scheduled' 
+                AND date IN ({}) 
+                AND (home_team_id = ? OR visitor_team_id = ? OR home_team_id = ? OR visitor_team_id = ?)
+                AND id != ?
+            """.format(placeholders)
             
-            return self._update_match_in_db(match)
+            params = dates + [match.home_team.id, match.home_team.id, match.visitor_team.id, match.visitor_team.id, match.id]
             
-        except Exception as e:
-            raise RuntimeError(f"Error unscheduling match: {e}")
+            self.cursor.execute(query, params)
+            conflicted_dates = {row['date'] for row in self.cursor.fetchall()}
+            
+            # Check scheduling state for conflicts within current transaction/dry-run
+            if hasattr(self.db, 'scheduling_state') and self.db.scheduling_state:
+                for date in dates:
+                    if (self.db.scheduling_state.has_team_conflict(match.home_team.id, date) or
+                        self.db.scheduling_state.has_team_conflict(match.visitor_team.id, date)):
+                        conflicted_dates.add(date)
+            
+            # Return dates without conflicts
+            return [date for date in dates if date not in conflicted_dates]
+            
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error filtering match conflicts: {e}")

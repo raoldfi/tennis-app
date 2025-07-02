@@ -171,27 +171,42 @@ class TennisDBInterface(ABC):
     # ========== Match Scheduling Operations ==========
     @abstractmethod
     def schedule_match(self, 
-                       match: Match,
-                       facility: 'Facility', 
+                       match: Match, 
                        date: str, 
                        times: List[str], 
                        scheduling_mode: str) -> Dict[str, Any]:
         """
         Schedules a tennis match with validation checks for facility availability and scheduling constraints.
+        The facility should already be assigned to the match object.
 
         Args:
-            match (Match): The match object containing details of the match to be scheduled.
-            facility (Facility): The facility where the match is to be played.
+            match (Match): The match object containing details of the match to be scheduled, including the facility.
             date (str): The date for the match in 'YYYY-MM-DD' format.
             times (List[str]): A list of time slots (e.g., ['10:00', '11:00']) requested for the match.
-            scheduling_mode (str): The mode of scheduling (e.g., 'automatic', 'manual').
+            scheduling_mode (str): The mode of scheduling (e.g., 'same_time', 'split_times', 'custom').
 
         Returns:
             Dict[str, Any]: A dictionary containing the result of the scheduling operation, including success status,
                             scheduled match details, and any validation errors or messages.
         """
-                                        
 
+    @abstractmethod
+    def preview_match_scheduling(self, match: Match, date: str, 
+                            times: List[str], scheduling_mode: str) -> Dict[str, Any]:
+        """
+        Preview what would happen if scheduling a match without actually doing it.
+
+        Args:
+            match: Match object to preview scheduling for
+            date: Date to schedule the match
+            times: List of proposed times for the match
+            mode: Scheduling mode ('same_time', 'split_times', 'custom', etc.)
+
+        Returns:
+            A dictionary containing the preview results, including potential conflicts,
+            available times, and any validation errors.
+        """
+        pass
 
     
     @abstractmethod

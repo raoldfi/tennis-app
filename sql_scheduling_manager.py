@@ -503,7 +503,8 @@ class SQLSchedulingManager:
                 continue
 
             # Add prioritized scheduling dates for this match based on team and league preferences
-            prioritized_dates = match.get_prioritized_scheduling_dates()
+            prioritized_dates_with_priority = match.get_prioritized_scheduling_dates()
+            prioritized_dates = [date for date, priority in prioritized_dates_with_priority]
             
             if not prioritized_dates:
                 print(f"No prioritized dates for match {match.id}, skipping")

@@ -283,24 +283,85 @@ class Match:
         
     def get_prioritized_scheduling_dates(self, start_date: Optional[str] = None,
                                 end_date: Optional[str] = None,
-                                schedule_within_round: Optional[bool] = False, # 
-                                num_dates: Optional[int] = 50) -> List[str]:
+                                num_dates: Optional[int] = 50) -> List[Tuple[str, int]]:
         """
         Find prioritized dates for scheduling a specific match, prioritizing team and league preferences.
         
         Args:
             start_date: Start date for search (defaults to league start_date)
             end_date: End date for search (defaults to league end_date)
-            schedule_within_round: If True, only consider dates within the current match rou
+            schedule_within_round: If True, only consider dates within the current match round
             num_dates: Number of dates to return
             
         Returns:
-            List of date strings in YYYY-MM-DD format, ordered by preference
-            (team preferred days first, then league preferred days, then backup days)
+            List of tuples (date_string, priority) in YYYY-MM-DD format, ordered by preference
+            Priority levels:
+            1 = Teams require this day, the league prefers
+            2 = Teams require this day and league allows it (backup)
+            3 = League prefers this day
+            4 = League backup day
+            5 = Day is allowed but not preferred by anyone
+
+            A penalty of 10 is added to the priority if the date is not within the current match round.
+
+        Raises:
+            ValueError: If any validation fails
+            RuntimeError: If an error occurs during date calculation
+    
         """
 
-
         try:
+            # Validate league and teams
+            if not self.league.start_date or not self.league.end_date:
+                raise ValueError("League start_date and end_date must be set to calculate scheduling dates")   
+            if not self.num_rounds or self.num_rounds <= 0:
+                raise ValueError("League num_rounds must be a positive number to calculate scheduling dates")
+            if not self.league.preferred_days or not self.league.backup_days:
+                raise ValueError("League preferred_days and backup_days must be set to calculate scheduling dates")
+
+
+
+            # calculate the number of days in the league
+            start_dt = datetime.strptime(self.league.start_date, '%Y-%m-%d')
+            end_dt = datetime.strptime(self.league.end_date, '%Y-%m-%d')
+            league_num_days = (end_dt - start_dt).days
+            if league_num_days <= 0:
+                raise ValueError("League start_date must be before end_date to calculate scheduling dates")
+
+            
+
+            # ====== ROUND CALCULATIONS ======
+            num_rounds = self.num_rounds
+            if not num_rounds or num_rounds <= 0:
+                raise ValueError("Match round must be a positive integer to calculate scheduling dates")
+
+
+            round = self.round
+            if not round or round <= 0:
+                raise ValueError("Match round must be a positive integer to calculate scheduling dates")
+            if round > num_rounds:
+                raise ValueError(f"Match round {round} exceeds league rounds {num_rounds}")
+
+            # Calculate the number of days per round
+            days_per_round = league_num_days // num_rounds
+            if league_num_days % num_rounds != 0:
+                days_per_round += 1
+            print(f"\n\n===== DAYS PER ROUND: {days_per_round}\n\n")
+
+
+            if days_per_round <= 1:
+                raise ValueError("League must have at least 1 day per round to calculate scheduling dates")
+            
+            # Calculate the start and end dates for the current round
+
+
+            # Calculate the round start and end dates
+            round_start = start_dt + timedelta(days=(self.round - 1) * days_per_round)
+            round_end = round_start + timedelta(days=days_per_round)
+            print(f"\n\n===== ROUND START: {round_start}, ROUND END: {round_end}\n\n")
+
+            # ========== DATE RANGE CALCULATIONS ==========
+
             # Use league dates or reasonable defaults
             search_start = start_date or self.league.start_date or datetime.now().strftime('%Y-%m-%d')
             search_end = end_date or self.league.end_date
@@ -344,12 +405,15 @@ class Match:
             print(f"\n\n===== REQUIRED DAYS {required_days}\n\n") 
             
             # Priority levels:
-            # 1 = required days (no other days matter)
-            # 2 = One team prefers this day
-            # 3 = League prefers this day (but no team preference)
-            # 4 = League backup day (but no team preference)
-            # 5 = Day is allowed but not preferred by anyone
-            
+            # 1 = Teams require this day, the league prefers, and it is in the date range for this round
+            # 2 = Teams require this day and league allows it (backup), and it is in the date range for this round
+            # 3 = League prefers this day and it is in the date range for this round (no team requirement)
+            # 4 = League backup day and it is in the date range for this round (no team requirement)
+            # 5 = League prefers this day
+            # 6 = League backup day
+            # 7 = Day is allowed but not preferred by anyone
+
+            # Iterate through each day in the date range
             while current <= end_dt:
                 try:
                     day_name = current.strftime('%A')
@@ -362,12 +426,12 @@ class Match:
                     
                     # Determine priority based on team and league preferences
                     priority = 5  # Default: allowed but not preferred
-        
+           
                     if required_days:
                         if day_name in required_days and day_name in self.league.preferred_days:
-                            priority = 1  # preferred day
+                            priority = 1  # Teams require + league prefers
                         elif day_name in required_days and day_name in self.league.backup_days:
-                            priority = 2  # backup day
+                            priority = 2  # Teams require + league backup
                         else:
                             current += timedelta(days=1)
                             continue
@@ -376,6 +440,16 @@ class Match:
                         priority = 3  # League prefers this day
                     elif day_name in self.league.backup_days:
                         priority = 4  # League backup day
+                    
+
+                    # adjust scoring based on round
+                    in_round = round_start.date() <= current.date() <= round_end.date()
+                    if not in_round:
+                        priority += 10  # Add 10 to priority if not in round
+                    else:
+                        # If in round, we can use the priority as is
+                        print(f"\n\n===== DATE {date_str} IN ROUND {round} WITH PRIORITY {priority}\n\n")
+
                     
                     candidate_dates.append((date_str, priority))
                     current += timedelta(days=1)
@@ -390,8 +464,8 @@ class Match:
             candidate_dates.sort(key=lambda x: (x[1], x[0]))
 
             print(f"\n\n===== CANDIDATE DATES: num_dates={num_dates}, dates={candidate_dates}\n\n")
-            # Return the requested number of dates
-            return [date for date, _ in candidate_dates[:num_dates]]
+            # Return the requested number of dates with their priorities
+            return candidate_dates[:num_dates]
             
         except Exception as e:
             raise RuntimeError(f"Error getting optimal scheduling dates for self {self.id}: {e}")

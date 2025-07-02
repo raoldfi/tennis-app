@@ -14,6 +14,8 @@ from web_database import get_db, close_db
 
 from typing import List, Dict, Any, Tuple
 
+from sql_match_manager import SQLMatchManager
+
 
 # Create blueprint for scheduling routes
 schedule_bp = Blueprint('schedule', __name__)
@@ -50,7 +52,8 @@ def schedule_match_form(match_id: int):
         
         # Check if match is already scheduled
         if match.is_scheduled():
-            flash(f'Match is already scheduled for {match.date} at {match.facility.name}', 'info')
+            facility_name = match.facility.name if match.facility else 'Unknown Facility'
+            flash(f'Match is already scheduled for {match.date} at {facility_name}', 'info')
             return redirect(url_for('view_match', match_id=match_id))
         
         # Use the facility from the match
@@ -65,18 +68,31 @@ def schedule_match_form(match_id: int):
         try:
             # Get prioritized dates for this match
             num_dates = int(request.args.get('max_dates', 20))
-            prioritized_dates = match.get_prioritized_scheduling_dates(num_dates=num_dates)
+            prioritized_dates_with_priority = match.get_prioritized_scheduling_dates(num_dates=num_dates)
+            prioritized_dates = [date for date, priority in prioritized_dates_with_priority]
+            # Create priority lookup for later use
+            priority_lookup = {date: priority for date, priority in prioritized_dates_with_priority}
             
             if not prioritized_dates:
                 flash('No prioritized dates available for scheduling', 'warning')
                 return redirect(url_for('matches'))
             
-            print(f"Checking facility availability for {len(prioritized_dates)} dates")
-            
+            # Filter dates where teams are already scheduled
+            filtered_dates = db.match_manager.filter_match_conflicts(
+                match=match,
+                dates=prioritized_dates
+            )
+
+            if not filtered_dates:
+                flash('After filtering match conflicts, no available dates found for scheduling this match', 'warning')
+                return redirect(url_for('matches'))
+
+
+            print(f"Checking facility availability for {len(filtered_dates)} dates")
             # Get facility availability for all prioritized dates at once
             facility_availability_list = db.facility_manager.get_facility_availability(
                 facility=facility, 
-                dates=prioritized_dates, 
+                dates=filtered_dates, 
                 max_days=num_dates * 2  # Allow some buffer
             )
             
@@ -134,13 +150,18 @@ def schedule_match_form(match_id: int):
                     # Calculate scheduling score based on facility availability and match preferences
                     score = calculate_facility_scheduling_score(facility_info, match, lines_needed)
                     
-                    # Check for team conflicts (optional - can be resource intensive)
+                    # Check for team conflicts and get existing matches (optional - can be resource intensive)
                     conflicts = []
+                    existing_matches = []
                     try:
                         conflicts = check_team_conflicts(db, match, facility_info.date)
+                        existing_matches = get_existing_matches_on_date(db, facility, facility_info.date)
                     except Exception as conflict_error:
                         print(f"Error checking conflicts for {facility_info.date}: {conflict_error}")
                         # Continue without conflicts info rather than failing
+                    
+                    # Get match priority for this date
+                    match_priority = priority_lookup.get(facility_info.date, 99)  # Default to low priority if not found
                     
                     # Create date option in the format expected by the template
                     date_option = {
@@ -150,7 +171,11 @@ def schedule_match_form(match_id: int):
                         'available_times': available_times,
                         'time_slot_details': time_slot_details,  # Enhanced court info per time
                         'score': max(0, score),
+                        'match_priority': match_priority,  # Add match priority for display
+                        'priority_label': get_priority_label(match_priority),  # Human-readable priority
+                        'in_round': match_priority <= 4,  # Priorities 1-4 are within round
                         'conflicts': conflicts,
+                        'existing_matches': existing_matches,  # Add existing match details
                         'courts_available': facility_info.available_court_slots,
                         'total_court_slots': facility_info.total_court_slots,
                         'utilization_percentage': facility_info.overall_utilization_percentage,
@@ -164,8 +189,8 @@ def schedule_match_form(match_id: int):
                     print(f"Error processing facility info for {facility_info.date}: {date_processing_error}")
                     continue
             
-            # Sort by score (highest first)
-            available_dates.sort(key=lambda x: x['score'], reverse=True)
+            # Sort by match priority first (lower number = higher priority), then by score (higher is better)
+            available_dates.sort(key=lambda x: (x['match_priority'], -x['score']))
             
             print(f"Final available dates: {len(available_dates)}")
             
@@ -193,6 +218,8 @@ def schedule_match_form(match_id: int):
         match_info = {
             'id': match.id,
             'match_id': match.id,
+            'round': match.round,
+            'num_rounds': match.num_rounds,
             'home_team': match.home_team.name if match.home_team else 'TBD',
             'visitor_team': match.visitor_team.name if match.visitor_team else 'TBD',
             'league': match.league.name if match.league else 'Unknown',
@@ -277,6 +304,68 @@ def check_team_conflicts(db, match, date):
     
     return None
 
+
+def get_existing_matches_on_date(db, facility, date):
+    """Get existing matches scheduled at the facility on the given date"""
+    try:
+        # Get all matches on this date at this facility
+        existing_matches = db.get_matches_on_date(date)
+        facility_matches = [m for m in existing_matches if m.facility and m.facility.id == facility.id]
+        
+        # Convert to format suitable for template display
+        match_info = []
+        for match in facility_matches:
+            if match.is_scheduled():
+                match_info.append({
+                    'id': match.id,
+                    'home_team': match.home_team.name,
+                    'visitor_team': match.visitor_team.name,
+                    'league': match.league.name if match.league else 'Unknown',
+                    'scheduled_times': match.scheduled_times,
+                    'earliest_time': match.get_earliest_time(),
+                    'latest_time': match.get_latest_time(),
+                    'num_lines': len(match.scheduled_times)
+                })
+        
+        return match_info
+        
+    except Exception as e:
+        print(f"Error getting existing matches on {date}: {e}")
+        return []
+
+
+def get_priority_label(priority: int) -> str:
+    """
+    Convert numeric priority to human-readable label
+    
+    Args:
+        priority: Integer priority (lower number = higher priority)
+        
+    Returns:
+        Human-readable priority label
+    """
+    if priority == 1:
+        return "Ideal (Teams require, League prefers, In round)"
+    elif priority == 2:
+        return "Good (Teams require, League allows, In round)"
+    elif priority == 3:
+        return "Preferred (League prefers, In round)"
+    elif priority == 4:
+        return "Acceptable (League backup, In round)"
+    elif priority <= 14:  # Out of round priorities (1-4 + 10)
+        if priority == 11:
+            return "Ideal (Teams require, League prefers, Out of round)"
+        elif priority == 12:
+            return "Good (Teams require, League allows, Out of round)"
+        elif priority == 13:
+            return "Preferred (League prefers, Out of round)"
+        elif priority == 14:
+            return "Acceptable (League backup, Out of round)"
+        else:
+            return "Available (Out of round)"
+    else:
+        return "Available"
+
 # ======= Enhanced API Endpoint for Match Scheduling =======
 
 # API endpoint to handle match scheduling with enhanced split times support
@@ -323,10 +412,13 @@ def api_schedule_match():
         if team_conflict_error:
             return jsonify({'success': False, 'error': team_conflict_error})
         
-        # Use the enhanced database method with validation
-        result = db.schedule_match_with_validation(
+        # Ensure the match has the facility assigned
+        if not match.facility:
+            match.facility = facility
+        
+        # Use the database schedule_match method
+        result = db.schedule_match(
             match=match,
-            facility=facility,
             date=date,
             times=times,
             scheduling_mode=scheduling_mode
@@ -504,13 +596,17 @@ def api_preview_schedule_match():
         # Use the enhanced database preview method
         result = db.preview_match_scheduling(
             match=match,
-            facility=facility,
             date=date,
             times=times,
             scheduling_mode=scheduling_mode
         )
         
-        return jsonify(result)
+        # Return the preview result with success flag
+        return jsonify({
+            'success': True,
+            'preview': result,
+            'can_schedule': result.get('schedulable', False)
+        })
         
     except Exception as e:
         return jsonify({'success': False, 'error': f'Error previewing schedule: {str(e)}'})

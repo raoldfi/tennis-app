@@ -162,6 +162,61 @@
         border-radius: var(--tennis-border-radius-lg);
         box-shadow: var(--tennis-box-shadow-lg);
     }
+    
+    /* Existing matches styling */
+    .existing-matches {
+        max-height: 120px;
+        overflow-y: auto;
+    }
+    
+    .existing-match-item {
+        border: 1px solid var(--tennis-gray-200);
+        border-radius: var(--tennis-border-radius);
+        transition: var(--tennis-transition);
+    }
+    
+    .existing-match-item:hover {
+        border-color: var(--tennis-info);
+        background-color: var(--tennis-gray-50) !important;
+    }
+    
+    .existing-match-item .fw-bold {
+        font-size: 0.85rem;
+        line-height: 1.2;
+    }
+    
+    .existing-match-item .text-muted {
+        font-size: 0.75rem;
+        line-height: 1.2;
+    }
+    
+    /* Priority badge styling */
+    .priority-badge {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-radius: 12px;
+        padding: 3px 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    }
+    
+    .priority-badge.bg-success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+    }
+    
+    .priority-badge.bg-primary {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
+    }
+    
+    .priority-badge.bg-warning {
+        background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%) !important;
+        color: #212529 !important;
+    }
+    
+    .priority-badge.bg-secondary {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%) !important;
+    }
 </style>
 
 <!-- Match Header -->
@@ -179,7 +234,10 @@
                         <span class="mx-3">vs</span> 
                         {{ match_info.visitor_team }}
                     </h3>
-                    <p class="mb-0 mt-2">
+                    <p class="mb-1 mt-2">
+                        <strong>Round:</strong> {{ match_info.round }} / {{ match_info.num_rounds }}
+                    </p>
+                    <p class="mb-0">
                         <strong>League:</strong> {{ match_info.league }}
                         <span class="lines-needed-indicator ms-3">
                             {{ match_info.lines_needed }} Lines Needed
@@ -235,6 +293,31 @@
                                 <h6 class="mb-2 fw-bold">{{ date_option.day_name }}</h6>
                                 <p class="mb-1 text-muted">{{ date_option.formatted_date }}</p>
                                 
+                                <!-- Match Priority -->
+                                {% if date_option.priority_label %}
+                                <div class="mt-2 mb-2">
+                                    <span class="badge 
+                                        {% if date_option.match_priority <= 2 %}bg-success
+                                        {% elif date_option.match_priority <= 4 %}bg-primary
+                                        {% elif date_option.match_priority <= 14 %}bg-warning
+                                        {% else %}bg-secondary
+                                        {% endif %} 
+                                        priority-badge" 
+                                        title="{{ date_option.priority_label }}">
+                                        {% if date_option.match_priority == 1 %}★ Ideal
+                                        {% elif date_option.match_priority == 2 %}★ Good
+                                        {% elif date_option.match_priority == 3 %}◉ Preferred
+                                        {% elif date_option.match_priority == 4 %}◉ Acceptable
+                                        {% elif date_option.in_round %}✓ In Round
+                                        {% else %}○ Available
+                                        {% endif %}
+                                    </span>
+                                    {% if not date_option.in_round %}
+                                    <small class="text-muted ms-1">(Out of round)</small>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                
 
 
                                 <!-- Available Times with Court Information -->
@@ -287,6 +370,38 @@
 
                                 
                                 
+                                <!-- Existing Matches -->
+                                {% if date_option.existing_matches and date_option.existing_matches|length > 0 %}
+                                <div class="mt-2 pt-2 border-top">
+                                    <small class="text-info fw-bold">
+                                        <i class="fas fa-calendar-check"></i> 
+                                        {{ date_option.existing_matches|length }} existing match{{ 'es' if date_option.existing_matches|length > 1 else '' }}
+                                    </small>
+                                    <div class="existing-matches mt-1">
+                                        {% for existing_match in date_option.existing_matches[:2] %}
+                                        <div class="existing-match-item small mb-1 p-2 bg-light rounded">
+                                            <div class="fw-bold text-primary">{{ existing_match.home_team }} vs {{ existing_match.visitor_team }}</div>
+                                            <div class="text-muted">
+                                                {{ existing_match.league }} • {{ existing_match.num_lines }} lines
+                                                {% if existing_match.earliest_time and existing_match.latest_time %}
+                                                    {% if existing_match.earliest_time == existing_match.latest_time %}
+                                                        • {{ existing_match.earliest_time }}
+                                                    {% else %}
+                                                        • {{ existing_match.earliest_time }} - {{ existing_match.latest_time }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                        {% if date_option.existing_matches|length > 2 %}
+                                        <div class="text-center">
+                                            <small class="text-muted">+{{ date_option.existing_matches|length - 2 }} more match{{ 'es' if (date_option.existing_matches|length - 2) > 1 else '' }}</small>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endif %}
+
                                 <!-- Conflicts -->
                                 {% if date_option.conflicts %}
                                 <div class="mt-2">
@@ -810,7 +925,12 @@ class ScheduleMatchUI {
                 <div class="alert alert-warning mt-3">
                     <h6><i class="fas fa-exclamation-triangle"></i> Potential Conflicts:</h6>
                     <ul class="mb-0">
-                        ${preview.conflicts.map(conflict => `<li>${conflict}</li>`).join('')}
+                        ${preview.conflicts.map(conflict => {
+                            if (typeof conflict === 'object' && conflict.message) {
+                                return `<li>${conflict.message}</li>`;
+                            }
+                            return `<li>${conflict}</li>`;
+                        }).join('')}
                     </ul>
                 </div>
             `;
@@ -853,7 +973,7 @@ class ScheduleMatchUI {
                         <li><strong>Home Team:</strong> {{ match_info.home_team }}</li>
                         <li><strong>Visitor Team:</strong> {{ match_info.visitor_team }}</li>
                         <li><strong>League:</strong> {{ match_info.league }}</li>
-                        <li><strong>Lines:</strong> ${preview.expected_lines}</li>
+                        <li><strong>Lines:</strong> ${preview.lines_needed || this.linesNeeded}</li>
                     </ul>
                 </div>
                 <div class="col-md-6">

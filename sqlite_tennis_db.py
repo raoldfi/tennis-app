@@ -910,14 +910,13 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
 
     def schedule_match(self, 
                        match: Match, 
-                       facility: Facility, 
                        date: str, 
                        times: List[str],
                        scheduling_mode: str) -> Dict[str, Any]:
         return self.match_manager.schedule_match(
-            match, facility, date, times, scheduling_mode )
+            match, date, times, scheduling_mode)
 
-    def preview_match_scheduling(self, match: Match, facility: Facility, date: str, 
+    def preview_match_scheduling(self, match: Match, date: str, 
                             times: List[str], scheduling_mode: str) -> Dict[str, Any]:
         """
         Preview the scheduling of a match at a given facility, date, and times with a specified scheduling mode.
@@ -932,8 +931,8 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
         Returns:
             Dictionary containing the preview results, including any conflicts or scheduling details.
         """
-        return self.match_manager.preview_match_scheduling(match, facility,
-                                                           date, times, scheduling_mode)
+        return self.match_manager.preview_match_scheduling(
+            match, date, times, scheduling_mode)
 
 
     def auto_schedule_matches(self, matches: List['Match'], dry_run: bool = True) -> Dict:
