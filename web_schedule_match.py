@@ -147,8 +147,10 @@ def schedule_match_form(match_id: int):
                     date_obj = datetime.strptime(facility_info.date, '%Y-%m-%d')
                     day_name = facility_info.day_of_week
                     
-                    # Calculate scheduling score based on facility availability and match preferences
-                    score = calculate_facility_scheduling_score(facility_info, match, lines_needed)
+                    # Calculate scheduling score using Match class priority scoring
+                    match_priority = match.calculate_date_priority_score(facility_info.date)
+                    # Convert priority to score (lower priority number = higher score)
+                    score = max(20 - match_priority, 1) if match_priority < 99 else 1
                     
                     # Check for team conflicts and get existing matches (optional - can be resource intensive)
                     conflicts = []
@@ -258,41 +260,6 @@ def schedule_match_form(match_id: int):
 
 
 # ====== Helper Functions for Scheduling Logic ======
-def calculate_facility_scheduling_score(facility_info: FacilityAvailabilityInfo, match: Match, lines_needed: int) -> float:
-    """
-    Calculate a scheduling score based on facility availability and match preferences
-    
-    Args:
-        facility_info: FacilityAvailabilityInfo object with detailed availability data
-        match: Match object with league preferences
-        lines_needed: Number of lines/courts needed
-        
-    Returns:
-        Float score (higher is better)
-    """
-    base_score = 10.0
-    
-    # Prefer dates with lower overall utilization (more availability)
-    utilization_bonus = (100 - facility_info.overall_utilization_percentage) / 10.0
-    
-    # Prefer dates that match league preferences
-    day_preference_bonus = 0.0
-    if match.league:
-        if facility_info.day_of_week in getattr(match.league, 'preferred_days', []):
-            day_preference_bonus = 5.0
-        elif facility_info.day_of_week in getattr(match.league, 'backup_days', []):
-            day_preference_bonus = 2.0
-    
-    # Bonus for having multiple suitable time slots (flexibility)
-    suitable_slots = [slot for slot in facility_info.time_slots if slot.can_accommodate(lines_needed)]
-    flexibility_bonus = min(len(suitable_slots) - 1, 3.0)  # Cap at 3 bonus points
-    
-    # Prefer weekends for recreational play (general bonus)
-    weekend_bonus = 1.0 if facility_info.day_of_week in ['Saturday', 'Sunday'] else 0.0
-    
-    total_score = base_score + utilization_bonus + day_preference_bonus + flexibility_bonus + weekend_bonus
-    return round(total_score, 1)
-
 
 def check_team_conflicts(db, match, date):
     """Simple team conflict checking"""
