@@ -96,7 +96,7 @@
                                 {% if league.preferred_days %}
                                     <div class="tennis-badge-group">
                                         {% for day in league.preferred_days %}
-                                            <span class="badge tennis-badge-primary">{{ day }}</span>
+                                            <span class="badge tennis-badge-secondary">{{ day }}</span>
                                         {% endfor %}
                                     </div>
                                 {% else %}
@@ -159,9 +159,15 @@
                         <tbody>
                             {% for team in teams %}
                             <tr>
-                                <td><strong>{{ team.name }}</strong></td>
+                                <td><strong><a href="{{ url_for('view_team', team_id=team.id) }}" class="text-decoration-none">{{ team.name }}</a></strong></td>
                                 <td>{{ team.captain }}</td>
-                                <td>{{ team.home_facility_name or 'Not set' }}</td>
+                                <td>
+                                    {% if team.home_facility %}
+                                        <a href="{{ url_for('view_facility', facility_id=team.home_facility.id) }}" class="text-decoration-none">{{ team.home_facility.name }}</a>
+                                    {% else %}
+                                        <span class="text-muted">Not set</span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if team.preferred_days %}
                                         <div class="tennis-badge-group">

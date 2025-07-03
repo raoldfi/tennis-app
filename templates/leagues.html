@@ -44,9 +44,16 @@
         <p class="text-muted mb-0">Manage your tennis leagues and generate matches</p>
     </div>
     <div>
-        <button onclick="TennisImportExport.showModal('Import/Export Data')">
-
+        <button type="button" class="btn btn-tennis-info me-2" 
+                onclick="TennisImportExport.showModal('Import/Export Data')"
+                title="Import or export league data">
             <i class="fas fa-exchange-alt"></i> Import/Export
+        </button>
+        
+        <button type="button" class="btn btn-tennis-generate me-2" 
+                onclick="TennisLeagues.bulkGenerateMatches()"
+                title="Generate matches for all leagues">
+            <i class="fas fa-magic"></i> Bulk Generate Matches
         </button>
         
         <a href="{{ url_for('add_league') }}" class="btn btn-tennis-primary">
@@ -309,110 +316,91 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Enhanced TennisLeagues class for the leagues page
-class TennisLeagues extends window.TennisLeagues {
-    /**
-     * Initialize filter dropdowns with data from the table
-     */
-    static initializeFilters() {
-        const yearFilter = document.getElementById('yearFilter');
-        const divisionFilter = document.getElementById('divisionFilter');
-        const rows = document.querySelectorAll('#leaguesTableBody tr');
+// Enhanced TennisLeagues extensions for the leagues page
+TennisLeagues.initializeFilters = function() {
+    const yearFilter = document.getElementById('yearFilter');
+    const divisionFilter = document.getElementById('divisionFilter');
+    const rows = document.querySelectorAll('#leaguesTableBody tr');
+    
+    const years = new Set();
+    const divisions = new Set();
+    
+    rows.forEach(row => {
+        const year = row.dataset.leagueYear;
+        const division = row.dataset.leagueDivision;
         
-        const years = new Set();
-        const divisions = new Set();
-        
-        rows.forEach(row => {
-            const year = row.dataset.leagueYear;
-            const division = row.dataset.leagueDivision;
-            
-            if (year) years.add(year);
-            if (division) divisions.add(division);
-        });
-        
-        // Populate year filter
-        Array.from(years).sort().forEach(year => {
+        if (year) years.add(year);
+        if (division) divisions.add(division);
+    });
+    
+    // Populate year filter
+    if (yearFilter && years.size > 0) {
+        const sortedYears = Array.from(years).sort((a, b) => b - a);
+        sortedYears.forEach(year => {
             const option = document.createElement('option');
             option.value = year;
             option.textContent = year;
             yearFilter.appendChild(option);
         });
-        
-        // Populate division filter
-        Array.from(divisions).sort().forEach(division => {
+    }
+    
+    // Populate division filter
+    if (divisionFilter && divisions.size > 0) {
+        const sortedDivisions = Array.from(divisions).sort();
+        sortedDivisions.forEach(division => {
             const option = document.createElement('option');
             option.value = division;
-            option.textContent = division.charAt(0).toUpperCase() + division.slice(1);
+            option.textContent = division;
             divisionFilter.appendChild(option);
         });
-        
-        // Add event listeners
-        yearFilter.addEventListener('change', this.applyFilters.bind(this));
-        divisionFilter.addEventListener('change', this.applyFilters.bind(this));
     }
     
-    /**
-     * Apply all active filters to the table
-     */
-    static applyFilters() {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        const yearFilter = document.getElementById('yearFilter').value;
-        const divisionFilter = document.getElementById('divisionFilter').value;
-        const rows = document.querySelectorAll('#leaguesTableBody tr');
-        
-        let visibleCount = 0;
-        
-        rows.forEach(row => {
-            const name = row.dataset.leagueName;
-            const year = row.dataset.leagueYear;
-            const division = row.dataset.leagueDivision;
-            const section = row.dataset.leagueSection;
-            const ageGroup = row.dataset.leagueAgeGroup;
-            
-            const matchesSearch = searchTerm === '' || 
-                name.includes(searchTerm) ||
-                year.includes(searchTerm) ||
-                division.includes(searchTerm) ||
-                section.includes(searchTerm) ||
-                ageGroup.includes(searchTerm);
-            
-            const matchesYear = yearFilter === '' || year === yearFilter;
-            const matchesDivision = divisionFilter === '' || division === divisionFilter;
-            
-            const isVisible = matchesSearch && matchesYear && matchesDivision;
-            row.style.display = isVisible ? '' : 'none';
-            
-            if (isVisible) visibleCount++;
-        });
-        
-        // Update result counts
-        document.getElementById('resultCount').textContent = `${visibleCount} leagues`;
-        document.getElementById('tableResultCount').textContent = visibleCount;
-        
-        // Show/hide no results message
-        const noResults = document.getElementById('noResults');
-        if (noResults) {
-            noResults.style.display = visibleCount === 0 ? 'block' : 'none';
-        }
+    // Add event listeners for filters
+    if (yearFilter) {
+        yearFilter.addEventListener('change', () => TennisLeagues.applyFilters());
     }
+    if (divisionFilter) {
+        divisionFilter.addEventListener('change', () => TennisLeagues.applyFilters());
+    }
+};
+
+TennisLeagues.applyFilters = function() {
+    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    const selectedYear = document.getElementById('yearFilter')?.value || '';
+    const selectedDivision = document.getElementById('divisionFilter')?.value || '';
     
-    /**
-     * Clear all filters
-     */
-    static clearFilters() {
-        document.getElementById('searchInput').value = '';
-        document.getElementById('yearFilter').value = '';
-        document.getElementById('divisionFilter').value = '';
-        this.applyFilters();
+    const rows = document.querySelectorAll('#leaguesTableBody tr');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const leagueName = row.querySelector('.league-name')?.textContent.toLowerCase() || '';
+        const leagueYear = row.dataset.leagueYear || '';
+        const leagueDivision = row.dataset.leagueDivision || '';
+        
+        const matchesSearch = searchTerm === '' || leagueName.includes(searchTerm);
+        const matchesYear = selectedYear === '' || leagueYear === selectedYear;
+        const matchesDivision = selectedDivision === '' || leagueDivision === selectedDivision;
+        
+        const isVisible = matchesSearch && matchesYear && matchesDivision;
+        row.style.display = isVisible ? '' : 'none';
+        
+        if (isVisible) visibleCount++;
+    });
+    
+    // Update result counts
+    document.getElementById('resultCount').textContent = `${visibleCount} leagues`;
+    document.getElementById('tableResultCount').textContent = visibleCount;
+    
+    // Show/hide no results message
+    const noResults = document.getElementById('noResults');
+    if (noResults) {
+        noResults.style.display = visibleCount === 0 ? 'block' : 'none';
     }
-}
+};
 
 // Override the search input handler to use our custom filter logic
 document.getElementById('searchInput').addEventListener('input', function() {
     TennisLeagues.applyFilters();
 });
-
-// Make the enhanced class available globally
-window.TennisLeagues = TennisLeagues;
 </script>
 {% endblock %}

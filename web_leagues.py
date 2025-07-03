@@ -595,6 +595,108 @@ def register_routes(app):
 
 
     
+    @app.route('/api/leagues/bulk-generate-matches', methods=['POST'])
+    def api_bulk_generate_matches():
+        """API endpoint to generate matches for multiple leagues"""
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'No database connection'}), 500
+        
+        try:
+            # Get all leagues
+            leagues_list = db.list_leagues()
+            if not leagues_list:
+                return jsonify({'error': 'No leagues found'}), 404
+            
+            # Filter leagues that are ready for match generation
+            eligible_leagues = []
+            for league in leagues_list:
+                teams = db.list_teams(league)
+                existing_matches = db.list_matches(league=league)
+                
+                # League is eligible if it has 2+ teams and no existing matches
+                if len(teams) >= 2 and len(existing_matches) == 0:
+                    eligible_leagues.append({
+                        'league': league,
+                        'teams': teams,
+                        'teams_count': len(teams)
+                    })
+            
+            if not eligible_leagues:
+                return jsonify({
+                    'error': 'No leagues are ready for match generation. Leagues need at least 2 teams and no existing matches.'
+                }), 400
+            
+            # Generate matches for each eligible league
+            results = []
+            success_count = 0
+            fail_count = 0
+            
+            for league_info in eligible_leagues:
+                league = league_info['league']
+                teams = league_info['teams']
+                
+                try:
+                    # Generate matches using the match_generator class
+                    match_generator = MatchGenerator()
+                    generated_matches = match_generator.generate_matches(teams=teams, league=league)
+                    
+                    if not generated_matches:
+                        fail_count += 1
+                        results.append({
+                            'league_id': league.id,
+                            'league_name': league.name,
+                            'status': 'failed',
+                            'error': 'No matches were generated',
+                            'matches_count': 0
+                        })
+                        continue
+                    
+                    # Save matches to database
+                    saved_count = 0
+                    for match in generated_matches:
+                        if db.add_match(match):
+                            saved_count += 1
+                    
+                    if saved_count > 0:
+                        success_count += 1
+                        results.append({
+                            'league_id': league.id,
+                            'league_name': league.name,
+                            'status': 'success',
+                            'matches_count': saved_count
+                        })
+                    else:
+                        fail_count += 1
+                        results.append({
+                            'league_id': league.id,
+                            'league_name': league.name,
+                            'status': 'failed',
+                            'error': 'Failed to save matches to database',
+                            'matches_count': 0
+                        })
+                        
+                except Exception as e:
+                    fail_count += 1
+                    results.append({
+                        'league_id': league.id,
+                        'league_name': league.name,
+                        'status': 'failed',
+                        'error': str(e),
+                        'matches_count': 0
+                    })
+            
+            return jsonify({
+                'message': f'Bulk generation complete: {success_count} successful, {fail_count} failed',
+                'success_count': success_count,
+                'fail_count': fail_count,
+                'total_processed': len(eligible_leagues),
+                'results': results
+            })
+            
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
     @app.route('/api/leagues/<int:league_id>', methods=['DELETE'])
     def api_delete_league(league_id):
         """API endpoint to delete a league"""

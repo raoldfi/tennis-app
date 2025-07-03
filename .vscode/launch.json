@@ -29,6 +29,14 @@
             "args": "--db-path tennis.db auto-schedule"
         },
         {
+            "name": "CLI delete matches",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "simple_cli.py",
+            "console": "integratedTerminal",
+            "args": "--db-path tennis.db delete matches --execute"
+        },
+        {
             "name": "CLI generate-matches",
             "type": "debugpy",
             "request": "launch",

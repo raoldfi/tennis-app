@@ -568,9 +568,9 @@ Examples:
                 for entity in entities_to_delete:
                     try:
                         if args.entity == "matches":
-                            db.delete_match(entity.id)
+                            db.delete_match(entity)
                         elif args.entity == "teams":
-                            db.delete_team(entity.id)
+                            db.delete_team(entity)
                         # Add other entity types...
                         
                         deleted_count += 1

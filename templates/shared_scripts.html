@@ -1210,6 +1210,45 @@ class TennisLeagues {
         
         TennisUI.showNotification('Filters cleared', 'info');
     }
+
+    /**
+     * Bulk generate matches for multiple leagues
+     */
+    static async bulkGenerateMatches() {
+        const confirmed = await TennisUI.showConfirmDialog(
+            'Bulk Generate Matches',
+            'Are you sure you want to generate matches for all leagues? This will create match pairings for all teams in all leagues that don\'t already have matches.',
+            'Generate All Matches',
+            'btn-tennis-warning'
+        );
+    
+        if (!confirmed) return;
+    
+        try {
+            console.log('🎲 Attempting to bulk generate matches for all leagues');
+            
+            const result = await TennisUI.apiCall('/api/leagues/bulk-generate-matches', {
+                method: 'POST'
+            });
+    
+            console.log('✅ Bulk generate matches successful:', result);
+            TennisUI.showNotification(result.message || 'Matches generated successfully for all leagues!', 'success');
+            
+            // Reload page to show new matches
+            setTimeout(() => window.location.reload(), 1000);
+            
+        } catch (error) {
+            console.error('❌ Bulk generate matches error:', error);
+            
+            let errorMessage = error.message || 'Failed to generate matches. Please try again.';
+            
+            if (error.responseData) {
+                console.error('Server error details:', error.responseData);
+            }
+            
+            TennisUI.showNotification(errorMessage, 'danger', 7000);
+        }
+    }
 }
 
 
