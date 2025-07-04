@@ -294,22 +294,22 @@
                                 <p class="mb-1 text-muted">{{ date_option.formatted_date }}</p>
                                 
                                 <!-- Match Priority -->
-                                {% if date_option.priority_description %}
+                                {% if date_option.quality_description %}
                                 <div class="mt-2 mb-2">
                                     <div class="d-flex align-items-center">
                                         <span class="badge 
-                                            {% if date_option.match_priority <= 2 %}bg-success
-                                            {% elif date_option.match_priority <= 4 %}bg-primary
-                                            {% elif date_option.match_priority <= 14 %}bg-warning
+                                            {% if date_option.match_quality >= 80 %}bg-success
+                                            {% elif date_option.match_quality >= 60 %}bg-primary
+                                            {% elif date_option.match_quality >= 40 %}bg-warning
                                             {% else %}bg-secondary
-                                            {% endif %} 
+                                            {% endif %}
                                             priority-badge me-2" 
                                             title="{{ date_option.priority_description }}">
-                                            {% if date_option.match_priority == 1 %}★ Optimal
-                                            {% elif date_option.match_priority == 2 %}★ Good
-                                            {% elif date_option.match_priority == 3 %}◉ Fair
-                                            {% elif date_option.match_priority == 4 %}◉ Acceptable
-                                            {% elif date_option.match_priority <= 14 %}○ Suboptimal
+                                            {% if date_option.match_quality == 100 %}★ Optimal
+                                            {% elif date_option.match_quality == 80 %}★ Good
+                                            {% elif date_option.match_quality == 60 %}◉ Fair
+                                            {% elif date_option.match_quality == 40 %}◉ Acceptable
+                                            {% elif date_option.match_quality <= 14 %}○ Suboptimal
                                             {% else %}○ Poor
                                             {% endif %}
                                         </span>

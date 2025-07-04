@@ -2450,6 +2450,61 @@ function handleNotificationRefresh(button) {
     }
 }
 
+/**
+ * A function to inject the quality score description into a web page.
+ * This function is used to display the quality score description in a user-friendly format.
+ */
+function injectQualityLegend(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const style = document.createElement('style');
+  style.textContent = `
+    .legend {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 600px;
+      font-family: "Segoe UI", sans-serif;
+      font-size: 14px;
+    }
+    .score-line {
+      display: flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-left: 6px solid;
+      border-radius: 4px;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    .score-line span {
+      font-weight: 600;
+      margin-right: 10px;
+      min-width: 80px;
+      white-space: nowrap;
+    }
+    .score-100 { border-color: #5cb85c; }
+    .score-80  { border-color: #5bc0de; }
+    .score-60  { border-color: #f7e300; }
+    .score-40  { border-color: #f0ad4e; }
+    .score-20  { border-color: #d9534f; }
+  `;
+  document.head.appendChild(style);
+
+  container.innerHTML = `
+    <div class="legend">
+      <div class="score-line score-100"><span>100 – Optimal</span> Teams' preferred + within round</div>
+      <div class="score-line score-80"><span>80 – Good</span> Teams' backup + within round</div>
+      <div class="score-line score-60"><span>60 – Fair</span> League preferred + outside round</div>
+      <div class="score-line score-40"><span>40 – Acceptable</span> League backup + outside round</div>
+      <div class="score-line score-20"><span>20 – Poor</span> Not preferred by any team</div>
+    </div>
+  `;
+}
+
+
+
+
 // ==================== GLOBAL INITIALIZATION ====================
 
 // Auto-initialize when DOM is ready

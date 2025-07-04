@@ -8,14 +8,17 @@ Updated to work with the new match-based scheduling system.
 """
 
 import sqlite3
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from usta import Team, League, Facility, Match
+
+if TYPE_CHECKING:
+    from tennis_db_interface import TennisDBInterface
 
 
 class SQLTeamManager:
     """Helper class for managing team operations in SQLite database"""
     
-    def __init__(self, cursor: sqlite3.Cursor, db_instance):
+    def __init__(self, cursor: sqlite3.Cursor, db_instance: 'TennisDBInterface') -> None:
         """
         Initialize SQLTeamManager
         
@@ -26,7 +29,7 @@ class SQLTeamManager:
         self.cursor = cursor
         self.db = db_instance
     
-    def _dictify(self, row) -> dict:
+    def _dictify(self, row: Optional[sqlite3.Row]) -> dict:
         """Convert sqlite Row object to dictionary"""
         return dict(row) if row else {}
     
@@ -366,7 +369,10 @@ class SQLTeamManager:
                 params.append(exclude_match.id)
                 
             self.cursor.execute(query, params)
-            count = self.cursor.fetchone()['count']
+            row = self.cursor.fetchone()
+            if row is None:
+                return False
+            count = row['count']
             return count > 0
             
         except sqlite3.Error as e:
@@ -453,7 +459,10 @@ class SQLTeamManager:
             """
             
             self.cursor.execute(query, (team_id, team_id, date, facility_name, facility_name))
-            count = self.cursor.fetchone()['count']
+            row = self.cursor.fetchone()
+            if row is None:
+                return False
+            count = row['count']
             return count > 0
             
         except sqlite3.Error as e:

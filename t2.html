@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Quality Score Legend</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      margin: 30px;
+      line-height: 1.6;
+      background: #f9f9f9;
+    }
+
+    h2 {
+      color: #333;
+    }
+
+    .score-item {
+      border-left: 8px solid;
+      padding: 12px 16px;
+      margin: 12px 0;
+      background-color: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      border-radius: 6px;
+    }
+
+    .score-20 { border-color: #d9534f; }     /* Red - Poor */
+    .score-40 { border-color: #f0ad4e; }     /* Orange - Acceptable */
+    .score-60 { border-color: #f7e300; }     /* Yellow - Fair */
+    .score-80 { border-color: #5bc0de; }     /* Blue - Good */
+    .score-100 { border-color: #5cb85c; }    /* Green - Optimal */
+
+    .score-label {
+      font-weight: bold;
+      font-size: 1.1em;
+    }
+
+    .score-desc {
+      margin-top: 4px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Quality Score Legend</h2>
+
+  <div class="score-item score-20">
+    <div class="score-label">20 – Poor</div>
+    <div class="score-desc">Scheduled on a day not preferred by anyone</div>
+  </div>
+
+  <div class="score-item score-40">
+    <div class="score-label">40 – Acceptable</div>
+    <div class="score-desc">League backup day and outside the target round</div>
+  </div>
+
+  <div class="score-item score-60">
+    <div class="score-label">60 – Fair</div>
+    <div class="score-desc">League preferred day but outside the target round</div>
+  </div>
+
+  <div class="score-item score-80">
+    <div class="score-label">80 – Good</div>
+    <div class="score-desc">Teams' league backup day and within the target round</div>
+  </div>
+
+  <div class="score-item score-100">
+    <div class="score-label">100 – Optimal</div>
+    <div class="score-desc">Teams' league preferred day and within the target round</div>
+  </div>
+
+</body>
+</html>
+

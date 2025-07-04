@@ -42,6 +42,55 @@
         </div>
     </div>
 
+    <!-- Quality Score Summary -->
+    {% if quality_stats and quality_stats.count > 0 %}
+    <div class="tennis-card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-chart-line text-tennis-primary"></i> Schedule Quality Index
+            </h5>
+            <span class="badge bg-tennis-primary">{{ quality_stats.count }} scheduled matches</span>
+        </div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-value text-tennis-success">{{ quality_stats.average }}</div>
+                        <div class="stat-label">Average Match Schedule Quality</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-value text-tennis-info">{{ quality_stats.count }}</div>
+                        <div class="stat-label">Scheduled Matches</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-value text-muted">{{ quality_stats.total_matches }}</div>
+                        <div class="stat-label">Total Matches</div>
+                    </div>
+                </div>
+                            <!-- Quality Legend Section -->
+                <div class="mt-3">
+                    <h6 class="mb-2"><i class="fas fa-info-circle"></i> Quality Score Legend</h6>
+                    <div id="legend-placeholder"></div>
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+
+    <!-- Inject the legend -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            injectQualityLegend("legend-placeholder");
+        });
+    </script>
+    {% endif %}
+
+
     <!-- Filters Section -->
     <div class="tennis-card mb-4">
         <div class="card-header">
@@ -432,6 +481,79 @@
 
 {% endblock %}
 
+{% block additional_styles %}
+<style>
+/* Quality Score Stats Styling */
+.stat-card {
+    padding: 1rem;
+    text-align: center;
+    transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Quality Score Legend Styles */
+.legend {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 600px;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 14px;
+}
+
+.score-line {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-left: 6px solid;
+    border-radius: 4px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.score-line span {
+    font-weight: 600;
+    margin-right: 10px;
+    min-width: 80px;
+    white-space: nowrap;
+}
+
+.score-100 { border-color: #5cb85c; }  /* Green */
+.score-80  { border-color: #5bc0de; }  /* Blue */
+.score-60  { border-color: #f7e300; }  /* Yellow */
+.score-40  { border-color: #f0ad4e; }  /* Orange */
+.score-20  { border-color: #d9534f; }  /* Red */
+
+@media (max-width: 768px) {
+    .stat-value {
+        font-size: 1.5rem;
+    }
+    
+    .stat-label {
+        font-size: 0.75rem;
+    }
+}
+</style>
+{% endblock %}
+
 {% block scripts %}
 <script>
 // Add this script to handle the dry-run checkbox behavior
@@ -591,22 +713,28 @@ function displayAutoSchedulePreview(result) {
                     </div>
                     <div class="modal-body">
                         <div class="row mb-3">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="text-center">
                                     <div class="display-6 text-primary">${result.total_matches}</div>
                                     <small class="text-muted">Total Matches</small>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="text-center">
                                     <div class="display-6 text-success">${result.scheduled}</div>
                                     <small class="text-muted">Would Schedule</small>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="text-center">
                                     <div class="display-6 text-danger">${result.failed}</div>
                                     <small class="text-muted">Cannot Schedule</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <div class="display-6 text-warning">${result.average_quality_score || 0}</div>
+                                    <small class="text-muted">Avg Quality Score</small>
                                 </div>
                             </div>
                         </div>
@@ -635,6 +763,9 @@ function displayAutoSchedulePreview(result) {
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             Close Preview
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="tryAutoScheduleAgain()">
+                            <i class="fas fa-redo"></i> Try Again
                         </button>
     `;
     
@@ -686,6 +817,33 @@ function executeSchedulingFromPreview() {
         null, // No modal to close
         customSuccessCallback
     );
+}
+
+function tryAutoScheduleAgain() {
+    // Close preview modal
+    const previewModal = bootstrap.Modal.getInstance(document.getElementById('autoSchedulePreviewModal'));
+    if (previewModal) previewModal.hide();
+    
+    // Re-run the same auto-schedule operation with the same parameters
+    setTimeout(() => {
+        const formData = new FormData(document.getElementById('bulkAutoScheduleForm'));
+        // Ensure dry_run is set to true for preview
+        formData.set('dry_run', 'true');
+        TennisUI.addCurrentFiltersToFormData(formData, 'selected');
+        
+        const customSuccessCallback = (result) => {
+            // Show the preview results again
+            displayAutoSchedulePreview(result);
+        };
+
+        executeBulkOperationWithRefresh(
+            'Try Auto-Schedule Again',
+            '/api/bulk-auto-schedule',
+            formData,
+            null, // No modal to close
+            customSuccessCallback
+        );
+    }, 300); // Small delay to ensure smooth transition
 }
 
 // Also need to add this helper function if it doesn't exist:

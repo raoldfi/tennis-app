@@ -381,6 +381,8 @@ class SQLMatchManager:
                     
                     if success:
                         results['scheduled'] += 1
+                        # Calculate quality score for scheduled match
+                        quality_score = match.get_quality_score()
                         results['scheduling_details'].append({
                             'match_id': match.id,
                             'status': 'would_be_scheduled' if dry_run else 'scheduled',
@@ -388,7 +390,8 @@ class SQLMatchManager:
                             'visitor_team': match.visitor_team_name,
                             'facility': match.facility_name,
                             'date': match.date,
-                            'times': match.get_scheduled_times()
+                            'times': match.get_scheduled_times(),
+                            'quality_score': quality_score
                         })
                     else:
                         results['failed'] += 1
