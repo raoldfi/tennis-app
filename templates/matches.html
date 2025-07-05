@@ -700,6 +700,15 @@ function displayAutoSchedulePreview(result) {
     const modal = bootstrap.Modal.getInstance(document.getElementById('bulkAutoScheduleModal'));
     if (modal) modal.hide();
     
+    // Store the seed for reproducible execution
+    if (result.seed) {
+        window.lastAutoScheduleSeed = result.seed;
+        console.log('🌱 SEED DEBUG: Stored seed for future execution:', result.seed);
+        console.log('🌱 SEED DEBUG: typeof stored seed:', typeof result.seed);
+    } else {
+        console.warn('🌱 SEED DEBUG: No seed found in result!', result);
+    }
+    
     // Create preview modal content
     let previewHtml = `
         <div class="modal fade" id="autoSchedulePreviewModal" tabindex="-1">
@@ -803,6 +812,25 @@ function executeSchedulingFromPreview() {
     // Re-run the same operation but without dry-run
     const formData = new FormData(document.getElementById('bulkAutoScheduleForm'));
     formData.set('dry_run', 'false'); // Override to execute
+    
+    // Use the same seed from the preview for reproducible results
+    if (window.lastAutoScheduleSeed) {
+        formData.set('seed', window.lastAutoScheduleSeed);
+        console.log('🌱 SEED DEBUG: Using stored seed for execution:', window.lastAutoScheduleSeed);
+        console.log('🌱 SEED DEBUG: typeof window.lastAutoScheduleSeed:', typeof window.lastAutoScheduleSeed);
+        console.log('🌱 SEED DEBUG: FormData seed value:', formData.get('seed'));
+        console.log('🌱 SEED DEBUG: typeof FormData seed value:', typeof formData.get('seed'));
+        
+        // Log all FormData entries for debugging
+        console.log('🌱 SEED DEBUG: All FormData entries:');
+        for (let [key, value] of formData.entries()) {
+            console.log(`  ${key}: ${value} (${typeof value})`);
+        }
+    } else {
+        console.warn('🌱 SEED DEBUG: No stored seed found! This execution may produce different results than the preview.');
+        console.log('🌱 SEED DEBUG: window.lastAutoScheduleSeed is:', window.lastAutoScheduleSeed);
+    }
+    
     TennisUI.addCurrentFiltersToFormData(formData, 'selected');
     
     const customSuccessCallback = (result) => {

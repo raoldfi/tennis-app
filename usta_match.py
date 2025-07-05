@@ -351,6 +351,7 @@ class Match:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         num_dates: Optional[int] = 50,
+        minimum_quality: int = 40,
     ) -> List[Tuple[str, int]]:
         """
         Find prioritized dates for scheduling a specific match, prioritizing team and league preferences.
@@ -422,8 +423,8 @@ class Match:
                     # Calculate quality score for this date
                     qscore = self.get_quality_score(date_str)
 
-                    # Skip if quality is 0 (shouldn't happen for valid dates) or 99 (not preferred)
-                    if qscore > 0:
+                    # Skip dates with a quality score below the minimum
+                    if qscore > minimum_quality:
                         candidate_dates.append((date_str, qscore))
 
                     current += timedelta(days=1)
@@ -573,11 +574,11 @@ class Match:
             hp = set(self.home_team.preferred_days)
             vp = set(self.visitor_team.preferred_days)
 
-            required_days = None
+            team_preferred_days = None
             if hp and vp:
-                required_days = hp & vp  # Intersection if both have preferences
+                team_preferred_days = hp & vp  # Intersection if both have preferences
             elif hp or vp:
-                required_days = hp | vp  # Union if only one has preferences
+                team_preferred_days = hp | vp  # Union if only one has preferences
 
             # Check if the date is within the match's round
             if not self.league.start_date or not self.league.end_date:
@@ -598,20 +599,21 @@ class Match:
             # Calculate base quality
             base_quality = 20  # Default: not preferred by anyone
 
-            if required_days:
-                if day_name in required_days and day_name in self.league.preferred_days:
-                    base_quality = 100  # Teams require + league prefers
-                elif day_name in required_days and day_name in self.league.backup_days:
-                    base_quality = 80  # Teams require + league backup
-            else:
-                if day_name in self.league.preferred_days:
-                    base_quality = 100  # League prefers
-                elif day_name in self.league.backup_days:
-                    base_quality = 80  # League backup
+            # Deal with preferred and backup days first
+            if day_name in self.league.preferred_days:
+                base_quality = 100  # League prefers this day
+            elif day_name in self.league.backup_days:
+                base_quality = 80  # League backup day
 
             # Add penalty if outside round
             if not in_round:
                 base_quality -= 40
+
+            # if there are team preferred days and this day is not in them return 20
+            if team_preferred_days is not None:
+                # If the day is not in team preferred days, set to optimal quality
+                if day_name not in team_preferred_days:
+                    return 20
 
             return base_quality
 

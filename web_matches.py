@@ -15,6 +15,8 @@ from flask import (
 from datetime import datetime, date, timedelta
 import traceback
 import json
+import yaml
+import time
 
 from usta import Match, MatchType, League
 
@@ -502,9 +504,27 @@ def register_routes(app, get_db):
                     "yes",
                 ]
 
+                # Generate a random seed for reproducible scheduling
+                import random
+                
+                # Check if a seed was provided (for Execute Scheduling button)
+                provided_seed = request.form.get("seed")
+                if provided_seed:
+                    try:
+                        seed = int(provided_seed)
+                        print(f"Using provided seed for reproducible scheduling: {seed}")
+                    except (ValueError, TypeError):
+                        # If provided seed is invalid, generate a new one
+                        seed = int(time.time() * 1000) % 2**31
+                        print(f"Invalid provided seed, generated new seed: {seed}")
+                else:
+                    # Generate a new random seed based on current time
+                    seed = int(time.time() * 1000) % 2**31
+                    print(f"Generated new seed for reproducible scheduling: {seed}")
+
                 # UPDATED: Use match_manager instead of scheduling_manager
                 scheduling_results = db.match_manager.auto_schedule_matches(
-                    matches=matches_to_schedule, dry_run=dry_run
+                    matches=matches_to_schedule, dry_run=dry_run, seed=seed
                 )
 
                 # Extract results based on match_manager return format
@@ -604,6 +624,7 @@ def register_routes(app, get_db):
                     "scheduled": scheduled_count,
                     "failed": failed_count,
                     "dry_run": dry_run,
+                    "seed": seed,  # Include seed for reproducible execution
                     "scheduling_details": scheduling_details,
                     "average_quality_score": average_quality_score,
                     "operations": (

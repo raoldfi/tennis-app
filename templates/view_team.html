@@ -62,12 +62,141 @@
     border-left: 4px solid var(--tennis-success);
 }
 
-.match-status-unscheduled {
+.team-match-row.match-status-unscheduled {
     border-left: 4px solid var(--tennis-warning);
+    background-color: rgba(255, 193, 7, 0.2) !important; /* More visible warning background */
+}
+
+.team-match-row.match-status-unscheduled:hover {
+    background-color: rgba(255, 193, 7, 0.3) !important; /* Darker on hover */
 }
 
 .match-status-completed {
     border-left: 4px solid var(--tennis-info);
+}
+
+/* Custom Team Match Table Styles */
+.team-match-row {
+    transition: all 0.2s ease;
+}
+
+.team-match-row:hover {
+    background-color: rgba(45, 90, 135, 0.05);
+    transform: translateX(2px);
+}
+
+.match-id-display {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+.day-name {
+    font-weight: 600;
+    color: var(--tennis-primary);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.match-date {
+    font-size: 0.9rem;
+    color: var(--tennis-gray-700);
+}
+
+.team-display {
+    font-size: 0.9rem;
+}
+
+.team-display .fw-bold {
+    color: var(--tennis-primary);
+}
+
+.time-badge {
+    background: linear-gradient(135deg, var(--tennis-success) 0%, var(--tennis-success-dark) 100%);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--tennis-border-radius);
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.time-badge-small {
+    background: linear-gradient(135deg, var(--tennis-info) 0%, var(--tennis-info-dark) 100%);
+    color: white;
+    padding: 0.2rem 0.4rem;
+    border-radius: var(--tennis-border-radius);
+    font-size: 0.75rem;
+    font-weight: 500;
+    display: inline-block;
+    margin-bottom: 0.2rem;
+    margin-right: 0.2rem;
+}
+
+.times-split {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.facility-link-compact {
+    color: var(--tennis-primary);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-decoration: none;
+    padding: 0.2rem 0.4rem;
+    border-radius: var(--tennis-border-radius);
+    background: rgba(27, 92, 122, 0.1);
+    transition: var(--tennis-transition);
+    display: inline-block;
+}
+
+.facility-link-compact:hover {
+    color: white;
+    background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
+    text-decoration: none;
+    transform: translateY(-1px);
+}
+
+/* Sortable Table Styles */
+.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.sortable-header:hover {
+    background-color: rgba(45, 90, 135, 0.1);
+    color: var(--tennis-primary);
+}
+
+.sortable-header .sort-icon {
+    opacity: 0.5;
+    transition: all 0.2s ease;
+    font-size: 0.8rem;
+}
+
+.sortable-header:hover .sort-icon {
+    opacity: 1;
+}
+
+.sortable-header.sort-asc .sort-icon {
+    opacity: 1;
+    color: var(--tennis-primary);
+}
+
+.sortable-header.sort-desc .sort-icon {
+    opacity: 1;
+    color: var(--tennis-primary);
+}
+
+.sortable-header.sort-asc .sort-icon:before {
+    content: "\f0de"; /* fa-sort-up */
+}
+
+.sortable-header.sort-desc .sort-icon:before {
+    content: "\f0dd"; /* fa-sort-down */
 }
 </style>
 {% endblock %}
@@ -308,7 +437,12 @@
                     <div class="card-body">
                         <i class="fas fa-check-circle fa-2x mb-2 text-tennis-success"></i>
                         <h4 class="mb-0">
-                            {% set scheduled_matches = matches|selectattr('facility')|list %}
+                            {% set scheduled_matches = [] %}
+                            {% for match in matches %}
+                                {% if match.is_scheduled() %}
+                                    {% set _ = scheduled_matches.append(match) %}
+                                {% endif %}
+                            {% endfor %}
                             {{ scheduled_matches|length }}
                         </h4>
                         <small>Scheduled</small>
@@ -321,7 +455,12 @@
                     <div class="card-body">
                         <i class="fas fa-clock fa-2x mb-2 text-tennis-warning"></i>
                         <h4 class="mb-0">
-                            {% set unscheduled_matches = matches|rejectattr('facility')|list %}
+                            {% set unscheduled_matches = [] %}
+                            {% for match in matches %}
+                                {% if match.is_unscheduled() %}
+                                    {% set _ = unscheduled_matches.append(match) %}
+                                {% endif %}
+                            {% endfor %}
                             {{ unscheduled_matches|length }}
                         </h4>
                         <small>Unscheduled</small>
@@ -342,12 +481,12 @@
     </div>
 </div>
 
-<!-- Recent Matches -->
+<!-- Team Matches -->
 <div class="card tennis-card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
-            <i class="fas fa-history text-tennis-primary me-2"></i>
-            Recent Matches
+            <i class="fas fa-calendar-alt text-tennis-primary me-2"></i>
+            Team Matches
         </h5>
         {% if matches|length > 0 %}
         <a href="{{ url_for('matches', team_id=team.id) }}" class="btn btn-tennis-primary btn-sm">
@@ -361,76 +500,183 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>Opponent</th>
-                        <th>Date</th>
-                        <th>Time</th>
-                        <th>Facility</th>
-                        <th>Status</th>
-                        <th class="text-center">Actions</th>
+                        <th width="12%" class="sortable-header" data-sort-column="id" data-sort-type="numeric">
+                            <span>ID & Round</span>
+                            <i class="fas fa-sort ms-1 sort-icon"></i>
+                        </th>
+                        <th width="10%" class="sortable-header" data-sort-column="day" data-sort-type="text">
+                            <span>Day</span>
+                            <i class="fas fa-sort ms-1 sort-icon"></i>
+                        </th>
+                        <th width="12%" class="sortable-header" data-sort-column="date" data-sort-type="date">
+                            <span>Date</span>
+                            <i class="fas fa-sort ms-1 sort-icon"></i>
+                        </th>
+                        <th width="20%" class="sortable-header" data-sort-column="home" data-sort-type="text">
+                            <span>Home</span>
+                            <i class="fas fa-sort ms-1 sort-icon"></i>
+                        </th>
+                        <th width="20%" class="sortable-header" data-sort-column="visitor" data-sort-type="text">
+                            <span>Visitor</span>
+                            <i class="fas fa-sort ms-1 sort-icon"></i>
+                        </th>
+                        <th width="12%" class="sortable-header" data-sort-column="times" data-sort-type="text">
+                            <span>Times</span>
+                            <i class="fas fa-sort ms-1 sort-icon"></i>
+                        </th>
+                        <th width="10%" class="sortable-header" data-sort-column="facility" data-sort-type="text">
+                            <span>Facility</span>
+                            <i class="fas fa-sort ms-1 sort-icon"></i>
+                        </th>
+                        <th width="14%" class="text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for match in matches[:10] %}
-                    <tr class="match-row {% if match.is_scheduled() %}match-status-scheduled{% else %}match-status-unscheduled{% endif %}">
+                    {% for match in matches %}
+                    <tr class="team-match-row 
+                        {% if match.is_scheduled() %}
+                            match-status-scheduled 
+                        {% else %}match-status-unscheduled table-warning
+                    {% endif %}"
+                        data-match-id="{{ match.id }}">
+                        
+                        <!-- ID & Round -->
                         <td>
-                            <div class="fw-bold">
-                                {% if match.home_team.id == team.id %}
-                                    vs {{ match.visitor_team.name }}
-                                {% else %}
-                                    vs {{ match.home_team.name }}
+                            <div class="match-id-display">
+                                <strong>#{{ match.id }}</strong>
+                                {% if match.round %}
+                                    <div class="small text-muted">R{{ match.round }}/{{ "%.1f"|format(match.num_rounds) }}</div>
                                 {% endif %}
                             </div>
-                            <div class="small text-muted">
-                                {{ match.league.name }}
-                            </div>
                         </td>
+
+                        <!-- Day -->
                         <td>
                             {% if match.date %}
-                                <i class="fas fa-calendar me-1"></i>
-                                {{ match.date }}
-                            {% else %}
-                                <span class="text-muted">TBD</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if match.scheduled_times and match.scheduled_times|length > 0 %}
-                                <i class="fas fa-clock me-1"></i>
-                                {{ match.scheduled_times[0] }}
-                                {% if match.scheduled_times|length > 1 %}
-                                    <div class="small text-muted">+{{ match.scheduled_times|length - 1 }} more</div>
+                                {% if match.date is string %}
+                                    <span class="day-name" data-date="{{ match.date }}">—</span>
+                                {% else %}
+                                    <span class="day-name">{{ match.date.strftime('%A') }}</span>
                                 {% endif %}
                             {% else %}
                                 <span class="text-muted">TBD</span>
                             {% endif %}
                         </td>
+
+                        <!-- Date -->
+                        <td>
+                            {% if match.date %}
+                                {% if match.date is string %}
+                                    <span class="match-date">{{ match.date }}</span>
+                                {% else %}
+                                    <span class="match-date">{{ match.date.strftime('%m/%d/%Y') }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">TBD</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Home Team -->
+                        <td>
+                            <div class="team-display">
+                                {% if match.home_team %}
+                                    {% if match.home_team.id == team.id %}
+                                        <span class="fw-bold text-tennis-primary">
+                                            <i class="fas fa-home me-1"></i>{{ match.home_team.name }}
+                                        </span>
+                                    {% else %}
+                                        <a href="{{ url_for('view_team', team_id=match.home_team.id) }}" 
+                                           class="text-decoration-none">
+                                            <i class="fas fa-home me-1 text-success"></i>{{ match.home_team.name }}
+                                        </a>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">TBD</span>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- Visitor Team -->
+                        <td>
+                            <div class="team-display">
+                                {% if match.visitor_team %}
+                                    {% if match.visitor_team.id == team.id %}
+                                        <span class="fw-bold text-tennis-primary">
+                                            <i class="fas fa-plane me-1"></i>{{ match.visitor_team.name }}
+                                        </span>
+                                    {% else %}
+                                        <a href="{{ url_for('view_team', team_id=match.visitor_team.id) }}" 
+                                           class="text-decoration-none">
+                                            <i class="fas fa-plane me-1 text-info"></i>{{ match.visitor_team.name }}
+                                        </a>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">TBD</span>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- Times -->
+                        <td>
+                            {% if match.is_scheduled() and match.scheduled_times %}
+                                {% set unique_times = match.scheduled_times | unique | list %}
+                                {% if unique_times|length == 1 %}
+                                    <span class="time-badge">{{ unique_times[0] }}</span>
+                                    {% if match.scheduled_times|length > 1 %}
+                                        <div class="small text-muted">{{ match.scheduled_times|length }} lines</div>
+                                    {% endif %}
+                                {% else %}
+                                    <div class="times-split">
+                                        {% for unique_time in unique_times[:2] %}
+                                            <span class="time-badge-small">{{ unique_time }}</span>
+                                        {% endfor %}
+                                        {% if unique_times|length > 2 %}
+                                            <div class="small text-muted">+{{ unique_times|length - 2 }} more</div>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">TBD</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Facility -->
                         <td>
                             {% if match.facility %}
-                                <div class="fw-bold">{{ match.facility.name }}</div>
-                                {% if match.facility.location %}
-                                <div class="small text-muted">{{ match.facility.location }}</div>
-                                {% endif %}
+                                <a href="{{ url_for('view_facility', facility_id=match.facility.id) }}" 
+                                   class="facility-link-compact" title="{{ match.facility.name }}">
+                                    {{ match.facility.short_name or match.facility.name }}
+                                </a>
                             {% else %}
-                                <span class="text-muted">Not scheduled</span>
+                                <span class="text-muted">—</span>
                             {% endif %}
                         </td>
-                        <td>
-                            {% if match.is_scheduled() %}
-                                <span class="tennis-badge-info">
-                                    <i class="fas fa-calendar-check"></i> Scheduled
-                                </span>
-                            {% else %}
-                                <span class="tennis-badge-warning">
-                                    <i class="fas fa-clock"></i> Unscheduled
-                                </span>
-                            {% endif %}
-                        </td>
+
+                        <!-- Actions -->
                         <td class="text-center">
                             <div class="btn-group" role="group">
+                                <!-- View Button -->
                                 <a href="{{ url_for('view_match', match_id=match.id) }}" 
                                    class="btn btn-sm btn-outline-info" 
                                    title="View match details">
                                     <i class="fas fa-eye"></i>
                                 </a>
+                                
+                                {% if match.is_scheduled() %}
+                                    <!-- Unschedule Button -->
+                                    <button class="btn btn-sm btn-outline-warning"
+                                            onclick="unscheduleMatch({{ match.id }}, 'Match #{{ match.id }}')"
+                                            title="Unschedule match">
+                                        <i class="fas fa-calendar-times"></i>
+                                    </button>
+                                {% else %}
+                                    <!-- Schedule Button -->
+                                    <button class="btn btn-sm btn-outline-success"
+                                            onclick="scheduleMatch({{ match.id }})"
+                                            title="Schedule match">
+                                        <i class="fas fa-calendar-plus"></i>
+                                    </button>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -472,7 +718,211 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize any team-specific functionality
     console.log('🎾 Team view page loaded for team: {{ team.name|e }}');
     
-    // Add any specific JavaScript for team view if needed
+    // Convert string dates to day names
+    convertStringDatesToDayNames();
+    
+    // Initialize table sorting
+    initializeTableSorting();
 });
+
+// Function to convert string dates to day names
+function convertStringDatesToDayNames() {
+    const dayElements = document.querySelectorAll('.day-name[data-date]');
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    
+    dayElements.forEach(element => {
+        const dateString = element.getAttribute('data-date');
+        if (dateString && dateString !== '—') {
+            try {
+                // Parse the date string (expected format: YYYY-MM-DD)
+                const date = new Date(dateString + 'T00:00:00'); // Add time to avoid timezone issues
+                if (!isNaN(date.getTime())) {
+                    const dayIndex = date.getDay();
+                    const dayName = dayNames[dayIndex];
+                    element.textContent = dayName;
+                } else {
+                    console.warn('Invalid date string:', dateString);
+                }
+            } catch (error) {
+                console.warn('Error parsing date string:', dateString, error);
+            }
+        }
+    });
+}
+
+// Initialize table sorting functionality
+function initializeTableSorting() {
+    const headers = document.querySelectorAll('.sortable-header');
+    
+    headers.forEach(header => {
+        header.addEventListener('click', function() {
+            const column = this.getAttribute('data-sort-column');
+            const type = this.getAttribute('data-sort-type');
+            sortTable(column, type, this);
+        });
+    });
+}
+
+// Sort table by column
+function sortTable(column, type, headerElement) {
+    const table = headerElement.closest('table');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Determine sort direction
+    const currentSort = headerElement.classList.contains('sort-asc') ? 'asc' : 
+                       headerElement.classList.contains('sort-desc') ? 'desc' : 'none';
+    
+    let newSort;
+    if (currentSort === 'none' || currentSort === 'desc') {
+        newSort = 'asc';
+    } else {
+        newSort = 'desc';
+    }
+    
+    // Clear all sort indicators
+    table.querySelectorAll('.sortable-header').forEach(h => {
+        h.classList.remove('sort-asc', 'sort-desc');
+    });
+    
+    // Set new sort indicator
+    headerElement.classList.add(`sort-${newSort}`);
+    
+    // Sort rows
+    rows.sort((a, b) => {
+        let aValue = getSortValue(a, column, type);
+        let bValue = getSortValue(b, column, type);
+        
+        if (type === 'numeric') {
+            aValue = parseFloat(aValue) || 0;
+            bValue = parseFloat(bValue) || 0;
+        } else if (type === 'date') {
+            aValue = parseDate(aValue);
+            bValue = parseDate(bValue);
+        } else {
+            aValue = aValue.toLowerCase();
+            bValue = bValue.toLowerCase();
+        }
+        
+        if (aValue < bValue) return newSort === 'asc' ? -1 : 1;
+        if (aValue > bValue) return newSort === 'asc' ? 1 : -1;
+        return 0;
+    });
+    
+    // Reorder rows in DOM
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+// Get sort value from table cell
+function getSortValue(row, column, type) {
+    const cells = row.querySelectorAll('td');
+    let value = '';
+    
+    switch(column) {
+        case 'id':
+            const idText = cells[0]?.querySelector('strong')?.textContent || '';
+            return idText.replace('#', '');
+            
+        case 'day':
+            const dayElement = cells[1]?.querySelector('.day-name');
+            return dayElement?.textContent?.trim() || 'zzz'; // Put TBD/— at end
+            
+        case 'date':
+            const dateElement = cells[2]?.querySelector('.match-date');
+            return dateElement?.textContent?.trim() || '9999-12-31'; // Put TBD at end
+            
+        case 'home':
+            const homeElement = cells[3]?.querySelector('.team-display');
+            return homeElement?.textContent?.replace(/[^\w\s]/g, '').trim() || 'zzz';
+            
+        case 'visitor':
+            const visitorElement = cells[4]?.querySelector('.team-display');
+            return visitorElement?.textContent?.replace(/[^\w\s]/g, '').trim() || 'zzz';
+            
+        case 'times':
+            const timeElement = cells[5]?.querySelector('.time-badge, .time-badge-small');
+            return timeElement?.textContent?.trim() || 'zzz';
+            
+        case 'facility':
+            const facilityElement = cells[6]?.querySelector('.facility-link-compact');
+            return facilityElement?.textContent?.trim() || 'zzz';
+            
+        default:
+            return '';
+    }
+}
+
+// Parse date for sorting
+function parseDate(dateStr) {
+    if (!dateStr || dateStr === '—' || dateStr === 'TBD') {
+        return new Date('9999-12-31'); // Sort TBD dates to end
+    }
+    
+    // Try to parse various date formats
+    if (dateStr.includes('/')) {
+        // MM/DD/YYYY format
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+            return new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+        }
+    } else if (dateStr.includes('-')) {
+        // YYYY-MM-DD format
+        return new Date(dateStr + 'T00:00:00');
+    }
+    
+    return new Date(dateStr);
+}
+
+// Schedule a match function
+function scheduleMatch(matchId) {
+    if (!matchId) {
+        console.error('No match ID provided to scheduleMatch');
+        return;
+    }
+    
+    // Redirect to the match scheduling page
+    window.location.href = `/matches/${matchId}/schedule`;
+}
+
+// Unschedule a match function
+function unscheduleMatch(matchId, description) {
+    if (!matchId) {
+        console.error('No match ID provided to unscheduleMatch');
+        return;
+    }
+    
+    // Show confirmation dialog
+    const confirmed = confirm(`Are you sure you want to unschedule ${description}?`);
+    if (!confirmed) {
+        return;
+    }
+    
+    // Make AJAX request to unschedule the match
+    fetch(`/api/matches/${matchId}/unschedule`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            reason: 'Unscheduled from team view'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            alert(`${description} has been unscheduled successfully.`);
+            // Reload the page to reflect changes
+            window.location.reload();
+        } else {
+            // Show error message
+            alert(`Error unscheduling match: ${data.error || 'Unknown error'}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error unscheduling match:', error);
+        alert('Error unscheduling match. Please try again.');
+    });
+}
 </script>
 {% endblock %}
