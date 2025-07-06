@@ -5,16 +5,7 @@
 {% block extra_css %}
 <!-- Page-specific styles that build on shared styles -->
 <style>
-.team-row {
-    transition: all 0.2s ease;
-}
-
-.team-row:hover {
-    background-color: var(--tennis-hover-bg, rgba(45, 90, 135, 0.05));
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
+/* Enhanced card styling for mobile cards */
 .enhanced-card {
     transition: all 0.2s ease;
 }
@@ -24,11 +15,14 @@
     transform: translateY(-2px);
 }
 
+/* Filter section styling */
 .filter-section {
     background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     border-radius: 0.5rem;
     border: 1px solid rgba(0,0,0,0.1);
 }
+
+/* Table hover effects are handled by tennis-table class in shared_styles.html */
 </style>
 {% endblock %}
 
@@ -254,7 +248,7 @@
                 </thead>
                 <tbody>
                     {% for enhanced_team in teams %}
-                    <tr class="team-row" data-team-id="{{ enhanced_team.team.id }}">
+                    <tr data-team-id="{{ enhanced_team.team.id }}">
                         <td class="text-center">
                             <span class="badge bg-secondary">{{ enhanced_team.team.id }}</span>
                         </td>
@@ -305,9 +299,7 @@
                                                 {{ enhanced_team.facility_name }}
                                             </a>
                                         </div>
-                                        <div class="small text-muted">
-                                            <i class="fas fa-link"></i> View details
-                                        </div>
+                    
                                         {% else %}
                                         <div class="fw-bold">{{ enhanced_team.facility_name }}</div>
                                         <div class="small text-warning">
@@ -330,29 +322,32 @@
                             </div>
                         </td>
                         <td class="text-center">
-                            <div class="action-cell">
-                                <div class="btn-group" role="group">
-                                    <a href="{{ url_for('edit_team', team_id=enhanced_team.team.id) }}" 
-                                       class="btn btn-sm btn-outline-warning" 
-                                       title="Edit team information">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="{{ url_for('view_team', team_id=enhanced_team.team.id) }}" 
-                                       class="btn btn-sm btn-outline-info" 
-                                       title="View team details">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <button class="btn btn-sm btn-outline-secondary" 
-                                            onclick="TeamsManager.exportSingleTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')"
-                                            title="Export this team">
-                                        <i class="fas fa-download"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger" 
-                                            onclick="TeamsManager.deleteTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')"
-                                            title="Delete team">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
+                            <div class="action-buttons">
+                                <a href="{{ url_for('edit_team', team_id=enhanced_team.team.id) }}" 
+                                   class="action-btn action-btn-edit" 
+                                   title="Edit team information">
+                                    <i class="fas fa-edit"></i>
+                                    <span>Edit</span>
+                                </a>
+                                <a href="{{ url_for('view_team', team_id=enhanced_team.team.id) }}" 
+                                   class="action-btn action-btn-view" 
+                                   title="View team details">
+                                    <i class="fas fa-eye"></i>
+                                    <span>View</span>
+                                </a>
+                                <button class="action-btn action-btn-unschedule" 
+                                        onclick="TeamsManager.exportSingleTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')"
+                                        title="Export this team">
+                                    <i class="fas fa-download"></i>
+                                    <span>Export</span>
+                                </button>
+                                <button class="action-btn" 
+                                        style="background: linear-gradient(135deg, var(--tennis-danger) 0%, var(--tennis-danger-dark) 100%); color: white;"
+                                        onclick="TeamsManager.deleteTeam({{ enhanced_team.team.id }}, '{{ enhanced_team.team.name }}')"
+                                        title="Delete team">
+                                    <i class="fas fa-trash"></i>
+                                    <span>Delete</span>
+                                </button>
                             </div>
                         </td>
                     </tr>

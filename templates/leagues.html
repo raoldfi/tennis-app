@@ -4,14 +4,7 @@
 
 {% block extra_css %}
 <style>
-    .league-row {
-        transition: background-color 0.2s ease;
-    }
-    
-    .league-row:hover {
-        background-color: rgba(45, 90, 135, 0.05);
-    }
-    
+    /* Table hover effects are handled by tennis-table class in shared_styles.html */
     .league-name-cell {
         cursor: pointer;
     }
@@ -114,7 +107,7 @@
     <div class="card-body p-0">
         {% if leagues %}
         <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle" id="leaguesTable">
+            <table class="table tennis-table mb-0 align-middle" id="leaguesTable">
                 <thead class="table-dark">
                     <tr>
                         <th class="text-center" style="width: 60px;">ID</th>

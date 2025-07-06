@@ -12,6 +12,9 @@
     --tennis-primary: #1B5C7A;
     --tennis-primary-dark: #15455A;
     --tennis-primary-darker: #0E2F3D;
+    --tennis-primary-light: #0e2f3d96;
+    --tennis-primary-lighter: #0e2f3dce;
+    --tennis-primary-hover: #0A222C;
 
     --tennis-secondary: #F4B640;
     --tennis-secondary-dark: #D49F30;
@@ -1173,22 +1176,52 @@
 }
 
 /* ==========================================================================
-   Table Enhancements for League Views
+   Unified Tennis Table Styling
    ========================================================================== */
-.table-hover tbody tr:hover {
-    background-color: rgba(45, 90, 135, 0.05);
+.tennis-table {
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 0;
 }
 
-.table th {
-    border-top: none;
-    border-bottom: 2px solid var(--tennis-gray-200);
+.tennis-table thead th {
+    background: var(--tennis-primary);
+    color: white;
     font-weight: 600;
-    color: var(--tennis-gray-700);
-    background-color: var(--tennis-gray-100);
+    border-bottom: none;
+    border-top: none;
+    padding: 1rem 0.75rem;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.table td {
+/* ==========================================================================
+   Standard Tennis Table Row Definition
+   
+   Standard row styling with hover effect using 3 shades darker primary color.
+   All tennis tables should use the .tennis-table class for consistent styling.
+   
+   Features:
+   - Smooth transition animation (0.2s ease)
+   - Subtle border separation between rows
+   - Hover state with --tennis-primary-hover (3 shades darker than primary)
+   - Relative positioning for status indicators
+   ========================================================================== */
+.tennis-table tbody tr {
+    transition: all 0.2s ease;
+    border-bottom: 1px solid #e9ecef;
+    position: relative;
+}
+
+.tennis-table tbody tr:hover {
+    background-color: var(--tennis-primary-hover);
+}
+
+.tennis-table tbody td {
     vertical-align: middle;
+    padding: 0.875rem 0.75rem;
     border-bottom: 1px solid var(--tennis-gray-200);
 }
 
@@ -1285,41 +1318,6 @@
     }
 }
     
-.tennis-matches-table {
-    border-radius: 0.5rem;
-    overflow: hidden;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-}
-
-.tennis-matches-table .table {
-    margin-bottom: 0;
-}
-
-.tennis-matches-table thead th {
-    background: linear-gradient(135deg, #2d5a87 0%, #1e3a5f 100%);
-    color: white;
-    font-weight: 600;
-    border-bottom: none;
-    padding: 1rem 0.75rem;
-    font-size: 0.875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.tennis-matches-table tbody tr {
-    transition: all 0.2s ease;
-    border-bottom: 1px solid #e9ecef;
-    position: relative;
-}
-
-.tennis-matches-table tbody tr:hover {
-    background-color: rgba(45, 90, 135, 0.05);
-}
-
-.tennis-matches-table tbody td {
-    vertical-align: middle;
-    padding: 0.875rem 0.75rem;
-}
 
 /* Column-specific styling */
 .day-cell {
@@ -1434,7 +1432,7 @@
 .status-unscheduled { background: var(--tennis-danger); }
 
 @media (max-width: 768px) {
-    .tennis-matches-table { font-size: 0.875rem; }
+    .tennis-table { font-size: 0.875rem; }
     .action-buttons { flex-direction: column; }
     .action-btn { padding: 0.25rem 0.5rem; font-size: 0.7rem; }
 }
@@ -1720,7 +1718,7 @@
 }
 
 .league-row:hover {
-    background-color: rgba(45, 90, 135, 0.05);
+    background-color: rgba(45, 90, 135, 0.565);
 }
 
 /* ==========================================================================

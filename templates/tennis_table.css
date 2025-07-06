@@ -1,0 +1,63 @@
+:root {
+  --court-green: #3b7a57;
+  --tennis-yellow: #fef65b;
+  --net-gray: #d3d3d3;
+  --line-white: #ffffff;
+  --hover-blue: #cde8ff;
+}
+
+table.tennis-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: Arial, sans-serif;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+caption {
+  caption-side: top;
+  padding: 10px;
+  font-size: 1.25em;
+  font-weight: bold;
+  color: var(--court-green);
+}
+
+thead {
+  background-color: var(--court-green);
+  color: var(--line-white);
+}
+
+thead th {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 3px solid var(--tennis-yellow);
+}
+
+tbody {
+  background-color: var(--line-white);
+}
+
+tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+tbody tr:hover {
+  background-color: var(--hover-blue);
+  cursor: pointer;
+}
+
+tbody td {
+  padding: 10px;
+  border-bottom: 1px solid var(--net-gray);
+}
+
+tfoot {
+  background-color: var(--court-green);
+  color: var(--line-white);
+  font-weight: bold;
+}
+
+tfoot td {
+  padding: 10px;
+  border-top: 3px solid var(--tennis-yellow);
+}
+
