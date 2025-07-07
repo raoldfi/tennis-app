@@ -129,6 +129,23 @@ class LeaguesPage {
         }
     }
 
+    clearFilters() {
+        // Clear all filter inputs
+        const searchInput = document.getElementById('searchInput');
+        const yearFilter = document.getElementById('yearFilter');
+        const divisionFilter = document.getElementById('divisionFilter');
+        
+        if (searchInput) searchInput.value = '';
+        if (yearFilter) yearFilter.value = '';
+        if (divisionFilter) divisionFilter.value = '';
+        
+        // Reapply filters to show all rows
+        this.applyFilters();
+        
+        // Focus on search input for user convenience
+        if (searchInput) searchInput.focus();
+    }
+
     // ==================== TABLE INTERACTIONS ====================
 
     initializeTableInteractions() {
@@ -213,6 +230,89 @@ class LeaguesPage {
         console.log('Downloading example YAML');
         TennisUI.showNotification('Download example functionality not yet implemented', 'info');
     }
+
+    // ==================== MATCH GENERATION ====================
+
+    async generateMatches(leagueId, leagueName) {
+        const confirmed = await TennisUI.showConfirmDialog(
+            'Generate Matches',
+            `Generate matches for league "${leagueName}"? This will create all scheduled matches for teams in this league.`,
+            'Generate Matches',
+            'btn-tennis-secondary'
+        );
+
+        if (!confirmed) return;
+
+        try {
+            TennisUI.showNotification('Generating matches...', 'info');
+            
+            const result = await TennisUI.apiCall(`/api/leagues/${leagueId}/generate-matches`, {
+                method: 'POST'
+            });
+
+            TennisUI.showNotification(result.message || 'Matches generated successfully!', 'success');
+            
+            // Reload page to reflect updated match counts
+            setTimeout(() => window.location.reload(), 1000);
+            
+        } catch (error) {
+            TennisUI.showNotification(
+                error.message || 'Failed to generate matches. Please try again.',
+                'danger'
+            );
+        }
+    }
+
+    async bulkGenerateMatches() {
+        const confirmed = await TennisUI.showConfirmDialog(
+            'Bulk Generate Matches',
+            'Generate matches for all eligible leagues? This will create matches for leagues that have at least 2 teams and no existing matches.',
+            'Generate All Matches',
+            'btn-tennis-secondary'
+        );
+
+        if (!confirmed) return;
+
+        try {
+            TennisUI.showNotification('Starting bulk match generation...', 'info');
+            
+            const result = await TennisUI.apiCall('/api/leagues/bulk-generate-matches', {
+                method: 'POST'
+            });
+
+            // Show detailed results
+            let message = result.message;
+            if (result.results && result.results.length > 0) {
+                const successful = result.results.filter(r => r.status === 'success');
+                const failed = result.results.filter(r => r.status === 'failed');
+                
+                if (successful.length > 0) {
+                    message += '\n\nSuccessful:';
+                    successful.forEach(r => {
+                        message += `\n• ${r.league_name}: ${r.matches_count} matches`;
+                    });
+                }
+                
+                if (failed.length > 0) {
+                    message += '\n\nFailed:';
+                    failed.forEach(r => {
+                        message += `\n• ${r.league_name}: ${r.error}`;
+                    });
+                }
+            }
+
+            TennisUI.showNotification(message, result.success_count > 0 ? 'success' : 'warning');
+            
+            // Reload page to reflect updated match counts
+            setTimeout(() => window.location.reload(), 2000);
+            
+        } catch (error) {
+            TennisUI.showNotification(
+                error.message || 'Failed to generate matches. Please try again.',
+                'danger'
+            );
+        }
+    }
 }
 
 // Initialize on DOM ready
@@ -222,3 +322,47 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Make LeaguesPage available globally
 window.LeaguesPage = LeaguesPage;
+
+// ==================== GLOBAL TENNISLEAGUES CLASS ====================
+// This class provides static methods that are called directly from the template
+
+class TennisLeagues {
+    static async generateMatches(leagueId, leagueName) {
+        if (window.leaguesPage) {
+            return await window.leaguesPage.generateMatches(leagueId, leagueName);
+        } else {
+            console.error('LeaguesPage not initialized');
+            TennisUI.showNotification('Page not properly initialized', 'danger');
+        }
+    }
+
+    static async bulkGenerateMatches() {
+        if (window.leaguesPage) {
+            return await window.leaguesPage.bulkGenerateMatches();
+        } else {
+            console.error('LeaguesPage not initialized');
+            TennisUI.showNotification('Page not properly initialized', 'danger');
+        }
+    }
+
+    static async deleteLeague(leagueId, leagueName) {
+        if (window.leaguesPage) {
+            return await window.leaguesPage.deleteLeague(leagueId, leagueName);
+        } else {
+            console.error('LeaguesPage not initialized');
+            TennisUI.showNotification('Page not properly initialized', 'danger');
+        }
+    }
+
+    static clearFilters() {
+        if (window.leaguesPage) {
+            return window.leaguesPage.clearFilters();
+        } else {
+            console.error('LeaguesPage not initialized');
+            TennisUI.showNotification('Page not properly initialized', 'danger');
+        }
+    }
+}
+
+// Make TennisLeagues available globally for template onclick handlers
+window.TennisLeagues = TennisLeagues;

@@ -12,6 +12,10 @@
             <p class="tennis-subtitle">Manage team rosters and league assignments</p>
         </div>
         <div class="d-flex gap-2">
+            <!-- Import/Export Button -->
+            <button class="btn-tennis-outline" onclick="TennisImportExport.showModal('Import/Export Data')" title="Import or export team data">
+                <i class="fas fa-exchange-alt"></i> Import/Export
+            </button>
             <a href="{{ url_for('add_team') }}" class="btn-tennis-primary">
                 <i class="fas fa-plus"></i> Add Team
             </a>

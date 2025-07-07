@@ -40,6 +40,56 @@ thead th:hover {
   background-color: var(--tennis-primary-dark);
 }
 
+/* Sortable Column Styles */
+thead th.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-right: 35px; /* Extra space for sort icon */
+}
+
+thead th.sortable:hover {
+  background-color: var(--tennis-primary-dark);
+}
+
+thead th.sortable::after {
+  content: "\f0dc"; /* FontAwesome sort icon */
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.5;
+  font-size: 0.8em;
+  transition: opacity 0.2s ease;
+}
+
+thead th.sortable:hover::after {
+  opacity: 0.8;
+}
+
+thead th.sortable.sort-asc::after {
+  content: "\f0de"; /* FontAwesome sort-up icon */
+  opacity: 1;
+  color: var(--tennis-secondary);
+}
+
+thead th.sortable.sort-desc::after {
+  content: "\f0dd"; /* FontAwesome sort-down icon */
+  opacity: 1;
+  color: var(--tennis-secondary);
+}
+
+/* Active sorting indication */
+thead th.sortable.sort-active {
+  background-color: var(--tennis-primary-dark);
+}
+
+thead th.sortable.sort-active::after {
+  opacity: 1;
+}
+
 /* Improved Body Styles */
 tbody tr {
   transition: all 0.2s ease;

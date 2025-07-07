@@ -14,6 +14,7 @@ class TennisUI {
         this.initializeTooltips();
         this.initializeSearchTables();
         this.initializeScheduledMatchesTable(); 
+        this.initializeSortableTables();
         this.loadStyles();
     }
 
@@ -53,6 +54,153 @@ class TennisUI {
             input.addEventListener('input', (e) => {
                 this.filterTable(table, e.target.value);
             });
+        });
+    }
+
+    static initializeSortableTables() {
+        // Add sortable functionality to tennis tables
+        document.querySelectorAll('.tennis-table').forEach(table => {
+            this.makeSortable(table);
+        });
+    }
+
+    static makeSortable(table) {
+        const headers = table.querySelectorAll('thead th:not(.no-sort)');
+        
+        headers.forEach((header, index) => {
+            // Don't make actions columns sortable by default
+            if (header.textContent.toLowerCase().includes('action')) {
+                return;
+            }
+            
+            header.classList.add('sortable');
+            header.style.cursor = 'pointer';
+            header.title = `Click to sort by ${header.textContent.trim()}`;
+            
+            header.addEventListener('click', () => {
+                this.sortTable(table, index, header);
+            });
+        });
+    }
+
+    static sortTable(table, columnIndex, header) {
+        const tbody = table.querySelector('tbody');
+        if (!tbody) return;
+
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        if (rows.length <= 1) return;
+
+        // Determine sort direction
+        const isAscending = !header.classList.contains('sort-asc');
+        
+        // Clear all other sort indicators
+        table.querySelectorAll('th.sortable').forEach(th => {
+            th.classList.remove('sort-asc', 'sort-desc', 'sort-active');
+        });
+        
+        // Set current sort indicator
+        header.classList.add('sort-active');
+        header.classList.add(isAscending ? 'sort-asc' : 'sort-desc');
+
+        // Sort rows
+        const sortedRows = rows.sort((a, b) => {
+            const aCell = a.cells[columnIndex];
+            const bCell = b.cells[columnIndex];
+            
+            if (!aCell || !bCell) return 0;
+            
+            let aValue = this.extractSortValue(aCell);
+            let bValue = this.extractSortValue(bCell);
+            
+            // Handle different data types
+            const comparison = this.compareValues(aValue, bValue);
+            return isAscending ? comparison : -comparison;
+        });
+
+        // Clear tbody and append sorted rows
+        tbody.innerHTML = '';
+        sortedRows.forEach(row => tbody.appendChild(row));
+
+        // Update row styling (maintain alternating colors)
+        this.updateRowStyling(tbody);
+    }
+
+    static extractSortValue(cell) {
+        // Priority order for extracting sort values:
+        // 1. data-sort attribute
+        // 2. first link text
+        // 3. first badge text
+        // 4. visible text content
+        
+        const dataSortValue = cell.getAttribute('data-sort');
+        if (dataSortValue !== null) {
+            return dataSortValue;
+        }
+        
+        // Check for links (team names, facility names, etc.)
+        const link = cell.querySelector('a');
+        if (link) {
+            return link.textContent.trim();
+        }
+        
+        // Check for badges (IDs, statuses, etc.)
+        const badge = cell.querySelector('.badge, .tennis-badge');
+        if (badge) {
+            return badge.textContent.trim();
+        }
+        
+        // Check for specific patterns
+        const textContent = cell.textContent.trim();
+        
+        // Check for dates (MM/DD/YYYY format)
+        const dateMatch = textContent.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (dateMatch) {
+            // Convert to sortable format: YYYY-MM-DD
+            const [, month, day, year] = dateMatch;
+            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+        
+        // Check for times (like "10:00 AM")
+        const timeMatch = textContent.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        if (timeMatch) {
+            const [, hour, minute, period] = timeMatch;
+            let hour24 = parseInt(hour);
+            if (period.toUpperCase() === 'PM' && hour24 !== 12) hour24 += 12;
+            if (period.toUpperCase() === 'AM' && hour24 === 12) hour24 = 0;
+            return `${hour24.toString().padStart(2, '0')}:${minute}`;
+        }
+        
+        return textContent;
+    }
+
+    static compareValues(a, b) {
+        // Handle empty values
+        if (!a && !b) return 0;
+        if (!a) return 1;
+        if (!b) return -1;
+        
+        // Try numeric comparison first
+        const numA = parseFloat(a);
+        const numB = parseFloat(b);
+        
+        if (!isNaN(numA) && !isNaN(numB)) {
+            return numA - numB;
+        }
+        
+        // Fall back to string comparison
+        return a.toString().toLowerCase().localeCompare(b.toString().toLowerCase());
+    }
+
+    static updateRowStyling(tbody) {
+        // Ensure alternating row colors are maintained after sorting
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach((row, index) => {
+            row.classList.remove('odd', 'even');
+            if (index % 2 === 0) {
+                row.classList.add('even');
+            } else {
+                row.classList.add('odd');
+            }
         });
     }
     
@@ -1169,11 +1317,705 @@ class TennisForms {
 // ==================== IMPORT/EXPORT MANAGEMENT ====================
 
 class TennisImportExport {
+    static currentData = null;
+    static currentAnalysis = null;
+
     /**
-     * Show import/export modal
+     * Show comprehensive import/export modal
      */
-    static showModal(title = 'Import/Export Data') {
-        TennisUI.showNotification('Import/Export functionality not yet implemented', 'info');
+    static showModal(title = 'Smart Import/Export') {
+        this.createImportExportModal(title);
+    }
+
+    /**
+     * Create the main import/export modal
+     */
+    static createImportExportModal(title) {
+        const modalId = 'tennis-import-export-modal';
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) existingModal.remove();
+
+        const modalHTML = `
+            <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-exchange-alt"></i> ${title}
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <!-- Tab Navigation -->
+                            <ul class="nav nav-tabs mb-4" id="importExportTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="import-tab" data-bs-toggle="tab" data-bs-target="#import-panel" type="button">
+                                        <i class="fas fa-upload"></i> Import Data
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="export-tab" data-bs-toggle="tab" data-bs-target="#export-panel" type="button">
+                                        <i class="fas fa-download"></i> Export Data
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="examples-tab" data-bs-toggle="tab" data-bs-target="#examples-panel" type="button">
+                                        <i class="fas fa-file-code"></i> Examples
+                                    </button>
+                                </li>
+                            </ul>
+
+                            <!-- Tab Content -->
+                            <div class="tab-content" id="importExportTabContent">
+                                ${this.createImportPanel()}
+                                ${this.createExportPanel()}
+                                ${this.createExamplesPanel()}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        const modal = new bootstrap.Modal(document.getElementById(modalId));
+
+        // Initialize event listeners
+        this.initializeEventListeners(modalId);
+        
+        modal.show();
+
+        // Clean up on hide
+        modal._element.addEventListener('hidden.bs.modal', () => {
+            document.getElementById(modalId).remove();
+        });
+
+        // Load component info
+        this.loadComponentInfo();
+    }
+
+    /**
+     * Create import panel HTML
+     */
+    static createImportPanel() {
+        return `
+            <div class="tab-pane fade show active" id="import-panel" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="tennis-card">
+                            <div class="tennis-card-header">
+                                <h6 class="m-0"><i class="fas fa-upload"></i> Upload File</h6>
+                            </div>
+                            <div class="tennis-card-body">
+                                <form id="import-form" enctype="multipart/form-data">
+                                    <div class="mb-3">
+                                        <label for="import-file" class="form-label">
+                                            Choose YAML File <span class="required">*</span>
+                                        </label>
+                                        <input type="file" class="form-control" id="import-file" name="file" accept=".yaml,.yml" required>
+                                        <div class="form-text">
+                                            <i class="fas fa-info-circle"></i> 
+                                            Upload any YAML file - the system automatically detects components
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="skip-existing" name="skip_existing" checked>
+                                            <label class="form-check-label" for="skip-existing">
+                                                Skip existing items (recommended)
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="validate-only" name="validate_only">
+                                            <label class="form-check-label" for="validate-only">
+                                                Validate only (preview without importing)
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="d-grid gap-2">
+                                        <button type="button" class="btn btn-tennis-info" id="analyze-file-btn" disabled>
+                                            <i class="fas fa-search"></i> Analyze File
+                                        </button>
+                                        <button type="button" class="btn btn-tennis-success" id="import-data-btn" disabled>
+                                            <i class="fas fa-upload"></i> Import Data
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="tennis-card">
+                            <div class="tennis-card-header">
+                                <h6 class="m-0"><i class="fas fa-info-circle"></i> File Analysis</h6>
+                            </div>
+                            <div class="tennis-card-body">
+                                <div id="file-analysis" class="text-center text-muted">
+                                    <i class="fas fa-file-upload fa-3x mb-3"></i>
+                                    <p>Upload a file to see its contents analysis</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="import-results" class="mt-4" style="display: none;">
+                    <div class="tennis-card">
+                        <div class="tennis-card-header">
+                            <h6 class="m-0"><i class="fas fa-chart-bar"></i> Import Results</h6>
+                        </div>
+                        <div class="tennis-card-body" id="import-results-content">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Create export panel HTML
+     */
+    static createExportPanel() {
+        return `
+            <div class="tab-pane fade" id="export-panel" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="tennis-card">
+                            <div class="tennis-card-header">
+                                <h6 class="m-0"><i class="fas fa-database"></i> Complete Database Export</h6>
+                            </div>
+                            <div class="tennis-card-body">
+                                <p class="tennis-form-text mb-3">Export your entire tennis database</p>
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-tennis-secondary" onclick="TennisImportExport.exportComplete('yaml')">
+                                        <i class="fas fa-file-code"></i> Export as YAML
+                                    </button>
+                                    <button type="button" class="btn btn-tennis-outline" onclick="TennisImportExport.exportComplete('json')">
+                                        <i class="fas fa-file-export"></i> Export as JSON
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="tennis-card">
+                            <div class="tennis-card-header">
+                                <h6 class="m-0"><i class="fas fa-filter"></i> Selective Export</h6>
+                            </div>
+                            <div class="tennis-card-body">
+                                <form id="export-form">
+                                    <div class="mb-3">
+                                        <label class="form-label">Select Components:</label>
+                                        <div id="component-checkboxes">
+                                            <!-- Populated by loadComponentInfo -->
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Format:</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="export_format" value="yaml" id="export-yaml" checked>
+                                            <label class="form-check-label" for="export-yaml">YAML</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="export_format" value="json" id="export-json">
+                                            <label class="form-check-label" for="export-json">JSON</label>
+                                        </div>
+                                    </div>
+                                    
+                                    <button type="button" class="btn btn-tennis-primary w-100" onclick="TennisImportExport.exportSelected()">
+                                        <i class="fas fa-download"></i> Export Selected
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="tennis-card">
+                            <div class="tennis-card-header">
+                                <h6 class="m-0"><i class="fas fa-chart-pie"></i> Current Database Contents</h6>
+                            </div>
+                            <div class="tennis-card-body">
+                                <div id="component-info-display" class="row">
+                                    <!-- Populated by loadComponentInfo -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Create examples panel HTML
+     */
+    static createExamplesPanel() {
+        return `
+            <div class="tab-pane fade" id="examples-panel" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="tennis-card">
+                            <div class="tennis-card-header">
+                                <h6 class="m-0"><i class="fas fa-download"></i> Example Files</h6>
+                            </div>
+                            <div class="tennis-card-body">
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-tennis-outline" onclick="TennisImportExport.downloadExample('complete')">
+                                        <i class="fas fa-database"></i> Complete Database Example
+                                    </button>
+                                    <button type="button" class="btn btn-tennis-outline" onclick="TennisImportExport.downloadExample('mixed')">
+                                        <i class="fas fa-puzzle-piece"></i> Mixed Components Example
+                                    </button>
+                                    <hr>
+                                    <button type="button" class="btn btn-tennis-outline" onclick="TennisImportExport.downloadExample('leagues')">
+                                        <i class="fas fa-trophy"></i> Leagues Only
+                                    </button>
+                                    <button type="button" class="btn btn-tennis-outline" onclick="TennisImportExport.downloadExample('facilities')">
+                                        <i class="fas fa-building"></i> Facilities Only
+                                    </button>
+                                    <button type="button" class="btn btn-tennis-outline" onclick="TennisImportExport.downloadExample('teams')">
+                                        <i class="fas fa-users"></i> Teams Only
+                                    </button>
+                                    <button type="button" class="btn btn-tennis-outline" onclick="TennisImportExport.downloadExample('matches')">
+                                        <i class="fas fa-calendar"></i> Matches Only
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="tennis-card">
+                            <div class="tennis-card-header">
+                                <h6 class="m-0"><i class="fas fa-info-circle"></i> Import Tips</h6>
+                            </div>
+                            <div class="tennis-card-body">
+                                <ul class="list-unstyled">
+                                    <li class="mb-2">
+                                        <i class="fas fa-check text-success"></i>
+                                        Files can contain any combination of components
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-check text-success"></i>
+                                        System automatically detects what's in your file
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-check text-success"></i>
+                                        Use "Skip existing" to avoid duplicates
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-check text-success"></i>
+                                        Use "Validate only" to preview before importing
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-check text-success"></i>
+                                        Download examples to see proper format
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Initialize event listeners
+     */
+    static initializeEventListeners(modalId) {
+        const modal = document.getElementById(modalId);
+        
+        // File upload change
+        const fileInput = modal.querySelector('#import-file');
+        const analyzeBtn = modal.querySelector('#analyze-file-btn');
+        const importBtn = modal.querySelector('#import-data-btn');
+        
+        fileInput.addEventListener('change', () => {
+            const hasFile = fileInput.files.length > 0;
+            analyzeBtn.disabled = !hasFile;
+            importBtn.disabled = true;
+            
+            if (hasFile) {
+                document.getElementById('file-analysis').innerHTML = `
+                    <div class="text-center">
+                        <i class="fas fa-file-alt fa-2x text-primary mb-2"></i>
+                        <p class="mb-1"><strong>${fileInput.files[0].name}</strong></p>
+                        <p class="text-muted">Ready to analyze</p>
+                    </div>
+                `;
+            }
+        });
+        
+        // Analyze button
+        analyzeBtn.addEventListener('click', () => this.analyzeFile());
+        
+        // Import button
+        importBtn.addEventListener('click', () => this.importData());
+    }
+
+    /**
+     * Analyze uploaded file
+     */
+    static async analyzeFile() {
+        const fileInput = document.getElementById('import-file');
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        const analyzeBtn = document.getElementById('analyze-file-btn');
+        const importBtn = document.getElementById('import-data-btn');
+        
+        TennisUI.setButtonLoading(analyzeBtn, true, 'Analyzing...');
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const result = await TennisUI.apiCall('/api/import-export/analyze', {
+                method: 'POST',
+                body: formData
+            });
+
+            this.currentAnalysis = result.analysis;
+            this.displayAnalysis(result);
+            importBtn.disabled = !result.analysis.is_valid;
+
+        } catch (error) {
+            TennisUI.showNotification(error.message || 'Failed to analyze file', 'danger');
+            this.displayAnalysisError(error.message);
+        } finally {
+            TennisUI.setButtonLoading(analyzeBtn, false);
+        }
+    }
+
+    /**
+     * Display file analysis results
+     */
+    static displayAnalysis(result) {
+        const { analysis, filename, file_size } = result;
+        
+        let html = `
+            <div class="text-start">
+                <h6 class="text-primary mb-3">
+                    <i class="fas fa-file-alt"></i> ${filename}
+                    <small class="text-muted">(${Math.round(file_size / 1024)} KB)</small>
+                </h6>
+        `;
+        
+        if (analysis.is_valid) {
+            html += `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> Valid YAML file with ${analysis.total_items} items
+                </div>
+                
+                <h6>Components Found:</h6>
+                <div class="mb-3">
+            `;
+            
+            for (const [component, count] of Object.entries(analysis.component_counts)) {
+                if (count > 0) {
+                    const info = window.ComponentInfo?.COMPONENTS[component] || { icon: 'fas fa-circle', display_name: component };
+                    html += `
+                        <span class="badge bg-${info.color || 'primary'} me-2 mb-1">
+                            <i class="${info.icon}"></i> ${info.display_name}: ${count}
+                        </span>
+                    `;
+                }
+            }
+            
+            html += '</div>';
+            
+            if (analysis.has_metadata) {
+                html += `
+                    <h6>Metadata:</h6>
+                    <ul class="list-unstyled small">
+                `;
+                for (const [key, value] of Object.entries(analysis.metadata)) {
+                    html += `<li><strong>${key}:</strong> ${value}</li>`;
+                }
+                html += '</ul>';
+            }
+        } else {
+            html += `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> ${analysis.error || 'Invalid file format'}
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+        document.getElementById('file-analysis').innerHTML = html;
+    }
+
+    /**
+     * Display analysis error
+     */
+    static displayAnalysisError(error) {
+        document.getElementById('file-analysis').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i> 
+                <strong>Analysis Failed:</strong> ${error}
+            </div>
+        `;
+    }
+
+    /**
+     * Import data from analyzed file
+     */
+    static async importData() {
+        const fileInput = document.getElementById('import-file');
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        const importBtn = document.getElementById('import-data-btn');
+        const skipExisting = document.getElementById('skip-existing').checked;
+        const validateOnly = document.getElementById('validate-only').checked;
+        
+        TennisUI.setButtonLoading(importBtn, true, validateOnly ? 'Validating...' : 'Importing...');
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('skip_existing', skipExisting);
+            formData.append('validate_only', validateOnly);
+
+            const result = await TennisUI.apiCall('/api/import-export/import', {
+                method: 'POST',
+                body: formData
+            });
+
+            this.displayImportResults(result);
+            
+            if (!validateOnly && result.success) {
+                TennisUI.showNotification(
+                    `Successfully imported ${result.total_imported} items!`, 
+                    'success',
+                    5000,
+                    { showRefresh: true }
+                );
+            }
+
+        } catch (error) {
+            TennisUI.showNotification(error.message || 'Import failed', 'danger');
+        } finally {
+            TennisUI.setButtonLoading(importBtn, false);
+        }
+    }
+
+    /**
+     * Display import results
+     */
+    static displayImportResults(result) {
+        const { stats, summary, validate_only } = result;
+        
+        let html = `
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h5 class="text-primary">${stats.summary?.total_processed || 0}</h5>
+                        <small>Processed</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h5 class="text-success">${stats.summary?.total_imported || 0}</h5>
+                        <small>${validate_only ? 'Would Import' : 'Imported'}</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h5 class="text-warning">${stats.summary?.total_skipped || 0}</h5>
+                        <small>Skipped</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h5 class="text-danger">${stats.summary?.total_errors || 0}</h5>
+                        <small>Errors</small>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        if (validate_only) {
+            html += '<div class="alert alert-info"><i class="fas fa-info-circle"></i> Validation complete - no data was imported</div>';
+        }
+        
+        // Component details
+        html += '<h6>Component Details:</h6><div class="row">';
+        
+        for (const [component, componentStats] of Object.entries(stats)) {
+            if (component === 'summary') continue;
+            
+            const info = window.ComponentInfo?.COMPONENTS[component];
+            if (!info || !componentStats.had_data) continue;
+            
+            html += `
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6><i class="${info.icon}"></i> ${info.display_name}</h6>
+                            <div class="d-flex justify-content-between">
+                                <span>Processed: ${componentStats.processed}</span>
+                                <span class="text-success">Success: ${componentStats.success_rate.toFixed(1)}%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+        
+        document.getElementById('import-results-content').innerHTML = html;
+        document.getElementById('import-results').style.display = 'block';
+    }
+
+    /**
+     * Export complete database
+     */
+    static async exportComplete(format = 'yaml') {
+        const button = event?.target;
+        if (button) TennisUI.setButtonLoading(button, true, 'Exporting...');
+
+        try {
+            const response = await fetch(`/api/import-export/export?format=${format}`);
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Export failed');
+            }
+            
+            const blob = await response.blob();
+            const filename = response.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || `tennis_database.${format}`;
+            
+            TennisUI.downloadFile(blob, filename);
+            TennisUI.showNotification(`Database exported successfully as ${filename}`, 'success');
+            
+        } catch (error) {
+            TennisUI.showNotification(error.message || 'Export failed', 'danger');
+        } finally {
+            if (button) TennisUI.setButtonLoading(button, false);
+        }
+    }
+
+    /**
+     * Export selected components
+     */
+    static async exportSelected() {
+        const form = document.getElementById('export-form');
+        const formData = new FormData(form);
+        const format = formData.get('export_format') || 'yaml';
+        
+        const selectedComponents = [];
+        document.querySelectorAll('#component-checkboxes input:checked').forEach(checkbox => {
+            selectedComponents.push(checkbox.value);
+        });
+        
+        if (selectedComponents.length === 0) {
+            TennisUI.showNotification('Please select at least one component to export', 'warning');
+            return;
+        }
+
+        try {
+            const url = `/api/import-export/export?format=${format}&${selectedComponents.map(c => `components=${c}`).join('&')}`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Export failed');
+            }
+            
+            const blob = await response.blob();
+            const filename = response.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || `tennis_export.${format}`;
+            
+            TennisUI.downloadFile(blob, filename);
+            TennisUI.showNotification(`Selected components exported as ${filename}`, 'success');
+            
+        } catch (error) {
+            TennisUI.showNotification(error.message || 'Export failed', 'danger');
+        }
+    }
+
+    /**
+     * Download example file
+     */
+    static async downloadExample(type) {
+        try {
+            const response = await fetch(`/api/import-export/examples/${type}`);
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to generate example');
+            }
+            
+            const blob = await response.blob();
+            const filename = response.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || `example_${type}.yaml`;
+            
+            TennisUI.downloadFile(blob, filename);
+            TennisUI.showNotification(`Example file ${filename} downloaded`, 'success');
+            
+        } catch (error) {
+            TennisUI.showNotification(error.message || 'Failed to download example', 'danger');
+        }
+    }
+
+    /**
+     * Load component information
+     */
+    static async loadComponentInfo() {
+        try {
+            const result = await TennisUI.apiCall('/api/import-export/components');
+            this.displayComponentInfo(result.components);
+        } catch (error) {
+            console.error('Failed to load component info:', error);
+        }
+    }
+
+    /**
+     * Display component information
+     */
+    static displayComponentInfo(components) {
+        // Update checkboxes
+        let checkboxHtml = '';
+        for (const [component, info] of Object.entries(components)) {
+            checkboxHtml += `
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="${component}" id="export-${component}">
+                    <label class="form-check-label" for="export-${component}">
+                        <i class="${info.icon}"></i> ${info.display_name} (${info.current_count})
+                    </label>
+                </div>
+            `;
+        }
+        const checkboxContainer = document.getElementById('component-checkboxes');
+        if (checkboxContainer) checkboxContainer.innerHTML = checkboxHtml;
+        
+        // Update info display
+        let infoHtml = '';
+        for (const [component, info] of Object.entries(components)) {
+            infoHtml += `
+                <div class="col-md-3 mb-3">
+                    <div class="text-center">
+                        <div class="stat-icon mb-2">
+                            <i class="${info.icon} text-${info.color}"></i>
+                        </div>
+                        <h5>${info.current_count}</h5>
+                        <small>${info.display_name}</small>
+                    </div>
+                </div>
+            `;
+        }
+        const infoContainer = document.getElementById('component-info-display');
+        if (infoContainer) infoContainer.innerHTML = infoHtml;
     }
 }
 
