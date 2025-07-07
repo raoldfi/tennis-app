@@ -1,0 +1,251 @@
+/* Tennis Navbar Component */
+
+.tennis-navbar {
+  background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
+  padding: var(--spacing-md) 0;
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.tennis-navbar-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+.tennis-navbar-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1;
+  margin-left: var(--spacing-lg);
+}
+
+/* Brand */
+.tennis-navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  text-decoration: none;
+  color: var(--tennis-white);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-large);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.tennis-navbar-brand:hover {
+  transform: scale(1.02);
+  color: var(--tennis-white);
+  text-decoration: none;
+}
+
+.tennis-logo {
+  height: 32px;
+  width: auto;
+  margin-right: var(--spacing-xs);
+}
+
+.tennis-brand-text {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.tennis-brand-text i {
+  color: var(--tennis-secondary);
+  font-size: 1.5rem;
+}
+
+/* Navigation Menu */
+.tennis-nav-menu {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.tennis-nav-item {
+  position: relative;
+}
+
+.tennis-nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  color: var(--tennis-white);
+  text-decoration: none;
+  border-radius: var(--border-radius);
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.tennis-nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--tennis-secondary);
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.tennis-nav-link i {
+  font-size: 1rem;
+  color: var(--tennis-secondary);
+}
+
+/* Secondary Navigation */
+.tennis-nav-secondary {
+  display: flex;
+  align-items: center;
+}
+
+.tennis-db-indicator {
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--border-radius);
+}
+
+.tennis-db-indicator:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.tennis-db-name {
+  font-family: var(--font-monospace);
+  font-size: var(--font-size-small);
+  opacity: 0.9;
+}
+
+/* Dropdown Menus */
+.tennis-dropdown-menu {
+  background-color: var(--tennis-white);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-lg);
+  list-style: none;
+  margin: 0;
+  padding: var(--spacing-xs) 0;
+  min-width: 200px;
+}
+
+.tennis-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  color: var(--tennis-text-primary);
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.tennis-dropdown-item:hover {
+  background-color: var(--tennis-gray-light);
+  color: var(--tennis-primary);
+  text-decoration: none;
+}
+
+.tennis-dropdown-item i {
+  color: var(--tennis-primary);
+  width: 16px;
+  text-align: center;
+}
+
+/* Mobile Navigation Toggle */
+.tennis-navbar-toggle {
+  display: none;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: var(--tennis-white);
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tennis-navbar-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Active States */
+.tennis-nav-link.active {
+  background-color: var(--tennis-secondary);
+  color: var(--tennis-primary-dark);
+}
+
+.tennis-nav-link.active i {
+  color: var(--tennis-primary-dark);
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+  .tennis-navbar-toggle {
+    display: block;
+  }
+  
+  .tennis-navbar-content {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    margin-left: 0;
+    margin-top: var(--spacing-md);
+  }
+  
+  .tennis-navbar-content.show {
+    display: flex;
+  }
+  
+  .tennis-nav-menu {
+    flex-direction: column;
+    width: 100%;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .tennis-nav-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .tennis-nav-link {
+    width: 100%;
+    justify-content: flex-start;
+    padding: var(--spacing-md);
+  }
+  
+  .tennis-navbar-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .tennis-navbar-brand {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 576px) {
+  .tennis-navbar {
+    padding: var(--spacing-sm) 0;
+  }
+  
+  .tennis-navbar-brand {
+    font-size: 1rem;
+  }
+  
+  .tennis-logo {
+    height: 24px;
+  }
+  
+  .tennis-brand-text span {
+    display: none;
+  }
+  
+  .tennis-nav-link {
+    font-size: var(--font-size-small);
+  }
+}

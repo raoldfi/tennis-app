@@ -1,0 +1,36 @@
+/* Button Styles */
+
+.button {
+  padding: 0.5rem 1rem;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.button-primary {
+  background-color: var(--court-green);
+  color: white;
+}
+
+.button-primary:hover {
+  background-color: #2d5f45;
+}
+
+.button-warning {
+  background-color: var(--tennis-yellow);
+  color: #222;
+}
+
+.button-warning:hover {
+  background-color: #e7e246;
+}
+.button-secondary {
+  background-color: var(--tennis-gray);
+  color: var(--tennis-dark);
+}
+.button-danger {
+  background-color: var(--tennis-orange);
+  color: white;
+}

@@ -87,6 +87,7 @@ def register_routes(app, get_db):
             search_query = request.args.get("search_query", "").strip()
             show_scheduled = request.args.get("show_scheduled", "1") == "1"
             show_unscheduled = request.args.get("show_unscheduled", "1") == "1"
+            view_type = request.args.get("view_type", "table")  # NEW: view toggle parameter
 
             # Get filter objects
             league = db.get_league(league_id) if league_id else None
@@ -133,13 +134,8 @@ def register_routes(app, get_db):
                 if match.date is None:
                     return (1, "")  # Put None dates last
 
-                # Convert date to string for consistent comparison
-                if hasattr(match.date, "strftime"):
-                    date_str = match.date.strftime("%Y-%m-%d")
-                else:
-                    date_str = str(match.date)
-
-                return (0, date_str)
+                # match.date is already a string in YYYY-MM-DD format
+                return (0, match.date)
 
             matches_display = sorted(filtered_matches, key=sort_key)
 
@@ -203,6 +199,7 @@ def register_routes(app, get_db):
                 show_unscheduled=show_unscheduled,
                 quality_stats=quality_stats,
                 quality_description=quality_description,  # Add quality description
+                view_type=view_type,  # NEW: view toggle parameter
             )
 
         except Exception as e:
@@ -309,7 +306,7 @@ def register_routes(app, get_db):
 
             # Update match
             match.facility = facility
-            match.date = match_date
+            match.date = date_str  # Store as string in YYYY-MM-DD format
             match.scheduled_times = times
 
             # Save to database
@@ -926,13 +923,8 @@ def register_routes(app, get_db):
             if match.date is None:
                 return (1, "")  # Put None dates last
 
-            # Convert date to string for consistent comparison
-            if hasattr(match.date, "strftime"):
-                date_str = match.date.strftime("%Y-%m-%d")
-            else:
-                date_str = str(match.date)
-
-            return (0, date_str)
+            # match.date is already a string in YYYY-MM-DD format
+            return (0, match.date)
 
         sorted_matches = sorted(matches, key=sort_key)
 
@@ -988,10 +980,29 @@ def register_routes(app, get_db):
             return 0
         return scheduled_times.count(target_time)
 
+    def format_date(date_value, format_string='%Y-%m-%d'):
+        """Format a date string or datetime object using strftime"""
+        if not date_value:
+            return "TBD"
+        
+        if isinstance(date_value, str):
+            try:
+                # Parse string date to datetime object
+                date_obj = datetime.strptime(date_value, "%Y-%m-%d")
+                return date_obj.strftime(format_string)
+            except ValueError:
+                return date_value  # Return as-is if parsing fails
+        elif hasattr(date_value, 'strftime'):
+            # Already a datetime/date object
+            return date_value.strftime(format_string)
+        else:
+            return str(date_value)
+
     # Register the filter
     app.jinja_env.filters["compact_times"] = format_times_compact
     app.jinja_env.filters["unique"] = unique_filter
     app.jinja_env.filters["count_lines_at_time"] = count_lines_at_time
+    app.jinja_env.filters["format_date"] = format_date
 
     # Register filters with the Flask app
     app.jinja_env.filters["format_weekday"] = format_weekday

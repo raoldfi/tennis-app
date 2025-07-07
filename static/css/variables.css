@@ -1,0 +1,64 @@
+/* Color Variables */
+:root {
+    /* Primary Tennis Brand Colors */
+    --tennis-primary: #3b7a57;          /* Main tennis court green */
+    --tennis-primary-light: #3b7a576a;  /* Light green with transparency */
+    --tennis-primary-dark: #214732;     /* Dark green */
+    
+    --tennis-secondary: #fef65b;        /* Tennis ball yellow */
+    --tennis-secondary-light: #fef65b7d;/* Light yellow with transparency */
+    --tennis-secondary-dark: #aca63d;   /* Dark yellow */
+    
+    /* Neutral Colors */
+    --tennis-white: #ffffff;
+    --tennis-gray: #d3d3d3;
+    --tennis-gray-light: #f0f0f0;
+    --tennis-gray-dark: #515151;
+    
+    /* Semantic Colors */
+    --tennis-success: #28a745;          /* Green for success states */
+    --tennis-warning: #ffc107;          /* Yellow for warning states */
+    --tennis-danger: #dc3545;           /* Red for danger/error states */
+    --tennis-info: #17a2b8;             /* Blue for info states */
+    
+    /* Text Colors */
+    --tennis-text-primary: var(--tennis-primary-dark);
+    --tennis-text-secondary: var(--tennis-gray-dark);
+    --tennis-text-muted: #6c757d;
+
+    /* Font Variables */
+    --font-basic: 'Arial', sans-serif;
+    --font-heading: 'Helvetica', sans-serif;
+    --font-monospace: 'Courier New', monospace;
+    --font-size-base: 16px;
+    --font-size-large: 1.25rem;
+    --font-size-small: 0.875rem;
+    --font-weight-normal: 400;
+    --font-weight-bold: 700;
+    --line-height-base: 1.5;
+
+    /* Spacing Variables */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-xxl: 3rem;
+    --spacing-xxxl: 4rem;
+
+    /* Border Variables */
+    --border-radius: 0.25rem;
+    --border-color: #ced4da;
+    --border-width: 1px;
+    --border-style: solid;
+    --border-hover-color: #adb5bd;
+    --border-active-color: #6c757d;
+
+    /* Shadow Variables */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+    --shadow-focus: 0 0 0 3px rgba(59, 122, 87, 0.5);
+
+}

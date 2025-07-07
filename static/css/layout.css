@@ -1,0 +1,238 @@
+/* Tennis Layout System */
+
+/* Container */
+.tennis-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md);
+}
+
+/* Main Content */
+.tennis-main-content {
+  min-height: calc(100vh - 120px);
+  padding: var(--spacing-lg) 0;
+  background-color: var(--tennis-gray-light);
+}
+
+/* Flexbox Utilities */
+.d-flex {
+  display: flex;
+}
+
+.justify-content-between {
+  justify-content: space-between;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+.align-items-start {
+  align-items: flex-start;
+}
+
+.justify-content-center {
+  justify-content: center;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.gap-1 {
+  gap: var(--spacing-xs);
+}
+
+.gap-2 {
+  gap: var(--spacing-sm);
+}
+
+.gap-3 {
+  gap: var(--spacing-md);
+}
+
+/* Grid System */
+.tennis-grid {
+  display: grid;
+  gap: var(--spacing-md);
+}
+
+.tennis-grid-2 {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.tennis-grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.tennis-grid-4 {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.tennis-grid-5 {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.tennis-grid-6 {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.tennis-grid-1 {
+  grid-template-columns: 1fr;
+}
+
+/* Spacing Utilities */
+.mb-1 { margin-bottom: var(--spacing-xs); }
+.mb-2 { margin-bottom: var(--spacing-sm); }
+.mb-3 { margin-bottom: var(--spacing-md); }
+.mb-4 { margin-bottom: var(--spacing-lg); }
+.mb-5 { margin-bottom: var(--spacing-xl); }
+
+.mt-1 { margin-top: var(--spacing-xs); }
+.mt-2 { margin-top: var(--spacing-sm); }
+.mt-3 { margin-top: var(--spacing-md); }
+.mt-4 { margin-top: var(--spacing-lg); }
+.mt-5 { margin-top: var(--spacing-xl); }
+
+.p-1 { padding: var(--spacing-xs); }
+.p-2 { padding: var(--spacing-sm); }
+.p-3 { padding: var(--spacing-md); }
+.p-4 { padding: var(--spacing-lg); }
+.p-5 { padding: var(--spacing-xl); }
+
+/* Flash Messages */
+.tennis-flash-messages {
+  margin: var(--spacing-lg) 0;
+}
+
+.tennis-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin-bottom: var(--spacing-sm);
+  border-radius: var(--border-radius);
+  border: 1px solid transparent;
+  position: relative;
+  animation: slideInDown 0.3s ease;
+}
+
+.tennis-alert-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.tennis-alert-icon {
+  font-size: 1.2rem;
+}
+
+.tennis-alert-message {
+  font-weight: 500;
+}
+
+.tennis-alert-close {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--border-radius);
+  transition: background-color 0.2s ease;
+}
+
+.tennis-alert-close:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Alert Variants */
+.tennis-alert-success {
+  background-color: #d4edda;
+  border-color: var(--tennis-success);
+  color: #0a3622;
+}
+
+.tennis-alert-danger {
+  background-color: #f8d7da;
+  border-color: var(--tennis-danger);
+  color: #721c24;
+}
+
+.tennis-alert-info {
+  background-color: #d1ecf1;
+  border-color: var(--tennis-info);
+  color: #0c5460;
+}
+
+/* Footer */
+.tennis-footer {
+  background: linear-gradient(135deg, var(--tennis-primary-dark) 0%, var(--tennis-primary) 100%);
+  color: var(--tennis-white);
+  padding: var(--spacing-xl) 0;
+  margin-top: auto;
+}
+
+.tennis-footer-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  text-align: center;
+}
+
+.tennis-footer-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-large);
+  font-weight: var(--font-weight-bold);
+}
+
+.tennis-footer-brand i {
+  color: var(--tennis-secondary);
+}
+
+.tennis-footer-description {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .tennis-container {
+    padding: 0 var(--spacing-sm);
+  }
+  
+  .tennis-main-content {
+    padding: var(--spacing-md) 0;
+  }
+  
+  .tennis-grid-2,
+  .tennis-grid-3,
+  .tennis-grid-4,
+  .tennis-grid-5,
+  .tennis-grid-6 {
+    grid-template-columns: 1fr;
+  }
+  
+  .tennis-alert {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+  }
+  
+  .tennis-alert-close {
+    align-self: flex-end;
+  }
+}
+
+/* Animations */
+@keyframes slideInDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

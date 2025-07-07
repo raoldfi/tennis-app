@@ -1,0 +1,43 @@
+/* Base styles */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* HTML and Body Styles */
+html {
+    font-family: var(--font-basic);
+    font-size: var(--font-size-base); /* Base font size */
+    scroll-behavior: smooth; /* Smooth scrolling */
+    background-color: var(--tennis-light); /* Light background color */
+    color: var(--tennis-dark); /* Dark text color */     
+    line-height: var(--line-height-base); /* Base line height */
+    font-weight: var(--font-weight-normal); /* Normal font weight */
+}
+html,
+html body {
+    min-height: 100%; /* Minimum full height for html and body */
+    position: relative; /* Relative positioning for body */
+    background-color: var(--tennis-light); /* Light background color */
+    color: var(--tennis-dark); /* Dark text color */
+    line-height: var(--line-height-base); /* Base line height */
+    font-weight: var(--font-weight-normal); /* Normal font weight */
+    font-family: var(--font-basic); /* Basic font family */
+}
+body {
+    margin: 0; /* Remove default margin */
+    padding: 0; /* Remove default padding */
+    font-family: var(--font-basic); /* Basic font family */
+    font-size: var(--font-size-base); /* Base font size */
+    line-height: var(--line-height-base); /* Base line height */
+    color: var(--tennis-dark); /* Dark text color */
+    background-color: var(--tennis-light); /* Light background color */
+}
+
+img {
+    max-width: 100%; /* Responsive images */
+    height: auto; /* Maintain aspect ratio */
+    display: block; /* Block display for images */
+}

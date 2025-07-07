@@ -1,0 +1,178 @@
+/* Typography Hierarchy */
+
+/* Heading Styles */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  color: var(--tennis-green);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.2;
+  margin-bottom: var(--spacing-md);
+  margin-top: 0;
+}
+
+h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-lg);
+}
+
+h2 {
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-md);
+}
+
+h3 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-md);
+}
+
+h4 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+}
+
+h5 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+}
+
+h6 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Body Text */
+p {
+  margin-bottom: var(--spacing-md);
+  font-size: 1rem;
+  line-height: var(--line-height-base);
+  color: var(--tennis-dark);
+}
+
+/* Link Styles */
+a {
+  color: var(--tennis-green);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--tennis-dark-green);
+  text-decoration: underline;
+}
+
+a:focus {
+  outline: 2px solid var(--tennis-green);
+  outline-offset: 2px;
+}
+
+/* Text Utilities */
+.text-large {
+  font-size: var(--font-size-large);
+}
+
+.text-small {
+  font-size: var(--font-size-small);
+}
+
+.text-muted {
+  color: var(--tennis-dark-gray);
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-bold {
+  font-weight: var(--font-weight-bold);
+}
+
+.text-normal {
+  font-weight: var(--font-weight-normal);
+}
+
+/* Special Tennis-themed Typography */
+.tennis-page-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--tennis-green);
+  margin-bottom: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.tennis-subtitle {
+  font-size: 1.125rem;
+  color: var(--tennis-dark-gray);
+  margin-bottom: var(--spacing-lg);
+}
+
+.tennis-section-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--tennis-green);
+  margin-bottom: var(--spacing-md);
+  border-bottom: 2px solid var(--tennis-yellow);
+  padding-bottom: var(--spacing-xs);
+}
+
+/* List Styles */
+ul, ol {
+  margin-bottom: var(--spacing-md);
+  padding-left: var(--spacing-lg);
+}
+
+li {
+  margin-bottom: var(--spacing-xs);
+  line-height: var(--line-height-base);
+}
+
+/* Code and Monospace */
+code, pre {
+  font-family: var(--font-monospace);
+  background-color: var(--tennis-light-gray);
+  padding: var(--spacing-xs);
+  border-radius: var(--border-radius);
+}
+
+pre {
+  padding: var(--spacing-md);
+  overflow-x: auto;
+  margin-bottom: var(--spacing-md);
+}
+
+/* Responsive Typography */
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2rem;
+  }
+  
+  h2 {
+    font-size: 1.75rem;
+  }
+  
+  h3 {
+    font-size: 1.5rem;
+  }
+  
+  .tennis-page-title {
+    font-size: 2rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+}

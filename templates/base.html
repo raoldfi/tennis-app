@@ -10,105 +10,141 @@
     
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
-    <!-- Standardized Tennis App Styles -->
-    {% include 'shared_styles.html' %}
-    
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/typography.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/buttons.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/animations.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/card.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/modal.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/navbar.css') }}">
+
+    <!-- Tennis UI Design System -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tennis-ui.css') }}">
     <!-- Page-specific styles -->
     {% block extra_css %}{% endblock %}
 </head>
-<body class="bg-white">
+<body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg tennis-navbar">
-        <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
-                <img src="{{ url_for('static', filename='ameo-analytics-logo.png') }}" alt="Ameo Analytics" height="56" class="me-3">
-                <span><i class="fas fa-tennis-ball text-tennis-primary"></i> Tennis Scheduler</span>
-            </a>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                {% if db_path %}
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('dashboard') }}">
-                            <i class="fas fa-tachometer-alt text-tennis-primary"></i> Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('facilities') }}">
-                            <i class="fas fa-building text-tennis-primary"></i> Facilities
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('leagues') }}">
-                            <i class="fas fa-trophy text-tennis-primary"></i> Leagues
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('teams') }}">
-                            <i class="fas fa-users text-tennis-primary"></i> Teams
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('matches') }}">
-                            <i class="fas fa-calendar-alt text-tennis-primary"></i> Matches
-                        </a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-cogs text-tennis-primary"></i> More
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('constants') }}">
-                                <i class="fas fa-list-alt"></i> USTA Constants
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('stats') }}">
-                                <i class="fas fa-chart-bar"></i> Statistics
-                            </a></li>
-                        </ul>
-                    </li>
-                </ul>
+    <nav class="tennis-navbar">
+        <div class="tennis-container">
+            <div class="tennis-navbar-wrapper">
+                <a class="tennis-navbar-brand" href="{{ url_for('index') }}">
+                    <img src="{{ url_for('static', filename='ameo-analytics-logo.png') }}" alt="Ameo Analytics" class="tennis-logo">
+                    <span class="tennis-brand-text">
+                        <i class="fas fa-tennis-ball"></i> Tennis Scheduler
+                    </span>
+                </a>
                 
-                <ul class="navbar-nav">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-database"></i> {{ db_path.split('/')[-1] if '/' in db_path else db_path }}
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('disconnect') }}">
-                                <i class="fas fa-unlink"></i> Disconnect
-                            </a></li>
-                        </ul>
-                    </li>
-                </ul>
+                <button class="tennis-navbar-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#tennisNavContent">
+                    <i class="fas fa-bars"></i>
+                </button>
+                
+                {% if db_path %}
+                <div class="tennis-navbar-content" id="tennisNavContent">
+                    <ul class="tennis-nav-menu">
+                        <li class="tennis-nav-item">
+                            <a class="tennis-nav-link" href="{{ url_for('dashboard') }}">
+                                <i class="fas fa-tachometer-alt"></i> 
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="tennis-nav-item">
+                            <a class="tennis-nav-link" href="{{ url_for('facilities') }}">
+                                <i class="fas fa-building"></i> 
+                                <span>Facilities</span>
+                            </a>
+                        </li>
+                        <li class="tennis-nav-item">
+                            <a class="tennis-nav-link" href="{{ url_for('leagues') }}">
+                                <i class="fas fa-trophy"></i> 
+                                <span>Leagues</span>
+                            </a>
+                        </li>
+                        <li class="tennis-nav-item">
+                            <a class="tennis-nav-link" href="{{ url_for('teams') }}">
+                                <i class="fas fa-users"></i> 
+                                <span>Teams</span>
+                            </a>
+                        </li>
+                        <li class="tennis-nav-item">
+                            <a class="tennis-nav-link" href="{{ url_for('matches') }}">
+                                <i class="fas fa-calendar-alt"></i> 
+                                <span>Matches</span>
+                            </a>
+                        </li>
+                        <li class="tennis-nav-item dropdown">
+                            <a class="tennis-nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-cogs"></i> 
+                                <span>More</span>
+                            </a>
+                            <ul class="dropdown-menu tennis-dropdown-menu">
+                                <li><a class="dropdown-item tennis-dropdown-item" href="{{ url_for('constants') }}">
+                                    <i class="fas fa-list-alt"></i> USTA Constants
+                                </a></li>
+                                <li><a class="dropdown-item tennis-dropdown-item" href="{{ url_for('stats') }}">
+                                    <i class="fas fa-chart-bar"></i> Statistics
+                                </a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                    
+                    <div class="tennis-nav-secondary">
+                        <div class="tennis-nav-item dropdown">
+                            <a class="tennis-nav-link tennis-db-indicator" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-database"></i> 
+                                <span class="tennis-db-name">{{ db_path.split('/')[-1] if '/' in db_path else db_path }}</span>
+                            </a>
+                            <ul class="dropdown-menu tennis-dropdown-menu">
+                                <li><a class="dropdown-item tennis-dropdown-item" href="{{ url_for('disconnect') }}">
+                                    <i class="fas fa-unlink"></i> Disconnect
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
                 {% endif %}
             </div>
         </div>
     </nav>
 
     <!-- Flash Messages -->
-    <div class="container mt-3">
+    <div class="tennis-container">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'info' }} alert-dismissible fade show" role="alert">
-                        <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' }}"></i>
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
+                <div class="tennis-flash-messages">
+                    {% for category, message in messages %}
+                        <div class="tennis-alert tennis-alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'info' }}">
+                            <div class="tennis-alert-content">
+                                <i class="tennis-alert-icon fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' }}"></i>
+                                <span class="tennis-alert-message">{{ message }}</span>
+                            </div>
+                            <button type="button" class="tennis-alert-close" data-bs-dismiss="alert" aria-label="Close">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    {% endfor %}
+                </div>
             {% endif %}
         {% endwith %}
     </div>
 
+    <!-- Global Page Separator -->
+    {% if db_path %}
+    <div class="tennis-page-separator"></div>
+    {% endif %}
+
     <!-- Main Content -->
-    <div class="container mt-4">
-        {% block content %}{% endblock %}
-    </div>
+    <main class="tennis-main-content">
+        <div class="tennis-container">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
 
     <!-- Page-specific Modals Block -->
     {% block modals %}
@@ -116,9 +152,17 @@
     {% endblock %}
 
     <!-- Footer -->
-    <footer class="bg-light mt-5 py-4 border-top">
-        <div class="container text-center">
-            <small>Tennis Database Management System - Matches generated automatically with interface-based architecture</small>
+    <footer class="tennis-footer">
+        <div class="tennis-container">
+            <div class="tennis-footer-content">
+                <div class="tennis-footer-brand">
+                    <i class="fas fa-tennis-ball"></i>
+                    <span>Tennis Database Management System</span>
+                </div>
+                <div class="tennis-footer-description">
+                    <small>Matches generated automatically with interface-based architecture</small>
+                </div>
+            </div>
         </div>
     </footer>
 
@@ -127,13 +171,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
     
     <!-- Shared Tennis UI JavaScript -->
-    {% include 'shared_scripts.html' %}
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     
     <!-- Initialize Tennis UI System -->
     <script>
-        // Initialize the Tennis UI system when DOM is ready
+        // Additional initialization after main.js loads
         document.addEventListener('DOMContentLoaded', function() {
-            TennisUI.init();
+            // Handle navbar toggle
+            const navbarToggle = document.querySelector('.tennis-navbar-toggle');
+            const navbarContent = document.querySelector('.tennis-navbar-content');
+            
+            if (navbarToggle && navbarContent) {
+                navbarToggle.addEventListener('click', function() {
+                    navbarContent.classList.toggle('show');
+                });
+            }
             
             // Initialize any page-specific functionality
             {% block init_js %}{% endblock %}

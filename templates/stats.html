@@ -302,79 +302,18 @@
 
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script src="{{ url_for('static', filename='js/pages/stats.js') }}"></script>
 <script>
-// Create distribution pie chart
+// Initialize stats page with data from template
 document.addEventListener('DOMContentLoaded', function() {
-    const ctx = document.getElementById('distributionChart').getContext('2d');
+    const statsData = {
+        facilities_count: {{ stats.facilities_count }},
+        leagues_count: {{ stats.leagues_count }},
+        teams_count: {{ stats.teams_count }},
+        matches_count: {{ stats.matches_count }}
+    };
     
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Facilities', 'Leagues', 'Teams', 'Matches'],
-            datasets: [{
-                data: [
-                    {{ stats.facilities_count }},
-                    {{ stats.leagues_count }},
-                    {{ stats.teams_count }},
-                    {{ stats.matches_count }}
-                ],
-                backgroundColor: [
-                    '#0d6efd',  // Blue
-                    '#198754',  // Green
-                    '#0dcaf0',  // Cyan
-                    '#ffc107'   // Yellow
-                ],
-                borderWidth: 2,
-                borderColor: '#fff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        boxWidth: 12,
-                        font: {
-                            size: 11
-                        }
-                    }
-                }
-            }
-        }
-    });
-    
-    // Update last updated time
-    document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
-});
-
-// Add auto-refresh option (commented out by default)
-// setInterval(() => {
-//     if (!document.hidden) {
-//         window.location.reload();
-//     }
-// }, 300000); // Refresh every 5 minutes
-
-// Make table sortable
-document.querySelectorAll('th').forEach(header => {
-    if (header.textContent.trim() && !header.textContent.includes('League')) {
-        header.style.cursor = 'pointer';
-        header.addEventListener('click', () => {
-            const table = header.closest('table');
-            const tbody = table.querySelector('tbody');
-            const rows = Array.from(tbody.rows);
-            const index = Array.from(header.parentNode.children).indexOf(header);
-            
-            rows.sort((a, b) => {
-                const aText = a.cells[index].textContent.trim();
-                const bText = b.cells[index].textContent.trim();
-                return aText.localeCompare(bText, undefined, {numeric: true});
-            });
-            
-            rows.forEach(row => tbody.appendChild(row));
-        });
-    }
+    window.statsPage = new StatsPage(statsData);
 });
 </script>
 {% endblock %}

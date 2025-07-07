@@ -1,0 +1,262 @@
+/* Tennis Card Component System */
+
+/* Base Card Styles */
+.tennis-card {
+  background-color: var(--tennis-white);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: var(--spacing-md);
+}
+
+.tennis-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--tennis-primary-light);
+}
+
+/* Card Header */
+.tennis-card-header {
+  padding: var(--spacing-lg);
+  background: linear-gradient(135deg, var(--tennis-gray-light) 0%, var(--tennis-white) 100%);
+  border-bottom: 1px solid var(--border-color);
+  position: relative;
+}
+
+.tennis-card-header h1,
+.tennis-card-header h2,
+.tennis-card-header h3,
+.tennis-card-header h4,
+.tennis-card-header h5,
+.tennis-card-header h6 {
+  margin: 0;
+  color: var(--tennis-primary);
+  font-weight: var(--font-weight-bold);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.tennis-card-header .badge {
+  margin-left: auto;
+}
+
+/* Card Body */
+.tennis-card-body {
+  padding: var(--spacing-lg);
+}
+
+.card-body {
+  padding: var(--spacing-lg);
+}
+
+.tennis-card-content {
+  font-size: var(--font-size-base);
+  color: var(--tennis-text-primary);
+  line-height: var(--line-height-base);
+  margin-bottom: 0;
+}
+
+/* Card Footer */
+.tennis-card-footer {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: var(--tennis-gray-light);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+/* Card Variants */
+.tennis-card.card-primary {
+  border-color: var(--tennis-primary);
+}
+
+.tennis-card.card-primary .tennis-card-header {
+  background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
+  color: var(--tennis-white);
+}
+
+.tennis-card.card-primary .tennis-card-header h1,
+.tennis-card.card-primary .tennis-card-header h2,
+.tennis-card.card-primary .tennis-card-header h3,
+.tennis-card.card-primary .tennis-card-header h4,
+.tennis-card.card-primary .tennis-card-header h5,
+.tennis-card.card-primary .tennis-card-header h6 {
+  color: var(--tennis-white);
+}
+
+.tennis-card.card-success {
+  border-color: var(--tennis-success);
+}
+
+.tennis-card.card-warning {
+  border-color: var(--tennis-warning);
+}
+
+.tennis-card.card-danger {
+  border-color: var(--tennis-danger);
+}
+
+.tennis-card.card-info {
+  border-color: var(--tennis-info);
+}
+
+/* Stat Cards */
+.stat-card {
+  background: linear-gradient(135deg, var(--tennis-white) 0%, var(--tennis-gray-light) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-lg);
+  text-align: center;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--tennis-primary) 0%, var(--tennis-secondary) 100%);
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--tennis-primary);
+}
+
+.stat-card .stat-icon {
+  font-size: 2.5rem;
+  margin-bottom: var(--spacing-sm);
+  color: var(--tennis-primary);
+}
+
+.stat-card .stat-value {
+  font-size: 2rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--tennis-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.stat-card .stat-label {
+  font-size: var(--font-size-small);
+  color: var(--tennis-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Compact Cards */
+.tennis-card.card-compact {
+  padding: var(--spacing-sm);
+}
+
+.tennis-card.card-compact .tennis-card-header {
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.tennis-card.card-compact .tennis-card-body {
+  padding: var(--spacing-md);
+}
+
+/* Interactive Cards */
+.tennis-card.card-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.tennis-card.card-clickable:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
+
+.tennis-card.card-clickable:active {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Card Groups */
+.tennis-card-group {
+  display: grid;
+  gap: var(--spacing-md);
+}
+
+.tennis-card-group.grid-2 {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.tennis-card-group.grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.tennis-card-group.grid-4 {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .tennis-card {
+    margin-bottom: var(--spacing-sm);
+  }
+  
+  .tennis-card-header,
+  .tennis-card-body,
+  .card-body {
+    padding: var(--spacing-md);
+  }
+  
+  .tennis-card-footer {
+    padding: var(--spacing-sm) var(--spacing-md);
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .tennis-card-group {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+  }
+  
+  .stat-card {
+    padding: var(--spacing-md);
+  }
+  
+  .stat-card .stat-value {
+    font-size: 1.5rem;
+  }
+}
+
+/* Loading State */
+.tennis-card.loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.tennis-card.loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}

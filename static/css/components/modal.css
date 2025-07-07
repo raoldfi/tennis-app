@@ -1,0 +1,124 @@
+/* Tennis App Modal Enhancements - Bootstrap Compatible */
+
+/* Ensure Bootstrap modals have proper z-index hierarchy */
+.modal-backdrop {
+  z-index: 1040 !important;
+}
+
+.modal {
+  z-index: 1050 !important;
+  pointer-events: auto !important;
+}
+
+.modal.show {
+  display: block !important;
+}
+
+.modal-dialog {
+  pointer-events: auto !important;
+}
+
+.modal-content {
+  pointer-events: auto !important;
+}
+
+/* Ensure all interactive elements in modals are clickable */
+.modal button,
+.modal input,
+.modal select,
+.modal textarea,
+.modal label {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 1;
+}
+
+/* Tennis-themed modal content styling */
+.modal-content.tennis-card {
+  border: 2px solid var(--tennis-primary);
+  border-radius: var(--border-radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header.tennis-section-header {
+  background: linear-gradient(135deg, var(--tennis-primary), var(--tennis-secondary));
+  color: white;
+  border-bottom: none;
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+}
+
+.modal-header.tennis-section-header .modal-title {
+  color: white;
+  font-weight: 600;
+}
+
+.modal-header.tennis-section-header .btn-close {
+  filter: invert(1);
+  opacity: 0.8;
+}
+
+.modal-header.tennis-section-header .btn-close:hover {
+  opacity: 1;
+}
+
+.modal-body.tennis-card-body {
+  background-color: var(--bg-light);
+  padding: var(--spacing-lg);
+}
+
+/* Form styling within modals */
+.modal .tennis-form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.modal .tennis-form-label {
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: var(--spacing-xs);
+}
+
+.modal .tennis-status {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius);
+  border-left: 4px solid var(--tennis-primary);
+}
+
+/* Modal footer improvements */
+.modal-footer {
+  background-color: var(--bg-light);
+  border-top: 1px solid var(--border-color);
+  padding: var(--spacing-md) var(--spacing-lg);
+}
+
+.modal-footer .btn {
+  margin-left: var(--spacing-sm);
+}
+
+/* Responsive modal sizing */
+@media (max-width: 768px) {
+  .modal-dialog {
+    margin: var(--spacing-sm);
+    max-width: calc(100vw - (var(--spacing-sm) * 2));
+  }
+  
+  .modal-content.tennis-card {
+    border-radius: var(--border-radius);
+  }
+}
+
+/* Loading states in modals */
+.modal .tennis-spinner {
+  border: 3px solid var(--border-color);
+  border-top: 3px solid var(--tennis-primary);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

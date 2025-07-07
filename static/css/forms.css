@@ -1,0 +1,22 @@
+form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+input, select, textarea {
+  padding: 0.5rem;
+  border: 1px solid var(--net-gray);
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+input:focus, textarea:focus {
+  border-color: var(--court-green);
+  outline: none;
+}
+
+label {
+  font-weight: bold;
+  color: var(--court-green);
+}

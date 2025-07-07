@@ -3,20 +3,23 @@
 {% block title %}Facilities - Tennis Database{% endblock %}
 
 {% block content %}
-<div class="mb-4 d-flex justify-content-between align-items-start">
-    <div>
-        <h1 class="tennis-page-title"><i class="fas fa-building text-tennis-primary"></i> Facilities</h1>
-        <p class="tennis-subtitle">Manage tennis facilities and their schedules</p>
-    </div>
-    <div class="d-flex gap-2 flex-wrap">
-        <!-- Import/Export Buttons -->
-        <button onclick="TennisImportExport.showModal('Import/Export Data')">
-
-            <i class="fas fa-exchange-alt"></i> Import/Export
-        </button>
-        <a href="{{ url_for('add_facility') }}" class="btn btn-tennis-primary">
-            <i class="fas fa-plus"></i> Add Facility
-        </a>
+<div class="tennis-page-header">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1 class="tennis-page-title">
+                <i class="fas fa-building"></i> Facilities
+            </h1>
+            <p class="tennis-subtitle">Manage tennis facilities and their schedules</p>
+        </div>
+        <div class="d-flex gap-2">
+            <!-- Import/Export Buttons -->
+            <button class="btn-tennis-outline" onclick="TennisImportExport.showModal('Import/Export Data')">
+                <i class="fas fa-exchange-alt"></i> Import/Export
+            </button>
+            <a href="{{ url_for('add_facility') }}" class="btn-tennis-primary">
+                <i class="fas fa-plus"></i> Add Facility
+            </a>
+        </div>
     </div>
 </div>
 
@@ -27,54 +30,50 @@
 <!-- Facilities List -->
 {% if facilities %}
 <div class="tennis-card">
-    <div class="tennis-card-header d-flex justify-content-between align-items-center">
-        <div class="col-md-8">
-            <h4 class="mb-0">
-                <i class="fas fa-table text-tennis-primary"></i> Facilities Overview
-            </h4>
-        </div>
-        <div class="col-md-4 text-end">
-            <span class="badge tennis-badge-light fs-6">{{ facilities|length }} facilities</span>
-        </div>
+    <div class="tennis-section-header">
+        <h3 class="tennis-section-title">
+            <i class="fas fa-table"></i> Facilities Overview
+        </h3>
+        <div class="tennis-badge tennis-badge-info">{{ facilities|length }} facilities</div>
     </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table tennis-table mb-0 align-middle" id="facilitiesTable">
-                <thead class="tennis-table-header">
+    <div>
+        <div>
+            <table class="tennis-table" id="facilitiesTable">
+                <thead>
                     <tr>
-                        <th class="text-center" style="width: 80px;">ID</th>
-                        <th style="width: 200px;">Facility Name</th>
-                        <th class="text-center" style="width: 180px;">Location</th>
-                        <th class="text-center" style="width: 150px;">Schedule</th>
-                        <th class="text-center" style="width: 140px;">Availability</th>
-                        <th class="text-center" style="width: 120px;">Actions</th>
+                        <th>ID</th>
+                        <th>Facility Name</th>
+                        <th>Location</th>
+                        <th>Schedule</th>
+                        <th>Availability</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for facility in facilities %}
-                    <tr class="facility-row" data-facility-id="{{ facility.id }}">
-                        <td class="text-center">
-                            <span class="badge tennis-badge-secondary">{{ facility.id }}</span>
+                    <tr data-facility-id="{{ facility.id }}">
+                        <td data-label="ID">
+                            {{ facility.id }}
                         </td>
-                        <td>
-                            <div class="facility-info-cell">
-                                <div class="fw-bold text-tennis-dark">{{ facility.get_display_name() }}</div>
+                        <td data-label="Facility Name">
+                            <div>
+                                <div>{{ facility.get_display_name() }}</div>
                                 {% if facility.short_name and facility.short_name != facility.name %}
-                                <div class="small text-tennis-muted">{{ facility.name }}</div>
+                                <div>{{ facility.name }}</div>
                                 {% endif %}
                             </div>
                         </td>
-                        <td class="text-center">
-                            <div class="location-cell">
+                        <td data-label="Location">
+                            <div>
                                 {% if facility.location %}
-                                <span class="badge tennis-badge-info text-wrap">{{ facility.location }}</span>
+                                    {{ facility.location }}
                                 {% else %}
-                                <span class="text-tennis-muted small">Not specified</span>
+                                    Not specified
                                 {% endif %}
                             </div>
                         </td>
-                        <td class="text-center">
-                            <div class="schedule-cell">
+                        <td data-label="Schedule">
+                            <div>
                                 {% set schedule_days = facility.schedule.get_all_days() %}
                                 {% set schedule_days_count = schedule_days|length %}
                                 {% set total_slots = 0 %}
@@ -82,19 +81,19 @@
                                     {% set total_slots = total_slots + day_schedule.start_times|length %}
                                 {% endfor %}
                                 
-                                <div class="fw-bold text-tennis-primary">{{ total_slots }} slots</div>
-                                <div class="small">
+                                <div>{{ total_slots }} slots</div>
+                                <div>
                                     {% if schedule_days_count == 7 %}
-                                        <span class="text-tennis-success">Full Week</span>
+                                         Full Week
                                     {% elif schedule_days_count > 0 %}
-                                        <span class="text-tennis-warning">{{ schedule_days_count }} days</span>
+                                        {{ schedule_days_count }} days
                                     {% else %}
-                                        <span class="text-tennis-danger">No Schedule</span>
+                                        No Schedule
                                     {% endif %}
                                 </div>
                             </div>
                         </td>
-                        <td class="text-center">
+                        <td class="text-center" data-label="Availability">
                             <div class="availability-cell">
 				{% set today = today %}
 
@@ -102,26 +101,26 @@
                                 {% set is_unavailable_today = today in unavailable_dates %}
                                 
                                 {% if is_unavailable_today %}
-                                    <span class="badge tennis-badge-danger">Unavailable</span>
+                                    <span class="tennis-badge tennis-badge-danger">Unavailable</span>
                                 {% elif unavailable_dates|length > 0 %}
-                                    <span class="badge tennis-badge-warning">Restricted</span>
-                                    <div class="small text-tennis-muted">{{ unavailable_dates|length }} blocked dates</div>
+                                    <span class="tennis-badge tennis-badge-warning">Restricted</span>
+                                    <div class="tennis-form-text">{{ unavailable_dates|length }} blocked dates</div>
                                 {% else %}
-                                    <span class="badge tennis-badge-success">Available</span>
+                                    <span class="tennis-badge tennis-badge-success">Available</span>
                                 {% endif %}
                             </div>
                         </td>
-                        <td class="text-center">
-                            <div class="btn-group btn-group-sm" role="group">
+                        <td class="text-center" data-label="Actions">
+                            <div class="d-flex justify-content-center gap-1">
                                 <a href="{{ url_for('view_facility', facility_id=facility.id) }}" 
-                                   class="btn btn-tennis-outline btn-sm" title="View Details">
+                                   class="btn-tennis-outline btn-sm" title="View Details">
                                     <i class="fas fa-eye"></i>
                                 </a>
                                 <a href="{{ url_for('edit_facility', facility_id=facility.id) }}" 
-                                   class="btn btn-tennis-outline btn-sm" title="Edit Facility">
+                                   class="btn-tennis-outline btn-sm" title="Edit Facility">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <button type="button" class="btn btn-tennis-danger btn-sm" 
+                                <button type="button" class="btn-tennis-danger btn-sm" 
                                         onclick="TennisFacilities.deleteFacility({{ facility.id }}, '{{ facility.get_display_name()|e }}')" 
                                         title="Delete Facility">
                                     <i class="fas fa-trash"></i>
@@ -137,78 +136,70 @@
 </div>
 
 <!-- Facility Statistics -->
-<div class="row mt-4">
-    <div class="col-md-3">
-        <div class="stat-card h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-building fa-2x text-tennis-primary mb-2"></i>
-                <h4 class="text-tennis-primary">{{ facilities|length }}</h4>
-                <small class="text-tennis-muted">Total Facilities</small>
-            </div>
+<div class="tennis-grid tennis-grid-4 mt-4">
+    <div class="tennis-card stat-card">
+        <div class="tennis-card-body text-center">
+            <i class="fas fa-building fa-2x text-tennis-primary mb-2"></i>
+            <h4 class="text-tennis-primary">{{ facilities|length }}</h4>
+            <small class="text-tennis-muted">Total Facilities</small>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="stat-card h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-calendar-alt fa-2x text-tennis-success mb-2"></i>
-                <h4 class="text-tennis-primary">
-                    {% set total_slots = 0 %}
-                    {% for facility in facilities %}
-                        {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
-                            {% set total_slots = total_slots + day_schedule.start_times|length %}
-                        {% endfor %}
+    <div class="tennis-card stat-card">
+        <div class="tennis-card-body text-center">
+            <i class="fas fa-calendar-alt fa-2x text-tennis-success mb-2"></i>
+            <h4 class="text-tennis-primary">
+                {% set total_slots = 0 %}
+                {% for facility in facilities %}
+                    {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                        {% set total_slots = total_slots + day_schedule.start_times|length %}
                     {% endfor %}
-                    {{ total_slots }}
-                </h4>
-                <small class="text-tennis-muted">Total Time Slots</small>
-            </div>
+                {% endfor %}
+                {{ total_slots }}
+            </h4>
+            <small class="text-tennis-muted">Total Time Slots</small>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="stat-card h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-check-circle fa-2x text-tennis-success mb-2"></i>
-                <h4 class="text-tennis-primary">
-                    {% set available_count = 0 %}
-                    {% for facility in facilities %}
+    <div class="tennis-card stat-card">
+        <div class="tennis-card-body text-center">
+            <i class="fas fa-check-circle fa-2x text-tennis-success mb-2"></i>
+            <h4 class="text-tennis-primary">
+                {% set available_count = 0 %}
+                {% for facility in facilities %}
 			{% set today = today %}
-                        {% set unavailable_dates = facility.unavailable_dates or [] %}
-                        {% if today not in unavailable_dates %}
-                            {% set available_count = available_count + 1 %}
-                        {% endif %}
-                    {% endfor %}
-                    {{ available_count }}
-                </h4>
-                <small class="text-tennis-muted">Available Today</small>
-            </div>
+                    {% set unavailable_dates = facility.unavailable_dates or [] %}
+                    {% if today not in unavailable_dates %}
+                        {% set available_count = available_count + 1 %}
+                    {% endif %}
+                {% endfor %}
+                {{ available_count }}
+            </h4>
+            <small class="text-tennis-muted">Available Today</small>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="stat-card h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-map-marker-alt fa-2x text-tennis-info mb-2"></i>
-                <h4 class="text-tennis-primary">
-                    {% set locations = [] %}
-                    {% for facility in facilities %}
-                        {% if facility.location and facility.location not in locations %}
-                            {% set _ = locations.append(facility.location) %}
-                        {% endif %}
-                    {% endfor %}
-                    {{ locations|length }}
-                </h4>
-                <small class="text-tennis-muted">Unique Locations</small>
-            </div>
+    <div class="tennis-card stat-card">
+        <div class="tennis-card-body text-center">
+            <i class="fas fa-map-marker-alt fa-2x text-tennis-info mb-2"></i>
+            <h4 class="text-tennis-primary">
+                {% set locations = [] %}
+                {% for facility in facilities %}
+                    {% if facility.location and facility.location not in locations %}
+                        {% set _ = locations.append(facility.location) %}
+                    {% endif %}
+                {% endfor %}
+                {{ locations|length }}
+            </h4>
+            <small class="text-tennis-muted">Unique Locations</small>
         </div>
     </div>
 </div>
 
 {% else %}
 <!-- Empty State -->
-<div class="empty-state">
+<div class="tennis-empty-state">
     <i class="fas fa-building"></i>
     <h5>No facilities found</h5>
     <p>Add your first facility to get started with tennis scheduling.</p>
-    <a href="{{ url_for('add_facility') }}" class="btn btn-tennis-primary mt-2">
+    <a href="{{ url_for('add_facility') }}" class="btn-tennis-primary mt-2">
         <i class="fas fa-plus"></i> Add First Facility
     </a>
 </div>
@@ -217,143 +208,5 @@
 {% endblock %}
 
 {% block scripts %}
-
-<!-- Define ComponentInfo for import/export functionality -->
-<script>
-window.ComponentInfo = {
-    COMPONENTS: {
-        'leagues': {
-            'display_name': 'Leagues',
-            'icon': 'fas fa-trophy',
-            'color': 'warning'
-        },
-        'facilities': {
-            'display_name': 'Facilities',
-            'icon': 'fas fa-building',
-            'color': 'info'
-        },
-        'teams': {
-            'display_name': 'Teams',
-            'icon': 'fas fa-users',
-            'color': 'success'
-        },
-        'matches': {
-            'display_name': 'Matches',
-            'icon': 'fas fa-calendar',
-            'color': 'primary'
-        }
-    }
-};
-</script>
-
-<script>
-
-// ==================== TABLE INTERACTIONS ====================
-
-function setupFacilityTableInteractions() {
-    const table = document.getElementById('facilitiesTable');
-    if (!table) return;
-    
-    // Add sortable headers
-    const headers = table.querySelectorAll('thead th');
-    headers.forEach((header, index) => {
-        // Skip action column
-        if (index === headers.length - 1) return;
-        
-        header.style.cursor = 'pointer';
-        header.style.userSelect = 'none';
-        header.setAttribute('data-sort-column', index);
-        
-        // Add sort icon
-        const sortIcon = document.createElement('i');
-        sortIcon.className = 'fas fa-sort ms-1 opacity-50';
-        header.appendChild(sortIcon);
-        
-        header.addEventListener('click', () => sortFacilityTable(index));
-    });
-    
-    // Add row click handlers for navigation
-    const rows = document.querySelectorAll('.facility-row');
-    rows.forEach(row => {
-        row.addEventListener('click', function(e) {
-            // Don't trigger if clicking on buttons or links
-            if (e.target.matches('button, button *, a, a *')) return;
-            
-            const facilityId = this.getAttribute('data-facility-id');
-            if (facilityId) {
-                // Add visual feedback
-                this.style.backgroundColor = 'var(--tennis-gray-100)';
-                setTimeout(() => {
-                    this.style.backgroundColor = '';
-                }, 200);
-                
-                // Navigate to facility details
-                window.location.href = `/facilities/${facilityId}`;
-            }
-        });
-        
-        // Add hover effect
-        row.addEventListener('mouseenter', function() {
-            this.style.cursor = 'pointer';
-        });
-    });
-}
-
-function sortFacilityTable(columnIndex) {
-    const table = document.getElementById('facilitiesTable');
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-    const header = table.querySelectorAll('thead th')[columnIndex];
-    const sortIcon = header.querySelector('i');
-    
-    // Determine sort direction
-    const currentDirection = header.getAttribute('data-sort-direction') || 'asc';
-    const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
-    
-    // Reset all sort icons
-    table.querySelectorAll('thead th i').forEach(icon => {
-        icon.className = 'fas fa-sort ms-1 opacity-50';
-    });
-    
-    // Update current sort icon
-    sortIcon.className = `fas fa-sort-${newDirection === 'asc' ? 'up' : 'down'} ms-1`;
-    header.setAttribute('data-sort-direction', newDirection);
-    
-    // Sort rows
-    rows.sort((a, b) => {
-        const aValue = a.cells[columnIndex].textContent.trim();
-        const bValue = b.cells[columnIndex].textContent.trim();
-        
-        // Handle numeric sorting for ID column
-        if (columnIndex === 0) {
-            return newDirection === 'asc' 
-                ? parseInt(aValue) - parseInt(bValue)
-                : parseInt(bValue) - parseInt(aValue);
-        }
-        
-        // Handle text sorting
-        const result = aValue.localeCompare(bValue);
-        return newDirection === 'asc' ? result : -result;
-    });
-    
-    // Re-append sorted rows
-    rows.forEach(row => tbody.appendChild(row));
-    
-    TennisUI.showNotification(`Sorted by ${header.textContent.trim()} (${newDirection})`, 'info');
-}
-
-// ==================== INITIALIZATION ====================
-
-// Initialize enhanced styling and interactions
-document.addEventListener('DOMContentLoaded', function() {
-    // Setup table interactions
-    setupFacilityTableInteractions();
-    
-    // Initialize tooltips for action buttons
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-});
-</script>
+<script src="{{ url_for('static', filename='js/pages/facilities.js') }}"></script>
 {% endblock %}

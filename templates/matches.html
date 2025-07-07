@@ -1,1228 +1,445 @@
 {% extends "base.html" %}
 
-{% block title %}Matches - Tennis Database{% endblock %}
+{% block title %}Matches{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Page Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h3 mb-0">
-                        <i class="fas fa-calendar-alt text-tennis-primary"></i> Tennis Matches
-                    </h1>
-                    <p class="text-muted mb-0">View and manage tennis matches</p>
-                </div>
-                <div>
-                    <!-- Bulk Operations Dropdown -->
-                    <div class="dropdown me-2 d-inline-block">
-                        <button class="btn btn-tennis-primary dropdown-toggle" type="button" id="bulkOperationsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-tasks"></i> Bulk Operations
-                        </button>
-                        <ul class="dropdown-menu shadow-tennis" aria-labelledby="bulkOperationsDropdown">
-                            <li><h6 class="dropdown-header"><i class="fas fa-magic"></i> Scheduling Operations</h6></li>
-                            <li><a class="dropdown-item" href="#" onclick="TennisUI.showModal('bulkAutoScheduleModal')">
-                                <i class="fas fa-magic text-warning"></i> Auto-Schedule Matches
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header"><i class="fas fa-calendar-times"></i> Unscheduling Operations</h6></li>
-                            <li><a class="dropdown-item" href="#" onclick="TennisUI.showModal('bulkUnscheduleModal')">
-                                <i class="fas fa-calendar-times text-danger"></i> Unschedule Matches
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header"><i class="fas fa-trash"></i> Delete Operations</h6></li>
-                            <li><a class="dropdown-item" href="#" onclick="TennisUI.showModal('bulkDeleteModal')">
-                                <i class="fas fa-trash text-danger"></i> Delete Matches
-                            </a></li>
-                        </ul>
-                    </div>
-                </div>
+<div class="tennis-page-header">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1 class="tennis-page-title">
+                <i class="fas fa-calendar-alt"></i> Matches
+            </h1>
+            <p class="tennis-subtitle">View and manage tennis matches</p>
+        </div>
+        <div class="d-flex gap-2">
+            <!-- View Toggle -->
+            <div class="btn-group" role="group" aria-label="View Type">
+                <input type="radio" class="btn-check" name="view_type" id="tableView" autocomplete="off" 
+                       {% if view_type != 'schedule' %}checked{% endif %} onchange="toggleView('table')">
+                <label class="btn btn-outline-tennis-primary" for="tableView">
+                    <i class="fas fa-table"></i> Table
+                </label>
+                
+                <input type="radio" class="btn-check" name="view_type" id="scheduleView" autocomplete="off" 
+                       {% if view_type == 'schedule' %}checked{% endif %} onchange="toggleView('schedule')">
+                <label class="btn btn-outline-tennis-primary" for="scheduleView">
+                    <i class="fas fa-calendar-week"></i> Schedule
+                </label>
             </div>
-        </div>
-    </div>
-
-    <!-- Quality Score Summary -->
-    {% if quality_stats and quality_stats.count > 0 %}
-    <div class="tennis-card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
-                <i class="fas fa-chart-line text-tennis-primary"></i> Schedule Quality Index
-            </h5>
-            <span class="badge bg-tennis-primary">{{ quality_stats.count }} scheduled matches</span>
-        </div>
-        <div class="card-body">
-            <div class="row text-center">
-                <div class="col-md-4">
-                    <div class="stat-card">
-                        <div class="stat-value text-tennis-success">{{ quality_stats.average }}</div>
-                        <div class="stat-label">Average Match Schedule Quality</div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="stat-card">
-                        <div class="stat-value text-tennis-info">{{ quality_stats.count }}</div>
-                        <div class="stat-label">Scheduled Matches</div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="stat-card">
-                        <div class="stat-value text-muted">{{ quality_stats.total_matches }}</div>
-                        <div class="stat-label">Total Matches</div>
-                    </div>
-                </div>
-                            <!-- Quality Legend Section -->
-                <div class="mt-3">
-                    <h6 class="mb-2"><i class="fas fa-info-circle"></i> Quality Score Legend</h6>
-                    <div id="legend-placeholder"></div>
-                </div>
+            
+            <div class="dropdown">
+                <button class="btn-tennis-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-cogs"></i> Bulk Operations
+                </button>
+                <ul class="dropdown-menu">
+                    <li><h6 class="dropdown-header">Scheduling</h6></li>
+                    <li><a class="dropdown-item" href="#" onclick="showBulkAutoScheduleModal()">
+                        <i class="fas fa-magic text-tennis-primary"></i> Auto-Schedule Matches
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="showBulkUnscheduleModal()">
+                        <i class="fas fa-calendar-times text-tennis-warning"></i> Unschedule Matches
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><h6 class="dropdown-header">Management</h6></li>
+                    <li><a class="dropdown-item" href="#" onclick="showBulkDeleteModal()">
+                        <i class="fas fa-trash text-tennis-danger"></i> Delete Matches
+                    </a></li>
+                </ul>
             </div>
-
-
-        </div>
-    </div>
-
-    <!-- Inject the legend -->
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            injectQualityLegend("legend-placeholder");
-        });
-    </script>
-    {% endif %}
-
-
-    <!-- Filters Section -->
-    <div class="tennis-card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0"><i class="fas fa-filter"></i> Filters</h5>
-        </div>
-        <div class="card-body">
-            <form method="GET" action="{{ url_for('matches') }}" class="tennis-form">
-                <div class="row g-3">
-                    <!-- League Filter -->
-                    <div class="col-md-2">
-                        <label for="league_id" class="form-label">
-                            <i class="fas fa-trophy"></i> League
-                        </label>
-                        <select class="form-select" id="league_id" name="league_id">
-                            <option value="">All Leagues</option>
-                            {% for league in leagues %}
-                            <option value="{{ league.id }}" 
-                                    {% if selected_league and selected_league.id == league.id %}selected{% endif %}>
-                                {{ league.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-    
-                    <!-- NEW: Facility Filter -->
-                    <div class="col-md-2">
-                        <label for="facility_id" class="form-label">
-                            <i class="fas fa-building"></i> Facility
-                        </label>
-                        <select class="form-select" id="facility_id" name="facility_id">
-                            <option value="">All Facilities</option>
-                            {% for facility in facilities %}
-                            <option value="{{ facility.id }}" 
-                                    {% if selected_facility and selected_facility.id == facility.id %}selected{% endif %}>
-                                {{ facility.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-    
-                    <!-- NEW: Team Filter -->
-                    <div class="col-md-2">
-                        <label for="team_id" class="form-label">
-                            <i class="fas fa-users"></i> Team
-                        </label>
-                        <select class="form-select" id="team_id" name="team_id">
-                            <option value="">All Teams</option>
-                            {% for team in teams %}
-                            <option value="{{ team.id }}" 
-                                    {% if selected_team and selected_team.id == team.id %}selected{% endif %}>
-                                {{ team.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-    
-                    <!-- Match Type Filter -->
-                    <div class="col-md-2">
-                        <label for="match_type" class="form-label">
-                            <i class="fas fa-list"></i> Type
-                        </label>
-                        <select class="form-select" id="match_type" name="match_type">
-                            <option value="all" {% if match_type == 'all' %}selected{% endif %}>
-                                All Matches
-                            </option>
-                            <option value="scheduled" {% if match_type == 'scheduled' %}selected{% endif %}>
-                                Scheduled Only
-                            </option>
-                            <option value="unscheduled" {% if match_type == 'unscheduled' %}selected{% endif %}>
-                                Unscheduled Only
-                            </option>
-                        </select>
-                    </div>
-    
-                    <!-- Date Range Filters -->
-                    <div class="col-md-2">
-                        <label for="start_date" class="form-label">
-                            <i class="fas fa-calendar-plus"></i> Start
-                        </label>
-                        <input type="date" class="form-control" id="start_date" name="start_date" 
-                               value="{{ start_date or '' }}">
-                    </div>
-    
-                    <div class="col-md-2">
-                        <label for="end_date" class="form-label">
-                            <i class="fas fa-calendar-minus"></i> End
-                        </label>
-                        <input type="date" class="form-control" id="end_date" name="end_date" 
-                               value="{{ end_date or '' }}">
-                    </div>
-                </div>
-    
-                <!-- Second row for search and actions -->
-                <div class="row g-3 mt-2">
-                    <div class="col-md-8">
-                        <label for="search_query" class="form-label">
-                            <i class="fas fa-search"></i> Search
-                        </label>
-                        <input type="text" class="form-control" id="search_query" name="search_query" 
-                               value="{{ search_query or '' }}" placeholder="Teams, facilities, match ID...">
-                    </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                        <button type="submit" class="btn btn-tennis-primary me-2">
-                            <i class="fas fa-filter"></i> Apply
-                        </button>
-                        <a href="{{ url_for('matches') }}" class="btn btn-secondary">
-                            <i class="fas fa-times"></i> Clear
-                        </a>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Active Filters Display -->
-    {% if selected_league or selected_facility or selected_team or match_type != 'all' or start_date or end_date or search_query %}
-    <div class="alert alert-tennis-info mb-4">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <i class="fas fa-info-circle"></i>
-                <strong>Active Filters:</strong>
-                {% if selected_league %}
-                <span class="badge bg-primary ms-1">League: {{ selected_league.name }}</span>
-                {% endif %}
-                {% if selected_facility %}
-                <span class="badge bg-success ms-1">Facility: {{ selected_facility.name }}</span>
-                {% endif %}
-                {% if selected_team %}
-                <span class="badge bg-info ms-1">Team: {{ selected_team.name }}</span>
-                {% endif %}
-                {% if match_type != 'all' %}
-                <span class="badge bg-secondary ms-1">Type: {{ match_type.title() }}</span>
-                {% endif %}
-                {% if start_date %}
-                <span class="badge bg-info ms-1">From: {{ start_date }}</span>
-                {% endif %}
-                {% if end_date %}
-                <span class="badge bg-info ms-1">To: {{ end_date }}</span>
-                {% endif %}
-                {% if search_query %}
-                <span class="badge bg-warning ms-1">Search: "{{ search_query }}"</span>
-                {% endif %}
-            </div>
-            <a href="{{ url_for('matches') }}" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-times"></i> Clear All
+            <a href="#" class="btn-tennis-outline">
+                <i class="fas fa-plus"></i> Generate Matches
             </a>
         </div>
     </div>
-    {% endif %}
-
-    <!-- Matches Content -->
-    {% if matches %}
-        {% with matches=matches %}
-            {% include 'components/scheduled_matches_table.html' %}
-        {% endwith %}
-    {% endif %}
-
 </div>
 
-<!-- Bulk Auto-Schedule Modal -->
-<div class="modal fade tennis-modal" id="bulkAutoScheduleModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-magic"></i> Bulk Auto-Schedule Matches
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="bulkAutoScheduleForm" class="tennis-form">
-                    <div class="mb-3">
-                        <label class="form-label">
-                            <i class="fas fa-crosshairs"></i> Scope <span class="required">*</span>
-                        </label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="scope" value="all" id="scopeAll" checked>
-                            <label class="form-check-label" for="scopeAll">
-                                All unscheduled matches
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="scope" value="league" id="scopeLeague">
-                            <label class="form-check-label" for="scopeLeague">
-                                Specific league only
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="scope" value="selected" id="scopeSelected">
-                            <label class="form-check-label" for="scopeSelected">
-                                Currently filtered matches only
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3" id="leagueSelection" style="display: none;">
-                        <label for="bulkLeagueSelect" class="form-label">
-                            <i class="fas fa-trophy"></i> Select League
-                        </label>
-                        <select class="form-select" id="bulkLeagueSelect" name="league_id">
-                            <option value="">Choose a league...</option>
-                            {% for league in leagues %}
-                            <option value="{{ league.id }}">{{ league.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <!-- DRY RUN CHECKBOX -->
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="dry-run-checkbox" 
-                                   name="dry_run" value="true" checked>
-                            <label class="form-check-label" for="dry-run-checkbox">
-                                <i class="fas fa-eye"></i> <strong>Preview Only (Dry Run)</strong>
-                            </label>
-                        </div>
-                        <small class="text-muted">Check to preview changes without actually scheduling matches</small>
-                    </div>
-                    
-                    <div class="alert alert-tennis-info">
-                        <i class="fas fa-info-circle"></i>
-                        <span id="auto-schedule-description">
-                            This will show you which matches can be automatically scheduled without making any changes.
-                        </span>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times"></i> Cancel
-                </button>
-                <button type="button" class="btn btn-primary" id="auto-schedule-modal-btn" onclick="handleBulkAutoSchedule()">
-                    <i class="fas fa-eye"></i> <span id="auto-schedule-modal-text">Preview Auto-Schedule</span>
-                </button>
-            </div>
-        </div>
+<!-- Quality Score Summary -->
+{% if quality_stats and quality_stats.count > 0 %}
+<div class="tennis-card mb-3">
+    <div class="tennis-section-header">
+        <h3 class="tennis-section-title">
+            <i class="fas fa-chart-line"></i> Schedule Quality Index
+        </h3>
+        <div class="tennis-badge tennis-badge-primary">{{ quality_stats.count }} scheduled matches</div>
     </div>
-</div>
-
-<!-- Bulk Unschedule Modal -->
-<div class="modal fade tennis-modal" id="bulkUnscheduleModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-calendar-times"></i> Bulk Unschedule Matches
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="tennis-card-body">
+        <div class="row text-center">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <div class="display-6 fw-bold text-tennis-success">{{ quality_stats.average }}</div>
+                    <div class="small text-tennis-muted">Average Match Quality</div>
+                </div>
             </div>
-            <div class="modal-body">
-                <form id="bulkUnscheduleForm" class="tennis-form">
-                    <div class="mb-3">
-                        <label class="form-label">
-                            <i class="fas fa-crosshairs"></i> Scope <span class="required">*</span>
-                        </label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="scope" value="all" id="unscheduleAll" checked>
-                            <label class="form-check-label" for="unscheduleAll">
-                                All scheduled matches
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="scope" value="league" id="unscheduleLeague">
-                            <label class="form-check-label" for="unscheduleLeague">
-                                Scheduled matches in specific league
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="scope" value="selected" id="unscheduleSelected">
-                            <label class="form-check-label" for="unscheduleSelected">
-                                Currently filtered scheduled matches only
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3" id="unscheduleLeagueSelection" style="display: none;">
-                        <label for="unscheduleBulkLeagueSelect" class="form-label">
-                            <i class="fas fa-trophy"></i> Select League
-                        </label>
-                        <select class="form-select" id="unscheduleBulkLeagueSelect" name="league_id">
-                            <option value="">Choose a league...</option>
-                            {% for league in leagues %}
-                            <option value="{{ league.id }}">{{ league.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="alert alert-tennis-warning">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <strong>Warning:</strong> This will remove scheduling information from selected matches. This action cannot be undone.
-                    </div>
-                </form>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <div class="display-6 fw-bold text-tennis-info">{{ quality_stats.count }}</div>
+                    <div class="small text-tennis-muted">Scheduled Matches</div>
+                </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times"></i> Cancel
-                </button>
-                <button type="button" class="btn btn-tennis-warning" onclick="handleBulkUnschedule()">
-                    <i class="fas fa-calendar-times"></i> Unschedule Matches
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Bulk Delete Modal -->
-<div class="modal fade tennis-modal" id="bulkDeleteModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-trash"></i> Bulk Delete Matches
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="bulkDeleteForm" class="tennis-form">
-                    <div class="mb-3">
-                        <label class="form-label">
-                            <i class="fas fa-crosshairs"></i> Scope <span class="required">*</span>
-                        </label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="scope" value="unscheduled" id="deleteUnscheduled" checked>
-                            <label class="form-check-label" for="deleteUnscheduled">
-                                All unscheduled matches only
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="scope" value="league" id="deleteLeague">
-                            <label class="form-check-label" for="deleteLeague">
-                                Unscheduled matches in specific league
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="scope" value="selected" id="deleteSelected">
-                            <label class="form-check-label" for="deleteSelected">
-                                Currently filtered unscheduled matches
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3" id="deleteLeagueSelection" style="display: none;">
-                        <label for="deleteBulkLeagueSelect" class="form-label">
-                            <i class="fas fa-trophy"></i> Select League
-                        </label>
-                        <select class="form-select" id="deleteBulkLeagueSelect" name="league_id">
-                            <option value="">Choose a league...</option>
-                            {% for league in leagues %}
-                            <option value="{{ league.id }}">{{ league.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="alert alert-tennis-danger">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <strong>Warning:</strong> Only unscheduled matches can be deleted for safety. This action cannot be undone.
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times"></i> Cancel
-                </button>
-                <button type="button" class="btn btn-tennis-danger" onclick="handleBulkDelete()">
-                    <i class="fas fa-trash"></i> Delete Matches
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Individual Match Schedule Modal -->
-<div class="modal fade tennis-modal" id="scheduleMatchModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-calendar-plus"></i> Schedule Match
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="scheduleMatchContent">
-                <!-- Content loaded dynamically -->
-            </div>
-        </div>
-    </div>
-</div>
-
-{% endblock %}
-
-{% block additional_styles %}
-<style>
-/* Quality Score Stats Styling */
-.stat-card {
-    padding: 1rem;
-    text-align: center;
-    transition: transform 0.2s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-2px);
-}
-
-.stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    display: block;
-}
-
-.stat-label {
-    font-size: 0.875rem;
-    color: #6c757d;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* Quality Score Legend Styles */
-.legend {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-width: 600px;
-    font-family: "Segoe UI", sans-serif;
-    font-size: 14px;
-}
-
-.score-line {
-    display: flex;
-    align-items: center;
-    padding: 6px 10px;
-    border-left: 6px solid;
-    border-radius: 4px;
-    background: #fff;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-
-.score-line span {
-    font-weight: 600;
-    margin-right: 10px;
-    min-width: 80px;
-    white-space: nowrap;
-}
-
-.score-100 { border-color: #5cb85c; }  /* Green */
-.score-80  { border-color: #5bc0de; }  /* Blue */
-.score-60  { border-color: #f7e300; }  /* Yellow */
-.score-40  { border-color: #f0ad4e; }  /* Orange */
-.score-20  { border-color: #d9534f; }  /* Red */
-
-@media (max-width: 768px) {
-    .stat-value {
-        font-size: 1.5rem;
-    }
-    
-    .stat-label {
-        font-size: 0.75rem;
-    }
-}
-</style>
-{% endblock %}
-
-{% block scripts %}
-<script>
-// Add this script to handle the dry-run checkbox behavior
-document.addEventListener('DOMContentLoaded', function() {
-    const dryRunCheckbox = document.getElementById('dry-run-checkbox');
-    if (dryRunCheckbox) {
-        dryRunCheckbox.addEventListener('change', function() {
-            const btn = document.getElementById('auto-schedule-modal-btn');
-            const text = document.getElementById('auto-schedule-modal-text');
-            const description = document.getElementById('auto-schedule-description');
-            
-            if (this.checked) {
-                btn.className = 'btn btn-primary';
-                btn.innerHTML = '<i class="fas fa-eye"></i> <span id="auto-schedule-modal-text">Preview Auto-Schedule</span>';
-                description.textContent = 'This will show you which matches can be automatically scheduled without making any changes.';
-            } else {
-                btn.className = 'btn btn-tennis-warning';
-                btn.innerHTML = '<i class="fas fa-magic"></i> <span id="auto-schedule-modal-text">Execute Auto-Schedule</span>';
-                description.textContent = 'This will actually schedule the matches to available facilities and time slots.';
-            }
-        });
-    }
-    
-    // Show/hide league selection based on scope
-    const scopeRadios = document.querySelectorAll('input[name="scope"]');
-    scopeRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            const leagueSelection = document.getElementById('leagueSelection');
-            if (leagueSelection) {
-                leagueSelection.style.display = this.value === 'league' ? 'block' : 'none';
-            }
-        });
-    });
-});
-</script>
-
-<script>
-// ==================== MATCHES PAGE FUNCTIONALITY ====================
-let currentMatchId = null;
-
-// Get leagues data for modals
-const leagues = [
-    {% for league in leagues %}
-    { id: {{ league.id }}, name: "{{ league.name }}" },
-    {% endfor %}
-];
-
-// ==================== BULK OPERATION MODALS ====================
-
-function showBulkAutoScheduleModal() {
-    TennisUI.createBulkOperationModal(
-        'auto-schedule',
-        'Auto-Schedule Matches',
-        [
-            { value: 'all', label: 'All unscheduled matches' },
-            { value: 'league', label: 'Specific league only' },
-            { value: 'selected', label: 'Currently filtered matches only' }
-        ],
-        'info',
-        'This will attempt to automatically schedule unscheduled matches to available facilities and time slots.',
-        handleBulkAutoSchedule,
-        leagues
-    );
-}
-
-function showBulkUnscheduleModal() {
-    TennisUI.createBulkOperationModal(
-        'unschedule',
-        'Unschedule Matches',
-        [
-            { value: 'all', label: 'All scheduled matches' },
-            { value: 'league', label: 'Scheduled matches in specific league' },
-            { value: 'selected', label: 'Currently filtered scheduled matches only' }
-        ],
-        'warning',
-        '<strong>Warning:</strong> This will remove scheduling information from selected matches. This action cannot be undone.',
-        handleBulkUnschedule,
-        leagues
-    );
-}
-
-function showBulkDeleteModal() {
-    TennisUI.createBulkOperationModal(
-        'delete',
-        'Delete Matches',
-        [
-            { value: 'unscheduled', label: 'All unscheduled matches only' },
-            { value: 'league', label: 'Unscheduled matches in specific league' },
-            { value: 'selected', label: 'Currently filtered unscheduled matches' }
-        ],
-        'danger',
-        '<strong>Warning:</strong> Only unscheduled matches can be deleted for safety. This action cannot be undone.',
-        handleBulkDelete,
-        leagues
-    );
-}
-
-// ==================== BULK OPERATION HANDLERS ====================
-
-function handleBulkAutoSchedule() {
-    const formData = new FormData(document.getElementById('bulkAutoScheduleForm'));
-    const isDryRun = formData.get('dry_run') === 'true';
-    TennisUI.addCurrentFiltersToFormData(formData, 'selected');
-    
-    console.log('Auto-schedule:', { isDryRun, scope: formData.get('scope') });
-    
-    // Custom success callback to handle dry-run vs execution
-    const customSuccessCallback = (result) => {
-        if (result.dry_run) {
-            // Show preview results
-            displayAutoSchedulePreview(result);
-        } else {
-            // Show execution results
-            if (result.warning && result.failed_count > 0) {
-                TennisUI.showNotification(
-                    result.message || `Auto-scheduled ${result.scheduled_count} of ${result.total_count} matches. ${result.failed_count} could not be scheduled.`,
-                    'warning',
-                    15000,
-                    {
-                        showRefresh: true,
-                        refreshText: 'Refresh Page',
-                        onRefresh: () => window.location.reload()
-                    }
-                );
-            } else {
-                TennisUI.showNotification(result.message || 'All matches scheduled successfully!', 'success');
-                setTimeout(() => window.location.reload(), 1500);
-            }
-        }
-    };
-
-    // Use modified executeBulkOperation with custom callback
-    executeBulkOperationWithRefresh(
-        'Bulk Auto-Schedule',
-        '/api/bulk-auto-schedule',
-        formData,
-        'bulkAutoScheduleModal',
-        customSuccessCallback
-    );
-}
-
-function displayAutoSchedulePreview(result) {
-    // Close the original modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('bulkAutoScheduleModal'));
-    if (modal) modal.hide();
-    
-    // Store the seed for reproducible execution
-    if (result.seed) {
-        window.lastAutoScheduleSeed = result.seed;
-        console.log('🌱 SEED DEBUG: Stored seed for future execution:', result.seed);
-        console.log('🌱 SEED DEBUG: typeof stored seed:', typeof result.seed);
-    } else {
-        console.warn('🌱 SEED DEBUG: No seed found in result!', result);
-    }
-    
-    // Create preview modal content
-    let previewHtml = `
-        <div class="modal fade" id="autoSchedulePreviewModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
-                            <i class="fas fa-eye"></i> Auto-Schedule Preview Results
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row mb-3">
-                            <div class="col-md-3">
-                                <div class="text-center">
-                                    <div class="display-6 text-primary">${result.total_matches}</div>
-                                    <small class="text-muted">Total Matches</small>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="text-center">
-                                    <div class="display-6 text-success">${result.scheduled}</div>
-                                    <small class="text-muted">Would Schedule</small>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="text-center">
-                                    <div class="display-6 text-danger">${result.failed}</div>
-                                    <small class="text-muted">Cannot Schedule</small>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="text-center">
-                                    <div class="display-6 text-warning">${result.average_quality_score || 0}</div>
-                                    <small class="text-muted">Avg Quality Score</small>
-                                </div>
-                            </div>
-                        </div>
-    `;
-
-    if (result.scheduled > 0) {
-        previewHtml += `
-            <div class="alert alert-success">
-                <i class="fas fa-check-circle"></i>
-                <strong>Good news!</strong> ${result.scheduled} matches can be automatically scheduled.
-            </div>
-        `;
-    }
-
-    if (result.failed > 0) {
-        previewHtml += `
-            <div class="alert alert-warning">
-                <i class="fas fa-exclamation-triangle"></i>
-                <strong>Note:</strong> ${result.failed} matches cannot be scheduled due to conflicts or lack of available facilities.
-            </div>
-        `;
-    }
-
-    previewHtml += `
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            Close Preview
-                        </button>
-                        <button type="button" class="btn btn-outline-primary" onclick="tryAutoScheduleAgain()">
-                            <i class="fas fa-redo"></i> Try Again
-                        </button>
-    `;
-    
-    if (result.scheduled > 0) {
-        previewHtml += `
-            <button type="button" class="btn btn-success" onclick="executeSchedulingFromPreview()">
-                <i class="fas fa-play"></i> Execute Scheduling
-            </button>
-        `;
-    }
-    
-    previewHtml += `
-                    </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <div class="display-6 fw-bold text-tennis-muted">{{ quality_stats.total_matches }}</div>
+                    <div class="small text-tennis-muted">Total Matches</div>
                 </div>
             </div>
         </div>
-    `;
+    </div>
+</div>
+{% endif %}
+
+<!-- Filter Section -->
+<div class="tennis-card mb-3">
+    <div class="tennis-card-body py-2">
+        <form method="GET" id="filterForm">
+            <!-- Hidden field to preserve view type -->
+            <input type="hidden" name="view_type" value="{{ view_type or 'table' }}">
+            <div class="row g-2 align-items-center">
+                <!-- Primary Filters Row -->
+                <div class="col-lg-2 col-md-3 col-sm-6">
+                    <select class="tennis-form-control" name="league_id" onchange="this.form.submit();">
+                        <option value="">All Leagues</option>
+                        {% for league in leagues %}
+                        <option value="{{ league.id }}" 
+                                {% if selected_league and selected_league.id == league.id %}selected{% endif %}>
+                            {{ league.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-lg-2 col-md-3 col-sm-6">
+                    <select class="tennis-form-control" name="facility_id" onchange="this.form.submit();">
+                        <option value="">All Facilities</option>
+                        {% for facility in facilities %}
+                        <option value="{{ facility.id }}" 
+                                {% if selected_facility and selected_facility.id == facility.id %}selected{% endif %}>
+                            {{ facility.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-lg-2 col-md-2 col-sm-4">
+                    <select class="tennis-form-control" name="match_type" onchange="this.form.submit();">
+                        <option value="all" {% if match_type == 'all' %}selected{% endif %}>All</option>
+                        <option value="scheduled" {% if match_type == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                        <option value="unscheduled" {% if match_type == 'unscheduled' %}selected{% endif %}>Unscheduled</option>
+                    </select>
+                </div>
+                
+                <div class="col-lg-3 col-md-4 col-sm-8">
+                    <input type="text" 
+                           class="tennis-form-control" 
+                           name="search_query" 
+                           value="{{ search_query or '' }}"
+                           placeholder="Search teams, leagues...">
+                </div>
+                
+                <div class="col-lg-1 col-md-2 col-sm-2">
+                    <input type="date" class="tennis-form-control" name="start_date" value="{{ start_date or '' }}" title="Start Date">
+                </div>
+                
+                <div class="col-lg-1 col-md-2 col-sm-2">
+                    <input type="date" class="tennis-form-control" name="end_date" value="{{ end_date or '' }}" title="End Date">
+                </div>
+                
+                <div class="col-lg-1 col-md-12 col-sm-12">
+                    <div class="d-flex gap-1">
+                        <button type="submit" class="btn-tennis-primary btn-sm" title="Apply Filters">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        {% if selected_league or selected_facility or match_type != 'all' or search_query or start_date or end_date %}
+                        <a href="{{ url_for('matches') }}" class="btn-tennis-outline btn-sm" title="Clear All Filters">
+                            <i class="fas fa-times"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Active Filters Display -->
+{% if selected_league or selected_facility or match_type != 'all' or search_query or start_date or end_date %}
+<div class="tennis-status tennis-status-scheduled mb-3">
+    <i class="fas fa-filter"></i>
+    <strong>Filters:</strong>
+    {% if selected_league %}
+    <span class="tennis-badge tennis-badge-primary ms-1">{{ selected_league.name }}</span>
+    {% endif %}
+    {% if selected_facility %}
+    <span class="tennis-badge tennis-badge-info ms-1">{{ selected_facility.name }}</span>
+    {% endif %}
+    {% if match_type != 'all' %}
+    <span class="tennis-badge tennis-badge-secondary ms-1">{{ match_type.title() }}</span>
+    {% endif %}
+    {% if search_query %}
+    <span class="tennis-badge tennis-badge-warning ms-1">"{{ search_query }}"</span>
+    {% endif %}
+    {% if start_date or end_date %}
+    <span class="tennis-badge tennis-badge-info ms-1">{{ start_date or 'Start' }} - {{ end_date or 'End' }}</span>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Matches Display -->
+{% if matches %}
+<!-- Schedule View -->
+{% if view_type == 'schedule' %}
+    {% include 'components/scheduled_matches_table.html' %}
+{% else %}
+<!-- Table View -->
+<div class="tennis-card">
+    <div class="tennis-section-header">
+        <h3 class="tennis-section-title">
+            <i class="fas fa-list"></i> Matches
+            {% if search_query %}
+            <small class="tennis-form-text">- Results for "{{ search_query }}"</small>
+            {% endif %}
+        </h3>
+        <div class="tennis-badge tennis-badge-primary">{{ matches|length }} match{{ 'es' if matches|length != 1 else '' }}</div>
+    </div>
     
-    // Add modal to page and show it
-    document.body.insertAdjacentHTML('beforeend', previewHtml);
-    const previewModal = new bootstrap.Modal(document.getElementById('autoSchedulePreviewModal'));
-    previewModal.show();
+    <div class="tennis-card-body p-0">
+        <div class="table-responsive">
+            <table class="tennis-table mb-0">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Home Team</th>
+                        <th>Visitor Team</th>
+                        <th>League</th>
+                        <th>Date & Time</th>
+                        <th>Facility</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for match in matches %}
+                    <tr>
+                        <td data-label="ID">
+                            <span class="tennis-badge tennis-badge-light">{{ match.id }}</span>
+                            {% if match.round %}
+                            <div class="small text-tennis-muted">R{{ match.round }}</div>
+                            {% endif %}
+                        </td>
+                        <td data-label="Home Team">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-home text-tennis-success me-1"></i>
+                                {% if match.home_team %}
+                                <a href="{{ url_for('view_team', team_id=match.home_team.id) }}" class="text-decoration-none fw-bold">
+                                    {{ match.home_team.name }}
+                                </a>
+                                {% else %}
+                                <span class="text-tennis-muted">TBD</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td data-label="Visitor Team">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-plane text-tennis-info me-1"></i>
+                                {% if match.visitor_team %}
+                                <a href="{{ url_for('view_team', team_id=match.visitor_team.id) }}" class="text-decoration-none fw-bold">
+                                    {{ match.visitor_team.name }}
+                                </a>
+                                {% else %}
+                                <span class="text-tennis-muted">TBD</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td data-label="League">
+                            {% if match.league %}
+                            <a href="{{ url_for('view_league', league_id=match.league.id) }}" class="text-decoration-none">
+                                <i class="fas fa-trophy me-1"></i>
+                                {{ match.league.name }}
+                            </a>
+                            {% else %}
+                            <span class="text-tennis-muted">No League</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Date & Time">
+                            {% if match.is_scheduled() %}
+                                {% if match.date %}
+                                <div class="fw-bold">{{ match.date | format_date('%m/%d/%Y') }}</div>
+                                {% endif %}
+                                {% if match.scheduled_times %}
+                                    {% set unique_times = match.scheduled_times | unique | list %}
+                                    {% for time in unique_times %}
+                                    <span class="tennis-badge tennis-badge-success">{{ time }}</span>
+                                    {% endfor %}
+                                {% endif %}
+                            {% else %}
+                            <span class="text-tennis-muted">Not scheduled</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Facility">
+                            {% if match.facility %}
+                            <a href="{{ url_for('view_facility', facility_id=match.facility.id) }}" class="text-decoration-none">
+                                {{ match.facility.name }}
+                            </a>
+                            {% else %}
+                            <span class="text-tennis-muted">Not set</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Status">
+                            {% if match.is_scheduled() %}
+                                {% if match.is_fully_scheduled() %}
+                                <span class="tennis-badge tennis-badge-success">
+                                    <i class="fas fa-check-circle"></i> Complete
+                                </span>
+                                {% else %}
+                                <span class="tennis-badge tennis-badge-warning">
+                                    <i class="fas fa-exclamation-circle"></i> Partial
+                                </span>
+                                {% endif %}
+                                {% if match.get_quality_score() %}
+                                <div class="small">
+                                    Quality: <strong>{{ match.get_quality_score() }}</strong>
+                                </div>
+                                {% endif %}
+                            {% else %}
+                            <span class="tennis-badge tennis-badge-secondary">
+                                <i class="fas fa-clock"></i> Unscheduled
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Actions">
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('view_match', match_id=match.id) }}" 
+                                   class="btn-tennis-outline btn-sm" 
+                                   title="View match details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if match.is_scheduled() %}
+                                <a href="{{ url_for('schedule_match', match_id=match.id) }}" 
+                                   class="btn-tennis-secondary btn-sm" 
+                                   title="Edit schedule">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% else %}
+                                <a href="{{ url_for('schedule_match', match_id=match.id) }}" 
+                                   class="btn-tennis-primary btn-sm" 
+                                   title="Schedule match">
+                                    <i class="fas fa-calendar-plus"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<!-- Empty State -->
+<div class="tennis-empty-state">
+    <i class="fas fa-calendar-alt"></i>
+    {% if search_query or selected_league or selected_facility or match_type != 'all' or start_date or end_date %}
+    <h5>No Matches Found</h5>
+    <p>No matches match your current filter criteria.</p>
+    <div class="d-flex gap-2 justify-content-center flex-wrap">
+        <a href="{{ url_for('matches') }}" class="btn-tennis-outline">
+            <i class="fas fa-times"></i> Clear Filters
+        </a>
+    </div>
+    {% else %}
+    <h5>No Matches Found</h5>
+    <p>No matches are currently in the database.</p>
+    <div class="d-flex gap-2 justify-content-center flex-wrap">
+        <a href="#" class="btn-tennis-primary">
+            <i class="fas fa-plus"></i> Generate Matches
+        </a>
+    </div>
+    {% endif %}
     
-    // Clean up modal when hidden
-    document.getElementById('autoSchedulePreviewModal').addEventListener('hidden.bs.modal', function() {
-        this.remove();
-    });
-}
+    <div class="tennis-status tennis-status-scheduled mt-3">
+        <i class="fas fa-info-circle"></i>
+        <strong>Note:</strong> Matches are generated from league team assignments. Create leagues and teams first.
+    </div>
+</div>
+{% endif %}
 
-function executeSchedulingFromPreview() {
-    // Close preview modal
-    const previewModal = bootstrap.Modal.getInstance(document.getElementById('autoSchedulePreviewModal'));
-    if (previewModal) previewModal.hide();
-    
-    // Re-run the same operation but without dry-run
-    const formData = new FormData(document.getElementById('bulkAutoScheduleForm'));
-    formData.set('dry_run', 'false'); // Override to execute
-    
-    // Use the same seed from the preview for reproducible results
-    if (window.lastAutoScheduleSeed) {
-        formData.set('seed', window.lastAutoScheduleSeed);
-        console.log('🌱 SEED DEBUG: Using stored seed for execution:', window.lastAutoScheduleSeed);
-        console.log('🌱 SEED DEBUG: typeof window.lastAutoScheduleSeed:', typeof window.lastAutoScheduleSeed);
-        console.log('🌱 SEED DEBUG: FormData seed value:', formData.get('seed'));
-        console.log('🌱 SEED DEBUG: typeof FormData seed value:', typeof formData.get('seed'));
-        
-        // Log all FormData entries for debugging
-        console.log('🌱 SEED DEBUG: All FormData entries:');
-        for (let [key, value] of formData.entries()) {
-            console.log(`  ${key}: ${value} (${typeof value})`);
-        }
-    } else {
-        console.warn('🌱 SEED DEBUG: No stored seed found! This execution may produce different results than the preview.');
-        console.log('🌱 SEED DEBUG: window.lastAutoScheduleSeed is:', window.lastAutoScheduleSeed);
-    }
-    
-    TennisUI.addCurrentFiltersToFormData(formData, 'selected');
-    
-    const customSuccessCallback = (result) => {
-        TennisUI.showNotification(result.message || 'Matches scheduled successfully!', 'success');
-        setTimeout(() => window.location.reload(), 1500);
-    };
+{% endblock %}
 
-    executeBulkOperationWithRefresh(
-        'Execute Auto-Schedule',
-        '/api/bulk-auto-schedule',
-        formData,
-        null, // No modal to close
-        customSuccessCallback
-    );
-}
+{% block modals %}
+<!-- Modals will be created dynamically by the MatchesPage JavaScript class -->
+{% endblock %}
 
-function tryAutoScheduleAgain() {
-    // Close preview modal
-    const previewModal = bootstrap.Modal.getInstance(document.getElementById('autoSchedulePreviewModal'));
-    if (previewModal) previewModal.hide();
-    
-    // Re-run the same auto-schedule operation with the same parameters
-    setTimeout(() => {
-        const formData = new FormData(document.getElementById('bulkAutoScheduleForm'));
-        // Ensure dry_run is set to true for preview
-        formData.set('dry_run', 'true');
-        TennisUI.addCurrentFiltersToFormData(formData, 'selected');
-        
-        const customSuccessCallback = (result) => {
-            // Show the preview results again
-            displayAutoSchedulePreview(result);
-        };
-
-        executeBulkOperationWithRefresh(
-            'Try Auto-Schedule Again',
-            '/api/bulk-auto-schedule',
-            formData,
-            null, // No modal to close
-            customSuccessCallback
-        );
-    }, 300); // Small delay to ensure smooth transition
-}
-
-// Also need to add this helper function if it doesn't exist:
-function executeBulkOperationWithRefresh(title, endpoint, formData, modalId, successCallback) {
-    // Show loading state
-    TennisUI.showNotification('Processing...', 'info', 3000);
-    
-    fetch(endpoint, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            throw new Error(data.error);
-        }
-        
-        // Close modal if specified
-        if (modalId) {
-            const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
-            if (modal) modal.hide();
-        }
-        
-        // Call custom success callback
-        if (successCallback) {
-            successCallback(data);
-        } else {
-            TennisUI.showNotification(data.message || 'Operation completed successfully!', 'success');
-            setTimeout(() => window.location.reload(), 1500);
-        }
-    })
-    .catch(error => {
-        TennisUI.showNotification(error.message || 'Operation failed', 'danger');
-    });
-}
-
-function handleBulkUnschedule() {
-    const formData = new FormData(document.getElementById('bulkUnscheduleForm'));
-    TennisUI.addCurrentFiltersToFormData(formData, 'selected');
-    
-    const customSuccessCallback = (result) => {
-        if (result.warning) {
-            TennisUI.showNotification(
-                result.message || 'Unscheduling completed with some issues.',
-                'warning',
-                12000,
-                {
-                    showRefresh: true,
-                    refreshText: 'Refresh Page',
-                    onRefresh: () => window.location.reload()
-                }
-            );
-        } else {
-            TennisUI.showNotification(result.message || 'Matches unscheduled successfully!', 'success');
-            setTimeout(() => window.location.reload(), 1500);
-        }
-    };
-
-    executeBulkOperationWithRefresh(
-        'Bulk Unschedule',
-        '/api/bulk-unschedule',
-        formData,
-        'bulkUnscheduleModal',
-        customSuccessCallback
-    );
-}
-
-function handleBulkDelete() {
-    const formData = new FormData(document.getElementById('bulkDeleteForm'));
-    TennisUI.addCurrentFiltersToFormData(formData, 'selected');
-    
-    const customSuccessCallback = (result) => {
-        TennisUI.showNotification(result.message || 'Matches deleted successfully!', 'success');
-        setTimeout(() => window.location.reload(), 1500);
-    };
-
-    executeBulkOperationWithRefresh(
-        'Bulk Delete',
-        '/api/bulk-delete',
-        formData,
-        'bulkDeleteModal',
-        customSuccessCallback
-    );
-}
-    
-// ==================== INDIVIDUAL MATCH OPERATIONS ====================
-
-async function scheduleMatch(matchId) {
-    currentMatchId = matchId;
-    
-    try {
-        // Use TennisUI for modal management
-        TennisUI.setModalContent('scheduleMatchModal', 'scheduleMatchContent', 
-            '<div class="text-center py-4"><div class="tennis-spinner"></div><p class="mt-2">Loading match details...</p></div>'
-        );
-        
-        TennisUI.showModal('scheduleMatchModal');
-        
-        // Use TennisUI for API calls
-        const data = await TennisUI.apiCall(`/api/matches/${matchId}/schedule-form`);
-        TennisUI.setModalContent('scheduleMatchModal', 'scheduleMatchContent', data.html);
-        
-    } catch (error) {
-        TennisUI.setModalContent('scheduleMatchModal', 'scheduleMatchContent', 
-            `<div class="alert alert-danger">
-                <i class="fas fa-exclamation-triangle"></i>
-                Error loading match details: ${error.message}
-            </div>`
-        );
-    }
-}
-
-async function unscheduleMatch(matchId, matchDescription) {
-    // Use TennisUI for confirmation dialogs
-    const confirmed = await TennisUI.showConfirmDialog(
-        'Unschedule Match',
-        `Are you sure you want to remove the schedule for "${matchDescription}"?`,
-        'Unschedule',
-        'btn-tennis-warning'
-    );
-
-    if (!confirmed) return;
-
-    try {
-        // Use TennisUI for API calls
-        const result = await TennisUI.apiCall(`/matches/${matchId}/schedule`, {
-            method: 'DELETE'
-        });
-
-        // Use TennisUI for notifications
-        TennisUI.showNotification(result.message || 'Match unscheduled successfully!', 'success');
-        setTimeout(() => window.location.reload(), 1000);
-        
-    } catch (error) {
-        TennisUI.showNotification(error.message || 'Failed to unschedule match.', 'danger');
-    }
-}
-
-async function deleteMatch(matchId, matchDescription) {
-    // Use TennisUI for confirmation dialogs
-    const confirmed = await TennisUI.showConfirmDialog(
-        'Delete Match',
-        `Are you sure you want to delete "${matchDescription}"? This action cannot be undone.`,
-        'Delete Match',
-        'btn-tennis-danger'
-    );
-
-    if (!confirmed) return;
-
-    try {
-        // Use TennisUI for API calls
-        const result = await TennisUI.apiCall(`/matches/${matchId}`, {
-            method: 'DELETE'
-        });
-
-        // Use TennisUI for notifications
-        TennisUI.showNotification(result.message || 'Match deleted successfully!', 'success');
-        setTimeout(() => window.location.reload(), 1000);
-        
-    } catch (error) {
-        TennisUI.showNotification(error.message || 'Failed to delete match.', 'danger');
-    }
-}
-
-// ==================== SCHEDULE MODAL FORM HANDLERS ====================
-
-function submitSchedule() {
-    const form = document.getElementById('scheduleForm');
-    if (!form || !TennisUI.validateForm('scheduleForm')) {
-        return;
-    }
-    
-    const formData = new FormData(form);
-    
-    // Use TennisUI for form loading states
-    TennisUI.setFormLoading('scheduleForm', true);
-    
-    // Use TennisUI for API calls
-    TennisUI.apiCall(`/matches/${currentMatchId}/schedule`, {
-        method: 'POST',
-        body: formData
-    })
-    .then(result => {
-        TennisUI.hideModal('scheduleMatchModal');
-        TennisUI.showNotification(result.message || 'Match scheduled successfully', 'success');
-        setTimeout(() => location.reload(), 1500);
-    })
-    .catch(error => {
-        TennisUI.showNotification(`Failed to schedule match: ${error.message}`, 'danger');
-    })
-    .finally(() => {
-        TennisUI.setFormLoading('scheduleForm', false);
-    });
-}
-
-function clearSchedule() {
-    // Use TennisUI for confirmation dialogs
-    TennisUI.showConfirmDialog(
-        'Clear Schedule',
-        'Are you sure you want to clear the schedule for this match?',
-        'Clear Schedule',
-        'btn-tennis-warning'
-    ).then(confirmed => {
-        if (confirmed) {
-            // Use TennisUI for API calls
-            TennisUI.apiCall(`/matches/${currentMatchId}/schedule`, {
-                method: 'DELETE'
-            })
-            .then(result => {
-                TennisUI.hideModal('scheduleMatchModal');
-                TennisUI.showNotification(result.message || 'Match schedule cleared successfully', 'success');
-                setTimeout(() => location.reload(), 1500);
-            })
-            .catch(error => {
-                TennisUI.showNotification(`Failed to clear schedule: ${error.message}`, 'danger');
-            });
-        }
-    });
-}
-
-// ==================== PAGE-SPECIFIC INITIALIZATION ====================
-
-
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🎾 Matches page initialized');
-    
-    // Initialize filter form enhancements
-    initializeFilterForm();
-    
-    // Initialize table interactions (existing function)
-    initializeTableInteractions();
-    
-    // Initialize tooltips for action buttons
-    initializeTooltips();
-
-    // Initialize the enhanced scheduled matches table component with schedule button support
-    TennisUI.initializeScheduledMatchesTable();
-    
-    // Clean up any stale scheduling indicators
-    TennisUI.cleanupSchedulingState();
-});
-
-    
-
-// Keep your existing functions but remove the duplicate table initialization
-// since TennisUI.initializeScheduledMatchesTable() now handles everything
-
-function initializeFilterForm() {
-    const filterForm = document.querySelector('.tennis-form');
-    if (!filterForm || !filterForm.closest('.tennis-card')) return;
-    
-    // Auto-submit on select changes for better UX
-    const selects = filterForm.querySelectorAll('select');
-    selects.forEach(select => {
-        select.addEventListener('change', function() {
-            // Small delay to allow user to see the change
-            setTimeout(() => {
-                filterForm.submit();
-            }, 100);
-        });
-    });
-    
-    // Clear search on Escape key
-    const searchInput = filterForm.querySelector('input[name="search_query"]');
-    if (searchInput) {
-        searchInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                this.value = '';
-                filterForm.submit();
-            }
-        });
-    }
-}
-
-function initializeTableInteractions() {
-    const table = document.querySelector('.table-hover');
-    if (!table) return;
-    
-    // Add enhanced hover effects for better UX
-    const rows = table.querySelectorAll('tbody tr');
-    rows.forEach(row => {
-        row.addEventListener('mouseenter', function() {
-            this.style.transform = 'scale(1.01)';
-            this.style.transition = 'transform 0.2s ease';
-        });
-        
-        row.addEventListener('mouseleave', function() {
-            this.style.transform = 'scale(1)';
-        });
-    });
-    
-    // Performance optimization for large tables
-    if (rows.length > 100) {
-        console.log('Large table detected, optimizing interactions');
-        // Reduce animation complexity for performance
-        rows.forEach(row => {
-            row.addEventListener('mouseenter', function() {
-                this.style.transform = 'translateX(1px)';
-                this.style.transition = 'transform 0.1s ease';
-            });
-            
-            row.addEventListener('mouseleave', function() {
-                this.style.transform = 'translateX(0)';
-            });
-        });
-    }
-}
-
-function initializeTooltips() {
-    // Use TennisUI's existing tooltip initialization if available
-    if (typeof TennisUI.initializeTooltips === 'function') {
-        TennisUI.initializeTooltips();
-    } else {
-        // Fallback tooltip initialization
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-    }
-}
-
-// ==================== UTILITY FUNCTIONS ====================
-
-function updateBulkOperationButtons(selectedCount) {
-    const bulkButton = document.getElementById('bulkOperationsDropdown');
-    if (bulkButton) {
-        if (selectedCount > 0) {
-            bulkButton.innerHTML = `<i class="fas fa-tasks"></i> Bulk Operations (${selectedCount})`;
-            bulkButton.classList.remove('btn-tennis-primary');
-            bulkButton.classList.add('btn-tennis-warning');
-        } else {
-            bulkButton.innerHTML = '<i class="fas fa-tasks"></i> Bulk Operations';
-            bulkButton.classList.remove('btn-tennis-warning');
-            bulkButton.classList.add('btn-tennis-primary');
-        }
-    }
-}
-
-// Export functions for use in dynamically loaded content
-window.MatchesPage = {
-    scheduleMatch,
-    unscheduleMatch,
-    deleteMatch,
-    submitSchedule,
-    clearSchedule,
-    handleBulkAutoSchedule,
-    handleBulkUnschedule,
-    handleBulkDelete,
-    updateBulkOperationButtons
+{% block scripts %}
+<!-- Load matches page JavaScript -->
+<script src="{{ url_for('static', filename='js/pages/matches.js') }}"></script>
+<script>
+// Global variables to store current filter state
+let currentFilters = {
+    league_id: "{% if selected_league %}{{ selected_league.id }}{% else %}{% endif %}",
+    facility_id: "{% if selected_facility %}{{ selected_facility.id }}{% else %}{% endif %}",
+    match_type: "{{ match_type if match_type else 'all' }}",
+    start_date: "{{ start_date if start_date else '' }}",
+    end_date: "{{ end_date if end_date else '' }}",
+    search_query: "{{ search_query if search_query else '' }}"
 };
 
-console.log('✅ Matches page functionality loaded');
+// Initialize matches page when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize the matches page with available leagues
+    const leagues = [
+        {% for league in leagues %}
+        { id: {{ league.id }}, name: "{{ league.name|e }}" }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    window.matchesPage = new MatchesPage(leagues);
+    console.log('🎾 Matches page initialized with', leagues.length, 'leagues');
+});
+
+// View toggle function
+function toggleView(viewType) {
+    const form = document.getElementById('filterForm');
+    const viewInput = form.querySelector('input[name="view_type"]');
+    
+    if (viewInput) {
+        viewInput.value = viewType;
+        form.submit();
+    } else {
+        // Fallback: create the input if it doesn't exist
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'view_type';
+        input.value = viewType;
+        form.appendChild(input);
+        form.submit();
+    }
+}
+
+// Show modal functions (kept for backward compatibility)
+function showBulkAutoScheduleModal() {
+    if (window.matchesPage) {
+        window.matchesPage.showBulkAutoScheduleModal();
+    } else {
+        console.error('MatchesPage not initialized');
+    }
+}
+
+function showBulkUnscheduleModal() {
+    if (window.matchesPage) {
+        window.matchesPage.showBulkUnscheduleModal();
+    } else {
+        console.error('MatchesPage not initialized');
+    }
+}
+
+function showBulkDeleteModal() {
+    if (window.matchesPage) {
+        window.matchesPage.showBulkDeleteModal();
+    } else {
+        console.error('MatchesPage not initialized');
+    }
+}
 </script>
 {% endblock %}
