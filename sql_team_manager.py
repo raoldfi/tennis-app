@@ -161,12 +161,6 @@ class SQLTeamManager:
                 if team_data.get('preferred_days'):
                     preferred_days = [day.strip() for day in team_data['preferred_days'].split(',') if day.strip()]
                 
-                # DEBUG: Print team data before creating Team object
-                print(f"DEBUG: Creating team from data: {team_data}")
-                print(f"DEBUG: team_data['id'] = {team_data.get('id', 'MISSING')} (type: {type(team_data.get('id', 'MISSING'))})")
-                print(f"DEBUG: league = {league} (ID: {getattr(league, 'id', 'MISSING')})")
-                print(f"DEBUG: facility = {facility} (ID: {getattr(facility, 'id', 'MISSING')})")
-
                 try:
                     # Create Team object with all required fields
                     new_team = Team(
@@ -178,7 +172,6 @@ class SQLTeamManager:
                         preferred_days=preferred_days
                     )
                     teams.append(new_team)
-                    print(f"DEBUG: Successfully created team {new_team.name} with ID {new_team.id}")
                 except Exception as team_error:
                     print(f"DEBUG: Error creating team: {team_error}")
                     print(f"DEBUG: team_data = {team_data}")

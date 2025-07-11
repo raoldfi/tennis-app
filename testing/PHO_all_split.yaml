@@ -6,6 +6,7 @@ facilities:
     name: "ARR Tennis Club"
     short_name: "ARR"
     location: "ARR Tennis Club, Phoenix, AZ"
+    total_courts: 3
     schedule:
       Monday:
         start_times: []
@@ -32,6 +33,7 @@ facilities:
     name: "STRC Tennis Club"
     short_name: "STRC"
     location: "STRC Tennis Club, Phoenix, AZ"
+    total_courts: 10
     schedule:
       Monday:
         start_times: []
@@ -56,6 +58,7 @@ facilities:
     name: "WIG Tennis Club"
     short_name: "WIG"
     location: "WIG Tennis Club, Phoenix, AZ"
+    total_courts: 3
     schedule:
       Monday:
         start_times: []
@@ -82,6 +85,7 @@ facilities:
     name: "CTC Tennis Club"
     short_name: "CTC"
     location: "CTC Tennis Club, Phoenix, AZ"
+    total_courts: 3
     schedule:
       Monday:
         start_times: []
@@ -108,6 +112,7 @@ facilities:
     name: "ISP Tennis Club"
     short_name: "ISP"
     location: "ISP Tennis Club, Phoenix, AZ"
+    total_courts: 5
     schedule:
       Monday:
         start_times: []
@@ -134,6 +139,7 @@ facilities:
     name: "PAS Tennis Club"
     short_name: "PAS"
     location: "PAS Tennis Club, Phoenix, AZ"
+    total_courts: 10
     schedule:
       Monday:
         start_times: []
@@ -160,6 +166,7 @@ facilities:
     name: "PTC Tennis Club"
     short_name: "PTC"
     location: "PTC Tennis Club, Phoenix, AZ"
+    total_courts: 15
     schedule:
       Monday:
         start_times: []
@@ -186,6 +193,7 @@ facilities:
     name: "SRP Tennis Club"
     short_name: "SRP"
     location: "SRP Tennis Club, Phoenix, AZ"
+    total_courts: 5
     schedule:
       Monday:
         start_times: []
@@ -210,6 +218,7 @@ facilities:
     name: "GRP Tennis Club"
     short_name: "GRP"
     location: "GRP Tennis Club, Phoenix, AZ"
+    total_courts: 5
     schedule:
       Monday:
         start_times: []
@@ -236,6 +245,7 @@ facilities:
     name: "KIW Tennis Club"
     short_name: "KIW"
     location: "KIW Tennis Club, Phoenix, AZ"
+    total_courts: 6
     schedule:
       Monday:
         start_times: []
@@ -261,6 +271,7 @@ facilities:
   - id: 60
     name: "PHO Tennis Club"
     short_name: "PHO"
+    total_courts: 3
     location: "PHO Tennis Club, Phoenix, AZ"
     schedule:
       Monday:
@@ -288,6 +299,7 @@ facilities:
     name: "SCR Tennis Club"
     short_name: "SCR"
     location: "SCR Tennis Club, Phoenix, AZ"
+    total_courts: 3
     schedule:
       Monday:
         start_times: []
@@ -308,6 +320,8 @@ facilities:
       Sunday:
         start_times: []
     unavailable_dates: []
+
+
 leagues:
   # Fall 2025 Adult 40 & Over PM - 3.0 Men Division
   - id: 301

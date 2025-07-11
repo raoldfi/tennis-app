@@ -23,6 +23,8 @@ from usta import (
     TimeSlot,
     FacilityAvailabilityInfo,
     TimeSlotAvailability,
+    Team,
+    League,
 )
 
 # Logging
@@ -965,3 +967,453 @@ class SQLFacilityManager:
             time_slot_availabilities.append(slot_availability)
 
         return time_slot_availabilities
+
+    def calculate_league_facility_requirements(
+        self, 
+        league: League, 
+        include_utilization: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Calculate facility availability requirements for an entire league
+        
+        Args:
+            league_id: ID of the league to analyze
+            include_utilization: Whether to include current utilization data
+            
+        Returns:
+            Dictionary containing facility requirement analysis including:
+            - total_matches: Total number of matches in the league
+            - total_court_hours: Total court-hours needed
+            - facilities_used: List of facilities used by teams
+            - peak_demand: Peak demand analysis by day/time
+            - utilization_analysis: Current utilization if requested
+            
+        Raises:
+            ValueError: If league_id is invalid
+            RuntimeError: If there's a database error
+        """
+        try:
+            league = self.db.league_manager.get_league(league.id)
+            if not league:
+                raise ValueError(f"League with ID {league.id} does not exist")
+            
+            # Get all teams in the league
+            teams = self.db.team_manager.list_teams(league)
+            if not teams:
+                return {
+                    "league_id": league.id,
+                    "league_name": league.name,
+                    "total_teams": 0,
+                    "total_matches": 0,
+                    "total_court_hours": 0,
+                    "facilities_used": [],
+                    "peak_demand": {},
+                    "utilization_analysis": {} if include_utilization else None,
+                    "recommendations": ["No teams found in league"]
+                }
+            
+            # Calculate match requirements
+            total_teams = len(teams)
+            matches_per_team = league.num_matches
+            total_matches = (total_teams * matches_per_team) // 2  # Each match involves 2 teams
+            
+            # Calculate court-hour requirements
+            lines_per_match = league.num_lines_per_match
+            hours_per_match = 2.5  # Standard tennis match duration
+            total_court_hours = total_matches * lines_per_match * hours_per_match
+            
+            # Analyze facilities used by teams
+            facilities_analysis = self._analyze_league_facilities(teams, league)
+            
+            # Calculate peak demand patterns
+            peak_demand_analysis = self._calculate_peak_demand(
+                league, teams, total_matches, lines_per_match
+            )
+            
+            # Include utilization analysis if requested
+            utilization_analysis = None
+            if include_utilization:
+                utilization_analysis = self._calculate_current_utilization(
+                    league, facilities_analysis["facilities_used"]
+                )
+            
+            # Generate recommendations
+            recommendations = self._generate_facility_recommendations(
+                league, facilities_analysis, peak_demand_analysis, utilization_analysis
+            )
+            
+            return {
+                "league_id": league.id,
+                "league_name": league.name,
+                "total_teams": total_teams,
+                "total_matches": total_matches,
+                "total_court_hours": total_court_hours,
+                "lines_per_match": lines_per_match,
+                "matches_per_team": matches_per_team,
+                "league_duration_weeks": self._calculate_league_duration_weeks(league),
+                "facilities_analysis": facilities_analysis,
+                "peak_demand": peak_demand_analysis,
+                "utilization_analysis": utilization_analysis,
+                "recommendations": recommendations,
+                "allow_split_lines": league.allow_split_lines,
+                "preferred_days": league.preferred_days,
+                "backup_days": league.backup_days
+            }
+            
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise
+            raise RuntimeError(f"Error calculating league facility requirements: {e}")
+    
+    def _analyze_league_facilities(self, teams: List[Team], league: League) -> Dict[str, Any]:
+        """Analyze facilities used by teams in the league"""
+        facilities_used = {}
+        facility_team_count = {}
+        geographic_distribution = {}
+        
+        for team in teams:
+            facility_id = team.home_facility.id
+            facility_name = team.home_facility.name
+            facility_location = team.home_facility.location or "Unknown"
+            
+            if facility_id not in facilities_used:
+                facilities_used[facility_id] = {
+                    "facility_id": facility_id,
+                    "facility_name": facility_name,
+                    "facility_location": facility_location,
+                    "total_courts": team.home_facility.total_courts,
+                    "teams_count": 0,
+                    "teams": []
+                }
+                facility_team_count[facility_id] = 0
+            
+            facilities_used[facility_id]["teams_count"] += 1
+            facilities_used[facility_id]["teams"].append({
+                "team_id": team.id,
+                "team_name": team.name,
+                "preferred_days": team.preferred_days
+            })
+            facility_team_count[facility_id] += 1
+            
+            # Track geographic distribution
+            if facility_location not in geographic_distribution:
+                geographic_distribution[facility_location] = []
+            geographic_distribution[facility_location].append(facility_name)
+        
+        return {
+            "facilities_used": list(facilities_used.values()),
+            "total_facilities": len(facilities_used),
+            "facility_team_count": facility_team_count,
+            "geographic_distribution": geographic_distribution,
+            "most_used_facility": max(facility_team_count.items(), key=lambda x: x[1])[0] if facility_team_count else None
+        }
+    
+    def _calculate_peak_demand(
+        self, 
+        league: League, 
+        teams: List[Team], 
+        total_matches: int, 
+        lines_per_match: int
+    ) -> Dict[str, Any]:
+        """Calculate peak demand patterns for the league"""
+        # Analyze preferred days across all teams
+        day_preferences = {}
+        for team in teams:
+            for day in team.preferred_days:
+                day_preferences[day] = day_preferences.get(day, 0) + 1
+        
+        # Consider league preferred days
+        league_preferred_days = league.preferred_days or []
+        league_backup_days = league.backup_days or []
+        
+        # Calculate demand distribution
+        available_days = league_preferred_days + league_backup_days
+        if not available_days:
+            available_days = ["Saturday", "Sunday"]  # Default weekend play
+        
+        # Estimate matches per week based on league duration
+        league_duration_weeks = self._calculate_league_duration_weeks(league)
+        matches_per_week = total_matches / max(league_duration_weeks, 1)
+        
+        # Calculate courts needed per day
+        courts_needed_per_day = {}
+        for day in available_days:
+            # Weight by team preferences
+            preference_weight = day_preferences.get(day, 0) / len(teams) if teams else 0
+            base_demand = matches_per_week * lines_per_match / len(available_days)
+            adjusted_demand = base_demand * (1 + preference_weight)
+            courts_needed_per_day[day] = round(adjusted_demand, 1)
+        
+        return {
+            "matches_per_week": round(matches_per_week, 1),
+            "courts_needed_per_day": courts_needed_per_day,
+            "peak_day": max(courts_needed_per_day.items(), key=lambda x: x[1])[0] if courts_needed_per_day else None,
+            "team_day_preferences": day_preferences,
+            "league_preferred_days": league_preferred_days,
+            "league_backup_days": league_backup_days
+        }
+    
+    def _calculate_current_utilization(
+        self, 
+        league: League, 
+        facilities_used: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Calculate current utilization of facilities used by the league based on court-time slots"""
+        utilization_data = {}
+        
+        try:
+            # Get scheduled matches for this league
+            self.cursor.execute(
+                "SELECT facility_id, date, scheduled_times FROM matches WHERE league_id = ? AND status = 'scheduled'",
+                (league.id,)
+            )
+            matches = self.cursor.fetchall()
+            
+            # Count usage by facility
+            facility_usage = {}
+            for match in matches:
+                facility_id = match["facility_id"]
+                if facility_id:
+                    if facility_id not in facility_usage:
+                        facility_usage[facility_id] = 0
+                    
+                    # Count scheduled times (each scheduled time represents one court-time slot used)
+                    if match["scheduled_times"]:
+                        try:
+                            times = json.loads(match["scheduled_times"])
+                            if isinstance(times, list):
+                                facility_usage[facility_id] += len(times)
+                            else:
+                                facility_usage[facility_id] += 1
+                        except (json.JSONDecodeError, TypeError):
+                            facility_usage[facility_id] += 1
+            
+            # Calculate utilization for each facility
+            for facility_info in facilities_used:
+                facility_id = facility_info["facility_id"]
+                current_usage = facility_usage.get(facility_id, 0)
+                
+                # Get the facility to calculate total available court-time slots
+                facility = self.get_facility(facility_id)
+                if not facility:
+                    continue
+                
+                # Calculate total available court-time slots
+                total_court_time_slots = self._calculate_total_court_time_slots(facility, league)
+                
+                utilization_data[str(facility_id)] = {
+                    "facility_name": facility_info["facility_name"],
+                    "total_court_time_slots": total_court_time_slots,
+                    "current_usage": current_usage,
+                    "utilization_percentage": (current_usage / max(total_court_time_slots, 1) * 100) if total_court_time_slots > 0 else 0
+                }
+        
+        except sqlite3.Error as e:
+            logger.warning(f"Error calculating utilization: {e}")
+            utilization_data = {"error": str(e)}
+        
+        return utilization_data
+    
+    def calculate_total_facility_utilization(self, facility: Facility) -> Dict[str, Any]:
+        """
+        Calculate total facility utilization across all leagues.
+        
+        Args:
+            facility: The facility to calculate utilization for
+            
+        Returns:
+            Dictionary containing total utilization data including:
+            - total_court_time_slots: Total slots available across all leagues
+            - current_usage: Total slots used across all leagues
+            - utilization_percentage: Overall utilization percentage
+            - league_breakdown: Per-league utilization data
+        """
+        try:
+            # Get all leagues that have teams using this facility
+            all_leagues = self.db.list_leagues()
+            leagues_using_facility = []
+            total_usage = 0
+            total_slots = 0
+            league_breakdown = {}
+            
+            for league in all_leagues:
+                teams = self.db.list_teams(league)
+                facility_teams = [team for team in teams if team.home_facility.id == facility.id]
+                
+                if facility_teams:
+                    leagues_using_facility.append(league)
+                    
+                    # Calculate slots for this league
+                    league_slots = self._calculate_total_court_time_slots(facility, league)
+                    total_slots += league_slots
+                    
+                    # Calculate usage for this league
+                    self.cursor.execute(
+                        "SELECT scheduled_times FROM matches WHERE league_id = ? AND facility_id = ? AND status = 'scheduled'",
+                        (league.id, facility.id)
+                    )
+                    matches = self.cursor.fetchall()
+                    
+                    league_usage = 0
+                    for match in matches:
+                        if match["scheduled_times"]:
+                            try:
+                                times = json.loads(match["scheduled_times"])
+                                if isinstance(times, list):
+                                    league_usage += len(times)
+                                else:
+                                    league_usage += 1
+                            except (json.JSONDecodeError, TypeError):
+                                league_usage += 1
+                    
+                    total_usage += league_usage
+                    league_breakdown[league.id] = {
+                        "league_name": league.name,
+                        "total_slots": league_slots,
+                        "usage": league_usage,
+                        "utilization_percentage": (league_usage / max(league_slots, 1) * 100) if league_slots > 0 else 0
+                    }
+            
+            # Calculate overall utilization
+            overall_utilization = (total_usage / max(total_slots, 1) * 100) if total_slots > 0 else 0
+            
+            return {
+                "total_court_time_slots": total_slots,
+                "current_usage": total_usage,
+                "utilization_percentage": overall_utilization,
+                "active_leagues": len(leagues_using_facility),
+                "league_breakdown": league_breakdown
+            }
+            
+        except Exception as e:
+            logger.warning(f"Error calculating total facility utilization: {e}")
+            return {
+                "total_court_time_slots": 0,
+                "current_usage": 0,
+                "utilization_percentage": 0,
+                "active_leagues": 0,
+                "league_breakdown": {},
+                "error": str(e)
+            }
+    
+    def _calculate_total_court_time_slots(self, facility: Facility, league: League) -> int:
+        """
+        Calculate the total number of court-time slots available at a facility during the league timeframe.
+        
+        This considers:
+        - The facility's weekly schedule (days and times with available courts)
+        - The league's duration
+        - The league's preferred/backup days
+        - The facility's unavailable dates
+        
+        Args:
+            facility: The facility to calculate slots for
+            league: The league to calculate slots within
+            
+        Returns:
+            Total number of court-time slots available
+        """
+        try:
+            # Get league duration in weeks
+            league_duration_weeks = self._calculate_league_duration_weeks(league)
+            
+            # Get days that this league can use
+            league_days = league.preferred_days or []
+            if league.backup_days:
+                league_days.extend(league.backup_days)
+            
+            # If no specific days, assume all days are available
+            if not league_days:
+                league_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            
+            # Calculate total court-time slots per week
+            weekly_slots = 0
+            for day_name in league_days:
+                try:
+                    day_schedule = facility.schedule.get_day_schedule(day_name)
+                    for time_slot in day_schedule.start_times:
+                        weekly_slots += time_slot.available_courts
+                except ValueError:
+                    # No schedule for this day, skip
+                    continue
+            
+            # Calculate total slots for the league duration
+            total_slots = weekly_slots * league_duration_weeks
+            
+            # Account for unavailable dates (rough estimate)
+            # This is a simplified calculation - in reality you'd need to check specific dates
+            unavailable_days = len(facility.unavailable_dates or [])
+            if unavailable_days > 0:
+                # Estimate how many slots would be lost due to unavailable dates
+                # Assume unavailable dates are distributed across the league timeframe
+                avg_daily_slots = weekly_slots / 7 if weekly_slots > 0 else 0
+                lost_slots = unavailable_days * avg_daily_slots
+                total_slots = max(0, total_slots - lost_slots)
+            
+            return int(total_slots)
+            
+        except Exception as e:
+            logger.warning(f"Error calculating total court-time slots for facility {facility.id}: {e}")
+            return 0
+    
+    def _calculate_league_duration_weeks(self, league: League) -> int:
+        """Calculate the duration of the league in weeks"""
+        if league.start_date and league.end_date:
+            try:
+                start = datetime.strptime(league.start_date, "%Y-%m-%d")
+                end = datetime.strptime(league.end_date, "%Y-%m-%d")
+                duration_days = (end - start).days
+                return max(duration_days // 7, 1)
+            except ValueError:
+                pass
+        
+        # Default assumption: 12 weeks for a typical league season
+        return 12
+    
+    def _generate_facility_recommendations(
+        self, 
+        league: League, 
+        facilities_analysis: Dict[str, Any], 
+        peak_demand_analysis: Dict[str, Any],
+        utilization_analysis: Optional[Dict[str, Any]]
+    ) -> List[str]:
+        """Generate recommendations for facility requirements"""
+        recommendations = []
+        
+        # Check facility distribution
+        total_facilities = facilities_analysis["total_facilities"]
+        total_teams = len(facilities_analysis["facilities_used"])
+        
+        if total_facilities < 2:
+            recommendations.append("Consider adding more facilities to reduce travel and scheduling conflicts")
+        
+        # Check peak demand
+        peak_courts_needed = max(peak_demand_analysis["courts_needed_per_day"].values()) if peak_demand_analysis["courts_needed_per_day"] else 0
+        
+        if peak_courts_needed > 10:
+            recommendations.append(f"Peak demand of {peak_courts_needed} courts may require careful scheduling coordination")
+        
+        # Check geographic distribution
+        geographic_dist = facilities_analysis["geographic_distribution"]
+        if len(geographic_dist) == 1:
+            recommendations.append("All facilities are in the same location - consider geographic diversity")
+        
+        # Check utilization if available
+        if utilization_analysis and "error" not in utilization_analysis:
+            high_utilization_facilities = [
+                f["facility_name"] for f in utilization_analysis.values() 
+                if isinstance(f, dict) and f.get("utilization_percentage", 0) > 80
+            ]
+            if high_utilization_facilities:
+                recommendations.append(f"High utilization facilities may need additional capacity: {', '.join(high_utilization_facilities)}")
+        
+        # Check split lines capability
+        if not league.allow_split_lines and peak_courts_needed > 5:
+            recommendations.append("Consider enabling split lines to improve scheduling flexibility")
+        
+        # Day distribution recommendations
+        preferred_days = league.preferred_days or []
+        if len(preferred_days) < 2:
+            recommendations.append("Consider adding more preferred days to distribute scheduling load")
+        
+        return recommendations if recommendations else ["Facility requirements appear adequate for current league configuration"]

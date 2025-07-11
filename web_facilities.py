@@ -35,7 +35,7 @@ def register_routes(app):
     
     @app.route('/facilities/<int:facility_id>')
     def view_facility(facility_id):
-        """View detailed facility information including schedule"""
+        """View detailed facility information including schedule and utilization"""
         db = get_db()
         if db is None:
             flash('No database connection', 'error')
@@ -47,7 +47,40 @@ def register_routes(app):
                 flash(f'Facility with ID {facility_id} not found', 'error')
                 return redirect(url_for('facilities'))
             
-            return render_template('view_facility.html', facility=facility)
+            # Calculate utilization data for all leagues using this facility
+            utilization_data = {}
+            try:
+                # Get all leagues that have teams using this facility
+                leagues = db.list_leagues()
+                for league in leagues:
+                    teams = db.list_teams(league)
+                    # Check if any teams in this league use this facility
+                    facility_teams = [team for team in teams if team.home_facility.id == facility_id]
+                    if facility_teams:
+                        # Create the facilities_used list in the correct format
+                        facilities_used = [{
+                            "facility_id": facility_id,
+                            "facility_name": facility.name,
+                            "total_courts": facility.total_courts
+                        }]
+                        # Calculate utilization for this league
+                        league_utilization = db.facility_manager._calculate_current_utilization(
+                            league, facilities_used
+                        )
+                        if league_utilization and str(facility_id) in league_utilization:
+                            utilization_data[league.id] = {
+                                "league_name": league.name,
+                                "league_id": league.id,
+                                "utilization": league_utilization[str(facility_id)]
+                            }
+            except Exception as util_error:
+                print(f"Error calculating utilization: {util_error}")
+                import traceback
+                traceback.print_exc()
+                # Continue without utilization data if there's an error
+                utilization_data = {}
+            
+            return render_template('view_facility.html', facility=facility, utilization_data=utilization_data)
             
         except Exception as e:
             flash(f'Error loading facility: {e}', 'error')

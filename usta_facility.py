@@ -455,6 +455,8 @@ class Facility:
         if not isinstance(self.total_courts, int) or self.total_courts < 0:
             raise ValueError(f"Total courts must be a non-negative integer, got: {self.total_courts}")
         
+
+
         # Validate date formats in unavailable_dates
         for date_str in self.unavailable_dates:
             if not isinstance(date_str, str):
@@ -470,7 +472,18 @@ class Facility:
             except (ValueError, IndexError):
                 raise ValueError(f"Invalid date format: '{date_str}'. Expected YYYY-MM-DD format")
 
-    
+        if self.total_courts == 0:
+            # make total_courts the maximum of the schedule's available courts for a single time slot
+            # This assumes that the schedule has been properly initialized with DaySchedule objects
+            max_courts = 0
+            for day_schedule in self.schedule.get_all_days().values():
+                for time_slot in day_schedule.get_start_times():
+                    if time_slot.available_courts > max_courts:
+                        max_courts = time_slot.available_courts
+
+            self.total_courts = max_courts
+            
+
     # ========== Facility Class Getters ==========
 
     def get_id(self) -> int:

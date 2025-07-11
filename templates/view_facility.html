@@ -22,9 +22,6 @@
         <a href="{{ url_for('edit_facility', facility_id=facility.id) }}" class="btn-tennis-primary">
             <i class="fas fa-edit"></i> Edit Facility
         </a>
-        <a href="{{ url_for('facility_utilization_calendar', facility_id=facility.id) }}" class="btn-tennis-info">
-            <i class="fas fa-calendar-alt"></i> View Utilization Calendar
-        </a>
         <a href="{{ url_for('facilities') }}" class="btn-tennis-outline">
             <i class="fas fa-arrow-left"></i> Back to Facilities
         </a>
@@ -110,12 +107,8 @@
     <!-- Weekly Schedule -->
     <div class="col-md-8 mb-4">
         <div class="tennis-card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-calendar-week"></i> Weekly Schedule</span>
-                <a href="{{ url_for('facility_utilization_calendar', facility_id=facility.id) }}" 
-                class="btn-tennis-info btn-sm" title="View utilization calendar">
-                    <i class="fas fa-chart-bar"></i> Utilization
-                </a>
+            <div class="card-header">
+                <i class="fas fa-calendar-week"></i> Weekly Schedule
             </div>
             <div class="card-body">
                 {% set schedule_days = facility.schedule.get_all_days() %}
@@ -258,6 +251,129 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Facility Utilization -->
+<div class="tennis-card mb-4">
+    <div class="card-header">
+        <i class="fas fa-chart-bar"></i> Current Utilization by League
+        {% if utilization_data %}
+            <span class="badge bg-light text-dark ms-2">{{ utilization_data|length }} league(s)</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% if utilization_data %}
+            <div class="row">
+                {% for league_id, league_data in utilization_data.items() %}
+                <div class="col-md-6 mb-3">
+                    <div class="border rounded p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="text-primary fw-bold mb-0">{{ league_data.league_name }}</h6>
+                            <small class="text-muted">ID: {{ league_data.league_id }}</small>
+                        </div>
+                        
+                        {% set util = league_data.utilization %}
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="stat-card">
+                                    <div class="card-body p-2">
+                                        <div class="h5 mb-1">{{ util.total_court_time_slots }}</div>
+                                        <small class="text-muted">Total Court-Time Slots</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-card">
+                                    <div class="card-body p-2">
+                                        <div class="h5 mb-1 text-info">{{ util.current_usage }}</div>
+                                        <small class="text-muted">Used Slots</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-card">
+                                    <div class="card-body p-2">
+                                        <div class="h5 mb-1 
+                                            {% if util.utilization_percentage > 80 %}text-danger
+                                            {% elif util.utilization_percentage > 60 %}text-warning
+                                            {% else %}text-success
+                                            {% endif %}">
+                                            {{ "%.1f"|format(util.utilization_percentage) }}%
+                                        </div>
+                                        <small class="text-muted">Utilization</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Utilization Progress Bar -->
+                        <div class="mt-3">
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar 
+                                    {% if util.utilization_percentage > 80 %}bg-danger
+                                    {% elif util.utilization_percentage > 60 %}bg-warning
+                                    {% else %}bg-success
+                                    {% endif %}" 
+                                    role="progressbar" 
+                                    style="width: {{ util.utilization_percentage }}%"
+                                    aria-valuenow="{{ util.utilization_percentage }}" 
+                                    aria-valuemin="0" 
+                                    aria-valuemax="100">
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-1">
+                                <small class="text-muted">0%</small>
+                                <small class="text-muted">{{ "%.1f"|format(util.utilization_percentage) }}%</small>
+                                <small class="text-muted">100%</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Utilization Summary -->
+            <div class="mt-4 p-3 bg-light rounded">
+                <h6 class="mb-2"><i class="fas fa-info-circle"></i> Utilization Summary</h6>
+                <div class="row">
+                    <div class="col-md-4">
+                        <small class="text-muted">Total Active Leagues:</small>
+                        <div class="fw-bold">{{ utilization_data|length }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted">Total Used Times:</small>
+                        <div class="fw-bold">
+                            {% set total_used = 0 %}
+                            {% for league_id, league_data in utilization_data.items() %}
+                                {% set total_used = total_used + league_data.utilization.current_usage %}
+                            {% endfor %}
+                            {{ total_used }}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted">Average Utilization:</small>
+                        <div class="fw-bold">
+                            {% set avg_util = 0 %}
+                            {% if utilization_data|length > 0 %}
+                                {% set total_util = 0 %}
+                                {% for league_id, league_data in utilization_data.items() %}
+                                    {% set total_util = total_util + league_data.utilization.utilization_percentage %}
+                                {% endfor %}
+                                {% set avg_util = total_util / utilization_data|length %}
+                            {% endif %}
+                            {{ "%.1f"|format(avg_util) }}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-chart-bar"></i>
+                <h5>No utilization data available</h5>
+                <p>This facility has no current scheduled matches to analyze.</p>
+            </div>
+        {% endif %}
     </div>
 </div>
 

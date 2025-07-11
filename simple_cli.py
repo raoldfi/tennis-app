@@ -205,6 +205,16 @@ Examples:
         # Health command
         health_parser = subparsers.add_parser("health", help="Check database health")
         
+        # Facility requirements command
+        facility_req_parser = subparsers.add_parser("facility-requirements", 
+                                                   help="Calculate facility requirements for a league")
+        facility_req_parser.add_argument("--league-id", type=int, required=True, 
+                                        help="League ID to analyze")
+        facility_req_parser.add_argument("--no-utilization", action="store_true", 
+                                        help="Skip current utilization analysis")
+        facility_req_parser.add_argument("--output", choices=["json", "summary"], default="summary",
+                                        help="Output format (default: summary)")
+        
         args = parser.parse_args()
         
         if not args.command:
@@ -241,6 +251,8 @@ Examples:
                 return self.handle_stats(args, db)
             elif args.command == "health":
                 return self.handle_health(args, db)
+            elif args.command == "facility-requirements":
+                return self.handle_facility_requirements(args, db)
             else:
                 print(f"Unknown command: {args.command}")
                 return 1
@@ -1439,6 +1451,120 @@ Examples:
             print(f"Database health check: ❌ FAILED")
             print(f"Error: {e}")
             return 1
+
+    def handle_facility_requirements(self, args, db):
+        """Handle facility requirements calculation"""
+        try:
+            # Validate league exists
+            league = db.get_league(args.league_id)
+            if not league:
+                print(f"League {args.league_id} not found")
+                return 1
+            
+            print(f"📊 Calculating facility requirements for league: {league.name}")
+            print("-" * 60)
+            
+            # Calculate requirements
+            include_utilization = not args.no_utilization
+            requirements = db.facility_manager.calculate_league_facility_requirements(
+                league=league, 
+                include_utilization=include_utilization
+            )
+            
+            if args.output == "json":
+                print(json.dumps(requirements, indent=2))
+            else:
+                self._print_facility_requirements_summary(requirements)
+            
+            return 0
+            
+        except Exception as e:
+            print(f"Error calculating facility requirements: {e}")
+            if args.verbose:
+                traceback.print_exc()
+            return 1
+
+    def _print_facility_requirements_summary(self, requirements):
+        """Print a human-readable summary of facility requirements"""
+        print("📋 FACILITY REQUIREMENTS SUMMARY")
+        print("=" * 60)
+        
+        # Basic info
+        print(f"League: {requirements['league_name']}")
+        print(f"Total Teams: {requirements['total_teams']}")
+        print(f"Total Matches: {requirements['total_matches']}")
+        print(f"Lines per Match: {requirements['lines_per_match']}")
+        print(f"Total Court Hours: {requirements['total_court_hours']}")
+        print(f"League Duration: {requirements['league_duration_weeks']} weeks")
+        
+        # Facility analysis
+        print("\n🏟️  FACILITY ANALYSIS")
+        print("-" * 30)
+        facilities_analysis = requirements['facilities_analysis']
+        print(f"Total Facilities Used: {facilities_analysis['total_facilities']}")
+        
+        if facilities_analysis['facilities_used']:
+            print("\nFacilities:")
+            for facility in facilities_analysis['facilities_used']:
+                print(f"  • {facility['facility_name']} ({facility['facility_location']})")
+                print(f"    - Teams: {facility['teams_count']}")
+                print(f"    - Courts: {facility['total_courts']}")
+        
+        # Geographic distribution
+        geo_dist = facilities_analysis['geographic_distribution']
+        if len(geo_dist) > 1:
+            print(f"\nGeographic Distribution:")
+            for location, facilities in geo_dist.items():
+                print(f"  • {location}: {len(facilities)} facilities")
+        
+        # Peak demand
+        print("\n📈 PEAK DEMAND ANALYSIS")
+        print("-" * 30)
+        peak_demand = requirements['peak_demand']
+        print(f"Matches per Week: {peak_demand['matches_per_week']}")
+        
+        if peak_demand['courts_needed_per_day']:
+            print("\nCourts Needed per Day:")
+            for day, courts in peak_demand['courts_needed_per_day'].items():
+                print(f"  • {day}: {courts} courts")
+            
+            peak_day = peak_demand.get('peak_day')
+            if peak_day:
+                print(f"\nPeak Day: {peak_day}")
+        
+        # Team preferences
+        if peak_demand['team_day_preferences']:
+            print("\nTeam Day Preferences:")
+            for day, count in peak_demand['team_day_preferences'].items():
+                print(f"  • {day}: {count} teams")
+        
+        # Utilization analysis
+        if requirements['utilization_analysis'] and "error" not in requirements['utilization_analysis']:
+            print("\n💹 CURRENT UTILIZATION")
+            print("-" * 30)
+            for facility_id, util_data in requirements['utilization_analysis'].items():
+                if isinstance(util_data, dict):
+                    print(f"  • {util_data['facility_name']}")
+                    print(f"    - Total Courts: {util_data['total_courts']}")
+                    print(f"    - Current Usage: {util_data['current_usage']}")
+                    print(f"    - Utilization: {util_data['utilization_percentage']:.1f}%")
+        
+        # Recommendations
+        print("\n💡 RECOMMENDATIONS")
+        print("-" * 30)
+        for i, recommendation in enumerate(requirements['recommendations'], 1):
+            print(f"{i}. {recommendation}")
+        
+        # League configuration
+        print("\n⚙️  LEAGUE CONFIGURATION")
+        print("-" * 30)
+        print(f"Split Lines Allowed: {'Yes' if requirements['allow_split_lines'] else 'No'}")
+        if requirements['preferred_days']:
+            print(f"Preferred Days: {', '.join(requirements['preferred_days'])}")
+        if requirements['backup_days']:
+            print(f"Backup Days: {', '.join(requirements['backup_days'])}")
+        
+        print("\n" + "=" * 60)
     
     def _pretty_print_matches(self, matches, specific_league_id=None):
         """Pretty print matches"""
