@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+
+{% set is_edit_mode = facility is defined %}
+{% set page_title = "Edit " + facility.name if is_edit_mode else "Add New Facility" %}
+
+{% block title %}{{ page_title }} - Tennis Database{% endblock %}
+
+{% block content %}
+<div class="tennis-page-header">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1 class="tennis-page-title">
+                <i class="fas fa-{{ 'edit' if is_edit_mode else 'plus-circle' }}"></i> {{ "Edit Facility" if is_edit_mode else "Add New Facility" }}
+            </h1>
+            <p class="tennis-subtitle">{{ "Update facility information and scheduling" if is_edit_mode else "Create a new tennis facility with scheduling information" }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            {% if is_edit_mode %}
+            <a href="{{ url_for('view_facility', facility_id=facility.id) }}" class="btn-tennis-info">
+                <i class="fas fa-eye"></i> View Details
+            </a>
+            {% endif %}
+            <a href="{{ url_for('facilities') }}" class="btn-tennis-outline">
+                <i class="fas fa-arrow-left"></i> Back to Facilities
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="tennis-card">
+    <div class="tennis-section-header">
+        <h3 class="tennis-section-title">
+            <i class="fas fa-building"></i> Facility Information
+        </h3>
+    </div>
+    <div class="tennis-card-body">
+        <form method="POST">
+            <!-- Compact Facility Info -->
+            <div class="row g-2 align-items-end">
+                {% if is_edit_mode %}
+                <div class="col-md-2">
+                    <label for="id" class="tennis-form-label">ID</label>
+                    <input type="text" class="tennis-form-control tennis-form-control-sm" id="id" value="{{ facility.id }}" disabled>
+                </div>
+                {% else %}
+                <div class="col-md-2">
+                    <label for="id" class="tennis-form-label">ID *</label>
+                    <input type="number" class="tennis-form-control tennis-form-control-sm" id="id" name="id" required min="1" placeholder="1">
+                </div>
+                {% endif %}
+                
+                <div class="col-md-4">
+                    <label for="name" class="tennis-form-label">Facility Name *</label>
+                    <input type="text" class="tennis-form-control tennis-form-control-sm" id="name" name="name" required 
+                           value="{{ facility.name if is_edit_mode else '' }}" placeholder="Full facility name">
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="short_name" class="tennis-form-label">Short Name</label>
+                    <input type="text" class="tennis-form-control tennis-form-control-sm" id="short_name" name="short_name" 
+                           maxlength="10" value="{{ facility.short_name or '' if is_edit_mode else '' }}" 
+                           placeholder="VR, TCA">
+                </div>
+                
+                <div class="col-md-3">
+                    <label for="location" class="tennis-form-label">Location</label>
+                    <input type="text" class="tennis-form-control tennis-form-control-sm" id="location" name="location" 
+                           value="{{ facility.location or '' if is_edit_mode else '' }}" 
+                           placeholder="City, State">
+                </div>
+                
+                <div class="col-md-1">
+                    <label for="total_courts" class="tennis-form-label">Courts</label>
+                    <input type="number" class="tennis-form-control tennis-form-control-sm" id="total_courts" name="total_courts" 
+                           min="0" value="{{ facility.total_courts if is_edit_mode else '0' }}" placeholder="0">
+                </div>
+            </div>
+            
+            <!-- Weekly Schedule Section -->
+            <div class="col-12 mt-4">
+                <div class="tennis-section-header">
+                    <h4 class="tennis-section-title">
+                        <i class="fas fa-calendar-week"></i> Weekly Schedule
+                    </h4>
+                </div>
+                
+                <div class="row g-3">
+                    {% set days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                    {% for day in days %}
+                    <div class="col-lg-6 col-xl-4">
+                        <div class="tennis-card">
+                            <div class="tennis-card-header d-flex justify-content-between align-items-center">
+                                <strong>{{ day }}</strong>
+                                <button type="button" class="btn-tennis-primary btn-sm" 
+                                        onclick="addTimeSlot('{{ day.lower() }}')">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                            <div class="tennis-card-body p-2" id="{{ day.lower() }}_slots">
+                                {% if is_edit_mode %}
+                                    {% set day_schedule = facility.schedule.get_day_schedule(day) %}
+                                    {% if day_schedule.start_times %}
+                                        {% for time_slot in day_schedule.start_times %}
+                                        <div class="d-flex gap-2 mb-2 time-slot">
+                                            <input type="time" class="tennis-form-control tennis-form-control-sm flex-grow-1" 
+                                                   name="{{ day.lower() }}_times" value="{{ time_slot.time }}">
+                                            <input type="number" class="tennis-form-control tennis-form-control-sm" 
+                                                   name="{{ day.lower() }}_courts" min="0" 
+                                                   value="{{ time_slot.available_courts }}" style="width: 70px;">
+                                            <button type="button" class="btn-tennis-danger btn-sm" 
+                                                    onclick="removeTimeSlot(this)">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="d-flex gap-2 mb-2 time-slot">
+                                            <input type="time" class="tennis-form-control tennis-form-control-sm flex-grow-1" 
+                                                   name="{{ day.lower() }}_times" placeholder="Time">
+                                            <input type="number" class="tennis-form-control tennis-form-control-sm" 
+                                                   name="{{ day.lower() }}_courts" min="0" placeholder="Courts" style="width: 70px;">
+                                            <button type="button" class="btn-tennis-danger btn-sm" 
+                                                    onclick="removeTimeSlot(this)">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    {% endif %}
+                                {% else %}
+                                    <div class="d-flex gap-2 mb-2 time-slot">
+                                        <input type="time" class="tennis-form-control tennis-form-control-sm flex-grow-1" 
+                                               name="{{ day.lower() }}_times" placeholder="Time">
+                                        <input type="number" class="tennis-form-control tennis-form-control-sm" 
+                                               name="{{ day.lower() }}_courts" min="0" placeholder="Courts" style="width: 70px;">
+                                        <button type="button" class="btn-tennis-danger btn-sm" 
+                                                onclick="removeTimeSlot(this)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Unavailable Dates Section -->
+            <div class="mt-4">
+                <div class="tennis-section-header">
+                    <h4 class="tennis-section-title">
+                        <i class="fas fa-ban"></i> Unavailable Dates
+                    </h4>
+                </div>
+                
+                <div class="row g-2 align-items-end mb-3">
+                    <div class="col-md-4">
+                        <label for="new_date" class="tennis-form-label">Add Date</label>
+                        <input type="date" class="tennis-form-control tennis-form-control-sm" id="new_date">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn-tennis-primary btn-sm w-100" onclick="addUnavailableDate()">
+                            <i class="fas fa-plus"></i> Add
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="tennis-form-text">
+                            Select dates when the facility is not available (holidays, maintenance, etc.)
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Current Unavailable Dates -->
+                <div id="unavailable_dates_list" class="d-flex flex-wrap gap-2 mb-3">
+                    {% if is_edit_mode %}
+                        {% for date in facility.unavailable_dates %}
+                        <div class="tennis-badge tennis-badge-warning d-flex align-items-center gap-1 unavailable-date-item" data-date="{{ date }}">
+                            {{ date }}
+                            <button type="button" class="btn p-0 border-0 bg-transparent text-dark" onclick="removeUnavailableDate(this)" style="font-size: 0.8em;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                
+                <!-- Hidden textarea to store the dates for form submission -->
+                <textarea class="d-none" id="unavailable_dates" name="unavailable_dates">{% if is_edit_mode %}{% for date in facility.unavailable_dates %}{{ date }}
+{% endfor %}{% endif %}</textarea>
+            </div>
+            
+            <div class="col-12 mt-4">
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn-tennis-primary">
+                        <i class="fas fa-{{ 'save' if is_edit_mode else 'plus' }}"></i> {{ "Update Facility" if is_edit_mode else "Add Facility" }}
+                    </button>
+                    <a href="{{ url_for('facilities') }}" class="btn-tennis-outline">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if is_edit_mode %}
+<!-- Preview Section - Only show in edit mode -->
+<div class="tennis-card mt-4">
+    <div class="tennis-section-header">
+        <h3 class="tennis-section-title">
+            <i class="fas fa-eye"></i> Current Schedule Preview
+        </h3>
+        <div class="tennis-badge tennis-badge-primary">
+            {% set total_slots = 0 %}
+            {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+                {% set total_slots = total_slots + day_schedule.start_times|length %}
+            {% endfor %}
+            {{ total_slots }} total slots
+        </div>
+    </div>
+    <div class="tennis-card-body">
+        <div class="row g-3">
+            {% for day_name, day_schedule in facility.schedule.get_all_days().items() %}
+            <div class="col-lg-4 col-md-6">
+                <div class="tennis-card h-100">
+                    <div class="tennis-card-header d-flex justify-content-between align-items-center">
+                        <strong>{{ day_name }}</strong>
+                        <span class="tennis-badge tennis-badge-light">
+                            {{ day_schedule.start_times|length }}
+                        </span>
+                    </div>
+                    <div class="tennis-card-body p-2">
+                        {% if day_schedule.start_times %}
+                            {% for time_slot in day_schedule.start_times %}
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="tennis-badge tennis-badge-primary">{{ time_slot.time }}</span>
+                                <span class="small text-tennis-muted">{{ time_slot.available_courts }} courts</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <span class="text-tennis-muted small">No availability</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if facility.unavailable_dates %}
+        <div class="mt-3">
+            <h6 class="tennis-section-title">
+                <i class="fas fa-ban text-tennis-warning"></i> Unavailable Dates
+            </h6>
+            <div class="d-flex flex-wrap gap-2">
+                {% for date in facility.unavailable_dates %}
+                <span class="tennis-badge tennis-badge-warning">{{ date }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Help Section -->
+<div class="tennis-card mt-4">
+    <div class="tennis-section-header">
+        <h3 class="tennis-section-title">
+            <i class="fas fa-question-circle"></i> Quick Tips
+        </h3>
+    </div>
+    <div class="tennis-card-body">
+        <div class="row g-3">
+            {% if not is_edit_mode %}
+            <div class="col-md-4">
+                <div class="tennis-status tennis-status-info">
+                    <i class="fas fa-hashtag"></i>
+                    <div>
+                        <strong>Facility ID:</strong> Must be a unique positive integer. Check existing facilities first.
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            <div class="col-md-{{ '6' if is_edit_mode else '4' }}">
+                <div class="tennis-status tennis-status-info">
+                    <i class="fas fa-clock"></i>
+                    <div>
+                        <strong>Time Format:</strong> Use 24-hour format (18:00 for 6 PM). Each slot represents when matches can start.
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-{{ '6' if is_edit_mode else '4' }}">
+                <div class="tennis-status tennis-status-warning">
+                    <i class="fas fa-calendar-times"></i>
+                    <div>
+                        <strong>Unavailable Dates:</strong> Use the date picker to select dates. Click the X to remove dates.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addTimeSlot(day) {
+    const container = document.getElementById(day + '_slots');
+    const newSlot = document.createElement('div');
+    newSlot.className = 'd-flex gap-2 mb-2 time-slot';
+    newSlot.innerHTML = `
+        <input type="time" class="tennis-form-control tennis-form-control-sm flex-grow-1" 
+               name="${day}_times" placeholder="Time">
+        <input type="number" class="tennis-form-control tennis-form-control-sm" 
+               name="${day}_courts" min="0" placeholder="Courts" style="width: 70px;">
+        <button type="button" class="btn-tennis-danger btn-sm" 
+                onclick="removeTimeSlot(this)">
+            <i class="fas fa-trash"></i>
+        </button>
+    `;
+    container.appendChild(newSlot);
+}
+
+function removeTimeSlot(button) {
+    const slot = button.closest('.time-slot');
+    const container = slot.parentNode;
+    if (container.children.length > 1) {
+        slot.remove();
+    } else {
+        // Clear the inputs instead of removing the last slot
+        const timeInput = slot.querySelector('input[type="time"]');
+        const courtsInput = slot.querySelector('input[type="number"]');
+        timeInput.value = '';
+        courtsInput.value = '';
+    }
+}
+
+// Auto-suggest short names based on facility name if short name is empty
+document.getElementById('name').addEventListener('input', function() {
+    const name = this.value.trim();
+    const shortNameField = document.getElementById('short_name');
+    
+    // Don't overwrite if user has already entered something
+    if (shortNameField.value.trim() !== '') {
+        return;
+    }
+    
+    // Generate simple abbreviation from first letters of words
+    const words = name.split(' ').filter(word => word.length > 0);
+    if (words.length >= 2) {
+        const abbreviation = words.map(word => word.charAt(0).toUpperCase()).join('');
+        if (abbreviation.length <= 10) {
+            shortNameField.value = abbreviation;
+        }
+    }
+});
+
+// Validate form before submission
+document.querySelector('form').addEventListener('submit', function(e) {
+    const name = document.getElementById('name').value.trim();
+    const shortName = document.getElementById('short_name').value.trim();
+    {% if not is_edit_mode %}
+    const id = document.getElementById('id').value.trim();
+    
+    if (!id || !name) {
+        e.preventDefault();
+        alert('Facility ID and Name are required.');
+        return;
+    }
+    {% else %}
+    if (!name) {
+        e.preventDefault();
+        alert('Facility name is required.');
+        return;
+    }
+    {% endif %}
+    
+    if (shortName && shortName.length > 10) {
+        e.preventDefault();
+        alert('Short name must be 10 characters or less.');
+        return;
+    }
+    
+    // Validate that at least one time slot has both time and courts
+    let hasValidSlot = false;
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    
+    for (const day of days) {
+        const times = document.querySelectorAll(`input[name="${day}_times"]`);
+        const courts = document.querySelectorAll(`input[name="${day}_courts"]`);
+        
+        for (let i = 0; i < times.length; i++) {
+            if (times[i].value && courts[i].value && parseInt(courts[i].value) > 0) {
+                hasValidSlot = true;
+                break;
+            }
+        }
+        
+        if (hasValidSlot) break;
+    }
+    
+    if (!hasValidSlot) {
+        if (!confirm('No valid time slots defined. The facility will have no availability. Continue?')) {
+            e.preventDefault();
+            return;
+        }
+    }
+});
+
+// Unavailable Dates Management
+function addUnavailableDate() {
+    const dateInput = document.getElementById('new_date');
+    const selectedDate = dateInput.value;
+    
+    if (!selectedDate) {
+        alert('Please select a date first.');
+        return;
+    }
+    
+    // Check if date is already added
+    const existingDates = document.querySelectorAll('.unavailable-date-item');
+    for (let item of existingDates) {
+        if (item.dataset.date === selectedDate) {
+            alert('This date is already marked as unavailable.');
+            return;
+        }
+    }
+    
+    // Add to the visual list
+    const datesList = document.getElementById('unavailable_dates_list');
+    const dateItem = document.createElement('div');
+    dateItem.className = 'tennis-badge tennis-badge-warning d-flex align-items-center gap-1 unavailable-date-item';
+    dateItem.dataset.date = selectedDate;
+    dateItem.innerHTML = `
+        ${selectedDate}
+        <button type="button" class="btn p-0 border-0 bg-transparent text-dark" onclick="removeUnavailableDate(this)" style="font-size: 0.8em;">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    datesList.appendChild(dateItem);
+    
+    // Update hidden textarea
+    updateUnavailableDatesTextarea();
+    
+    // Clear the input
+    dateInput.value = '';
+}
+
+function removeUnavailableDate(button) {
+    const dateItem = button.closest('.unavailable-date-item');
+    dateItem.remove();
+    
+    // Update hidden textarea
+    updateUnavailableDatesTextarea();
+}
+
+function updateUnavailableDatesTextarea() {
+    const dateItems = document.querySelectorAll('.unavailable-date-item');
+    const dates = Array.from(dateItems).map(item => item.dataset.date).sort();
+    const textarea = document.getElementById('unavailable_dates');
+    textarea.value = dates.join('\n');
+}
+
+// Allow adding dates by pressing Enter
+document.getElementById('new_date').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        addUnavailableDate();
+    }
+});
+
+// Highlight changes when editing (only in edit mode)
+{% if is_edit_mode %}
+document.addEventListener('DOMContentLoaded', function() {
+    const originalData = {
+        name: document.getElementById('name').value,
+        shortName: document.getElementById('short_name').value,
+        location: document.getElementById('location').value,
+        totalCourts: document.getElementById('total_courts').value
+    };
+    
+    function highlightChanges() {
+        const name = document.getElementById('name');
+        const shortName = document.getElementById('short_name');
+        const location = document.getElementById('location');
+        const totalCourts = document.getElementById('total_courts');
+        
+        // Add/remove changed class based on whether value has changed
+        name.classList.toggle('border-warning', name.value !== originalData.name);
+        shortName.classList.toggle('border-warning', shortName.value !== originalData.shortName);
+        location.classList.toggle('border-warning', location.value !== originalData.location);
+        totalCourts.classList.toggle('border-warning', totalCourts.value !== originalData.totalCourts);
+    }
+    
+    // Add event listeners for change detection
+    ['name', 'short_name', 'location', 'total_courts'].forEach(id => {
+        document.getElementById(id).addEventListener('input', highlightChanges);
+    });
+});
+{% endif %}
+</script>
+{% endblock %}

@@ -8,10 +8,14 @@ Updated to work without Line class - uses match scheduled_times instead.
 Added get_available_dates API for finding available dates for matches.
 """
 
+from math import log
 import sqlite3
 import json
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, timedelta
+
+from panel import state
+from tennis_db_interface import TennisDBInterface
 from usta import (
     Facility,
     WeeklySchedule,
@@ -34,14 +38,16 @@ logger = logging.getLogger(__name__)
 class SQLFacilityManager:
     """Helper class for managing facility operations in SQLite database"""
 
-    def __init__(self, cursor: sqlite3.Cursor):
+    def __init__(self, cursor: sqlite3.Cursor, db_instance: TennisDBInterface):
         """
         Initialize SQLFacilityManager
 
         Args:
             cursor: SQLite cursor for database operations
+            db_instance: Reference to main database instance for accessing other managers
         """
         self.cursor = cursor
+        self.db = db_instance
 
     def _dictify(self, row) -> dict:
         """Convert sqlite Row object to dictionary"""
@@ -154,11 +160,11 @@ class SQLFacilityManager:
                 raise RuntimeError(f"Failed to update facility {facility.id}")
 
             # Update schedule data (clear and re-insert)
-            self._insert_facility_schedule(facility.id, facility.schedule)
+            self._insert_facility_schedule(facility, facility.schedule)
 
             # Update unavailable dates (clear and re-insert)
             self._insert_facility_unavailable_dates(
-                facility.id, facility.unavailable_dates
+                facility, facility.unavailable_dates
             )
 
         except sqlite3.IntegrityError as e:
@@ -648,6 +654,7 @@ class SQLFacilityManager:
             self._validate_facility_availability_inputs(facility, dates, max_days)
 
             # Filter dates by facility availability first to minimize database queries
+            # This removes all the blackout dates and checks if the facility has a schedule for each date
             available_dates, unavailable_dates_info = (
                 self._filter_dates_by_facility_availability(facility, dates)
             )
@@ -660,6 +667,7 @@ class SQLFacilityManager:
             # Only query database for dates when facility is actually available
             if available_dates:
                 # Single database query to get scheduled times for available dates only
+                # This function handles dry run state if enabled
                 scheduled_times_by_date = self._get_scheduled_times_batch(
                     facility, available_dates
                 )
@@ -786,7 +794,8 @@ class SQLFacilityManager:
         self, facility: Facility, dates: List[str]
     ) -> Dict[str, List[str]]:
         """
-        Get scheduled times for multiple dates in a single database query
+        Get scheduled times for multiple dates in a single database query. This method also 
+        handles dry run state if enabled, allowing for more efficient batch processing.
 
         Args:
             facility: Facility object
@@ -818,6 +827,7 @@ class SQLFacilityManager:
             # Parse results and group by date
             scheduled_times_by_date = {date: [] for date in dates}
 
+            # Rows is postive only if there are matches in the database
             for row in rows:
                 date = row["date"]
                 times_json = row["scheduled_times"]
@@ -829,6 +839,7 @@ class SQLFacilityManager:
                         times = json.loads(times_json)
                         if isinstance(times, list):
                             scheduled_times_by_date[date].extend(times)
+
                     except (json.JSONDecodeError, TypeError):
                         # Skip invalid JSON, log warning if needed
                         logger.warning(
@@ -836,6 +847,21 @@ class SQLFacilityManager:
                         )
                         continue
 
+            # Extract scheduled times from scheduling_state
+            state = self.db.scheduling_state if hasattr(self.db, "scheduling_state") else None
+
+            if state:
+                for date in dates:
+                    state_dates = state.get_facility_usage(facility.id, date)
+
+                    # add state_dates to the scheduled_times_by_date
+                    if state_dates:
+                        scheduled_times_by_date[date].extend(state_dates)
+
+            logger.debug(
+                f"Retrieved scheduled times for {len(scheduled_times_by_date)} dates for facility {facility.id}"
+            )
+            # Ensure we only return dates that were requested
             return scheduled_times_by_date
 
         except sqlite3.Error as e:

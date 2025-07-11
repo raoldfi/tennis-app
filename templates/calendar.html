@@ -1,0 +1,536 @@
+{% extends "base.html" %}
+
+{% block title %}Calendar - Tennis Scheduler{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Calendar Page - TennisUI Enhanced Styles */
+    
+    .calendar-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--spacing-lg);
+        padding: var(--spacing-md) var(--spacing-lg);
+        background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
+        border-radius: var(--border-radius);
+        color: var(--tennis-white);
+    }
+    
+    .calendar-nav {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
+    
+    .calendar-nav-btn {
+        background: var(--tennis-white);
+        color: var(--tennis-primary);
+        border: none;
+        padding: var(--spacing-sm) var(--spacing-md);
+        border-radius: var(--border-radius);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-weight: var(--font-weight-bold);
+    }
+    
+    .calendar-nav-btn:hover {
+        background: var(--tennis-secondary);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .calendar-month-year {
+        font-size: 1.75rem;
+        font-weight: var(--font-weight-bold);
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 1px;
+        background-color: var(--border-color);
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .calendar-day-header {
+        background: linear-gradient(135deg, var(--tennis-secondary) 0%, var(--tennis-secondary-dark) 100%);
+        color: var(--tennis-primary-dark);
+        padding: var(--spacing-md);
+        text-align: center;
+        font-weight: var(--font-weight-bold);
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .calendar-day {
+        background: var(--tennis-white);
+        min-height: 120px;
+        padding: var(--spacing-sm);
+        position: relative;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        border: 2px solid transparent;
+    }
+    
+    .calendar-day:hover {
+        background: var(--tennis-gray-light);
+        border-color: var(--tennis-primary);
+        transform: scale(1.02);
+        box-shadow: var(--shadow-md);
+        z-index: 5;
+    }
+    
+    .calendar-day.today {
+        background: linear-gradient(135deg, var(--tennis-primary-light) 0%, var(--tennis-white) 100%);
+        border-color: var(--tennis-primary);
+    }
+    
+    .calendar-day.other-month {
+        background: var(--tennis-gray-light);
+        color: var(--tennis-text-muted);
+    }
+    
+    .calendar-day.other-month:hover {
+        background: #e9ecef;
+    }
+    
+    .calendar-day-number {
+        font-weight: var(--font-weight-bold);
+        font-size: 1.1rem;
+        color: var(--tennis-primary);
+        margin-bottom: var(--spacing-xs);
+    }
+    
+    .calendar-day.other-month .calendar-day-number {
+        color: var(--tennis-text-muted);
+    }
+    
+    .calendar-day.today .calendar-day-number {
+        color: var(--tennis-primary-dark);
+        background: var(--tennis-secondary);
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.95rem;
+    }
+    
+    .calendar-events {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-xs);
+        margin-top: var(--spacing-xs);
+    }
+    
+    .calendar-event {
+        background: var(--tennis-info);
+        color: var(--tennis-white);
+        padding: 2px var(--spacing-xs);
+        border-radius: calc(var(--border-radius) * 0.5);
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .calendar-event:hover {
+        background: var(--tennis-primary);
+        transform: translateY(-1px);
+    }
+    
+    .calendar-event.match-event {
+        background: var(--tennis-success);
+    }
+    
+    .calendar-event.facility-event {
+        background: var(--tennis-warning);
+        color: var(--tennis-primary-dark);
+    }
+    
+    .calendar-event.team-event {
+        background: var(--tennis-danger);
+    }
+    
+    .calendar-legend {
+        display: flex;
+        justify-content: center;
+        gap: var(--spacing-lg);
+        margin-top: var(--spacing-lg);
+        flex-wrap: wrap;
+    }
+    
+    .calendar-legend-item {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        font-size: 0.9rem;
+    }
+    
+    .calendar-legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: var(--border-radius);
+    }
+    
+    .calendar-today-indicator {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 8px;
+        height: 8px;
+        background: var(--tennis-secondary);
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .calendar-header {
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+        
+        .calendar-month-year {
+            font-size: 1.5rem;
+        }
+        
+        .calendar-day {
+            min-height: 80px;
+            padding: var(--spacing-xs);
+        }
+        
+        .calendar-day-number {
+            font-size: 1rem;
+        }
+        
+        .calendar-legend {
+            flex-direction: column;
+            align-items: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb Navigation -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Calendar</li>
+    </ol>
+</nav>
+
+<!-- Page Header -->
+<div class="tennis-page-header">
+    <h1 class="tennis-page-title">
+        <i class="fas fa-calendar"></i>
+        Tennis Calendar
+    </h1>
+    <p class="tennis-subtitle">
+        View all matches, events, and facility schedules in one place
+    </p>
+</div>
+
+<!-- Calendar Container -->
+<div class="calendar-container">
+    <!-- Calendar Header with Navigation -->
+    <div class="calendar-header">
+        <div class="calendar-nav">
+            <button class="calendar-nav-btn" id="prev-month">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="calendar-month-year" id="current-month-year">
+                July 2025
+            </span>
+            <button class="calendar-nav-btn" id="next-month">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+        
+        <div class="calendar-nav">
+            <button class="calendar-nav-btn" id="today-btn">
+                <i class="fas fa-calendar-day me-1"></i>
+                Today
+            </button>
+            <button class="calendar-nav-btn" id="view-options">
+                <i class="fas fa-cog me-1"></i>
+                View
+            </button>
+        </div>
+    </div>
+
+    <!-- Calendar Grid -->
+    <div class="calendar-grid">
+        <!-- Day Headers -->
+        <div class="calendar-day-header">Sun</div>
+        <div class="calendar-day-header">Mon</div>
+        <div class="calendar-day-header">Tue</div>
+        <div class="calendar-day-header">Wed</div>
+        <div class="calendar-day-header">Thu</div>
+        <div class="calendar-day-header">Fri</div>
+        <div class="calendar-day-header">Sat</div>
+
+        <!-- Calendar Days (July 2025) -->
+        <!-- Week 1 -->
+        <div class="calendar-day other-month">
+            <div class="calendar-day-number">29</div>
+        </div>
+        <div class="calendar-day other-month">
+            <div class="calendar-day-number">30</div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">1</div>
+            <div class="calendar-events">
+                <div class="calendar-event facility-event">Court Maintenance</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">2</div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">3</div>
+            <div class="calendar-events">
+                <div class="calendar-event match-event">Hawks vs Eagles</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">4</div>
+            <div class="calendar-events">
+                <div class="calendar-event match-event">Lions vs Tigers</div>
+                <div class="calendar-event team-event">Team Practice</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">5</div>
+        </div>
+
+        <!-- Week 2 -->
+        <div class="calendar-day">
+            <div class="calendar-day-number">6</div>
+            <div class="calendar-events">
+                <div class="calendar-event match-event">Sharks vs Dolphins</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">7</div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">8</div>
+            <div class="calendar-events">
+                <div class="calendar-event facility-event">Equipment Check</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">9</div>
+        </div>
+        <div class="calendar-day today">
+            <div class="calendar-day-number">10</div>
+            <div class="calendar-today-indicator"></div>
+            <div class="calendar-events">
+                <div class="calendar-event match-event">Bears vs Wolves</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">11</div>
+            <div class="calendar-events">
+                <div class="calendar-event match-event">Foxes vs Rabbits</div>
+                <div class="calendar-event match-event">Cats vs Dogs</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">12</div>
+        </div>
+
+        <!-- Week 3 -->
+        <div class="calendar-day">
+            <div class="calendar-day-number">13</div>
+            <div class="calendar-events">
+                <div class="calendar-event team-event">Team Meeting</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">14</div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">15</div>
+            <div class="calendar-events">
+                <div class="calendar-event match-event">Owls vs Hawks</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">16</div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">17</div>
+            <div class="calendar-events">
+                <div class="calendar-event match-event">Penguins vs Seals</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">18</div>
+            <div class="calendar-events">
+                <div class="calendar-event facility-event">Court Resurfacing</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">19</div>
+        </div>
+
+        <!-- Week 4 -->
+        <div class="calendar-day">
+            <div class="calendar-day-number">20</div>
+            <div class="calendar-events">
+                <div class="calendar-event match-event">Zebras vs Giraffes</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">21</div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">22</div>
+            <div class="calendar-events">
+                <div class="calendar-event team-event">Training Session</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">23</div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">24</div>
+            <div class="calendar-events">
+                <div class="calendar-event match-event">Elephants vs Rhinos</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">25</div>
+            <div class="calendar-events">
+                <div class="calendar-event match-event">Monkeys vs Gorillas</div>
+                <div class="calendar-event facility-event">Facility Inspection</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">26</div>
+        </div>
+
+        <!-- Week 5 -->
+        <div class="calendar-day">
+            <div class="calendar-day-number">27</div>
+            <div class="calendar-events">
+                <div class="calendar-event match-event">Horses vs Cows</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">28</div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">29</div>
+            <div class="calendar-events">
+                <div class="calendar-event team-event">Awards Ceremony</div>
+            </div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">30</div>
+        </div>
+        <div class="calendar-day">
+            <div class="calendar-day-number">31</div>
+            <div class="calendar-events">
+                <div class="calendar-event match-event">Season Finale</div>
+            </div>
+        </div>
+        <div class="calendar-day other-month">
+            <div class="calendar-day-number">1</div>
+        </div>
+        <div class="calendar-day other-month">
+            <div class="calendar-day-number">2</div>
+        </div>
+    </div>
+
+    <!-- Calendar Legend -->
+    <div class="calendar-legend">
+        <div class="calendar-legend-item">
+            <div class="calendar-legend-color" style="background: var(--tennis-success);"></div>
+            <span>Matches</span>
+        </div>
+        <div class="calendar-legend-item">
+            <div class="calendar-legend-color" style="background: var(--tennis-warning);"></div>
+            <span>Facility Events</span>
+        </div>
+        <div class="calendar-legend-item">
+            <div class="calendar-legend-color" style="background: var(--tennis-danger);"></div>
+            <span>Team Events</span>
+        </div>
+        <div class="calendar-legend-item">
+            <div class="calendar-legend-color" style="background: var(--tennis-info);"></div>
+            <span>Other Events</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Calendar Navigation
+    const prevButton = document.getElementById('prev-month');
+    const nextButton = document.getElementById('next-month');
+    const todayButton = document.getElementById('today-btn');
+    const monthYearDisplay = document.getElementById('current-month-year');
+    
+    // Sample navigation functionality (placeholder)
+    prevButton.addEventListener('click', function() {
+        console.log('Previous month clicked');
+        // TODO: Implement month navigation
+    });
+    
+    nextButton.addEventListener('click', function() {
+        console.log('Next month clicked');
+        // TODO: Implement month navigation
+    });
+    
+    todayButton.addEventListener('click', function() {
+        console.log('Today clicked');
+        // TODO: Navigate to current month and highlight today
+    });
+    
+    // Calendar day click handlers
+    const calendarDays = document.querySelectorAll('.calendar-day');
+    calendarDays.forEach(day => {
+        day.addEventListener('click', function() {
+            console.log('Day clicked:', this.querySelector('.calendar-day-number').textContent);
+            // TODO: Implement day detail view or event creation
+        });
+    });
+    
+    // Calendar event click handlers
+    const calendarEvents = document.querySelectorAll('.calendar-event');
+    calendarEvents.forEach(event => {
+        event.addEventListener('click', function(e) {
+            e.stopPropagation();
+            console.log('Event clicked:', this.textContent);
+            // TODO: Implement event detail view or editing
+        });
+    });
+});
+</script>
+{% endblock %}

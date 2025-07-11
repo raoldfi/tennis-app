@@ -65,17 +65,19 @@ def register_routes(app):
             try:
                 facility_id = int(request.form.get('id'))
                 name = request.form.get('name', '').strip()
+                short_name = request.form.get('short_name', '').strip()
                 location = request.form.get('location', '').strip()
                 total_courts = int(request.form.get('total_courts', 0))
                 
                 if not name:
                     flash('Facility name is required', 'error')
-                    return render_template('add_facility.html')
+                    return render_template('facility_form.html')
                 
                 # Create facility with basic info
                 facility = Facility(
                     id=facility_id, 
-                    name=name, 
+                    name=name,
+                    short_name=short_name if short_name else None,
                     location=location,
                     total_courts=total_courts
                 )
@@ -119,10 +121,10 @@ def register_routes(app):
             except Exception as e:
                 flash(f'Error adding facility: {e}', 'error')
             
-            return render_template('add_facility.html')
+            return render_template('facility_form.html')
         
         # GET request - show the form
-        return render_template('add_facility.html')
+        return render_template('facility_form.html')
     
     @app.route('/facilities/<int:facility_id>/edit', methods=['GET', 'POST'])
     def edit_facility(facility_id):
@@ -144,15 +146,17 @@ def register_routes(app):
         if request.method == 'POST':
             try:
                 name = request.form.get('name', '').strip()
+                short_name = request.form.get('short_name', '').strip()
                 location = request.form.get('location', '').strip()
                 total_courts = int(request.form.get('total_courts', 0))
                 
                 if not name:
                     flash('Facility name is required', 'error')
-                    return render_template('edit_facility.html', facility=facility)
+                    return render_template('facility_form.html', facility=facility)
                 
                 # Update facility with basic info
                 facility.name = name
+                facility.short_name = short_name if short_name else None
                 facility.location = location
                 facility.total_courts = total_courts
                 
@@ -195,10 +199,10 @@ def register_routes(app):
             except Exception as e:
                 flash(f'Error updating facility: {e}', 'error')
             
-            return render_template('edit_facility.html', facility=facility)
+            return render_template('facility_form.html', facility=facility)
         
         # GET request - show the form with existing data
-        return render_template('edit_facility.html', facility=facility)
+        return render_template('facility_form.html', facility=facility)
     
     # ==================== FACILITY IMPORT/EXPORT ROUTES ====================
     

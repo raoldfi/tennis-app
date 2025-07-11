@@ -99,7 +99,7 @@ leagues:
     age_group: "18 & Over"
     division: "4.5 Women"
     num_lines_per_match: 5
-    num_matches: 10
+    num_matches: 2
     allow_split_lines: true
     preferred_days:
       - "Sunday"
@@ -107,7 +107,7 @@ leagues:
     backup_days:
       - "Wednesday"
     start_date: "2025-03-01"
-    end_date: "2025-05-01"
+    end_date: "2025-03-14"
 
 # teams_consolidated.yaml - All teams from division files
 teams:
@@ -124,7 +124,7 @@ teams:
   - id: 2002
     name: "Team 2"
     league_id: 201
-    home_facility_id: 14
+    home_facility_id: 18
     captain: "Lowe"
     preferred_days: []
   

@@ -8,6 +8,9 @@ from typing import Optional
 import traceback
 import math
 from datetime import datetime, timedelta
+
+from matplotlib import lines
+from regex import F
 from usta import League, Match, Facility, FacilityAvailabilityInfo, TimeSlotAvailability
 from web_database import get_db, close_db
 
@@ -69,11 +72,11 @@ def schedule_match_form(match_id: int):
 
         # Get scheduling options using facility availability
         try:
+            # 
+
             # Get prioritized dates for this match
             num_dates = int(request.args.get("max_dates", 20))
-            prioritized_dates_with_qscore = match.get_prioritized_scheduling_dates(
-                num_dates=num_dates
-            )
+            prioritized_dates_with_qscore = match.get_prioritized_scheduling_dates()
             prioritized_dates = [date for date, qscore in prioritized_dates_with_qscore]
             # Create quality score lookup for later use
             quality_lookup = {
@@ -85,7 +88,7 @@ def schedule_match_form(match_id: int):
                 return redirect(url_for("matches"))
 
             # Filter dates where teams are already scheduled
-            filtered_dates = db.match_manager.filter_match_conflicts(
+            filtered_dates = db.match_manager.filter_team_conflicts(
                 match=match, dates=prioritized_dates
             )
 
@@ -117,27 +120,43 @@ def schedule_match_form(match_id: int):
             lines_needed = match.league.num_lines_per_match if match.league else 3
             allow_split_lines = league.allow_split_lines if league else False
 
-            # If split lines are allowed, we need fewer courts per time slot
-            courts_needed_per_slot = lines_needed
-            if allow_split_lines:
-                courts_needed_per_slot = math.ceil(lines_needed / 2)
 
             for facility_info in facility_availability_list:
                 try:
-                    print(
-                        f"\nProcessing date: {facility_info.date}, available: {facility_info.available}"
-                    )
 
                     # Skip unavailable dates
                     if not facility_info.available:
                         print(f"Skipping {facility_info.date}: {facility_info.reason}")
                         continue
 
+
+                    print(f"Processing facility info for {facility_info.date}")
+                    using_split_lines = False
+
+                    # Check to see if we can schedule all lines in one time slot
+                    if len(facility_info.get_available_times(lines_needed)) > 0:
+                        print(f"Can accommodate {lines_needed} lines in one time slot")
+                        using_split_lines = False
+                    elif allow_split_lines and len(facility_info.get_available_times(math.ceil(courts_needed_per_slot / 2))) > 1:
+                        print(f"Can accommodate split lines for {facility_info.date}")
+                        using_split_lines = True
+                    else:
+                        print(
+                            f"Skipping {facility_info.date}: not enough courts available"
+                        )
+                        continue
+
                     # Extract available times that can accommodate the needed courts
                     available_times = []
                     time_slot_details = []
 
+                    # At this point, we know we can accommodate the match. Just collecting details
                     for time_slot in facility_info.time_slots:
+                        
+                        courts_needed_per_slot = lines_needed
+                        if using_split_lines:
+                            courts_needed_per_slot = math.ceil(lines_needed / 2)
+
                         if time_slot.can_accommodate(courts_needed_per_slot):
                             available_times.append(time_slot.time)
 
@@ -153,13 +172,6 @@ def schedule_match_form(match_id: int):
                                     ),
                                 }
                             )
-
-                    # Skip dates with no suitable times
-                    if not available_times:
-                        print(
-                            f"Skipping {facility_info.date}: no times can accommodate {courts_needed_per_slot} courts"
-                        )
-                        continue
 
                     # Parse date for formatting
                     date_obj = datetime.strptime(facility_info.date, "%Y-%m-%d")
@@ -225,6 +237,8 @@ def schedule_match_form(match_id: int):
             # available_dates.sort(key=lambda x: (x["match_priority"], -x["score"]))
 
             print(f"Final available dates: {len(available_dates)}")
+
+            
 
             scheduling_options = {
                 "success": True,
@@ -301,12 +315,12 @@ def schedule_match_form(match_id: int):
 def check_team_conflicts(db, match, date):
     """Simple team conflict checking"""
     if match.home_team and db.check_team_date_conflict(
-        match.home_team, date, exclude_match=match
+        match.home_team, date
     ):
         return f"Home team {match.home_team.name} has a conflict on {date}"
 
     if match.visitor_team and db.check_team_date_conflict(
-        match.visitor_team, date, exclude_match=match
+        match.visitor_team, date
     ):
         return f"Visitor team {match.visitor_team.name} has a conflict on {date}"
 

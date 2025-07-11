@@ -61,6 +61,7 @@ class TennisUI {
         // Add sortable functionality to tennis tables
         document.querySelectorAll('.tennis-table').forEach(table => {
             this.makeSortable(table);
+            this.restoreTableSort(table);
         });
     }
 
@@ -123,6 +124,9 @@ class TennisUI {
 
         // Update row styling (maintain alternating colors)
         this.updateRowStyling(tbody);
+        
+        // Save sort state to URL parameters
+        this.saveSortState(table, columnIndex, isAscending);
     }
 
     static extractSortValue(cell) {
@@ -202,6 +206,142 @@ class TennisUI {
                 row.classList.add('odd');
             }
         });
+    }
+
+    /**
+     * Save sort state to URL parameters
+     * @param {HTMLElement} table - The table element
+     * @param {number} columnIndex - The column index being sorted
+     * @param {boolean} isAscending - Whether sorting is ascending
+     */
+    static saveSortState(table, columnIndex, isAscending) {
+        const tableId = table.id;
+        if (!tableId) return; // Only save state for tables with IDs
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Get column header text for more reliable identification
+        const header = table.querySelectorAll('thead th')[columnIndex];
+        const columnName = header ? header.textContent.trim().toLowerCase().replace(/\s+/g, '_') : columnIndex.toString();
+        
+        // Update URL parameters
+        urlParams.set('sort_column', columnName);
+        urlParams.set('sort_direction', isAscending ? 'asc' : 'desc');
+        urlParams.set('sort_table', tableId);
+        
+        // Update URL without page reload
+        const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+        window.history.replaceState({}, '', newUrl);
+    }
+
+    /**
+     * Restore sort state from URL parameters
+     * @param {HTMLElement} table - The table element
+     */
+    static restoreTableSort(table) {
+        const tableId = table.id;
+        if (!tableId) return; // Only restore state for tables with IDs
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const sortTable = urlParams.get('sort_table');
+        const sortColumn = urlParams.get('sort_column');
+        const sortDirection = urlParams.get('sort_direction');
+        
+        // Only restore sort if it's for this specific table
+        if (!sortTable || sortTable !== tableId || !sortColumn || !sortDirection) {
+            return;
+        }
+        
+        // Find the column index by matching header text
+        const headers = table.querySelectorAll('thead th');
+        let columnIndex = -1;
+        
+        for (let i = 0; i < headers.length; i++) {
+            const headerText = headers[i].textContent.trim().toLowerCase().replace(/\s+/g, '_');
+            if (headerText === sortColumn) {
+                columnIndex = i;
+                break;
+            }
+        }
+        
+        // Fallback: try to parse as a number (old-style column index)
+        if (columnIndex === -1 && !isNaN(parseInt(sortColumn))) {
+            columnIndex = parseInt(sortColumn);
+        }
+        
+        // If we found a valid column, restore the sort
+        if (columnIndex >= 0 && columnIndex < headers.length) {
+            const header = headers[columnIndex];
+            
+            // Check if this column is sortable
+            if (header.classList.contains('sortable') || !header.textContent.toLowerCase().includes('action')) {
+                // Ensure the column is marked as sortable if it wasn't already
+                header.classList.add('sortable');
+                header.style.cursor = 'pointer';
+                
+                // Apply the sort directly without triggering the click handler
+                // (which would save state again and cause an infinite loop)
+                this.applySortDirectly(table, columnIndex, header, sortDirection === 'asc');
+            }
+        }
+    }
+
+    /**
+     * Apply sort directly without triggering save state
+     * @param {HTMLElement} table - The table element
+     * @param {number} columnIndex - The column index to sort
+     * @param {HTMLElement} header - The header element
+     * @param {boolean} isAscending - Whether to sort ascending
+     */
+    static applySortDirectly(table, columnIndex, header, isAscending) {
+        const tbody = table.querySelector('tbody');
+        if (!tbody) return;
+
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        if (rows.length <= 1) return;
+
+        // Clear all other sort indicators
+        table.querySelectorAll('th.sortable').forEach(th => {
+            th.classList.remove('sort-asc', 'sort-desc', 'sort-active');
+        });
+        
+        // Set current sort indicator
+        header.classList.add('sort-active');
+        header.classList.add(isAscending ? 'sort-asc' : 'sort-desc');
+
+        // Sort rows
+        const sortedRows = rows.sort((a, b) => {
+            const aCell = a.cells[columnIndex];
+            const bCell = b.cells[columnIndex];
+            
+            if (!aCell || !bCell) return 0;
+            
+            let aValue = this.extractSortValue(aCell);
+            let bValue = this.extractSortValue(bCell);
+            
+            // Handle different data types
+            const comparison = this.compareValues(aValue, bValue);
+            return isAscending ? comparison : -comparison;
+        });
+
+        // Clear tbody and append sorted rows
+        tbody.innerHTML = '';
+        sortedRows.forEach(row => tbody.appendChild(row));
+
+        // Update row styling (maintain alternating colors)
+        this.updateRowStyling(tbody);
+        
+        // Note: We don't call saveSortState here to avoid overwriting URL parameters
+    }
+
+    /**
+     * Preserve sort state and reload the page
+     * This method ensures that the current table sort state is maintained after a page reload
+     */
+    static preserveSortAndReload() {
+        // Simply reload the page - the sort state is already saved in URL parameters
+        // and will be restored automatically when the page loads
+        window.location.reload();
     }
     
     /**

@@ -176,31 +176,9 @@ class ViewTeamPage {
             return;
         }
         
-        // Use TennisUI for better UX if available, otherwise redirect
-        if (typeof TennisUI !== 'undefined' && TennisUI.showModal) {
-            try {
-                // Use modal approach similar to matches page
-                TennisUI.setModalContent('scheduleMatchModal', 'scheduleMatchContent', 
-                    '<div class="text-center py-4"><div class="tennis-spinner"></div><p class="mt-2">Loading match details...</p></div>'
-                );
-                
-                TennisUI.showModal('scheduleMatchModal');
-                
-                const data = await TennisUI.apiCall(`/api/matches/${matchId}/schedule-form`);
-                TennisUI.setModalContent('scheduleMatchModal', 'scheduleMatchContent', data.html);
-                
-            } catch (error) {
-                TennisUI.setModalContent('scheduleMatchModal', 'scheduleMatchContent', 
-                    `<div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        Error loading match details: ${error.message}
-                    </div>`
-                );
-            }
-        } else {
-            // Fallback to direct redirect
-            window.location.href = `/matches/${matchId}/schedule`;
-        }
+        // Navigate directly to the schedule match form page
+        // This uses the route from web_schedule_match.py: /matches/<int:match_id>/schedule
+        window.location.href = `/matches/${matchId}/schedule`;
     }
 
     async unscheduleMatch(matchId, description) {

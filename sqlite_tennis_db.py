@@ -6,6 +6,7 @@ that uses actual object instances instead of IDs for many operations.
 
 """
 
+from random import seed
 import sqlite3
 import yaml
 import os
@@ -632,7 +633,7 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
         """Initialize all helper manager classes"""
         self.team_manager = SQLTeamManager(self.cursor, self)
         self.league_manager = SQLLeagueManager(self.cursor)
-        self.facility_manager = SQLFacilityManager(self.cursor)
+        self.facility_manager = SQLFacilityManager(self.cursor, self)
         self.match_manager = SQLMatchManager(self.cursor, self)
         self.scheduling_manager = SQLSchedulingManager(self.cursor, self)
     
@@ -805,9 +806,8 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
     def delete_team(self, team: Team) -> bool:
         return self.team_manager.delete_team(team.id)
 
-    def check_team_date_conflict(self, team: Team, date: str, 
-                                 exclude_match: Optional[Match] = None) -> bool:
-        return self.team_manager.check_team_date_conflict(team, date, exclude_match)
+    def check_team_date_conflict(self, team: Team, date: str) -> bool:
+        return self.team_manager.check_team_date_conflict(team, date)
 
     # ========== League Management ==========
     
@@ -935,8 +935,8 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
             match, date, times, scheduling_mode)
 
 
-    def auto_schedule_matches(self, matches: List['Match'], dry_run: bool = True) -> Dict:
-        return self.match_manager.auto_schedule_matches(matches=matches, dry_run=dry_run)
+    def auto_schedule_matches(self, matches: List['Match'], dry_run: bool = True,  seed: int = None) -> Dict:
+        return self.match_manager.auto_schedule_matches(matches=matches, dry_run=dry_run, seed=seed)
 
     def unschedule_match(self, match: Match) -> bool:
         return self.match_manager.unschedule_match(match)

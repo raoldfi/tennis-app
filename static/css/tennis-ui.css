@@ -1,5 +1,8 @@
 /* Tennis UI Design System */
 
+/* Import Component Styles */
+@import 'components/calendar.css';
+
 /* ==================== TENNIS BRANDING ==================== */
 
 /* Tennis Colors */

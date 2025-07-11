@@ -234,14 +234,12 @@ class SQLSchedulingManager:
             try:
                 # Check home team conflicts
                 if self.db.check_team_date_conflict(team=match.home_team, 
-                                                    date=date, 
-                                                    exclude_match=match):
+                                                    date=date):
                     return False
                 
                 # Check visitor team conflicts  
                 if self.db.check_team_date_conflict(team=match.visitor_team, 
-                                                    date=date, 
-                                                    exclude_match=match):
+                                                    date=date):
                     return False
             except Exception as date_error:
                 print(f"\n\n ==== Team Conflict error: {date_error}\n\n")
@@ -428,8 +426,8 @@ class SQLSchedulingManager:
             # Strategy 1: Try to schedule all lines at the same time (preferred)
             for date in preferred_dates:
                 # Check for team date conflicts first using existing method
-                if (self.db.team_manager.check_team_date_conflict(match.home_team.id, date, exclude_match_id=match.id) or
-                    self.db.team_manager.check_team_date_conflict(match.visitor_team.id, date, exclude_match_id=match.id)):
+                if (self.db.team_manager.check_team_date_conflict(match.home_team, date) or
+                    self.db.team_manager.check_team_date_conflict(match.visitor_team, date)):
                     continue
                 
                 for facility in facilities_to_check:
@@ -456,8 +454,8 @@ class SQLSchedulingManager:
             if match.league.allow_split_lines:
                 for date in preferred_dates:
                     # Check for team date conflicts first
-                    if (self.db.team_manager.check_team_date_conflict(match.home_team.id, date, exclude_match_id=match.id) or
-                        self.db.team_manager.check_team_date_conflict(match.visitor_team.id, date, exclude_match_id=match.id)):
+                    if (self.db.team_manager.check_team_date_conflict(match.home_team, date) or
+                        self.db.team_manager.check_team_date_conflict(match.visitor_team)):
                         continue
                     
                     for facility in facilities_to_check:

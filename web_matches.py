@@ -19,6 +19,7 @@ import yaml
 import time
 
 from usta import Match, MatchType, League
+from web_matches_calendar import create_calendar_context
 
 
 def format_score_description() -> str:
@@ -180,6 +181,24 @@ def register_routes(app, get_db):
             # Get formatted quality score description using helper function
             quality_description = format_score_description()
 
+            # Generate calendar data if calendar view is selected
+            calendar_context = {}
+            if view_type == 'calendar':
+                # Get month/year parameters for calendar navigation
+                month = request.args.get("month", type=int)
+                year = request.args.get("year", type=int)
+                
+                try:
+                    calendar_context = create_calendar_context(
+                        db_interface=db,
+                        month=month,
+                        year=year
+                    )
+                except Exception as e:
+                    print(f"Error generating calendar context: {str(e)}")
+                    # Continue without calendar data if there's an error
+                    calendar_context = {}
+
             return render_template(
                 "matches.html",
                 matches=matches_display,
@@ -200,6 +219,7 @@ def register_routes(app, get_db):
                 quality_stats=quality_stats,
                 quality_description=quality_description,  # Add quality description
                 view_type=view_type,  # NEW: view toggle parameter
+                **calendar_context  # Add calendar data when in calendar view
             )
 
         except Exception as e:
@@ -899,7 +919,105 @@ def register_routes(app, get_db):
             traceback.print_exc()
             return jsonify({"error": f"Bulk delete failed: {str(e)}"}), 500
 
-    # ==================== JINJA2 FILTERS ====================
+    # ==================== AJAX ENDPOINTS ====================
+    
+    @app.route("/api/calendar-data")
+    def calendar_data():
+        """AJAX endpoint to get calendar data for a specific month/year"""
+        db = get_db()
+        if not db:
+            return jsonify({"error": "Database not available"}), 500
+        
+        try:
+            # Get month/year parameters
+            month = request.args.get("month", type=int)
+            year = request.args.get("year", type=int)
+            
+            if not month or not year:
+                return jsonify({"error": "Month and year parameters required"}), 400
+            
+            # Get all current filter parameters to maintain consistency
+            league_id = request.args.get("league_id", type=int)
+            facility_id = request.args.get("facility_id", type=int)
+            team_id = request.args.get("team_id", type=int)
+            match_type_str = request.args.get("match_type", "all")
+            start_date = request.args.get("start_date", "").strip()
+            end_date = request.args.get("end_date", "").strip()
+            search_query = request.args.get("search_query", "").strip()
+            
+            # Get filter objects
+            league = db.get_league(league_id) if league_id else None
+            facility = db.get_facility(facility_id) if facility_id else None
+            team = db.get_team(team_id) if team_id else None
+            
+            # Convert match_type string to MatchType enum
+            try:
+                match_type = MatchType.from_string(match_type_str)
+            except ValueError:
+                match_type = MatchType.ALL
+            
+            # Get matches with filters
+            matches_list = db.list_matches(
+                facility=facility,
+                league=league,
+                team=team,
+                match_type=match_type,
+            )
+            
+            # Apply additional filters
+            filtered_matches = filter_matches(
+                matches_list, start_date, end_date, search_query
+            )
+            
+            # Create calendar context
+            calendar_context = create_calendar_context(db, month, year)
+            
+            # Filter calendar matches based on current filters
+            for week in calendar_context['calendar_weeks']:
+                for day in week.days:
+                    # Filter day matches based on current filters
+                    day.matches = [m for m in day.matches if m in filtered_matches]
+            
+            # Convert calendar data to JSON-serializable format
+            calendar_json = {
+                'calendar_weeks': [],
+                'current_month': calendar_context['current_month'],
+                'current_year': calendar_context['current_year'],
+                'month_name': calendar_context['month_name'],
+                'prev_month': calendar_context['prev_month'],
+                'prev_year': calendar_context['prev_year'],
+                'next_month': calendar_context['next_month'],
+                'next_year': calendar_context['next_year']
+            }
+            
+            for week in calendar_context['calendar_weeks']:
+                week_data = {'days': []}
+                for day in week.days:
+                    matches_data = []
+                    for match in day.matches:
+                        match_data = {
+                            'id': match.id,
+                            'home_team': match.home_team.name if match.home_team else 'TBD',
+                            'visitor_team': match.visitor_team.name if match.visitor_team else 'TBD',
+                            'facility': match.facility.name if match.facility else None,
+                            'time': match.scheduled_times[0] if match.scheduled_times else None
+                        }
+                        matches_data.append(match_data)
+                    
+                    day_data = {
+                        'day': day.day,
+                        'is_today': day.is_today,
+                        'is_other_month': day.is_other_month,
+                        'matches': matches_data
+                    }
+                    week_data['days'].append(day_data)
+                calendar_json['calendar_weeks'].append(week_data)
+            
+            return jsonify(calendar_json)
+            
+        except Exception as e:
+            print(f"Error in calendar_data endpoint: {str(e)}")
+            return jsonify({"error": f"Failed to load calendar data: {str(e)}"}), 500
 
     # ==================== JINJA2 FILTERS ====================
 

@@ -25,7 +25,7 @@ except ImportError as e:
 @dataclass
 class SchedulingState:
     """In-memory scheduling state for conflict detection"""
-    facility_bookings: Dict[Tuple[int, str, str], int] = field(default_factory=dict)  # (facility_id, date, time) -> match_id
+    facility_bookings: Dict[Tuple[int, str, str], List[int]] = field(default_factory=dict)  # (facility_id, date, time) -> [match_id1, match_id2, ...]
     team_bookings: Dict[Tuple[int, str], int] = field(default_factory=dict)            # (team_id, date) -> match_id
     operations: List[Dict] = field(default_factory=list)
     
@@ -38,7 +38,10 @@ class SchedulingState:
                 if match.facility and match.date and match.scheduled_times:
                     # Record facility bookings
                     for time in match.scheduled_times:
-                        self.facility_bookings[(match.facility.id, match.date, time)] = match.id
+                        booking_key = (match.facility.id, match.date, time)
+                        if booking_key not in self.facility_bookings:
+                            self.facility_bookings[booking_key] = []
+                        self.facility_bookings[booking_key].append(match.id)
                     
                     # Record team bookings
                     self.team_bookings[(match.home_team.id, match.date)] = match.id
@@ -46,20 +49,29 @@ class SchedulingState:
         except Exception as e:
             print(f"Warning: Could not initialize scheduling state: {e}")
     
-    def is_time_available(self, facility_id: int, date: str, time: str) -> bool:
-        """Check if time slot is available"""
-        return (facility_id, date, time) not in self.facility_bookings
+    def is_time_available(self, facility_id: int, date: str, time: str, courts_needed: int = 1) -> bool:
+        """Check if time slot is available for the requested number of courts"""
+        booking_key = (facility_id, date, time)
+        if booking_key not in self.facility_bookings:
+            return True
+        
+        # Check if there are enough courts available
+        booked_courts = len(self.facility_bookings[booking_key])
+        # Note: We would need facility object to get total courts, but for now assume conflict if any booking exists
+        # This method should probably be replaced by has_facility_conflict which has the facility object
+        return booked_courts < courts_needed
     
     def has_team_conflict(self, team_id: int, date: str) -> bool:
         """Check if team has conflict on this date"""
         return (team_id, date) in self.team_bookings
-    
-    def has_facility_conflict(self, facility_id: int, date: str, time: str, courts_needed: int = 1) -> bool:
+
+    def has_facility_conflict(self, facility: Facility, date: str, time: str, courts_needed: int = 1) -> bool:
         """
-        Check if facility has a conflict at the specified time
+        Check if facility has a conflict at the specified time. This function 
+        returns True if there are not enough courts available for the particular time slot
         
         Args:
-            facility_id: Facility ID to check
+            facility: Facility object to check
             date: Date in YYYY-MM-DD format
             time: Time in HH:MM format
             courts_needed: Number of courts needed (default 1)
@@ -67,13 +79,38 @@ class SchedulingState:
         Returns:
             True if there's a conflict, False if available
         """
-        # For simplicity, check if the exact time slot is already booked
-        # More sophisticated logic could account for courts_needed vs available courts
-        return (facility_id, date, time) in self.facility_bookings
+
+        # Get the number of courts available at this facility, date, and time
+        reservable_courts = facility.get_available_courts_on_date_time(date, time)
+        if reservable_courts < courts_needed:
+            logger.debug(
+                f"Facility {facility.id} on {date} at {time} has only {reservable_courts} courts available, "
+                f"but {courts_needed} are needed."
+            )
+            return True
+
+        # Check how many courts are already booked at this specific time
+        booking_key = (facility.id, date, time)
+        if booking_key in self.facility_bookings:
+            booked_courts = len(self.facility_bookings[booking_key])
+            available_courts = reservable_courts - booked_courts
+            
+            if available_courts < courts_needed:
+                logger.debug(
+                    f"Facility {facility.id} on {date} at {time}: {booked_courts} courts already booked, "
+                    f"{available_courts} available, but {courts_needed} needed."
+                )
+                return True
+
+        return False
     
     def book_time_slot(self, match_id: int, facility_id: int, date: str, time: str):
         """Book a time slot"""
-        self.facility_bookings[(facility_id, date, time)] = match_id
+        booking_key = (facility_id, date, time)
+        if booking_key not in self.facility_bookings:
+            self.facility_bookings[booking_key] = []
+        bookings = self.facility_bookings[booking_key]
+        self.facility_bookings[booking_key].append(match_id)
     
     def book_team_date(self, match_id: int, team_id: int, date: str):
         """Book a team date"""
@@ -120,7 +157,12 @@ class SchedulingState:
         for time in match.scheduled_times:
             booking_key = (match.facility.id, match.date, time)
             if booking_key in self.facility_bookings:
-                del self.facility_bookings[booking_key]
+                # Remove this match from the list
+                if match.id in self.facility_bookings[booking_key]:
+                    self.facility_bookings[booking_key].remove(match.id)
+                # If no more matches at this time, remove the key entirely
+                if not self.facility_bookings[booking_key]:
+                    del self.facility_bookings[booking_key]
         
         # Remove team bookings
         home_key = (match.home_team.id, match.date)
@@ -145,17 +187,39 @@ class SchedulingState:
         
     
     def get_facility_usage(self, facility_id: int, date: str) -> List[str]:
-        """Get all booked times for a facility on a specific date"""
+        """Get all booked times for a facility on a specific date (with duplicates for multiple matches)"""
         booked_times = []
-        for (fid, dt, time), match_id in self.facility_bookings.items():
+        for (fid, dt, time), match_ids in self.facility_bookings.items():
             if fid == facility_id and dt == date:
-                booked_times.append(time)
+                # Add the time once for each match booked at this time
+                booked_times.extend([time] * len(match_ids))
         return sorted(booked_times)
     
     def get_team_schedule(self, team_id: int) -> List[str]:
         """Get all dates when a team is scheduled"""
         scheduled_dates = []
-        for (tid, date), match_id in self.team_bookings.items():
+        for (tid, date), _ in self.team_bookings.items():
             if tid == team_id:
                 scheduled_dates.append(date)
         return sorted(list(set(scheduled_dates)))  # Remove duplicates and sort
+    
+    def get_facility_usage_count(self, facility_id: int, date: str, time: str) -> int:
+        """Get the number of matches booked at a specific facility, date, and time"""
+        booking_key = (facility_id, date, time)
+        if booking_key in self.facility_bookings:
+            return len(self.facility_bookings[booking_key])
+        return 0
+    
+    def get_facility_available_courts(self, facility: Facility, date: str, time: str) -> int:
+        """Get the number of available courts at a facility for a specific date and time"""
+        total_courts = facility.get_available_courts_on_date_time(date, time)
+        booked_courts = self.get_facility_usage_count(facility.id, date, time)
+        return max(0, total_courts - booked_courts)
+    
+    def get_all_facility_bookings(self, facility_id: int, date: str) -> Dict[str, List[int]]:
+        """Get all bookings for a facility on a specific date, organized by time"""
+        bookings = {}
+        for (fid, dt, time), match_ids in self.facility_bookings.items():
+            if fid == facility_id and dt == date:
+                bookings[time] = match_ids.copy()  # Return a copy to prevent modification
+        return bookings

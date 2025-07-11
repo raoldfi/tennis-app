@@ -19,7 +19,6 @@ html {
 html,
 html body {
     min-height: 100%; /* Minimum full height for html and body */
-    position: relative; /* Relative positioning for body */
     background-color: var(--tennis-light); /* Light background color */
     color: var(--tennis-dark); /* Dark text color */
     line-height: var(--line-height-base); /* Base line height */

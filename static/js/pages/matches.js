@@ -404,12 +404,12 @@ class MatchesPage {
                         {
                             showRefresh: true,
                             refreshText: 'Refresh Page',
-                            onRefresh: () => window.location.reload()
+                            onRefresh: () => this.preserveSortAndReload()
                         }
                     );
                 } else {
                     TennisUI.showNotification(result.message || 'All matches scheduled successfully!', 'success');
-                    setTimeout(() => window.location.reload(), 1500);
+                    setTimeout(() => this.preserveSortAndReload(), 1500);
                 }
             }
         };
@@ -568,7 +568,7 @@ class MatchesPage {
         
         const customSuccessCallback = (result) => {
             TennisUI.showNotification(result.message || 'Matches scheduled successfully!', 'success');
-            setTimeout(() => window.location.reload(), 1500);
+            setTimeout(() => this.preserveSortAndReload(), 1500);
         };
 
         this.executeBulkOperationWithRefresh(
@@ -649,7 +649,7 @@ class MatchesPage {
                 successCallback(data);
             } else {
                 TennisUI.showNotification(data.message || 'Operation completed successfully!', 'success');
-                setTimeout(() => window.location.reload(), 1500);
+                setTimeout(() => this.preserveSortAndReload(), 1500);
             }
         })
         .catch(error => {
@@ -675,7 +675,7 @@ class MatchesPage {
                 );
             } else {
                 TennisUI.showNotification(result.message || 'Matches unscheduled successfully!', 'success');
-                setTimeout(() => window.location.reload(), 1500);
+                setTimeout(() => this.preserveSortAndReload(), 1500);
             }
         };
 
@@ -694,7 +694,7 @@ class MatchesPage {
         
         const customSuccessCallback = (result) => {
             TennisUI.showNotification(result.message || 'Matches deleted successfully!', 'success');
-            setTimeout(() => window.location.reload(), 1500);
+            setTimeout(() => this.preserveSortAndReload(), 1500);
         };
 
         this.executeBulkOperationWithRefresh(
@@ -752,7 +752,7 @@ class MatchesPage {
 
             // Use TennisUI for notifications
             TennisUI.showNotification(result.message || 'Match unscheduled successfully!', 'success');
-            setTimeout(() => window.location.reload(), 1000);
+            setTimeout(() => this.preserveSortAndReload(), 1000);
             
         } catch (error) {
             TennisUI.showNotification(error.message || 'Failed to unschedule match.', 'danger');
@@ -778,7 +778,7 @@ class MatchesPage {
 
             // Use TennisUI for notifications
             TennisUI.showNotification(result.message || 'Match deleted successfully!', 'success');
-            setTimeout(() => window.location.reload(), 1000);
+            setTimeout(() => this.preserveSortAndReload(), 1000);
             
         } catch (error) {
             TennisUI.showNotification(error.message || 'Failed to delete match.', 'danger');
@@ -806,7 +806,7 @@ class MatchesPage {
         .then(result => {
             TennisUI.hideModal('scheduleMatchModal');
             TennisUI.showNotification(result.message || 'Match scheduled successfully', 'success');
-            setTimeout(() => location.reload(), 1500);
+            setTimeout(() => this.preserveSortAndReload(), 1500);
         })
         .catch(error => {
             TennisUI.showNotification(`Failed to schedule match: ${error.message}`, 'danger');
@@ -832,7 +832,7 @@ class MatchesPage {
                 .then(result => {
                     TennisUI.hideModal('scheduleMatchModal');
                     TennisUI.showNotification(result.message || 'Match schedule cleared successfully', 'success');
-                    setTimeout(() => location.reload(), 1500);
+                    setTimeout(() => this.preserveSortAndReload(), 1500);
                 })
                 .catch(error => {
                     TennisUI.showNotification(`Failed to clear schedule: ${error.message}`, 'danger');
@@ -842,6 +842,16 @@ class MatchesPage {
     }
 
     // ==================== UTILITY FUNCTIONS ====================
+
+    preserveSortAndReload() {
+        // Use TennisUI's reload method if available to preserve sort state
+        if (typeof TennisUI !== 'undefined' && typeof TennisUI.preserveSortAndReload === 'function') {
+            TennisUI.preserveSortAndReload();
+        } else {
+            // Fallback to regular reload
+            window.location.reload();
+        }
+    }
 
     updateBulkOperationButtons(selectedCount) {
         const bulkButton = document.getElementById('bulkOperationsDropdown');

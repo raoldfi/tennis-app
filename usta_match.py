@@ -699,11 +699,12 @@ class Match:
 
     def schedule_all_lines_same_time(
         self, facility: "Facility", date: str, time: str
-    ) -> None:
+    ) -> bool:
         """Schedule all lines at the same time slot"""
         self.facility = facility
         self.date = date
         self.scheduled_times = [time] * self.league.num_lines_per_match
+        return True
 
     def schedule_lines_custom_times(
         self, facility: "Facility", date: str, times: List[str]
@@ -735,11 +736,12 @@ class Match:
 
         return True
 
-    def unschedule(self) -> None:
+    def unschedule(self) -> bool:
         """Unschedule the match (remove facility, date, and all times)"""
         self.facility = None
         self.date = None
         self.scheduled_times.clear()
+        return True
 
     # ========== Convenience Properties ==========
 

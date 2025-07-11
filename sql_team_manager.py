@@ -10,6 +10,7 @@ Updated to work with the new match-based scheduling system.
 import sqlite3
 from typing import List, Optional, TYPE_CHECKING
 from usta import Team, League, Facility, Match
+from scheduling_state import SchedulingState
 
 if TYPE_CHECKING:
     from tennis_db_interface import TennisDBInterface
@@ -342,19 +343,26 @@ class SQLTeamManager:
         except Exception as e:
             raise RuntimeError(f"Database error getting teams by facility name: {e}")
 
-    def check_team_date_conflict(self, team: Team, date: str, exclude_match: Optional['Match'] = None) -> bool:
+
+    def check_team_date_conflict(self, team: Team, date: str) -> bool:
         """
         Check if a team already has a match scheduled on the given date.
-        
+
         Args:
-            team_id: Team to check
+            team: Team to check
             date: Date to check (YYYY-MM-DD format)
-            exclude_match_id: Optional match ID to exclude from the check (useful when rescheduling)
-            
+
         Returns:
             True if there's a conflict (team already scheduled on this date), False if no conflict
         """
+
+        if not isinstance(team, Team):
+            raise TypeError(f"Expected Team object, got: {type(team)}")
+        if not isinstance(date, str) or not date.strip():
+            raise ValueError("Date must be a non-empty string in YYYY-MM-DD format")
+        
         try:
+            # Check database first
             query = """
                 SELECT COUNT(*) as count
                 FROM matches 
@@ -364,75 +372,127 @@ class SQLTeamManager:
             """
             params = [team.id, team.id, date]
             
-            if exclude_match is not None:
-                query += " AND id != ?"
-                params.append(exclude_match.id)
-                
             self.cursor.execute(query, params)
             row = self.cursor.fetchone()
-            if row is None:
-                return False
-            count = row['count']
-            return count > 0
+            database_conflict = row and row['count'] > 0
+
+            if database_conflict:
+                print(f"DEBUG-d: Team {team.id} has a database conflict on {date}")
             
+            # Also check scheduling state if in dry run mode
+            state_conflict = False
+            if self.db.dry_run_active and self.db.scheduling_state:
+                state_conflict = self.db.scheduling_state.has_team_conflict(team.id, date)
+            if state_conflict:
+                print(f"DEBUG-s: Team {team.id} has a state conflict on {date} in dry run mode")
+                print(f"DEBUG: Team bookings: {[(k, v) for k, v in self.db.scheduling_state.team_bookings.items() if k[0] == team.id]}")
+            
+            # Return true if either has a conflict
+            return database_conflict or state_conflict
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error checking team date conflict: {e}")
-
-    def get_team_date_conflicts(self, team_id: int, date: str, exclude_match_id: Optional[int] = None) -> List[dict]:
-        """
-        Get detailed information about team date conflicts.
         
-        Args:
-            team_id: Team to check
-            date: Date to check (YYYY-MM-DD format)
-            exclude_match_id: Optional match ID to exclude from results
+
+
+    # def check_team_date_conflict(self, team: Team, date: str) -> bool:
+    #     """
+    #     Check if a team already has a match scheduled on the given date.
+
+    #     Args:
+    #         team: Team to check
+    #         date: Date to check (YYYY-MM-DD format)
+    #         exclude_match: Optional match to exclude from the check
+
+    #     Returns:
+    #         True if there's a conflict (team already scheduled on this date), False if no conflict
+    #     """
+
+    #     try:
+    #         # Check the scheduling state first
+    #         if self.db.dry_run_active:
+    #             state = self.db.scheduling_state
+    #             if state.has_team_conflict(team.id, date):
+    #                 return True
+
+    #         # Query the database
+    #         query = """
+    #             SELECT COUNT(*) as count
+    #             FROM matches 
+    #             WHERE (home_team_id = ? OR visitor_team_id = ?)
+    #             AND date = ?
+    #             AND status = 'scheduled'
+    #         """
+    #         params = [team.id, team.id, date]
             
-        Returns:
-            List of conflicting match details
-        """
-        try:
-            query = """
-                SELECT m.id, m.scheduled_times, m.facility_id, f.name as facility_name,
-                       ht.name as home_team_name, vt.name as visitor_team_name,
-                       CASE WHEN m.home_team_id = ? THEN 'home' ELSE 'visitor' END as team_role
-                FROM matches m
-                LEFT JOIN facilities f ON m.facility_id = f.id
-                JOIN teams ht ON m.home_team_id = ht.id  
-                JOIN teams vt ON m.visitor_team_id = vt.id
-                WHERE (m.home_team_id = ? OR m.visitor_team_id = ?)
-                AND m.date = ?
-                AND m.status = 'scheduled'
-            """
-            params = [team_id, team_id, team_id, date]
-            
-            if exclude_match_id is not None:
-                query += " AND m.id != ?"
-                params.append(exclude_match_id)
+    #         # if exclude_match is not None:
+    #         #     query += " AND id != ?"
+    #         #     params.append(exclude_match.id)
                 
-            self.cursor.execute(query, params)
+    #         self.cursor.execute(query, params)
+    #         row = self.cursor.fetchone()
+    #         if row is None:
+    #             return False
+    #         count = row['count']
+    #         return count > 0
             
-            conflicts = []
-            for row in self.cursor.fetchall():
-                conflict_data = self._dictify(row)
+    #     except sqlite3.Error as e:
+    #         raise RuntimeError(f"Database error checking team date conflict: {e}")
+
+    # def get_team_date_conflicts(self, team_id: int, date: str, exclude_match_id: Optional[int] = None) -> List[dict]:
+    #     """
+    #     Get detailed information about team date conflicts.
+        
+    #     Args:
+    #         team_id: Team to check
+    #         date: Date to check (YYYY-MM-DD format)
+    #         exclude_match_id: Optional match ID to exclude from results
+            
+    #     Returns:
+    #         List of conflicting match details
+    #     """
+    #     try:
+    #         query = """
+    #             SELECT m.id, m.scheduled_times, m.facility_id, f.name as facility_name,
+    #                    ht.name as home_team_name, vt.name as visitor_team_name,
+    #                    CASE WHEN m.home_team_id = ? THEN 'home' ELSE 'visitor' END as team_role
+    #             FROM matches m
+    #             LEFT JOIN facilities f ON m.facility_id = f.id
+    #             JOIN teams ht ON m.home_team_id = ht.id  
+    #             JOIN teams vt ON m.visitor_team_id = vt.id
+    #             WHERE (m.home_team_id = ? OR m.visitor_team_id = ?)
+    #             AND m.date = ?
+    #             AND m.status = 'scheduled'
+    #         """
+    #         params = [team_id, team_id, team_id, date]
+            
+    #         if exclude_match_id is not None:
+    #             query += " AND m.id != ?"
+    #             params.append(exclude_match_id)
                 
-                # Parse scheduled times
-                scheduled_times = []
-                if conflict_data.get('scheduled_times'):
-                    try:
-                        import json
-                        times = json.loads(conflict_data['scheduled_times'])
-                        if isinstance(times, list):
-                            scheduled_times = times
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+    #         self.cursor.execute(query, params)
+            
+    #         conflicts = []
+    #         for row in self.cursor.fetchall():
+    #             conflict_data = self._dictify(row)
                 
-                conflict_data['scheduled_times_list'] = scheduled_times
-                conflicts.append(conflict_data)
+    #             # Parse scheduled times
+    #             scheduled_times = []
+    #             if conflict_data.get('scheduled_times'):
+    #                 try:
+    #                     import json
+    #                     times = json.loads(conflict_data['scheduled_times'])
+    #                     if isinstance(times, list):
+    #                         scheduled_times = times
+    #                 except (json.JSONDecodeError, TypeError):
+    #                     pass
+                
+    #             conflict_data['scheduled_times_list'] = scheduled_times
+    #             conflicts.append(conflict_data)
             
-            return conflicts
+    #         return conflicts
             
-        except sqlite3.Error as e:
-            raise RuntimeError(f"Database error getting team date conflicts: {e}")
+    #     except sqlite3.Error as e:
+    #         raise RuntimeError(f"Database error getting team date conflicts: {e}")
 
     def check_team_facility_conflict(self, team_id: int, date: str, facility_name: str) -> bool:
         """

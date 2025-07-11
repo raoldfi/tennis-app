@@ -71,8 +71,7 @@ class TennisDBInterface(ABC):
         pass
         
     @abstractmethod
-    def check_team_date_conflict(self, team: 'Team', date: str, 
-                                 exclude_match: Optional['Match'] = None) -> bool:
+    def check_team_date_conflict(self, team: 'Team', date: str) -> bool:
         pass
 
     # ========== League Management ==========
@@ -210,7 +209,7 @@ class TennisDBInterface(ABC):
 
     
     @abstractmethod
-    def auto_schedule_matches(self, matches: List['Match'], dry_run: bool = True) -> Dict:
+    def auto_schedule_matches(self, matches: List['Match'], dry_run: bool = True, seed: int = None) -> Dict:
         """
         Attempt to automatically schedule a list of matches
         

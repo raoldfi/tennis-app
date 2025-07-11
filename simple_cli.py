@@ -1114,125 +1114,106 @@ Examples:
                     print("Error: Invalid league IDs format")
                     return 1
             
-            # Get leagues
+            # Get all unscheduled matches at once
+            from usta import MatchType
             if target_league_ids:
-                leagues = []
+                # Get matches for specific leagues
+                all_unscheduled_matches = []
                 for league_id in target_league_ids:
                     league = db.get_league(league_id)
                     if league:
-                        leagues.append(league)
+                        league_matches = db.list_matches(league=league, match_type=MatchType.UNSCHEDULED)
+                        all_unscheduled_matches.extend(league_matches)
                     else:
                         print(f"Warning: League {league_id} not found")
             else:
-                leagues = db.list_leagues()
+                # Get all unscheduled matches from all leagues
+                all_unscheduled_matches = db.list_matches(match_type=MatchType.UNSCHEDULED)
             
-            if not leagues:
-                print("No leagues found")
-                return 1
+            if not all_unscheduled_matches:
+                print("No unscheduled matches found")
+                return 0
+            
+            # Apply max limit if specified
+            if args.max_matches and len(all_unscheduled_matches) > args.max_matches:
+                all_unscheduled_matches = all_unscheduled_matches[:args.max_matches]
+                print(f"Limited to {args.max_matches} matches for testing")
             
             # Determine mode
             dry_run = not args.execute
             
             if dry_run:
-                print(f"🧪 DRY RUN MODE: Auto-scheduling for {len(leagues)} league(s)")
+                print(f"🧪 DRY RUN MODE: Auto-scheduling {len(all_unscheduled_matches)} unscheduled matches")
                 print("Use --execute flag to actually schedule matches")
             else:
-                print(f"🚀 EXECUTING: Auto-scheduling for {len(leagues)} league(s)")
+                print(f"🚀 EXECUTING: Auto-scheduling {len(all_unscheduled_matches)} unscheduled matches")
             
-            print(f"Processing {len(leagues)} league(s)...")
+            print(f"Processing {len(all_unscheduled_matches)} unscheduled matches...")
             print("-" * 60)
             
-            total_scheduled = 0
-            total_failed = 0
-            
-            for i, league in enumerate(leagues):
-                if args.progress:
-                    print(f"[{i+1}/{len(leagues)}] Processing: {league.name}")
+            # Auto-schedule all matches at once
+            try:
+                results = db.auto_schedule_matches(all_unscheduled_matches, dry_run=dry_run, seed=123)
                 
-                # Get unscheduled matches for this league
-                from usta import MatchType
-                unscheduled_matches = db.list_matches(league=league, match_type=MatchType.UNSCHEDULED)
-                
-                if not unscheduled_matches:
-                    if args.progress:
-                        print("  No unscheduled matches found")
-                    continue
-                
-                # Apply max limit if specified
-                if args.max_matches and len(unscheduled_matches) > args.max_matches:
-                    unscheduled_matches = unscheduled_matches[:args.max_matches]
-                    if args.progress:
-                        print(f"  Limited to {args.max_matches} matches for testing")
+                scheduled_count = results.get('scheduled', 0)
+                failed_count = results.get('failed', 0)
                 
                 if args.progress:
-                    print(f"  Found {len(unscheduled_matches)} unscheduled matches")
+                    if dry_run:
+                        print(f"Would schedule: {scheduled_count}/{len(all_unscheduled_matches)} matches")
+                    else:
+                        print(f"Scheduled: {scheduled_count}/{len(all_unscheduled_matches)} matches")
+                    
+                    if failed_count > 0:
+                        verb = "would fail" if dry_run else "failed"
+                        print(f"Failed: {failed_count} matches {verb}")
+                    
+                    # Show sample scheduling details
+                    if results.get('scheduling_details') and args.progress:
+                        print("Sample scheduled matches:")
+                        for detail in results['scheduling_details'][:5]:  # Show first 5
+                            status = detail.get('status', 'scheduled')
+                            facility = detail.get('facility', 'Unknown')
+                            date = detail.get('date', 'Unknown')
+                            times = detail.get('times', [])
+                            times_str = ', '.join(times) if times else 'No times'
+                            print(f"  Match {detail['match_id']}: {facility} on {date} at {times_str}")
+                        
+                        if len(results['scheduling_details']) > 5:
+                            print(f"  ... and {len(results['scheduling_details']) - 5} more")
                 
-                # Use match_manager's auto_schedule_matches method
-                try:
-                    results = db.auto_schedule_matches(unscheduled_matches, dry_run=dry_run)
-                    
-                    scheduled_count = results.get('scheduled', 0)
-                    failed_count = results.get('failed', 0)
-                    
-                    total_scheduled += scheduled_count
-                    total_failed += failed_count
-                    
-                    if args.progress:
-                        if dry_run:
-                            print(f"  Would schedule: {scheduled_count}/{len(unscheduled_matches)} matches")
-                        else:
-                            print(f"  Scheduled: {scheduled_count}/{len(unscheduled_matches)} matches")
+                # Show errors if any
+                if results.get('errors') and args.progress:
+                    scheduling_errors = [e for e in results['errors'] if e.get('status') == 'scheduling_failed']
+                    if scheduling_errors:
+                        print(f"Scheduling failures: {len(scheduling_errors)}")
+                        for error in scheduling_errors[:3]:  # Show first 3 failures
+                            match_id = error.get('match_id', 'Unknown')
+                            reason = error.get('reason', 'Unknown reason')
+                            print(f"  Match {match_id}: {reason}")
                         
-                        if failed_count > 0:
-                            verb = "would fail" if dry_run else "failed"
-                            print(f"  Failed: {failed_count} matches {verb}")
-                        
-                        # Show sample scheduling details
-                        if results.get('scheduling_details') and args.progress:
-                            print("  Sample scheduled matches:")
-                            for detail in results['scheduling_details'][:3]:  # Show first 3
-                                status = detail.get('status', 'scheduled')
-                                facility = detail.get('facility', 'Unknown')
-                                date = detail.get('date', 'Unknown')
-                                times = detail.get('times', [])
-                                times_str = ', '.join(times) if times else 'No times'
-                                print(f"    Match {detail['match_id']}: {facility} on {date} at {times_str}")
-                            
-                            if len(results['scheduling_details']) > 3:
-                                print(f"    ... and {len(results['scheduling_details']) - 3} more")
-                    
-                    # Show errors if any
-                    if results.get('errors') and args.progress:
-                        scheduling_errors = [e for e in results['errors'] if e.get('status') == 'scheduling_failed']
-                        if scheduling_errors:
-                            print(f"  Scheduling failures: {len(scheduling_errors)}")
-                            for error in scheduling_errors[:2]:  # Show first 2 failures
-                                match_id = error.get('match_id', 'Unknown')
-                                reason = error.get('reason', 'Unknown reason')
-                                print(f"    Match {match_id}: {reason}")
-                            
-                            if len(scheduling_errors) > 2:
-                                print(f"    ... and {len(scheduling_errors) - 2} more failures")
-                    
-                except Exception as e:
-                    print(f"  ❌ Error auto-scheduling league {league.name}: {e}")
-                    total_failed += len(unscheduled_matches)
-                    if args.verbose:
-                        import traceback
-                        traceback.print_exc()
+                        if len(scheduling_errors) > 3:
+                            print(f"  ... and {len(scheduling_errors) - 3} more failures")
+                
+            except Exception as e:
+                print(f"❌ Error auto-scheduling matches: {e}")
+                if args.verbose:
+                    import traceback
+                    traceback.print_exc()
+                return 1
             
             # Summary
             print("-" * 60)
             if dry_run:
                 print("DRY RUN SUMMARY:")
-                print(f"  Would schedule: {total_scheduled} matches")
-                print(f"  Would fail: {total_failed} matches")
+                print(f"  Would schedule: {scheduled_count} matches")
+                print(f"  Would fail: {failed_count} matches")
                 print("\n✅ Dry-run completed successfully!")
                 print("Run with --execute flag to actually perform scheduling")
             else:
                 print("EXECUTION SUMMARY:")
-                print(f"  Scheduled: {total_scheduled} matches")
-                print(f"  Failed: {total_failed} matches")
+                print(f"  Scheduled: {scheduled_count} matches")
+                print(f"  Failed: {failed_count} matches")
                 print("\n✅ Auto-scheduling completed!")
             
             return 0
@@ -1383,7 +1364,7 @@ Examples:
             matches = db.list_matches(match_type=MatchType.UNSCHEDULED)
             if matches:
                 test_matches = matches[:2]
-                results = db.scheduling_manager.auto_schedule_matches(test_matches, dry_run=True)
+                results = db.auto_schedule_matches(test_matches, dry_run=True)
                 print(f"   ✅ Dry-run completed: {results['scheduled']} would be scheduled")
             else:
                 print("   ⚠️  No unscheduled matches for testing")

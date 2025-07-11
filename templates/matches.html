@@ -15,7 +15,7 @@
             <!-- View Toggle -->
             <div class="btn-group" role="group" aria-label="View Type">
                 <input type="radio" class="btn-check" name="view_type" id="tableView" autocomplete="off" 
-                       {% if view_type != 'schedule' %}checked{% endif %} onchange="toggleView('table')">
+                       {% if view_type != 'schedule' and view_type != 'calendar' %}checked{% endif %} onchange="toggleView('table')">
                 <label class="btn btn-outline-tennis-primary" for="tableView">
                     <i class="fas fa-table"></i> Table
                 </label>
@@ -24,6 +24,12 @@
                        {% if view_type == 'schedule' %}checked{% endif %} onchange="toggleView('schedule')">
                 <label class="btn btn-outline-tennis-primary" for="scheduleView">
                     <i class="fas fa-calendar-week"></i> Schedule
+                </label>
+                
+                <input type="radio" class="btn-check" name="view_type" id="calendarView" autocomplete="off" 
+                       {% if view_type == 'calendar' %}checked{% endif %} onchange="toggleView('calendar')">
+                <label class="btn btn-outline-tennis-primary" for="calendarView">
+                    <i class="fas fa-calendar"></i> Calendar
                 </label>
             </div>
             
@@ -356,6 +362,95 @@
         </div>
     </div>
     {% endfor %}
+{% elif view_type == 'calendar' %}
+    <!-- Calendar View - Monthly Calendar -->
+    <div class="tennis-card">
+        <div class="tennis-section-header">
+            <h3 class="tennis-section-title">
+                <i class="fas fa-calendar"></i> Match Calendar
+            </h3>
+            <div class="tennis-badge tennis-badge-primary">{{ matches|length }} match{{ 'es' if matches|length != 1 else '' }}</div>
+        </div>
+        
+        <div class="tennis-card-body">
+            <div class="calendar-container">
+                <!-- Calendar Header with Navigation -->
+                <div class="calendar-header">
+                    <div class="calendar-nav">
+                        <button class="calendar-nav-btn" id="prev-month">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <span class="calendar-month-year" id="current-month-year">
+                            {% if month_name and current_year %}
+                                {{ month_name }} {{ current_year }}
+                            {% else %}
+                                <script>document.write(new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));</script>
+                            {% endif %}
+                        </span>
+                        <button class="calendar-nav-btn" id="next-month">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="calendar-nav">
+                        <button class="calendar-nav-btn" id="today-btn">
+                            <i class="fas fa-calendar-day me-1"></i>
+                            Today
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Calendar Grid -->
+                <div class="calendar-grid">
+                    <!-- Day Headers -->
+                    <div class="calendar-day-header">Sun</div>
+                    <div class="calendar-day-header">Mon</div>
+                    <div class="calendar-day-header">Tue</div>
+                    <div class="calendar-day-header">Wed</div>
+                    <div class="calendar-day-header">Thu</div>
+                    <div class="calendar-day-header">Fri</div>
+                    <div class="calendar-day-header">Sat</div>
+
+                    <!-- Calendar Days -->
+                    {% for week in calendar_weeks %}
+                        {% for day in week.days %}
+                        <div class="calendar-day {% if day.is_other_month %}other-month{% endif %} {% if day.is_today %}today{% endif %}">
+                            <div class="calendar-day-number">{{ day.day }}</div>
+                            {% if day.is_today %}
+                            <div class="calendar-today-indicator"></div>
+                            {% endif %}
+                            <div class="calendar-events">
+                                {% for match in day.matches %}
+                                <div class="calendar-event match-event" 
+                                     data-league-id="{{ match.league.id if match.league else '' }}"
+                                     title="{{ match.home_team.name if match.home_team else 'TBD' }} vs {{ match.visitor_team.name if match.visitor_team else 'TBD' }}{% if match.facility %} at {{ match.facility.name }}{% endif %}{% if match.league %} ({{ match.league.name }}){% endif %}">
+                                    {{ (match.home_team.name if match.home_team else 'TBD')[:10] }} vs {{ (match.visitor_team.name if match.visitor_team else 'TBD')[:10] }}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+
+                <!-- Calendar Legend -->
+                <div class="calendar-legend">
+                    <div class="calendar-legend-item">
+                        <div class="calendar-legend-color" style="background: var(--tennis-success);"></div>
+                        <span>Scheduled Matches</span>
+                    </div>
+                    <div class="calendar-legend-item">
+                        <div class="calendar-legend-color" style="background: var(--tennis-warning);"></div>
+                        <span>Facility Events</span>
+                    </div>
+                    <div class="calendar-legend-item">
+                        <div class="calendar-legend-color" style="background: var(--tennis-danger);"></div>
+                        <span>Team Events</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 {% else %}
     <!-- Table View - Single Table -->
     <div class="tennis-card">
@@ -554,9 +649,29 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize the matches page with available leagues
     const leagues = [
         {% for league in leagues %}
-        { id: {{ league.id }}, name: "{{ league.name|e }}" }{% if not loop.last %},{% endif %}
+        {
+            id: {{ league.id }},
+            name: "{{ league.name | e }}"
+        }{% if not loop.last %},{% endif %}
         {% endfor %}
     ];
+    
+    // Create league color mapping
+    const leagueColors = [
+        '#28a745', '#007bff', '#dc3545', '#fd7e14', '#6f42c1',
+        '#20c997', '#6c757d', '#e83e8c', '#17a2b8', '#ffc107'
+    ];
+    
+    // Add colors to leagues
+    leagues.forEach((league, index) => {
+        league.color = leagueColors[index % leagueColors.length];
+    });
+    
+    // Create league color lookup
+    const leagueColorMap = {};
+    leagues.forEach(league => {
+        leagueColorMap[league.id] = league.color;
+    });
     
     window.matchesPage = new MatchesPage(leagues);
     console.log('🎾 Matches page initialized with', leagues.length, 'leagues');
@@ -569,7 +684,206 @@ document.addEventListener('DOMContentLoaded', function() {
             unscheduleMatch(matchId, description, this);
         });
     });
+    
+    // Initialize calendar navigation if in calendar view
+    if (document.querySelector('.calendar-container')) {
+        initializeCalendarNavigation();
+        initializeCalendarClickHandlers();
+        applyLeagueColors(); // Apply colors to initial calendar events
+    }
 });
+
+// Calendar navigation functions
+function initializeCalendarNavigation() {
+    const prevButton = document.getElementById('prev-month');
+    const nextButton = document.getElementById('next-month');
+    const todayButton = document.getElementById('today-btn');
+    
+    if (prevButton) {
+        prevButton.addEventListener('click', function() {
+            console.log('Previous month clicked');
+            // Get fresh current month/year from URL params each time
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentMonth = parseInt(urlParams.get('month')) || new Date().getMonth() + 1;
+            const currentYear = parseInt(urlParams.get('year')) || new Date().getFullYear();
+            navigateToMonth(currentMonth - 1, currentYear);
+        });
+    }
+    
+    if (nextButton) {
+        nextButton.addEventListener('click', function() {
+            console.log('Next month clicked');
+            // Get fresh current month/year from URL params each time
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentMonth = parseInt(urlParams.get('month')) || new Date().getMonth() + 1;
+            const currentYear = parseInt(urlParams.get('year')) || new Date().getFullYear();
+            navigateToMonth(currentMonth + 1, currentYear);
+        });
+    }
+    
+    if (todayButton) {
+        todayButton.addEventListener('click', function() {
+            console.log('Today clicked');
+            const today = new Date();
+            navigateToMonth(today.getMonth() + 1, today.getFullYear());
+        });
+    }
+}
+
+// Navigate to a specific month/year using AJAX
+function navigateToMonth(month, year) {
+    // Handle month overflow/underflow
+    if (month < 1) {
+        month = 12;
+        year--;
+    } else if (month > 12) {
+        month = 1;
+        year++;
+    }
+    
+    // Show loading state
+    const calendarContainer = document.querySelector('.calendar-container');
+    if (calendarContainer) {
+        calendarContainer.style.opacity = '0.6';
+        calendarContainer.style.pointerEvents = 'none';
+    }
+    
+    // Build URL parameters including current filters
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('month', month);
+    urlParams.set('year', year);
+    
+    // Make AJAX request to get calendar data
+    fetch(`/api/calendar-data?${urlParams.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Update calendar with new data
+            updateCalendarDisplay(data);
+            
+            // Update URL without page reload
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('month', month);
+            newUrl.searchParams.set('year', year);
+            window.history.pushState({}, '', newUrl);
+            
+        })
+        .catch(error => {
+            console.error('Error loading calendar data:', error);
+            alert('Failed to load calendar data: ' + error.message);
+        })
+        .finally(() => {
+            // Restore calendar state
+            if (calendarContainer) {
+                calendarContainer.style.opacity = '1';
+                calendarContainer.style.pointerEvents = 'auto';
+            }
+        });
+}
+
+// Update calendar display with new data from AJAX response
+function updateCalendarDisplay(calendarData) {
+    // Update month/year display
+    const monthYearElement = document.getElementById('current-month-year');
+    if (monthYearElement) {
+        monthYearElement.textContent = `${calendarData.month_name} ${calendarData.current_year}`;
+    }
+    
+    // Clear existing calendar days (keep headers)
+    const calendarGrid = document.querySelector('.calendar-grid');
+    if (!calendarGrid) return;
+    
+    // Remove all calendar days, keeping only headers
+    const dayElements = calendarGrid.querySelectorAll('.calendar-day');
+    dayElements.forEach(day => day.remove());
+    
+    // Add new calendar days
+    calendarData.calendar_weeks.forEach(week => {
+        week.days.forEach(day => {
+            const dayElement = document.createElement('div');
+            dayElement.className = `calendar-day ${day.is_other_month ? 'other-month' : ''} ${day.is_today ? 'today' : ''}`;
+            
+            let dayHTML = `<div class="calendar-day-number">${day.day}</div>`;
+            
+            if (day.is_today) {
+                dayHTML += '<div class="calendar-today-indicator"></div>';
+            }
+            
+            dayHTML += '<div class="calendar-events">';
+            day.matches.forEach(match => {
+                const matchTitle = `${match.home_team} vs ${match.visitor_team}${match.facility ? ` at ${match.facility}` : ''}${match.league ? ` (${match.league})` : ''}`;
+                const shortTitle = `${match.home_team.substring(0, 10)} vs ${match.visitor_team.substring(0, 10)}`;
+                const leagueId = match.league_id || '';
+                const backgroundColor = leagueId && leagueColorMap[leagueId] ? leagueColorMap[leagueId] : '#28a745';
+                
+                dayHTML += `<div class="calendar-event match-event" data-league-id="${leagueId}" style="background-color: ${backgroundColor};" title="${matchTitle}">${shortTitle}</div>`;
+            });
+            dayHTML += '</div>';
+            
+            dayElement.innerHTML = dayHTML;
+            calendarGrid.appendChild(dayElement);
+        });
+    });
+    
+    // Re-initialize click handlers for new elements
+    initializeCalendarClickHandlers();
+    
+    // Apply league colors to new calendar events
+    applyLeagueColors();
+    
+    // Update the current month/year for navigation
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentMonth = calendarData.current_month;
+    const currentYear = calendarData.current_year;
+    
+    // Update the navigation state
+    const prevButton = document.getElementById('prev-month');
+    const nextButton = document.getElementById('next-month');
+    
+    if (prevButton) {
+        prevButton.onclick = () => navigateToMonth(currentMonth - 1, currentYear);
+    }
+    if (nextButton) {
+        nextButton.onclick = () => navigateToMonth(currentMonth + 1, currentYear);
+    }
+}
+
+// Apply league colors to calendar events
+function applyLeagueColors() {
+    const calendarEvents = document.querySelectorAll('.calendar-event[data-league-id]');
+    calendarEvents.forEach(event => {
+        const leagueId = event.dataset.leagueId;
+        if (leagueId && leagueColorMap[leagueId]) {
+            event.style.backgroundColor = leagueColorMap[leagueId];
+        }
+    });
+}
+
+// Calendar day and event click handlers
+function initializeCalendarClickHandlers() {
+    // Calendar day click handlers
+    const calendarDays = document.querySelectorAll('.calendar-day');
+    calendarDays.forEach(day => {
+        day.addEventListener('click', function() {
+            const dayNumber = this.querySelector('.calendar-day-number').textContent;
+            console.log('Day clicked:', dayNumber);
+            // TODO: Implement day detail view or event creation
+        });
+    });
+    
+    // Calendar event click handlers
+    const calendarEvents = document.querySelectorAll('.calendar-event');
+    calendarEvents.forEach(event => {
+        event.addEventListener('click', function(e) {
+            e.stopPropagation();
+            console.log('Event clicked:', this.textContent);
+            // TODO: Implement event detail view or editing
+        });
+    });
+}
 
 // View toggle function
 function toggleView(viewType) {

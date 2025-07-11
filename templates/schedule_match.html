@@ -2,261 +2,145 @@
 
 {% block title %}Schedule Match - {{ match_info.home_team }} vs {{ match_info.visitor_team }}{% endblock %}
 
-{% block content %}
+{% block extra_css %}
 <style>
-    /* Custom styles using TennisUI variables */
-
-    .date-card .court-availability {
-        font-size: 0.75rem;
-        color: var(--tennis-gray-600);
-    }
-    
-    .date-card .time-slot-detail {
-        padding: 2px 0;
-        border-bottom: 1px solid var(--tennis-gray-100);
-    }
-    
-    .date-card .time-slot-detail:last-child {
-        border-bottom: none;
-    }
-    
-    .date-card {
-        transition: var(--tennis-transition);
-        cursor: pointer;
-        border: 2px solid transparent;
-        border-radius: var(--tennis-border-radius-lg);
-        background: #ffffff;
-        box-shadow: var(--tennis-box-shadow);
-    }
-    
-    .date-card:hover {
-        border-color: var(--tennis-primary);
-        transform: translateY(-2px);
-        box-shadow: var(--tennis-box-shadow-lg);
-    }
+    /* Schedule Match Page - TennisUI Enhanced Styles */
     
     .date-card.selected {
-        border-color: var(--tennis-success);
-        background: linear-gradient(135deg, var(--tennis-gray-100) 0%, #ffffff 100%);
-        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
+        border-color: var(--tennis-success) !important;
+        transform: translateY(-4px) !important;
+        box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3) !important;
     }
     
     .optimal-score {
         position: absolute;
-        top: 10px;
-        right: 10px;
-        background: linear-gradient(135deg, var(--tennis-success) 0%, var(--tennis-success-dark) 100%);
-        color: white;
+        top: 15px;
+        right: 15px;
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
-        width: 35px;
-        height: 35px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: bold;
-        font-size: 0.8em;
-        box-shadow: var(--tennis-box-shadow);
+        font-size: 0.9em;
+        z-index: 10;
     }
     
     .time-slot {
-        background: var(--tennis-gray-200);
-        border: 1px solid var(--tennis-gray-300);
-        border-radius: var(--tennis-border-radius);
-        padding: 8px 12px;
-        margin: 2px;
-        cursor: pointer;
-        transition: var(--tennis-transition);
         display: inline-block;
-        font-weight: 500;
+        margin: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 2px solid transparent;
     }
     
     .time-slot:hover {
-        background: var(--tennis-primary);
-        color: white;
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
     }
     
     .time-slot.selected {
-        background: linear-gradient(135deg, var(--tennis-success) 0%, var(--tennis-success-dark) 100%);
-        color: white;
-        border-color: var(--tennis-success-dark);
-        box-shadow: var(--tennis-box-shadow);
+        border-color: var(--tennis-success) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
     }
     
-    /* Split times specific styling */
     .time-slot.selected.split-first {
-        background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
-        border-color: var(--tennis-primary-dark);
+        border-color: var(--tennis-primary) !important;
+        box-shadow: 0 4px 15px rgba(var(--tennis-primary), 0.3);
     }
     
     .time-slot.selected.split-second {
-        background: linear-gradient(135deg, var(--tennis-secondary) 0%, var(--tennis-secondary-dark) 100%);
-        border-color: var(--tennis-secondary-dark);
+        border-color: var(--tennis-secondary) !important;
+        box-shadow: 0 4px 15px rgba(var(--tennis-secondary), 0.3);
     }
     
-    .facility-info {
-        background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
-        color: white;
-        border-radius: var(--tennis-border-radius-lg);
-        box-shadow: var(--tennis-box-shadow-lg);
-    }
-    
-    .scheduling-controls {
-        background: var(--tennis-gray-100);
-        border-radius: var(--tennis-border-radius-lg);
-        border: 1px solid var(--tennis-gray-200);
-        box-shadow: var(--tennis-box-shadow);
-    }
-    
-    .lines-needed-indicator {
-        background: linear-gradient(135deg, var(--tennis-info) 0%, var(--tennis-info-dark) 100%);
-        color: white;
-        border-radius: 15px;
-        padding: 5px 15px;
-        font-size: 0.9em;
-        font-weight: bold;
-        box-shadow: var(--tennis-box-shadow);
-    }
-    
-    .conflict-badge {
-        background: var(--tennis-danger);
-        color: white;
-        font-size: 0.7em;
-        padding: 2px 6px;
-        border-radius: 10px;
-        margin-left: 5px;
-        box-shadow: var(--tennis-box-shadow);
-    }
-    
-    .no-dates-available {
-        text-align: center;
-        padding: 3rem;
-        color: var(--tennis-gray-600);
-    }
-    
-    .loading-spinner {
-        display: none;
-    }
-    
-    .schedule-form-section {
-        background: #ffffff;
-        border: 1px solid var(--tennis-gray-200);
-        border-radius: var(--tennis-border-radius);
-        padding: 1rem;
-        margin-bottom: 1rem;
-    }
-    
-    .split-times-helper {
-        font-size: 0.875rem;
-        color: var(--tennis-gray-600);
-        margin-top: 0.5rem;
-        padding: 0.5rem;
-        background-color: var(--tennis-gray-50);
-        border-radius: 0.375rem;
-        border-left: 3px solid var(--tennis-info);
-    }
-    
-    .match-header {
-        background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-darker) 100%);
-        color: white;
-        border-radius: var(--tennis-border-radius-lg);
-        box-shadow: var(--tennis-box-shadow-lg);
-    }
-    
-    /* Existing matches styling */
+    /* Custom styles for specific schedule match elements */
     .existing-matches {
-        max-height: 120px;
+        max-height: 150px;
         overflow-y: auto;
     }
     
-    .existing-match-item {
-        border: 1px solid var(--tennis-gray-200);
-        border-radius: var(--tennis-border-radius);
-        transition: var(--tennis-transition);
-    }
-    
     .existing-match-item:hover {
-        border-color: var(--tennis-info);
-        background-color: var(--tennis-gray-50) !important;
+        border-color: var(--tennis-info) !important;
     }
     
-    .existing-match-item .fw-bold {
-        font-size: 0.85rem;
-        line-height: 1.2;
-    }
-    
-    .existing-match-item .text-muted {
-        font-size: 0.75rem;
-        line-height: 1.2;
-    }
-    
-    /* Priority badge styling */
-    .priority-badge {
-        font-size: 0.7rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        border-radius: 12px;
-        padding: 3px 8px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-    }
-    
-    .priority-badge.bg-success {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
-    }
-    
-    .priority-badge.bg-primary {
-        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
-    }
-    
-    .priority-badge.bg-warning {
-        background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%) !important;
-        color: #212529 !important;
-    }
-    
-    .priority-badge.bg-secondary {
-        background: linear-gradient(135deg, #6c757d 0%, #495057 100%) !important;
+    /* Container for time slots with better spacing */
+    #available-times-container .tennis-card-body {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        min-height: 60px;
+        align-items: flex-start;
+        align-content: flex-start;
     }
 </style>
+{% endblock %}
 
-<!-- Match Header -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="match-header p-4">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h1 class="mb-0">
-                        <i class="fas fa-calendar-plus"></i>
-                        Schedule Match
-                    </h1>
-                    <h3 class="mt-2 mb-0">
-                        {{ match_info.home_team }} 
-                        <span class="mx-3">vs</span> 
-                        {{ match_info.visitor_team }}
-                    </h3>
-                    <p class="mb-1 mt-2">
-                        <strong>Round:</strong> {{ match_info.round }} / {{ match_info.num_rounds }}
-                    </p>
-                    <p class="mb-0">
-                        <strong>League:</strong> {{ match_info.league }}
-                        <span class="lines-needed-indicator ms-3">
-                            {{ match_info.lines_needed }} Lines Needed
-                        </span>
-                    </p>
+{% block content %}
+<!-- Breadcrumb Navigation -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('matches') }}">Matches</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Schedule Match</li>
+    </ol>
+</nav>
+
+<!-- Page Header -->
+<div class="tennis-page-header">
+    <h1 class="tennis-page-title">
+        <i class="fas fa-calendar-plus"></i>
+        Schedule Match
+    </h1>
+    <p class="tennis-subtitle">
+        {{ match_info.home_team }} vs {{ match_info.visitor_team }} - Find the perfect time and date
+    </p>
+</div>
+
+<!-- Match Info Card -->
+<div class="tennis-card card-primary mb-4">
+    <div class="tennis-card-header">
+        <h3>Match Details</h3>
+    </div>
+    <div class="tennis-card-body">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4 class="mb-3 text-tennis-primary">
+                    {{ match_info.home_team }} 
+                    <span class="text-tennis-secondary mx-3">vs</span> 
+                    {{ match_info.visitor_team }}
+                </h4>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="tennis-badge tennis-badge-info">
+                        <i class="fas fa-circle-play me-1"></i>
+                        Round {{ match_info.round }} / {{ match_info.num_rounds }}
+                    </span>
+                    <span class="tennis-badge tennis-badge-secondary">
+                        <i class="fas fa-trophy me-1"></i>
+                        {{ match_info.league }}
+                    </span>
+                    <span class="tennis-badge tennis-badge-warning">
+                        <i class="fas fa-tennis-ball me-1"></i>
+                        {{ match_info.lines_needed }} Lines Needed
+                    </span>
                 </div>
-                <div class="col-md-4 text-end">
-                    {% if facility_info %}
-                    <div class="facility-info p-3">
-                        <h6 class="mb-1">
-                            <i class="fas fa-building"></i> {{ facility_info.name }}
+            </div>
+            <div class="col-md-4">
+                {% if facility_info %}
+                <div class="tennis-card card-info">
+                    <div class="tennis-card-body">
+                        <h6 class="mb-2 text-tennis-primary">
+                            <i class="fas fa-building me-2"></i>{{ facility_info.name }}
                         </h6>
                         {% if facility_info.location %}
-                        <small>{{ facility_info.location }}</small><br>
+                        <p class="small mb-1"><i class="fas fa-location-dot me-1"></i>{{ facility_info.location }}</p>
                         {% endif %}
-                        <small>{{ facility_info.total_courts }} Courts Available</small>
+                        <p class="small mb-0"><i class="fas fa-tennis-ball me-1"></i>{{ facility_info.available_courts }} Courts Available</p>
                     </div>
-                    {% endif %}
                 </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -268,55 +152,48 @@
     <!-- Available Dates -->
     <div class="col-lg-8">
         <div class="tennis-card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-calendar-alt"></i> 
-                    Available Dates
-                    <small class="text-muted">({{ available_dates|length }} options)</small>
-                </h5>
+            <div class="tennis-card-header">
+                <h5>Available Dates</h5>
+                <span class="tennis-badge tennis-badge-light">{{ available_dates|length }} options</span>
             </div>
-            <div class="card-body">
+            <div class="tennis-card-body">
                 <div class="row">
                     {% for date_option in available_dates %}
                     <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="date-card h-100 p-3 position-relative" 
+                        <div class="tennis-card card-clickable date-card h-100 position-relative" 
                              data-date="{{ date_option.date }}" 
                              data-times="{{ date_option.available_times|join(',') if date_option.available_times else '' }}">
                             
                             <!-- Optimal Score -->
                             {% if date_option.score %}
-                            <div class="optimal-score">{{ date_option.score }}</div>
+                            <div class="optimal-score tennis-badge tennis-badge-success">{{ date_option.score }}</div>
                             {% endif %}
                             
-                            <div class="card-content">
+                            <div class="tennis-card-body">
                                 <!-- Date Info -->
-                                <h6 class="mb-2 fw-bold">{{ date_option.day_name }}</h6>
-                                <p class="mb-1 text-muted">{{ date_option.formatted_date }}</p>
+                                <h6 class="mb-2 fw-bold text-tennis-primary">{{ date_option.day_name }}</h6>
+                                <p class="mb-3 text-tennis-muted">{{ date_option.formatted_date }}</p>
                                 
-                                <!-- Match Priority -->
+                                <!-- Match Quality Badge -->
                                 {% if date_option.quality_description %}
-                                <div class="mt-2 mb-2">
-                                    <div class="d-flex align-items-center">
-                                        <span class="badge 
-                                            {% if date_option.match_quality >= 80 %}bg-success
-                                            {% elif date_option.match_quality >= 60 %}bg-primary
-                                            {% elif date_option.match_quality >= 40 %}bg-warning
-                                            {% else %}bg-secondary
-                                            {% endif %}
-                                            priority-badge me-2" 
-                                            title="{{ date_option.priority_description }}">
-                                            {% if date_option.match_quality == 100 %}★ Optimal
-                                            {% elif date_option.match_quality == 80 %}★ Good
-                                            {% elif date_option.match_quality == 60 %}◉ Fair
-                                            {% elif date_option.match_quality == 40 %}◉ Acceptable
-                                            {% elif date_option.match_quality <= 14 %}○ Suboptimal
-                                            {% else %}○ Poor
-                                            {% endif %}
+                                <div class="mb-3">
+                                    {% if date_option.match_quality >= 80 %}
+                                        <span class="tennis-badge tennis-badge-success" title="{{ date_option.quality_description }}">
+                                            <i class="fas fa-star me-1"></i>Optimal
                                         </span>
-                                    </div>
-                                    <small class="text-muted" style="font-size: 0.7rem; line-height: 1.2;">
-                                        {{ date_option.priority_description }}
-                                    </small>
+                                    {% elif date_option.match_quality >= 60 %}
+                                        <span class="tennis-badge tennis-badge-primary" title="{{ date_option.quality_description }}">
+                                            <i class="fas fa-star me-1"></i>Good
+                                        </span>
+                                    {% elif date_option.match_quality >= 40 %}
+                                        <span class="tennis-badge tennis-badge-warning" title="{{ date_option.quality_description }}">
+                                            <i class="fas fa-circle me-1"></i>Fair
+                                        </span>
+                                    {% else %}
+                                        <span class="tennis-badge tennis-badge-light" title="{{ date_option.quality_description }}">
+                                            <i class="fas fa-circle me-1"></i>Poor
+                                        </span>
+                                    {% endif %}
                                 </div>
                                 {% endif %}
                                 
@@ -324,47 +201,40 @@
 
                                 <!-- Available Times with Court Information -->
                                 {% if date_option.time_slot_details %}
-                                <div class="mt-2">
-                                    <small class="text-success fw-bold">
-                                        <i class="fas fa-clock"></i> 
-                                        {{ date_option.time_slot_details|length }} time slots
-                                    </small>
-                                    <div class="small mt-1">
+                                <div class="mb-3">
+                                    <h6 class="text-tennis-success fw-bold mb-2">
+                                        <i class="fas fa-clock me-1"></i>
+                                        {{ date_option.time_slot_details|length }} Time Slots
+                                    </h6>
+                                    <div class="small">
                                         {% for slot in date_option.time_slot_details[:3] %}
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <span class="badge bg-light text-dark">{{ slot.time }}</span>
-                                            <span class="text-muted small">
-                                                <!-- 
-                                                <i class="fas fa-tennis-ball"></i> {{ slot.available_courts }}/{{ slot.total_courts }} courts available
-                                                -->
-                                                <i class="fas fa-tennis-ball"></i> {{ slot.total_courts }} courts available
-
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="tennis-badge tennis-badge-light">{{ slot.time }}</span>
+                                            <span class="text-tennis-muted small">
+                                                <i class="fas fa-tennis-ball me-1"></i>{{ slot.available_courts }}/{{ slot.total_courts }} courts
                                             </span>
-
-
-                                            
                                         </div>
                                         {% endfor %}
                                         {% if date_option.time_slot_details|length > 3 %}
-                                        <div class="text-center mt-1">
-                                            <small class="text-muted">+{{ date_option.time_slot_details|length - 3 }} more time slots</small>
+                                        <div class="text-center mt-2">
+                                            <span class="tennis-badge tennis-badge-secondary small">+{{ date_option.time_slot_details|length - 3 }} more slots</span>
                                         </div>
                                         {% endif %}
                                     </div>
                                 </div>
                                 {% elif date_option.available_times %}
                                 <!-- Fallback for existing data structure -->
-                                <div class="mt-2">
-                                    <small class="text-success fw-bold">
-                                        <i class="fas fa-clock"></i> 
-                                        {{ date_option.available_times|length }} time slots
-                                    </small>
-                                    <div class="small mt-1">
+                                <div class="mb-3">
+                                    <h6 class="text-tennis-success fw-bold mb-2">
+                                        <i class="fas fa-clock me-1"></i>
+                                        {{ date_option.available_times|length }} Time Slots
+                                    </h6>
+                                    <div class="d-flex flex-wrap gap-1">
                                         {% for time in date_option.available_times[:3] %}
-                                        <span class="badge bg-light text-dark me-1">{{ time }}</span>
+                                        <span class="tennis-badge tennis-badge-light">{{ time }}</span>
                                         {% endfor %}
                                         {% if date_option.available_times|length > 3 %}
-                                        <span class="text-muted">+{{ date_option.available_times|length - 3 }} more</span>
+                                        <span class="tennis-badge tennis-badge-secondary">+{{ date_option.available_times|length - 3 }}</span>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -374,30 +244,33 @@
                                 
                                 <!-- Existing Matches -->
                                 {% if date_option.existing_matches and date_option.existing_matches|length > 0 %}
-                                <div class="mt-2 pt-2 border-top">
-                                    <small class="text-info fw-bold">
-                                        <i class="fas fa-calendar-check"></i> 
-                                        {{ date_option.existing_matches|length }} existing match{{ 'es' if date_option.existing_matches|length > 1 else '' }}
-                                    </small>
-                                    <div class="existing-matches mt-1">
+                                <div class="border-top pt-3">
+                                    <h6 class="text-tennis-info fw-bold mb-2">
+                                        <i class="fas fa-calendar-check me-1"></i>
+                                        {{ date_option.existing_matches|length }} Existing Match{{ 'es' if date_option.existing_matches|length > 1 else '' }}
+                                    </h6>
+                                    <div class="existing-matches">
                                         {% for existing_match in date_option.existing_matches[:2] %}
-                                        <div class="existing-match-item small mb-1 p-2 bg-light rounded">
-                                            <div class="fw-bold text-primary">{{ existing_match.home_team }} vs {{ existing_match.visitor_team }}</div>
-                                            <div class="text-muted">
-                                                {{ existing_match.league }} • {{ existing_match.num_lines }} lines
-                                                {% if existing_match.earliest_time and existing_match.latest_time %}
-                                                    {% if existing_match.earliest_time == existing_match.latest_time %}
-                                                        • {{ existing_match.earliest_time }}
-                                                    {% else %}
-                                                        • {{ existing_match.earliest_time }} - {{ existing_match.latest_time }}
+                                        <div class="tennis-card card-compact existing-match-item mb-2">
+                                            <div class="tennis-card-body">
+                                                <div class="fw-bold text-tennis-primary small">{{ existing_match.home_team }} vs {{ existing_match.visitor_team }}</div>
+                                                <div class="text-tennis-muted small">
+                                                    <span class="tennis-badge tennis-badge-light me-1">{{ existing_match.league }}</span>
+                                                    <span class="tennis-badge tennis-badge-info me-1">{{ existing_match.num_lines }} lines</span>
+                                                    {% if existing_match.earliest_time and existing_match.latest_time %}
+                                                        {% if existing_match.earliest_time == existing_match.latest_time %}
+                                                            <span class="tennis-badge tennis-badge-secondary">{{ existing_match.earliest_time }}</span>
+                                                        {% else %}
+                                                            <span class="tennis-badge tennis-badge-secondary">{{ existing_match.earliest_time }} - {{ existing_match.latest_time }}</span>
+                                                        {% endif %}
                                                     {% endif %}
-                                                {% endif %}
+                                                </div>
                                             </div>
                                         </div>
                                         {% endfor %}
                                         {% if date_option.existing_matches|length > 2 %}
                                         <div class="text-center">
-                                            <small class="text-muted">+{{ date_option.existing_matches|length - 2 }} more match{{ 'es' if (date_option.existing_matches|length - 2) > 1 else '' }}</small>
+                                            <span class="tennis-badge tennis-badge-light">+{{ date_option.existing_matches|length - 2 }} more</span>
                                         </div>
                                         {% endif %}
                                     </div>
@@ -406,25 +279,18 @@
 
                                 <!-- Conflicts -->
                                 {% if date_option.conflicts %}
-                                <div class="mt-2">
-                                    {% for conflict in date_option.conflicts %}
-                                    <span class="conflict-badge">{{ conflict }}</span>
-                                    {% endfor %}
+                                <div class="border-top pt-3">
+                                    <h6 class="text-tennis-danger fw-bold mb-2">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>
+                                        Conflicts
+                                    </h6>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        {% for conflict in date_option.conflicts %}
+                                        <span class="tennis-badge tennis-badge-danger small">{{ conflict }}</span>
+                                        {% endfor %}
+                                    </div>
                                 </div>
                                 {% endif %}
-
-<!--
-                                {% if date_option.time_slot_details %}
-                                {% set total_courts = date_option.time_slot_details | sum(attribute='available_courts') %}
-                                {% set max_courts = date_option.time_slot_details | map(attribute='available_courts') | max %}
-                                <div class="mt-2 pt-2 border-top">
-                                    <small class="text-info">
-                                        <i class="fas fa-info-circle"></i>
-                                        Up to {{ max_courts }} courts available per time slot
-                                    </small>
-                                </div>
-                                {% endif %}
--->
                                 
                             </div>
                         </div>
@@ -437,67 +303,75 @@
 
     <!-- Scheduling Controls -->
     <div class="col-lg-4">
-        <div class="scheduling-controls p-4 sticky-top">
-            <h5 class="mb-3" style="color: var(--tennis-primary);">
-                <i class="fas fa-cog"></i> Scheduling Options
-            </h5>
-            
-            <!-- Selected Date Display -->
-            <div class="schedule-form-section">
-                <label class="form-label">Selected Date:</label>
-                <div id="selected-date-display" class="p-2 bg-white border rounded">
-                    <em style="color: var(--tennis-gray-600);">Select a date from the left</em>
-                </div>
+        <div class="tennis-card sticky-top">
+            <div class="tennis-card-header">
+                <h5><i class="fas fa-cog me-2"></i>Scheduling Options</h5>
             </div>
+            <div class="tennis-card-body">
             
-            <!-- Scheduling Mode -->
-            <div class="schedule-form-section" id="mode-section" style="display: none;">
-                <label class="form-label">Scheduling Mode:</label>
-                <select class="form-select" id="scheduling-mode">
-                    <option value="same_time">All Lines Same Time</option>
-                    <option value="split_times">Split Times</option>
-                    <option value="custom">Custom Times</option>
-                </select>
-                <small style="color: var(--tennis-gray-600);">
-                    <div id="mode-description" class="mt-1"></div>
-                </small>
-            </div>
-            
-            <!-- Available Times -->
-            <div class="schedule-form-section" id="times-section" style="display: none;">
-                <label class="form-label">Available Times:</label>
-                <div id="available-times-container" class="p-2 bg-white border rounded">
-                    <!-- Times will be populated dynamically -->
+                <!-- Selected Date Display -->
+                <div class="mb-3">
+                    <label class="tennis-form-label fw-bold">Selected Date:</label>
+                    <div id="selected-date-display" class="tennis-card card-compact">
+                        <div class="tennis-card-body">
+                            <em class="text-tennis-muted">Select a date from the left</em>
+                        </div>
+                    </div>
                 </div>
-                <small style="color: var(--tennis-gray-600);">Click times to select them for scheduling</small>
-                <div id="split-times-helper" class="split-times-helper" style="display: none;">
-                    <i class="fas fa-info-circle"></i>
-                    <strong>Split Times:</strong> Select exactly 2 time slots. 
-                    Lines will be distributed between the slots with all lines in each slot starting at the same time.
+                
+                <!-- Scheduling Mode -->
+                <div class="mb-3" id="mode-section" style="display: none;">
+                    <label class="tennis-form-label fw-bold">Scheduling Mode:</label>
+                    <select class="tennis-form-control" id="scheduling-mode">
+                        <option value="same_time">All Lines Same Time</option>
+                        <option value="split_times">Split Times</option>
+                        <option value="custom">Custom Times</option>
+                    </select>
+                    <div class="tennis-form-text">
+                        <div id="mode-description" class="mt-1"></div>
+                    </div>
                 </div>
-            </div>
-            
-
-            
-            <!-- Selected Times Display -->
-            <div class="schedule-form-section" id="selected-times-section" style="display: none;">
-                <label class="form-label">Selected Times:</label>
-                <div id="selected-times-display" class="p-2 bg-white border rounded">
-                    <em style="color: var(--tennis-gray-600);">No times selected</em>
+                
+                <!-- Available Times -->
+                <div class="mb-3" id="times-section" style="display: none;">
+                    <label class="tennis-form-label fw-bold">Available Times:</label>
+                    <div id="available-times-container" class="tennis-card card-compact">
+                        <div class="tennis-card-body">
+                            <!-- Times will be populated dynamically -->
+                        </div>
+                    </div>
+                    <div class="tennis-form-text">Click times to select them for scheduling</div>
+                    <div id="split-times-helper" class="tennis-card card-info" style="display: none;">
+                        <div class="tennis-card-body">
+                            <i class="fas fa-info-circle me-1"></i>
+                            <strong>Split Times:</strong> Select exactly 2 time slots. 
+                            Lines will be distributed between the slots with all lines in each slot starting at the same time.
+                        </div>
+                    </div>
                 </div>
-            </div>
-            
-            <!-- Action Buttons -->
-            <div class="d-grid gap-2" id="action-buttons" style="display: none;">
-                <button type="button" id="preview-button" class="btn-tennis-primary" disabled>
-                    <i class="fas fa-eye"></i> Preview Schedule
-                </button>
-                <small class="text-muted text-center">
-                    Preview shows what changes would be made without actually scheduling
-                </small>
-                <a href="{{ url_for('matches') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left"></i> Back to Matches
-                </a>
+                
+                <!-- Selected Times Display -->
+                <div class="mb-3" id="selected-times-section" style="display: none;">
+                    <label class="tennis-form-label fw-bold">Selected Times:</label>
+                    <div id="selected-times-display" class="tennis-card card-compact">
+                        <div class="tennis-card-body">
+                            <em class="text-tennis-muted">No times selected</em>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="d-grid gap-3" id="action-buttons" style="display: none;">
+                    <button type="button" id="preview-button" class="btn-tennis-primary" disabled>
+                        <i class="fas fa-eye me-1"></i>Preview Schedule
+                    </button>
+                    <div class="tennis-form-text text-center">
+                        Preview shows what changes would be made without actually scheduling
+                    </div>
+                    <a href="{{ url_for('matches') }}" class="btn-tennis-outline">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Matches
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -505,54 +379,38 @@
 
 <!-- No Dates Available Message -->
 {% elif success and not available_dates %}
-<div class="row">
-    <div class="col-12">
-        <div class="tennis-card">
-            <div class="card-body">
-                <div class="no-dates-available">
-                    <i class="fas fa-calendar-times mb-3" style="font-size: 3rem; color: var(--tennis-gray-400);"></i>
-                    <h4 style="color: var(--tennis-gray-700);">No Available Dates</h4>
-                    <p style="color: var(--tennis-gray-600);">
-                        No optimal dates are available for scheduling this match at the selected facility.
-                        This could be due to facility scheduling conflicts, team conflicts, or other constraints.
-                    </p>
-                    <div class="mt-3">
-                        <a href="{{ url_for('matches') }}" class="btn-tennis-primary">
-                            <i class="fas fa-arrow-left"></i> Back to Matches
-                        </a>
-                        <button type="button" class="btn-tennis-warning ms-2" onclick="window.location.reload()">
-                            <i class="fas fa-refresh"></i> Refresh Options
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+<div class="tennis-empty-state">
+    <i class="fas fa-calendar-times"></i>
+    <h5>No Available Dates</h5>
+    <p>
+        No optimal dates are available for scheduling this match at the selected facility.
+        This could be due to facility scheduling conflicts, team conflicts, or other constraints.
+    </p>
+    <div class="d-flex gap-2 justify-content-center">
+        <a href="{{ url_for('matches') }}" class="btn-tennis-primary">
+            <i class="fas fa-arrow-left me-1"></i>Back to Matches
+        </a>
+        <button type="button" class="btn-tennis-secondary" onclick="window.location.reload()">
+            <i class="fas fa-refresh me-1"></i>Refresh Options
+        </button>
     </div>
 </div>
 
 <!-- Error Message -->
 {% else %}
-<div class="row">
-    <div class="col-12">
-        <div class="tennis-card">
-            <div class="card-body">
-                <div class="no-dates-available">
-                    <i class="fas fa-exclamation-triangle mb-3" style="font-size: 3rem; color: var(--tennis-danger);"></i>
-                    <h4 style="color: var(--tennis-danger);">Scheduling Error</h4>
-                    <p style="color: var(--tennis-gray-600);">
-                        {{ error or 'An error occurred while loading scheduling options.' }}
-                    </p>
-                    <div class="mt-3">
-                        <a href="{{ url_for('matches') }}" class="btn-tennis-primary">
-                            <i class="fas fa-arrow-left"></i> Back to Matches
-                        </a>
-                        <button type="button" class="btn-tennis-warning ms-2" onclick="window.location.reload()">
-                            <i class="fas fa-refresh"></i> Refresh Options
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+<div class="tennis-empty-state">
+    <i class="fas fa-exclamation-triangle text-tennis-danger"></i>
+    <h5 class="text-tennis-danger">Scheduling Error</h5>
+    <p>
+        {{ error or 'An error occurred while loading scheduling options.' }}
+    </p>
+    <div class="d-flex gap-2 justify-content-center">
+        <a href="{{ url_for('matches') }}" class="btn-tennis-primary">
+            <i class="fas fa-arrow-left me-1"></i>Back to Matches
+        </a>
+        <button type="button" class="btn-tennis-secondary" onclick="window.location.reload()">
+            <i class="fas fa-refresh me-1"></i>Refresh Options
+        </button>
     </div>
 </div>
 {% endif %}
@@ -564,8 +422,8 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-eye"></i> Schedule Preview
+                <h5 class="modal-title text-tennis-primary">
+                    <i class="fas fa-eye me-2"></i>Schedule Preview
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
@@ -575,11 +433,11 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    Cancel
+                <button type="button" class="btn-tennis-outline" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
                 </button>
-                <button type="button" class="btn btn-success" id="confirm-schedule" disabled>
-                    <i class="fas fa-check"></i> Confirm Schedule
+                <button type="button" class="btn-tennis-primary" id="confirm-schedule" disabled>
+                    <i class="fas fa-check me-1"></i>Confirm Schedule
                 </button>
             </div>
         </div>
@@ -621,8 +479,8 @@ class ScheduleMatchUI {
         this.selectedTimes = [];
         this.availableTimes = [];
         this.schedulingMode = 'same_time';
-        this.matchId = {{ match_info.id }};
-        this.linesNeeded = {{ match_info.lines_needed }};
+        this.matchId = {{ match_info.id | tojson }};
+        this.linesNeeded = {{ match_info.lines_needed | tojson }};
         this.init();
     }
 
@@ -680,29 +538,31 @@ class ScheduleMatchUI {
 
     updateSelectedDateDisplay() {
         const display = document.getElementById('selected-date-display');
+        const cardBody = display.querySelector('.tennis-card-body');
         if (this.selectedDate) {
             const dateObj = new Date(this.selectedDate + 'T00:00:00');
             const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-            display.innerHTML = `
-                <strong>${this.selectedDate}</strong><br>
-                <small class="text-muted">${dayName}</small>
+            cardBody.innerHTML = `
+                <strong class="text-tennis-primary">${this.selectedDate}</strong><br>
+                <small class="text-tennis-muted">${dayName}</small>
             `;
         } else {
-            display.innerHTML = '<em class="text-muted">Select a date from the left</em>';
+            cardBody.innerHTML = '<em class="text-tennis-muted">Select a date from the left</em>';
         }
     }
 
     updateAvailableTimesDisplay() {
         const container = document.getElementById('available-times-container');
+        const cardBody = container.querySelector('.tennis-card-body');
         const section = document.getElementById('times-section');
         
         if (this.availableTimes.length > 0) {
-            container.innerHTML = this.availableTimes.map(time => 
-                `<span class="time-slot" data-time="${time}">${time}</span>`
-            ).join(' ');
+            cardBody.innerHTML = this.availableTimes.map(time => 
+                `<span class="tennis-badge tennis-badge-light time-slot" data-time="${time}">${time}</span>`
+            ).join('');
             
             // Add click handlers to time slots
-            container.querySelectorAll('.time-slot').forEach(slot => {
+            cardBody.querySelectorAll('.time-slot').forEach(slot => {
                 slot.addEventListener('click', (e) => {
                     const time = e.target.dataset.time;
                     this.toggleTimeSelection(time, e.target);
@@ -719,50 +579,58 @@ class ScheduleMatchUI {
         if (this.schedulingMode === 'same_time') {
             // For this mode, only allow one time selection
             document.querySelectorAll('.time-slot').forEach(slot => {
-                slot.classList.remove('selected');
+                slot.classList.remove('selected', 'tennis-badge-success');
+                slot.classList.add('tennis-badge-light');
             });
-            element.classList.add('selected');
+            element.classList.remove('tennis-badge-light');
+            element.classList.add('selected', 'tennis-badge-success');
             this.selectedTimes = [time];
         } else if (this.schedulingMode === 'split_times') {
             // For split times mode, allow exactly 2 time selections
             if (this.selectedTimes.includes(time)) {
                 this.selectedTimes = this.selectedTimes.filter(t => t !== time);
-                element.classList.remove('selected', 'split-first', 'split-second');
+                element.classList.remove('selected', 'split-first', 'split-second', 'tennis-badge-primary', 'tennis-badge-secondary');
+                element.classList.add('tennis-badge-light');
             } else if (this.selectedTimes.length < 2) {
                 this.selectedTimes.push(time);
+                element.classList.remove('tennis-badge-light');
                 element.classList.add('selected');
                 // Add styling to distinguish first and second slots
                 if (this.selectedTimes.length === 1) {
-                    element.classList.add('split-first');
+                    element.classList.add('split-first', 'tennis-badge-primary');
                 } else {
-                    element.classList.add('split-second');
+                    element.classList.add('split-second', 'tennis-badge-secondary');
                 }
             } else {
                 // Already have 2 times selected, replace the first one
                 const firstSelectedTime = this.selectedTimes[0];
                 const firstElement = document.querySelector(`[data-time="${firstSelectedTime}"]`);
                 if (firstElement) {
-                    firstElement.classList.remove('selected', 'split-first', 'split-second');
+                    firstElement.classList.remove('selected', 'split-first', 'split-second', 'tennis-badge-primary', 'tennis-badge-secondary');
+                    firstElement.classList.add('tennis-badge-light');
                 }
                 
                 this.selectedTimes = [this.selectedTimes[1], time];
-                element.classList.add('selected', 'split-second');
+                element.classList.remove('tennis-badge-light');
+                element.classList.add('selected', 'split-second', 'tennis-badge-secondary');
                 
                 // Update the remaining element to be first
                 const remainingElement = document.querySelector(`[data-time="${this.selectedTimes[0]}"]`);
                 if (remainingElement) {
-                    remainingElement.classList.remove('split-second');
-                    remainingElement.classList.add('split-first');
+                    remainingElement.classList.remove('split-second', 'tennis-badge-secondary');
+                    remainingElement.classList.add('split-first', 'tennis-badge-primary');
                 }
             }
         } else {
             // Custom mode allows multiple selections
             if (this.selectedTimes.includes(time)) {
                 this.selectedTimes = this.selectedTimes.filter(t => t !== time);
-                element.classList.remove('selected');
+                element.classList.remove('selected', 'tennis-badge-success');
+                element.classList.add('tennis-badge-light');
             } else {
                 this.selectedTimes.push(time);
-                element.classList.add('selected');
+                element.classList.remove('tennis-badge-light');
+                element.classList.add('selected', 'tennis-badge-success');
             }
         }
         
@@ -772,35 +640,36 @@ class ScheduleMatchUI {
 
     updateSelectedTimesDisplay() {
         const display = document.getElementById('selected-times-display');
+        const cardBody = display.querySelector('.tennis-card-body');
         const section = document.getElementById('selected-times-section');
         
         if (this.selectedTimes.length > 0) {
             let content = '';
             if (this.schedulingMode === 'same_time') {
-                content = `<strong>All lines at:</strong> ${this.selectedTimes[0]}`;
+                content = `<strong class="text-tennis-primary">All lines at:</strong> <span class="tennis-badge tennis-badge-success">${this.selectedTimes[0]}</span>`;
             } else if (this.schedulingMode === 'split_times') {
                 if (this.selectedTimes.length === 1) {
-                    content = `<strong>First slot:</strong> ${this.selectedTimes[0]} <small class="text-info">(select second slot)</small>`;
+                    content = `<strong class="text-tennis-primary">First slot:</strong> <span class="tennis-badge tennis-badge-primary">${this.selectedTimes[0]}</span> <small class="text-tennis-info">(select second slot)</small>`;
                 } else if (this.selectedTimes.length === 2) {
                     const sortedTimes = [...this.selectedTimes].sort();
                     const linesInFirstSlot = Math.ceil(this.linesNeeded / 2);
                     const linesInSecondSlot = this.linesNeeded - linesInFirstSlot;
                     content = `
-                        <div><strong>Split times:</strong></div>
-                        <div class="mt-1">
-                            <span class="badge" style="background-color: var(--tennis-primary);">${linesInFirstSlot} lines at ${sortedTimes[0]}</span>
-                            <span class="badge ms-1" style="background-color: var(--tennis-secondary);">${linesInSecondSlot} lines at ${sortedTimes[1]}</span>
+                        <div class="mb-2"><strong class="text-tennis-primary">Split times:</strong></div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <span class="tennis-badge tennis-badge-primary">${linesInFirstSlot} lines at ${sortedTimes[0]}</span>
+                            <span class="tennis-badge tennis-badge-secondary">${linesInSecondSlot} lines at ${sortedTimes[1]}</span>
                         </div>
-                        <small class="text-muted d-block mt-1">All lines within each slot start at the same time</small>
+                        <small class="text-tennis-muted d-block mt-2">All lines within each slot start at the same time</small>
                     `;
                 }
             } else {
-                content = `<strong>Custom times:</strong> ${this.selectedTimes.join(', ')}`;
+                content = `<strong class="text-tennis-primary">Custom times:</strong> <div class="d-flex flex-wrap gap-1 mt-1">${this.selectedTimes.map(time => `<span class="tennis-badge tennis-badge-success">${time}</span>`).join('')}</div>`;
             }
-            display.innerHTML = content;
+            cardBody.innerHTML = content;
             section.style.display = 'block';
         } else {
-            display.innerHTML = '<em class="text-muted">No times selected</em>';
+            cardBody.innerHTML = '<em class="text-tennis-muted">No times selected</em>';
             section.style.display = this.selectedDate ? 'block' : 'none';
         }
     }
@@ -858,11 +727,11 @@ class ScheduleMatchUI {
         previewButton.disabled = !canSchedule;
         
         if (canSchedule) {
-            previewButton.classList.remove('btn-outline-primary');
+            previewButton.classList.remove('btn-outline-tennis-primary');
             previewButton.classList.add('btn-tennis-primary');
         } else {
             previewButton.classList.remove('btn-tennis-primary');
-            previewButton.classList.add('btn-outline-primary');
+            previewButton.classList.add('btn-outline-tennis-primary');
         }
     }
 
@@ -891,7 +760,7 @@ class ScheduleMatchUI {
                 },
                 body: JSON.stringify({
                     match_id: this.matchId,
-                    facility_id: {{ facility_info.id if facility_info else 'null' }},
+                    facility_id: {{ (facility_info.id if facility_info else none) | tojson }},
                     date: this.selectedDate,
                     times: this.selectedTimes,
                     scheduling_mode: this.schedulingMode
@@ -1032,23 +901,23 @@ class ScheduleMatchUI {
                 },
                 body: JSON.stringify({
                     match_id: this.matchId,
-                    facility_id: {{ facility_info.id if facility_info else 'null' }},
+                    facility_id: {{ (facility_info.id if facility_info else none) | tojson }},
                     date: this.selectedDate,
                     times: this.selectedTimes,
                     scheduling_mode: this.schedulingMode
                 })
             });
 
-            const result = await response.json();
+            const scheduleResult = await response.json();
 
-            if (result.success) {
+            if (scheduleResult.success) {
                 TennisUI.showNotification('Match scheduled successfully!', 'success');
                 // Redirect to matches page or refresh
                 setTimeout(() => {
                     window.location.href = '/matches';
                 }, 1500);
             } else {
-                TennisUI.showNotification(result.error || 'Failed to schedule match', 'danger');
+                TennisUI.showNotification(scheduleResult.error || 'Failed to schedule match', 'danger');
             }
 
         } catch (error) {

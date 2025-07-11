@@ -1,0 +1,859 @@
+{% extends "base.html" %}
+
+{% block title %}{{ facility.name }} - Utilization Calendar{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Define missing CSS variables if not already defined */
+:root {
+    --tennis-primary: #2d5a87;
+    --tennis-primary-dark: #1e3d5a;
+    --tennis-primary-light: #4a7aaa;
+    --tennis-white: #ffffff;
+    --tennis-success: #28a745;
+    --tennis-warning: #ffc107;
+    --tennis-danger: #dc3545;
+    --tennis-info: #17a2b8;
+    --tennis-gray: #6c757d;
+    --tennis-gray-light: #f8f9fa;
+    --tennis-text-primary: #212529;
+    --tennis-text-secondary: #6c757d;
+    --border-color: #dee2e6;
+    --border-radius: 0.375rem;
+    --shadow-sm: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+    --shadow-md: 0 0.5rem 1rem rgba(0,0,0,0.15);
+    --shadow-lg: 0 1rem 3rem rgba(0,0,0,0.175);
+    --shadow-focus: 0 0 0 0.2rem rgba(45, 90, 135, 0.25);
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --font-size-base: 1rem;
+    --font-weight-bold: 600;
+    --line-height-base: 1.5;
+}
+
+/* Calendar Styles */
+.utilization-calendar {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    background: white;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.utilization-calendar th,
+.utilization-calendar td {
+    padding: 0.75rem;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    position: relative;
+    vertical-align: top;
+}
+
+.utilization-calendar thead th {
+    background: var(--tennis-primary);
+    color: white;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.875rem;
+    letter-spacing: 1px;
+}
+
+.calendar-day {
+    min-height: 100px;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.calendar-day:hover {
+    background: rgba(45, 90, 135, 0.05);
+    cursor: pointer;
+}
+
+.calendar-day.today {
+    background: rgba(45, 90, 135, 0.1);
+    font-weight: bold;
+}
+
+.calendar-day.unavailable {
+    background: #f8f9fa;
+    color: #6c757d;
+}
+
+.calendar-day.blackout {
+    background: #ffe4e1;
+    color: #dc3545;
+}
+
+.day-number {
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: var(--tennis-primary);
+}
+
+.utilization-info {
+    font-size: 0.75rem;
+    line-height: 1.4;
+}
+
+.utilization-bar {
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 3px;
+    margin: 0.25rem 0;
+    overflow: hidden;
+}
+
+.utilization-fill {
+    height: 100%;
+    background: var(--tennis-success);
+    transition: width 0.3s ease;
+}
+
+.utilization-percentage {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.courts-info {
+    font-size: 0.7rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+.matches-count {
+    display: inline-block;
+    background: var(--tennis-primary);
+    color: white;
+    padding: 0.125rem 0.375rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-top: 0.25rem;
+}
+
+/* Legend */
+.calendar-legend {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+/* Month Navigation */
+.month-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.month-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--tennis-primary);
+}
+
+/* Summary Stats */
+.utilization-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.summary-stat {
+    background: var(--tennis-gray-light);
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    text-align: center;
+}
+
+.summary-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--tennis-primary);
+}
+
+.summary-label {
+    font-size: 0.875rem;
+    color: var(--tennis-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Buttons */
+.btn-tennis {
+    background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
+    border: 1px solid var(--tennis-primary);
+    color: var(--tennis-white);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--border-radius);
+    font-weight: var(--font-weight-bold);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.btn-tennis:hover {
+    background: var(--tennis-primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+    color: var(--tennis-white);
+}
+
+.btn-tennis-outline {
+    background: transparent;
+    border: 1px solid var(--tennis-primary);
+    color: var(--tennis-primary);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--border-radius);
+    font-weight: var(--font-weight-bold);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.btn-tennis-outline:hover {
+    background: var(--tennis-primary);
+    color: var(--tennis-white);
+    transform: translateY(-1px);
+}
+
+/* Form controls */
+.form-control {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-base);
+    transition: all 0.2s ease;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    font-weight: var(--font-weight-bold);
+    color: var(--tennis-text-primary);
+}
+
+/* Modal for Day Details */
+.day-details-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.day-details-content {
+    background: white;
+    border-radius: var(--border-radius);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+}
+
+.day-details-header {
+    background: var(--tennis-primary);
+    color: white;
+    padding: 1rem;
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.day-details-body {
+    padding: 1.5rem;
+}
+
+.close-modal {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s ease;
+}
+
+.close-modal:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.time-slot-list {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0;
+}
+
+.time-slot-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--tennis-gray-light);
+    border-radius: var(--border-radius);
+    margin-bottom: 0.5rem;
+}
+
+.time-slot-time {
+    font-weight: 600;
+    color: var(--tennis-primary);
+}
+
+.time-slot-courts {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.875rem;
+}
+
+.courts-used {
+    color: var(--tennis-danger);
+}
+
+.courts-available {
+    color: var(--tennis-success);
+}
+
+/* Loading State */
+.calendar-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+    font-size: 1.25rem;
+    color: var(--tennis-text-secondary);
+}
+
+.spinner {
+    border: 3px solid var(--tennis-gray-light);
+    border-top: 3px solid var(--tennis-primary);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin-right: 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Alert styles */
+.alert {
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+}
+
+.alert-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    border: 1px solid rgba(220, 53, 69, 0.2);
+    color: #721c24;
+}
+
+.alert-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.2);
+    color: #856404;
+}
+
+.alert-info {
+    background-color: rgba(13, 110, 253, 0.1);
+    border: 1px solid rgba(13, 110, 253, 0.2);
+    color: #0c5460;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1><i class="fas fa-calendar-alt"></i> Court Utilization Calendar</h1>
+            <p class="text-muted">
+                <i class="fas fa-building"></i> {{ facility.get_display_name() }}
+                {% if facility.total_courts %}
+                • <i class="fas fa-tennis-ball"></i> {{ facility.total_courts }} courts
+                {% endif %}
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('view_facility', facility_id=facility.id) }}" class="btn-tennis-outline">
+                <i class="fas fa-arrow-left"></i> Back to Facility
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Date Range Selector and Calendar -->
+<div class="tennis-card">
+    <div class="tennis-card-body">
+        <!-- Date Range Selector -->
+        <div class="row mb-3">
+            <div class="col-md-8">
+                <div class="row">
+                    <div class="col-md-5">
+                        <label for="startDate" class="form-label">Start Date</label>
+                        <input type="date" id="startDate" class="form-control">
+                    </div>
+                    <div class="col-md-5">
+                        <label for="endDate" class="form-label">End Date</label>
+                        <input type="date" id="endDate" class="form-control">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button id="loadDateRange" class="btn-tennis">
+                            <i class="fas fa-calendar-check"></i> Load
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Month Navigation (initially hidden) -->
+        <div id="monthNavigation" class="month-navigation" style="display: none;">
+            <button id="prevMonth" class="btn-tennis-outline">
+                <i class="fas fa-chevron-left"></i> Previous
+            </button>
+            <h2 class="month-title" id="monthTitle">Loading...</h2>
+            <button id="nextMonth" class="btn-tennis-outline">
+                Next <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+        
+        <!-- Summary Statistics -->
+        <div id="summaryStats" class="utilization-summary" style="display: none;">
+            <div class="summary-stat">
+                <div class="summary-value" id="totalMatches">0</div>
+                <div class="summary-label">Total Matches</div>
+            </div>
+            <div class="summary-stat">
+                <div class="summary-value" id="avgUtilization">0%</div>
+                <div class="summary-label">Avg Utilization</div>
+            </div>
+            <div class="summary-stat">
+                <div class="summary-value" id="availableDays">0</div>
+                <div class="summary-label">Available Days</div>
+            </div>
+            <div class="summary-stat">
+                <div class="summary-value" id="totalSlots">0</div>
+                <div class="summary-label">Total Court Slots</div>
+            </div>
+        </div>
+        
+        <!-- Calendar Container -->
+        <div id="calendarContainer">
+            <div class="text-center py-5">
+                <i class="fas fa-calendar-plus fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">Select Date Range</h4>
+                <p class="text-muted">Choose your start and end dates above, then click "Load" to view utilization data.</p>
+            </div>
+        </div>
+        
+        <!-- Legend -->
+        <div class="calendar-legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: white;"></div>
+                <span>Available</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #f8f9fa;"></div>
+                <span>No Schedule</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ffe4e1;"></div>
+                <span>Blackout Date</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: rgba(45, 90, 135, 0.1);"></div>
+                <span>Today</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Day Details Modal -->
+<div id="dayDetailsModal" class="day-details-modal">
+    <div class="day-details-content">
+        <div class="day-details-header">
+            <h3 id="modalTitle">Day Details</h3>
+            <button class="close-modal" onclick="closeDayDetails()">&times;</button>
+        </div>
+        <div class="day-details-body" id="modalBody">
+            <!-- Content will be populated dynamically -->
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Global variables
+let currentMonth = {{ current_month }};
+let currentYear = {{ current_year }};
+const facilityId = {{ facility.id }};
+const today = new Date();
+
+// Initialize calendar on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default dates (current month)
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    
+    document.getElementById('startDate').value = firstDay.toISOString().split('T')[0];
+    document.getElementById('endDate').value = lastDay.toISOString().split('T')[0];
+    
+    // Event listeners
+    document.getElementById('prevMonth').addEventListener('click', previousMonth);
+    document.getElementById('nextMonth').addEventListener('click', nextMonth);
+    document.getElementById('loadDateRange').addEventListener('click', loadDateRange);
+    
+    // Close modal when clicking outside
+    document.getElementById('dayDetailsModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeDayDetails();
+        }
+    });
+});
+
+function loadDateRange() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    
+    console.log('Loading date range:', startDate, 'to', endDate);
+    
+    if (!startDate || !endDate) {
+        alert('Please select both start and end dates');
+        return;
+    }
+    
+    if (new Date(startDate) > new Date(endDate)) {
+        alert('Start date must be before end date');
+        return;
+    }
+    
+    // Update current month/year based on start date
+    const startDateObj = new Date(startDate);
+    currentMonth = startDateObj.getMonth() + 1;
+    currentYear = startDateObj.getFullYear();
+    
+    // Show month navigation
+    document.getElementById('monthNavigation').style.display = 'flex';
+    
+    // Load the calendar
+    loadCalendarData();
+}
+
+function previousMonth() {
+    currentMonth--;
+    if (currentMonth < 1) {
+        currentMonth = 12;
+        currentYear--;
+    }
+    loadCalendarData();
+}
+
+function nextMonth() {
+    currentMonth++;
+    if (currentMonth > 12) {
+        currentMonth = 1;
+        currentYear++;
+    }
+    loadCalendarData();
+}
+
+function loadCalendarData() {
+    console.log('Loading calendar for:', currentMonth, '/', currentYear);
+    
+    // Show loading state
+    document.getElementById('calendarContainer').innerHTML = `
+        <div class="calendar-loading">
+            <div class="spinner"></div>
+            Loading calendar data...
+        </div>
+    `;
+    
+    // Fetch calendar data
+    fetch(`/api/facilities/${facilityId}/utilization/monthly?month=${currentMonth}&year=${currentYear}`)
+        .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Response data:', data);
+            if (data.success) {
+                updateMonthTitle(data.month_info);
+                updateSummaryStats(data.summary);
+                renderCalendar(data.calendar_data, data.month_info);
+            } else {
+                showError(data.error || 'Failed to load calendar data');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading calendar:', error);
+            showError('Failed to load calendar data: ' + error.message);
+        });
+}
+
+function updateMonthTitle(monthInfo) {
+    document.getElementById('monthTitle').textContent = 
+        `${monthInfo.month_name} ${monthInfo.year}`;
+}
+
+function updateSummaryStats(summary) {
+    document.getElementById('totalMatches').textContent = summary.total_matches;
+    document.getElementById('avgUtilization').textContent = 
+        Math.round(summary.overall_utilization) + '%';
+    document.getElementById('availableDays').textContent = summary.available_days;
+    document.getElementById('totalSlots').textContent = summary.total_court_slots;
+    
+    // Show summary stats
+    document.getElementById('summaryStats').style.display = 'grid';
+}
+
+function renderCalendar(calendarData, monthInfo) {
+    let html = '<table class="utilization-calendar">';
+    
+    // Header with day names
+    html += '<thead><tr>';
+    for (let dayName of monthInfo.weekday_names) {
+        html += `<th>${dayName}</th>`;
+    }
+    html += '</tr></thead>';
+    
+    // Calendar body
+    html += '<tbody>';
+    for (let week of calendarData) {
+        html += '<tr>';
+        for (let day of week) {
+            if (day === null) {
+                html += '<td class="calendar-day unavailable"></td>';
+            } else {
+                const dayClasses = getDayClasses(day);
+                const utilizationColor = getUtilizationColor(day.utilization);
+                
+                html += `<td class="calendar-day ${dayClasses}" 
+                            onclick="showDayDetails('${day.date}')"
+                            data-date="${day.date}">
+                    <div class="day-number">${day.day}</div>`;
+                
+                if (day.is_available) {
+                    html += `
+                        <div class="utilization-info">
+                            <div class="utilization-bar">
+                                <div class="utilization-fill" 
+                                     style="width: ${day.utilization}%; 
+                                            background-color: ${utilizationColor};">
+                                </div>
+                            </div>
+                            <div class="utilization-percentage">${Math.round(day.utilization)}%</div>
+                            <div class="courts-info">
+                                ${day.courts_used}/${day.total_courts} courts
+                            </div>`;
+                    
+                    if (day.matches > 0) {
+                        html += `<span class="matches-count">${day.matches} matches</span>`;
+                    }
+                    
+                    html += '</div>';
+                } else if (day.is_blackout) {
+                    html += '<div class="utilization-info">Blackout</div>';
+                } else {
+                    html += '<div class="utilization-info">No Schedule</div>';
+                }
+                
+                html += '</td>';
+            }
+        }
+        html += '</tr>';
+    }
+    html += '</tbody></table>';
+    
+    document.getElementById('calendarContainer').innerHTML = html;
+}
+
+function getDayClasses(day) {
+    let classes = [];
+    
+    // Check if today
+    const dayDate = new Date(day.date);
+    if (dayDate.toDateString() === today.toDateString()) {
+        classes.push('today');
+    }
+    
+    if (!day.is_available) {
+        classes.push('unavailable');
+    }
+    
+    if (day.is_blackout) {
+        classes.push('blackout');
+    }
+    
+    return classes.join(' ');
+}
+
+function getUtilizationColor(utilization) {
+    if (utilization >= 80) return '#dc3545'; // Red for high utilization
+    if (utilization >= 60) return '#ffc107'; // Yellow for medium-high
+    if (utilization >= 40) return '#28a745'; // Green for medium
+    return '#6c757d'; // Gray for low
+}
+
+function showDayDetails(date) {
+    // Fetch detailed data for the specific day
+    fetch(`/api/facilities/${facilityId}/utilization?start_date=${date}&end_date=${date}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.utilization_data.length > 0) {
+                const dayData = data.utilization_data[0];
+                displayDayDetails(dayData);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading day details:', error);
+        });
+}
+
+function displayDayDetails(dayData) {
+    const modal = document.getElementById('dayDetailsModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    
+    // Format date for display
+    const date = new Date(dayData.date);
+    const dateStr = date.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
+    
+    modalTitle.textContent = dateStr;
+    
+    let bodyHtml = '';
+    
+    if (!dayData.is_available) {
+        bodyHtml = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i> 
+                ${dayData.reason || 'Facility not available on this date'}
+            </div>`;
+    } else {
+        bodyHtml = `
+            <div class="mb-3">
+                <h5>Court Utilization Summary</h5>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Overall Utilization:</span>
+                    <strong>${Math.round(dayData.utilization_percentage)}%</strong>
+                </div>
+                <div class="utilization-bar" style="height: 10px;">
+                    <div class="utilization-fill" 
+                         style="width: ${dayData.utilization_percentage}%; 
+                                background-color: ${getUtilizationColor(dayData.utilization_percentage)};">
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between mt-2 text-muted">
+                    <small>Used: ${dayData.used_court_slots} slots</small>
+                    <small>Available: ${dayData.available_court_slots} slots</small>
+                </div>
+            </div>
+            
+            <h5>Time Slots</h5>`;
+        
+        if (dayData.time_slots && dayData.time_slots.length > 0) {
+            bodyHtml += '<ul class="time-slot-list">';
+            
+            for (let slot of dayData.time_slots) {
+                const slotUtilization = slot.utilization_percentage;
+                const utilizationColor = getUtilizationColor(slotUtilization);
+                
+                bodyHtml += `
+                    <li class="time-slot-item">
+                        <span class="time-slot-time">${slot.time}</span>
+                        <div class="time-slot-courts">
+                            <span class="courts-used">
+                                <i class="fas fa-users"></i> ${slot.used_courts} used
+                            </span>
+                            <span class="courts-available">
+                                <i class="fas fa-check-circle"></i> ${slot.available_courts} free
+                            </span>
+                            <span style="color: ${utilizationColor};">
+                                ${Math.round(slotUtilization)}%
+                            </span>
+                        </div>
+                    </li>`;
+            }
+            
+            bodyHtml += '</ul>';
+        } else {
+            bodyHtml += '<p class="text-muted">No time slots scheduled for this day.</p>';
+        }
+        
+        if (dayData.matches_scheduled > 0) {
+            bodyHtml += `
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-calendar-check"></i> 
+                    ${dayData.matches_scheduled} matches scheduled on this date
+                </div>`;
+        }
+    }
+    
+    modalBody.innerHTML = bodyHtml;
+    modal.style.display = 'flex';
+}
+
+function closeDayDetails() {
+    document.getElementById('dayDetailsModal').style.display = 'none';
+}
+
+function showError(message) {
+    document.getElementById('calendarContainer').innerHTML = `
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-circle"></i> ${message}
+        </div>`;
+}
+</script>
+{% endblock %}
