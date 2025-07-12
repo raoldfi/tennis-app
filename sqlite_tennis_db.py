@@ -889,14 +889,18 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
     def get_match(self, match_id: int) -> Optional[Match]:
         return self.match_manager.get_match(match_id)
 
-    def list_matches(self, 
-                     facility: Optional['Facility'] = None,
-                     league: Optional['League'] = None,
-                     team: Optional['Team'] = None,
-                    match_type: Optional['MatchType'] = MatchType.ALL) -> List[Match]:
+    def list_matches(
+            self,
+            facility: Optional["Facility"] = None,
+            league: Optional["League"] = None,
+            team: Optional["Team"] = None,
+            date_str: Optional[str] = None,
+            match_type: Optional["MatchType"] = MatchType.ALL,
+        ) -> List[Match]:
         return self.match_manager.list_matches(facility=facility,
                                                league=league,
                                                team=team,
+                                               date_str=date_str,
                                                match_type=match_type)
 
 

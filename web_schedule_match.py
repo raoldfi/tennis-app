@@ -9,8 +9,8 @@ import traceback
 import math
 from datetime import datetime, timedelta
 
-from matplotlib import lines
-from regex import F
+from streamlit import success
+
 from usta import League, Match, Facility, FacilityAvailabilityInfo, TimeSlotAvailability
 from web_database import get_db, close_db
 
@@ -23,8 +23,6 @@ from sql_match_manager import SQLMatchManager
 
 # Create blueprint for scheduling routes
 schedule_bp = Blueprint("schedule", __name__)
-
-from usta import League, Match, Facility, FacilityAvailabilityInfo, TimeSlotAvailability
 
 
 @schedule_bp.route("/matches/<int:match_id>/schedule")
@@ -62,250 +60,157 @@ def schedule_match_form(match_id: int):
             )
             return redirect(url_for("view_match", match_id=match_id))
 
-        # Use the facility from the match
+
+        # Validate that match has a facility
         facility = match.get_facility()
         if not facility:
-            flash("No facility assigned to this match", "warning")
+            flash("No facility associated with this match", "warning")
             return redirect(url_for("matches"))
 
-        print(f"\n\n\n============ Schedule Match Form =============\n\n\n")
-
-        # Get scheduling options using facility availability
+        # Try to get viable dates, but handle the case where none are found
         try:
-            # 
-
-            # Get prioritized dates for this match
-            num_dates = int(request.args.get("max_dates", 20))
-            prioritized_dates_with_qscore = match.get_prioritized_scheduling_dates()
-            prioritized_dates = [date for date, qscore in prioritized_dates_with_qscore]
-            # Create quality score lookup for later use
-            quality_lookup = {
-                date: qscore for date, qscore in prioritized_dates_with_qscore
-            }
-
-            if not prioritized_dates:
-                flash("No prioritized dates available for scheduling", "warning")
-                return redirect(url_for("matches"))
-
-            # Filter dates where teams are already scheduled
-            filtered_dates = db.match_manager.filter_team_conflicts(
-                match=match, dates=prioritized_dates
+            viable_dates = db.match_manager.get_viable_scheduling_dates(
+                match=match, max_dates=20
             )
-
-            if not filtered_dates:
-                flash(
-                    "After filtering match conflicts, no available dates found for scheduling this match",
-                    "warning",
-                )
-                return redirect(url_for("matches"))
-
-            print(f"Checking facility availability for {len(filtered_dates)} dates")
-            # Get facility availability for all prioritized dates at once
-            facility_availability_list = db.facility_manager.get_facility_availability(
-                facility=facility,
-                dates=filtered_dates,
-                max_days=num_dates * 2,  # Allow some buffer
-            )
-
-            if not facility_availability_list:
-                flash("No facility availability information found", "warning")
-                return redirect(url_for("matches"))
-
-            print(
-                f"Got {len(facility_availability_list)} facility availability records"
-            )
-
-            # Convert FacilityAvailabilityInfo objects to format expected by template
-            available_dates = []
-            lines_needed = match.league.num_lines_per_match if match.league else 3
-            allow_split_lines = league.allow_split_lines if league else False
-
-
-            for facility_info in facility_availability_list:
-                try:
-
-                    # Skip unavailable dates
-                    if not facility_info.available:
-                        print(f"Skipping {facility_info.date}: {facility_info.reason}")
-                        continue
-
-
-                    print(f"Processing facility info for {facility_info.date}")
-                    using_split_lines = False
-
-                    # Check to see if we can schedule all lines in one time slot
-                    if len(facility_info.get_available_times(lines_needed)) > 0:
-                        print(f"Can accommodate {lines_needed} lines in one time slot")
-                        using_split_lines = False
-                    elif allow_split_lines and len(facility_info.get_available_times(math.ceil(courts_needed_per_slot / 2))) > 1:
-                        print(f"Can accommodate split lines for {facility_info.date}")
-                        using_split_lines = True
-                    else:
-                        print(
-                            f"Skipping {facility_info.date}: not enough courts available"
-                        )
-                        continue
-
-                    # Extract available times that can accommodate the needed courts
-                    available_times = []
-                    time_slot_details = []
-
-                    # At this point, we know we can accommodate the match. Just collecting details
-                    for time_slot in facility_info.time_slots:
-                        
-                        courts_needed_per_slot = lines_needed
-                        if using_split_lines:
-                            courts_needed_per_slot = math.ceil(lines_needed / 2)
-
-                        if time_slot.can_accommodate(courts_needed_per_slot):
-                            available_times.append(time_slot.time)
-
-                            # Add detailed time slot info for the template
-                            time_slot_details.append(
-                                {
-                                    "time": time_slot.time,
-                                    "available_courts": time_slot.available_courts,
-                                    "total_courts": time_slot.total_courts,
-                                    "utilization_percentage": time_slot.utilization_percentage,
-                                    "can_accommodate": time_slot.can_accommodate(
-                                        courts_needed_per_slot
-                                    ),
-                                }
-                            )
-
-                    # Parse date for formatting
-                    date_obj = datetime.strptime(facility_info.date, "%Y-%m-%d")
-                    day_name = facility_info.day_of_week
-
-                    # Calculate match quality score directly
-                    match_quality = match.get_quality_score(facility_info.date)
-
-                    # Check for team conflicts and get existing matches (optional - can be resource intensive)
-                    conflicts = []
-                    existing_matches = []
-                    try:
-                        conflicts = check_team_conflicts(db, match, facility_info.date)
-                        existing_matches = get_existing_matches_on_date(
-                            db, facility, facility_info.date
-                        )
-                    except Exception as conflict_error:
-                        print(
-                            f"Error checking conflicts for {facility_info.date}: {conflict_error}"
-                        )
-                        # Continue without conflicts info rather than failing
-
-                    # Get match quality for this date
-                    match_quality = quality_lookup.get(
-                        facility_info.date, 0
-                    )  # Default to 0 if not found
-
-                    quality_description = match.get_quality_score_description()
-
-                    # Create date option in the format expected by the template
-                    date_option = {
-                        "date": facility_info.date,
-                        "day_name": day_name,
-                        "formatted_date": date_obj.strftime("%B %d, %Y"),
-                        "available_times": available_times,
-                        "time_slot_details": time_slot_details,  # Enhanced court info per time
-                        "score": match_quality,  # Use match quality score directly
-                        "match_quality": match_quality,  # Add match quality for display
-                        "quality_description": quality_description,  # Use match object's method
-                        "in_round": bool(
-                            match_quality >= 80
-                        ),  # Qualities 80+ are within round
-                        "conflicts": conflicts,
-                        "existing_matches": existing_matches,  # Add existing match details
-                        "courts_available": facility_info.available_court_slots,
-                        "total_court_slots": facility_info.total_court_slots,
-                        "utilization_percentage": facility_info.overall_utilization_percentage,
-                        "facility_name": facility_info.facility_name,
-                    }
-
-                    available_dates.append(date_option)
-                    print(
-                        f"Added date option: {facility_info.date} with {len(available_times)} times, quality: {match_quality}, description: {quality_description}"
-                    )
-
-                except Exception as date_processing_error:
-                    print(
-                        f"Error processing facility info for {facility_info.date}: {date_processing_error}"
-                    )
-                    continue
-
-            # Sort by match priority first (higher number = higher priority)
-            # available_dates.sort(key=lambda x: (x["match_priority"], -x["score"]))
-
-            print(f"Final available dates: {len(available_dates)}")
-
             
+            # Filter out None values and ensure we have valid dates
+            viable_dates = [date for date in viable_dates if date is not None and isinstance(date, str)]
+            
+        except Exception as e:
+            print(f"Error getting viable dates: {e}")
+            viable_dates = []
 
-            scheduling_options = {
-                "success": True,
-                "available_dates": available_dates,
-                "search_params": {
-                    "start_date": request.args.get("start_date"),
-                    "end_date": request.args.get("end_date"),
-                    "max_dates": num_dates,
-                },
-            }
+        # Get facility availability if we have viable dates
+        facility_availability = []
+        if viable_dates:
+            try:
+                facility_availability = db.facility_manager.get_facility_availability(
+                    facility=facility,
+                    dates=viable_dates,
+                    max_days=20,  # Allow some buffer
+                )
+            except Exception as e:
+                print(f"Error getting facility availability: {e}")
+                facility_availability = []
+        
+        # Convert FacilityAvailabilityInfo objects to format expected by template
+        available_dates = []
 
-        except Exception as scheduling_error:
-            print(f"Error getting scheduling options: {scheduling_error}")
-            import traceback
+        for facility_info in facility_availability:
+            # put info expected by the form
+            date_obj = datetime.strptime(facility_info.date, "%Y-%m-%d")
+            num_lines = match.league.num_lines_per_match
 
-            traceback.print_exc()
-            scheduling_options = {
-                "success": False,
-                "error": f"Error getting scheduling options: {str(scheduling_error)}",
-                "available_dates": [],
-            }
+            # available times are the set of times that can accommodate the match
+            set_times = set(facility_info.get_available_times(num_lines))
+            if match.league.allow_split_lines:
+                # If split lines are allowed, we can also consider half the lines
+                set_times.update(
+                    facility_info.get_available_times(math.ceil(num_lines / 2))
+                )
 
-        # Transform match data for template
+            available_times = list(set_times)
+            available_times.sort()
+
+            # Create time slot details from facility availability
+            time_slot_details = []
+            for time_slot in facility_info.time_slots:
+                time_slot_details.append({
+                    "time": time_slot.time,
+                    "total_courts": time_slot.total_courts,
+                    "available_courts": time_slot.available_courts,
+                    "used_courts": time_slot.used_courts,
+                    "utilization_percentage": time_slot.utilization_percentage
+                })
+
+            # Get facility for existing matches lookup
+            facility = match.get_facility()
+            
+            # get the already scheduled matches on this date, its ok if this is empty
+            existing_matches = []
+            try:
+                if facility:
+                    existing_matches = get_existing_matches_on_date(db, facility, facility_info.date)
+            except Exception as e:
+                print(f"Error getting existing matches: {e}")
+                existing_matches = []
+
+            # Generate quality description based on match
+            try:
+                quality_score = match.get_quality_score(facility_info.date)
+            except Exception as e:
+                print(f"Error calculating quality score for date {facility_info.date}: {e}")
+                quality_score = 50  # Default fallback value
+                
+            if quality_score >= 80:
+                quality_description = "Ideal scheduling window"
+            elif quality_score >= 60:
+                quality_description = "Good scheduling option" 
+            elif quality_score >= 40:
+                quality_description = "Acceptable scheduling time"
+            else:
+                quality_description = "Available but not preferred"
+
+            date_option = {
+                    "date": facility_info.date,
+                    "day_name": facility_info.day_of_week,
+                    "formatted_date": date_obj.strftime("%B %d, %Y"),
+                    "available_times": available_times,
+                    "time_slot_details": time_slot_details,  # Enhanced court info per time
+                    "score": quality_score,  # Use match quality score directly
+                    "match_quality": quality_score,  # Add match quality for display
+                    "quality_description": quality_description,  # Use match object's method
+                    "in_round": bool(quality_score >= 80),  # Qualities 80+ are within round
+                    "conflicts": None,
+                    "existing_matches": existing_matches,  # Add existing match details
+                    "courts_available": facility_info.available_court_slots,
+                    "total_court_slots": facility_info.total_court_slots,
+                    "utilization_percentage": facility_info.overall_utilization_percentage,
+                    "facility_name": facility_info.facility_name,
+                    }
+            available_dates.append(date_option)
+            print(f"Added date option: {facility_info.date} with {len(available_times)} times, quality: {quality_score}, description: {quality_description}")
+
+        # Sort available dates by quality score (highest first)
+        available_dates.sort(key=lambda x: x["score"], reverse=True)
+
+        # Prepare match_info for template
         match_info = {
             "id": match.id,
-            "match_id": match.id,
+            "home_team": match.home_team.name if match.home_team else "Unknown",
+            "visitor_team": match.visitor_team.name if match.visitor_team else "Unknown", 
             "round": match.round,
             "num_rounds": match.num_rounds,
-            "home_team": match.home_team.name if match.home_team else "TBD",
-            "visitor_team": match.visitor_team.name if match.visitor_team else "TBD",
-            "league": match.league.name if match.league else "Unknown",
-            "lines_needed": match.league.num_lines_per_match if match.league else 3,
-            "allow_split_lines": allow_split_lines,
+            "league": match.league.name if match.league else "Unknown League",
+            "lines_needed": match.league.num_lines_per_match if match.league else 3
         }
+        
+        # Prepare facility_info for template
+        facility_obj = match.get_facility()
+        facility_info = None
+        if facility_obj:
+            facility_info = {
+                "id": facility_obj.id,
+                "name": facility_obj.name,
+                "location": facility_obj.location
+            }
 
-        # Transform facility data for template
-        facility_info = {
-            "id": facility.id,
-            "name": facility.name,
-            "location": getattr(
-                facility, "location", getattr(facility, "address", None)
-            ),
-            "total_courts": getattr(
-                facility, "total_courts", getattr(facility, "court_count", 3)
-            ),
-        }
-
-        # Get all facilities for dropdown
-        all_facilities = db.list_facilities()
-
+        # Render the scheduling form with available dates
         return render_template(
             "schedule_match.html",
+            success=True,
+            match=match,
             match_info=match_info,
+            league=league,
+            available_dates=available_dates,
+            facility=facility_obj,
             facility_info=facility_info,
-            available_dates=scheduling_options.get("available_dates", []),
-            success=scheduling_options.get("success", False),
-            error=scheduling_options.get("error", None),
-            search_params=scheduling_options.get("search_params", {}),
-            all_facilities=all_facilities,
+            num_lines_per_match=league.num_lines_per_match,
+            allow_split_lines=league.allow_split_lines,
         )
-
     except Exception as e:
-        print(f"Error in schedule_match_form: {str(e)}")
-        import traceback
-
         traceback.print_exc()
-        flash(f"Error loading scheduling options: {str(e)}", "danger")
+        flash(f"Error loading scheduling form: {str(e)}", "danger")
         return redirect(url_for("matches"))
 
 
@@ -331,14 +236,11 @@ def get_existing_matches_on_date(db, facility, date):
     """Get existing matches scheduled at the facility on the given date"""
     try:
         # Get all matches on this date at this facility
-        existing_matches = db.get_matches_on_date(date)
-        facility_matches = [
-            m for m in existing_matches if m.facility and m.facility.id == facility.id
-        ]
+        existing_matches = db.list_matches(facility=facility, date_str=date)
 
         # Convert to format suitable for template display
         match_info = []
-        for match in facility_matches:
+        for match in existing_matches:
             if match.is_scheduled():
                 match_info.append(
                     {

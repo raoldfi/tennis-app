@@ -510,114 +510,102 @@ class SQLMatchManager:
         except Exception as e:
             raise RuntimeError(f"Error unscheduling match: {e}")
 
-    def _get_optimal_scheduling_dates(
-        self, match: Match, days_ahead: int = 90
-    ) -> List[str]:
-        """
-        Get optimal scheduling dates for a match based on team and league preferences
 
+
+
+    def get_viable_scheduling_dates(self, match: Match,
+                                    max_dates: int = 365,
+                                    ignore_conflicts: bool = False, 
+                                    ignore_league_preferences: bool = False,
+                                    ignore_team_preferences: bool = False) -> List[str]:
+        """
+        Get viable scheduling dates for a match considering team and league preferences
+        and facility availability.
         Args:
             match: Match object
-            days_ahead: Number of days to look ahead (default 90)
+            ignore_conflicts: If True, ignore team date conflicts
+            ignore_league_preferences: If True, ignore league preferred days
+            ignore_team_preferences: If True, ignore team preferred days
+
 
         Returns:
-            List of dates in order of preference
+            List of viable scheduling dates
+            FacilityAvailabilityInfo objects for each date
         """
-        from datetime import datetime, timedelta
 
         try:
-            start_date = datetime.now().date()
-            end_date = start_date + timedelta(days=days_ahead)
+            
+            if ignore_league_preferences or ignore_team_preferences:
+                # Filtering league and team preferences are not implemented yet, raise NotImplementedError
+                raise NotImplementedError("Filtering league and team preferences is not implemented")
 
-            candidate_dates = []
-            current = start_date
+            # Get preferred scheduling dates based on team and league preferences
+            # This will return a list of tuples (date, priority)
+            prioritized_dates = match.get_prioritized_scheduling_dates()
+            if not prioritized_dates:
+                raise ValueError("No prioritized dates found")
 
-            while current <= end_date:
-                day_name = current.strftime("%A")
-                date_str = current.strftime("%Y-%m-%d")
+            # Extract just the dates from the prioritized list
+            viable_dates = [date for date, priority in prioritized_dates]
 
-                # Calculate priority based on league and team preferences
-                priority = 10  # Default priority
+            # Now we need to filter based on facility availability and team conflicts
+            if not ignore_conflicts:
+                # Filter out dates with team conflicts
+                viable_dates = self._filter_team_conflicts(match, viable_dates)
 
-                # League preferences
-                if (
-                    hasattr(match.league, "preferred_days")
-                    and match.league.preferred_days
-                ):
-                    if day_name in match.league.preferred_days:
-                        priority = 1  # Highest priority
-                    elif (
-                        hasattr(match.league, "backup_days")
-                        and day_name in match.league.backup_days
-                    ):
-                        priority = 3
+            # Filter based on facility availability
+            viable_dates = self._filter_facility_availability(match, viable_dates)
 
-                # Team preferences (home team gets priority)
-                if (
-                    hasattr(match.home_team, "preferred_days")
-                    and match.home_team.preferred_days
-                ):
-                    if day_name in match.home_team.preferred_days:
-                        priority = min(
-                            priority, 2
-                        )  # High priority, but after league preferred
-
-                # Weekend bonus for recreational leagues
-                if day_name in ["Saturday", "Sunday"]:
-                    priority = min(priority, 4)
-
-                candidate_dates.append((date_str, priority))
-                current += timedelta(days=1)
-
-            # Sort by priority, then by date
-            candidate_dates.sort(key=lambda x: (x[1], x[0]))
-
-            # Return just the date strings
-            return [date for date, _ in candidate_dates]
+            # it is ok to return an empty list if no dates are viable
+            return viable_dates[:max_dates] if viable_dates else [None]
 
         except Exception as e:
-            # Fallback to simple date range if preference calculation fails
-            simple_dates = []
-            current = start_date
-            while current <= end_date:
-                simple_dates.append(current.strftime("%Y-%m-%d"))
-                current += timedelta(days=1)
-            return simple_dates
+            raise RuntimeError(f"Error getting viable scheduling dates: {e}")
+        
 
+    def _filter_team_conflicts(self, match: Match, dates: List[str]) -> List[str]:
+        """
+        Filter out dates that have team conflicts.
+        """
+        filter_dates = []
+        for date in dates:
+            if not self.db.team_manager.check_team_date_conflict(match.home_team, date) and \
+               not self.db.team_manager.check_team_date_conflict(match.visitor_team, date):
+                filter_dates.append(date)
+        return filter_dates
+    
+    def _filter_facility_availability(self, match: Match, dates: List[str]) -> List[str]:
+        """
+        Filter out dates that do not have facility availability.
+        """
 
-    # def _has_team_conflict_with_scheduling_state(self, match: Match, date: str) -> bool:
-    #     """
-    #     Check team conflicts considering both database and in-memory scheduling state
+        try: 
+            # Check if dates list is empty
+            if not dates:
+                return []
+                
+            # get facility availability for the range of dates
+            facility_availability = self.db.facility_manager.get_facility_availability(
+                facility=match.facility, dates=dates, max_days=len(dates)
+            )
+            if not facility_availability:
+                return []
+            
+            # We need to check availability and ability to accommodate the match for each date
+            filtered_dates = []
+            for availability_info in facility_availability:
 
-    #     Args:
-    #         match: Match to check
-    #         date: Date to check
+                # Check if the facility can accommodate the match on this date
+                if availability_info.can_accommodate_match(match):
+                    # If it can, add the date to the filtered list
+                    filtered_dates.append(availability_info.date)
 
-    #     Returns:
-    #         True if there's a conflict
-    #     """
-    #     # Check database conflicts first
-    #     database_conflicts = self.db.team_manager.check_team_date_conflict(
-    #         match.home_team, date, exclude_match=match
-    #     ) or self.db.team_manager.check_team_date_conflict(
-    #         match.visitor_team, date, exclude_match=match
-    #     )
+            # Return the filtered dates
+            return filtered_dates
+        
+        except Exception as e:
+            raise RuntimeError(f"Error filtering facility availability: {e}")
 
-    #     if database_conflicts:
-    #         print(f"Team conflict detected in database for match {match.id} on {date}")
-    #         return True
-
-    #     # Check scheduling state (for conflicts within current transaction/dry-run)
-    #     if hasattr(self.db, "scheduling_state") and self.db.scheduling_state:
-    #         if self.db.scheduling_state.has_team_conflict(
-    #             match.home_team.id, date
-    #         ) or self.db.scheduling_state.has_team_conflict(
-    #             match.visitor_team.id, date
-    #         ):
-    #             print(f"Team conflict detected in scheduling state for match {match.id} on {date}")
-    #             return True
-
-    #     return False
 
     def get_auto_scheduling_summary(
         self, league: Optional[League] = None

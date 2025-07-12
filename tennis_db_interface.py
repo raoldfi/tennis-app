@@ -113,11 +113,14 @@ class TennisDBInterface(ABC):
 
     from usta import MatchType, Match
     @abstractmethod
-    def list_matches(self, 
-                     facility: Optional['Facility'] = None,
-                     league: Optional['League'] = None,
-                     team: Optional['Team'] = None,
-                     match_type: 'MatchType' = MatchType.ALL) -> List[Match]:
+    def list_matches(
+            self,
+            facility: Optional["Facility"] = None,
+            league: Optional["League"] = None,
+            team: Optional["Team"] = None,
+            date_str: Optional[str] = None,
+            match_type: Optional["MatchType"] = MatchType.ALL,
+        ) -> List[Match]:
         """List matches, optionally filtered by facility, league, team"""
         pass
 
