@@ -49,6 +49,12 @@ def register_routes(app):
             
             # Calculate utilization data for all leagues using this facility
             utilization_data = {}
+            total_utilization = {
+                "total_court_time_slots": 0,
+                "current_usage": 0,
+                "utilization_percentage": 0.0
+            }
+            
             try:
                 # Get all leagues that have teams using this facility
                 leagues = db.list_leagues()
@@ -68,19 +74,51 @@ def register_routes(app):
                             league, facilities_used
                         )
                         if league_utilization and str(facility_id) in league_utilization:
+                            league_util_data = league_utilization[str(facility_id)]
                             utilization_data[league.id] = {
                                 "league_name": league.name,
                                 "league_id": league.id,
-                                "utilization": league_utilization[str(facility_id)]
+                                "utilization": league_util_data
                             }
+                            
+                            # Aggregate totals across all leagues
+                            # Note: total_court_time_slots is the same for all leagues (facility capacity)
+                            # so we only set it once, but we sum the usage across leagues
+                            if total_utilization["total_court_time_slots"] == 0:
+                                total_utilization["total_court_time_slots"] = league_util_data["total_court_time_slots"]
+                            total_utilization["current_usage"] += league_util_data["current_usage"]
+                
+                # Calculate total utilization percentage
+                if total_utilization["total_court_time_slots"] > 0:
+                    total_utilization["utilization_percentage"] = (
+                        total_utilization["current_usage"] / total_utilization["total_court_time_slots"]
+                    ) * 100
+                
             except Exception as util_error:
                 print(f"Error calculating utilization: {util_error}")
                 import traceback
                 traceback.print_exc()
                 # Continue without utilization data if there's an error
                 utilization_data = {}
+                total_utilization = {
+                    "total_court_time_slots": 0,
+                    "current_usage": 0,
+                    "utilization_percentage": 0.0
+                }
             
-            return render_template('view_facility.html', facility=facility, utilization_data=utilization_data)
+            # Calculate per-day utilization
+            per_day_utilization = {}
+            try:
+                per_day_utilization = db.facility_manager.calculate_per_day_utilization(facility)
+            except Exception as day_util_error:
+                print(f"Error calculating per-day utilization: {day_util_error}")
+                per_day_utilization = {day: 0.0 for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]}
+            
+            return render_template('view_facility.html', 
+                                 facility=facility, 
+                                 utilization_data=utilization_data, 
+                                 total_utilization=total_utilization,
+                                 per_day_utilization=per_day_utilization)
             
         except Exception as e:
             flash(f'Error loading facility: {e}', 'error')

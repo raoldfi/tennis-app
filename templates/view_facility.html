@@ -254,7 +254,292 @@
     </div>
 </div>
 
-<!-- Facility Utilization -->
+<!-- Total Facility Utilization Summary -->
+<div class="tennis-card mb-4">
+    <div class="card-header">
+        <i class="fas fa-chart-pie"></i> Total Facility Utilization
+        <span class="badge bg-light text-dark ms-2">All Leagues Combined</span>
+    </div>
+    <div class="card-body">
+        {% if total_utilization and total_utilization.total_court_time_slots > 0 %}
+            <div class="row text-center mb-4">
+                <div class="col-md-4">
+                    <div class="stat-card h-100">
+                        <div class="card-body">
+                            <i class="fas fa-calendar-alt fa-2x mb-2 text-primary"></i>
+                            <h3 class="text-primary">{{ total_utilization.total_court_time_slots }}</h3>
+                            <small class="text-muted">Total Available Court-Time Slots</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card h-100">
+                        <div class="card-body">
+                            <i class="fas fa-clock fa-2x mb-2 text-info"></i>
+                            <h3 class="text-info">{{ total_utilization.current_usage }}</h3>
+                            <small class="text-muted">Currently Used Slots</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card h-100">
+                        <div class="card-body">
+                            <i class="fas fa-percentage fa-2x mb-2 
+                                {% if total_utilization.utilization_percentage > 80 %}text-danger
+                                {% elif total_utilization.utilization_percentage > 60 %}text-warning
+                                {% else %}text-success
+                                {% endif %}"></i>
+                            <h3 class="
+                                {% if total_utilization.utilization_percentage > 80 %}text-danger
+                                {% elif total_utilization.utilization_percentage > 60 %}text-warning
+                                {% else %}text-success
+                                {% endif %}">
+                                {{ "%.1f"|format(total_utilization.utilization_percentage) }}%
+                            </h3>
+                            <small class="text-muted">Overall Utilization</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Overall Utilization Progress Bar -->
+            <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Facility Utilization</h6>
+                    <small class="text-muted">{{ total_utilization.current_usage }} / {{ total_utilization.total_court_time_slots }} slots used</small>
+                </div>
+                <div class="progress" style="height: 15px;">
+                    <div class="progress-bar 
+                        {% if total_utilization.utilization_percentage > 80 %}bg-danger
+                        {% elif total_utilization.utilization_percentage > 60 %}bg-warning
+                        {% else %}bg-success
+                        {% endif %}" 
+                        role="progressbar" 
+                        style="width: {{ total_utilization.utilization_percentage }}%"
+                        aria-valuenow="{{ total_utilization.utilization_percentage }}" 
+                        aria-valuemin="0" 
+                        aria-valuemax="100">
+                        {{ "%.1f"|format(total_utilization.utilization_percentage) }}%
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between mt-1">
+                    <small class="text-muted">Empty (0%)</small>
+                    <small class="text-muted">
+                        {% if total_utilization.utilization_percentage < 50 %}
+                            Low usage
+                        {% elif total_utilization.utilization_percentage < 80 %}
+                            Good usage
+                        {% else %}
+                            High usage
+                        {% endif %}
+                    </small>
+                    <small class="text-muted">Full (100%)</small>
+                </div>
+            </div>
+            
+            <!-- Availability Status -->
+            <div class="alert 
+                {% if total_utilization.utilization_percentage > 90 %}alert-danger
+                {% elif total_utilization.utilization_percentage > 75 %}alert-warning
+                {% else %}alert-success
+                {% endif %} mb-0" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="fas 
+                        {% if total_utilization.utilization_percentage > 90 %}fa-exclamation-triangle
+                        {% elif total_utilization.utilization_percentage > 75 %}fa-info-circle
+                        {% else %}fa-check-circle
+                        {% endif %} me-2"></i>
+                    <div>
+                        <strong>
+                            {% if total_utilization.utilization_percentage > 90 %}
+                                Nearly Full
+                            {% elif total_utilization.utilization_percentage > 75 %}
+                                High Usage
+                            {% elif total_utilization.utilization_percentage > 25 %}
+                                Normal Usage
+                            {% else %}
+                                Low Usage
+                            {% endif %}
+                        </strong>
+                        {% set available_slots = total_utilization.total_court_time_slots - total_utilization.current_usage %}
+                        — {{ available_slots }} court-time slots still available
+                        {% if total_utilization.utilization_percentage > 90 %}
+                            (capacity constraint may affect scheduling)
+                        {% elif total_utilization.utilization_percentage > 75 %}
+                            (consider monitoring for future constraints)
+                        {% else %}
+                            (good availability for new matches)
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-chart-pie"></i>
+                <h5>No utilization data available</h5>
+                <p>This facility has no current scheduled matches to calculate total utilization.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Per-Day Utilization Analysis -->
+<div class="tennis-card mb-4">
+    <div class="card-header">
+        <i class="fas fa-calendar-week"></i> Daily Utilization Patterns
+        <span class="badge bg-light text-dark ms-2">Weekly Analysis</span>
+    </div>
+    <div class="card-body">
+        {% if per_day_utilization %}
+            <!-- Vertical Bar Chart Display -->
+            <div class="daily-utilization-chart-vertical">
+                <div class="d-flex justify-content-center align-items-end" style="height: 300px; gap: 15px;">
+                    {% for day, percentage in per_day_utilization.items() %}
+                    <div class="text-center" style="flex: 1; max-width: 80px;">
+                        <!-- Percentage Label -->
+                        <div class="mb-2" style="height: 20px;">
+                            {% if percentage > 0 %}
+                                <small class="fw-bold 
+                                    {% if percentage > 80 %}text-danger
+                                    {% elif percentage > 60 %}text-warning
+                                    {% else %}text-success
+                                    {% endif %}">
+                                    {{ "%.0f"|format(percentage) }}%
+                                </small>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Vertical Bar -->
+                        <div class="d-flex flex-column justify-content-end align-items-center" style="height: 200px;">
+                            <div class="
+                                {% if percentage > 80 %}bg-danger
+                                {% elif percentage > 60 %}bg-warning
+                                {% elif percentage > 0 %}bg-success
+                                {% else %}bg-light border
+                                {% endif %} rounded-top" 
+                                style="width: 40px; height: {{ percentage * 2 }}px; min-height: {% if percentage > 0 %}5px{% else %}3px{% endif %}; 
+                                       transition: height 0.3s ease;">
+                            </div>
+                        </div>
+                        
+                        <!-- Day Label -->
+                        <div class="mt-2">
+                            <span class="fw-bold text-primary small">{{ day[:3] }}</span>
+                        </div>
+                        
+                        <!-- Status Badge -->
+                        <div class="mt-1">
+                            {% if percentage > 90 %}
+                                <small class="tennis-badge-danger" style="font-size: 0.7rem;">Very High</small>
+                            {% elif percentage > 75 %}
+                                <small class="tennis-badge-warning" style="font-size: 0.7rem;">High</small>
+                            {% elif percentage > 50 %}
+                                <small class="tennis-badge-success" style="font-size: 0.7rem;">Moderate</small>
+                            {% elif percentage > 25 %}
+                                <small class="tennis-badge-info" style="font-size: 0.7rem;">Low</small>
+                            {% elif percentage > 0 %}
+                                <small class="tennis-badge-secondary" style="font-size: 0.7rem;">Minimal</small>
+                            {% else %}
+                                <small class="text-muted" style="font-size: 0.7rem;">Unused</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Y-axis scale -->
+                <div class="d-flex justify-content-between mt-3 text-muted">
+                    <small>0%</small>
+                    <small class="text-center">Daily Utilization</small>
+                    <small>100%</small>
+                </div>
+            </div>
+            
+            <!-- Chart Legend -->
+            <div class="mt-3 mb-3">
+                <small class="text-muted">
+                    <strong>Legend:</strong>
+                    <span class="badge bg-danger ms-2">High (>80%)</span>
+                    <span class="badge bg-warning text-dark ms-1">Moderate (60-80%)</span>
+                    <span class="badge bg-success ms-1">Active (<60%)</span>
+                    <span class="badge bg-light text-dark border ms-1">Unused (0%)</span>
+                </small>
+            </div>
+            
+            <!-- Daily Analysis Summary -->
+            <div class="mt-4 p-3 bg-light rounded">
+                <h6 class="mb-2"><i class="fas fa-analytics"></i> Daily Analysis Summary</h6>
+                <div class="row">
+                    <div class="col-md-3">
+                        <small class="text-muted">Peak Day:</small>
+                        <div class="fw-bold">
+                            {% set peak_day = "" %}
+                            {% set peak_percentage = 0 %}
+                            {% for day, percentage in per_day_utilization.items() %}
+                                {% if percentage > peak_percentage %}
+                                    {% set peak_day = day %}
+                                    {% set peak_percentage = percentage %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ peak_day }} ({{ "%.1f"|format(peak_percentage) }}%)
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted">Active Days:</small>
+                        <div class="fw-bold">
+                            {% set active_days = 0 %}
+                            {% for day, percentage in per_day_utilization.items() %}
+                                {% if percentage > 0 %}
+                                    {% set active_days = active_days + 1 %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ active_days }}/7 days
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted">Average Daily Usage:</small>
+                        <div class="fw-bold">
+                            {% set total_percentage = 0 %}
+                            {% for day, percentage in per_day_utilization.items() %}
+                                {% set total_percentage = total_percentage + percentage %}
+                            {% endfor %}
+                            {% set avg_percentage = total_percentage / 7 %}
+                            {{ "%.1f"|format(avg_percentage) }}%
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted">Usage Pattern:</small>
+                        <div class="fw-bold">
+                            {% set high_days = 0 %}
+                            {% for day, percentage in per_day_utilization.items() %}
+                                {% if percentage > 50 %}
+                                    {% set high_days = high_days + 1 %}
+                                {% endif %}
+                            {% endfor %}
+                            {% if high_days >= 5 %}
+                                Heavy Use
+                            {% elif high_days >= 3 %}
+                                Moderate Use
+                            {% elif high_days >= 1 %}
+                                Light Use
+                            {% else %}
+                                Minimal Use
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-calendar-week"></i>
+                <h5>No daily utilization data available</h5>
+                <p>This facility has no scheduled matches to analyze daily patterns.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Per-League Utilization Breakdown -->
 <div class="tennis-card mb-4">
     <div class="card-header">
         <i class="fas fa-chart-bar"></i> Current Utilization by League

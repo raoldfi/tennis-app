@@ -1417,3 +1417,101 @@ class SQLFacilityManager:
             recommendations.append("Consider adding more preferred days to distribute scheduling load")
         
         return recommendations if recommendations else ["Facility requirements appear adequate for current league configuration"]
+    
+    def calculate_per_day_utilization(self, 
+                                      facility: Facility, 
+                                      start_date: Optional[datetime]=None, 
+                                      end_date: Optional[datetime]=None) -> Dict[str, float]:
+        """
+        Calculate the per-day facility utilization for a specific facility.
+
+        Args:
+            facility: The facility to analyze.
+            start_date: Optional start date for the analysis period (default is first match date).
+            end_date: Optional end date for the analysis period (default is last match date).
+
+        Returns:
+            A dictionary mapping each day of the week to its utilization percentage.
+        """
+        # Initialize utilization dictionary with zero values
+        utilization = {day: 0.0 for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]}
+
+        try:
+            # Query the database to get the first match scheduled to the facility
+            if not start_date:
+                start_date = self._get_first_scheduled_match_date(facility)
+
+            if not end_date:
+                end_date = self._get_last_scheduled_match_date(facility)
+
+            if not start_date or not end_date:
+                logger.info(f"No matches found for facility {facility.id}.")
+                return utilization
+            
+            # Generate list of dates between start_date and end_date
+            date_list = []
+            current_date = start_date
+            while current_date <= end_date:
+                date_list.append(current_date.strftime("%Y-%m-%d"))
+                current_date += timedelta(days=1)
+            
+            # Use get_facility_availability to get all available dates with utilization info
+            facility_availability = self.get_facility_availability(
+                facility=facility,
+                dates=date_list,
+                max_days=365  # Limit to one year for performance
+            )
+
+            # Aggregate utilization data by day of week
+            day_totals = {day: {'total_slots': 0, 'used_slots': 0} for day in utilization.keys()}
+            
+            for availability_info in facility_availability:
+                if availability_info.available and availability_info.total_court_slots > 0:
+                    day_name = availability_info.day_of_week
+                    day_totals[day_name]['total_slots'] += availability_info.total_court_slots
+                    day_totals[day_name]['used_slots'] += availability_info.used_court_slots
+            
+            # Calculate utilization percentage for each day
+            for day in utilization.keys():
+                total = day_totals[day]['total_slots']
+                used = day_totals[day]['used_slots']
+                if total > 0:
+                    utilization[day] = (used / total) * 100
+                else:
+                    utilization[day] = 0.0
+
+            return utilization
+            
+        except Exception as e:
+            logger.error(f"Error calculating per-day utilization for facility {facility.id}: {e}")
+            return utilization
+    
+    def _get_first_scheduled_match_date(self, facility: Facility) -> Optional[datetime]:
+        """Get the date of the first scheduled match at this facility"""
+        try:
+            self.cursor.execute(
+                "SELECT MIN(date) as first_date FROM matches WHERE facility_id = ? AND status = 'scheduled'",
+                (facility.id,)
+            )
+            row = self.cursor.fetchone()
+            if row and row['first_date']:
+                return datetime.strptime(row['first_date'], "%Y-%m-%d")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting first scheduled match date for facility {facility.id}: {e}")
+            return None
+    
+    def _get_last_scheduled_match_date(self, facility: Facility) -> Optional[datetime]:
+        """Get the date of the last scheduled match at this facility"""
+        try:
+            self.cursor.execute(
+                "SELECT MAX(date) as last_date FROM matches WHERE facility_id = ? AND status = 'scheduled'",
+                (facility.id,)
+            )
+            row = self.cursor.fetchone()
+            if row and row['last_date']:
+                return datetime.strptime(row['last_date'], "%Y-%m-%d")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting last scheduled match date for facility {facility.id}: {e}")
+            return None
