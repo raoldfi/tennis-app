@@ -444,28 +444,27 @@ function submitSchedule() {
 }
 
 function clearSchedule() {
-    if (!confirm('Are you sure you want to clear the current schedule for this match?')) {
-        return;
-    }
-    
-    fetch(`/api/matches/{{ match.id }}/unschedule`, {
-        method: 'POST',
+    // Direct clear schedule without confirmation - use fetch without AJAX headers to get redirect
+    fetch(`/matches/{{ match.id }}/schedule`, {
+        method: 'DELETE',
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
+            // Intentionally NOT setting X-Requested-With to trigger redirect behavior
         }
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Match schedule cleared successfully!');
-            window.location.reload();
+    .then(response => {
+        // If the server redirects, follow it
+        if (response.redirected) {
+            window.location.href = response.url;
         } else {
-            alert('Error: ' + data.error);
+            // Fallback - reload current page to show flash messages
+            window.location.reload();
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Error clearing schedule');
+        console.error('Error clearing schedule:', error);
+        // On error, reload the page to show any flash messages
+        window.location.reload();
     });
 }
 

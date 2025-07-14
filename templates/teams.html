@@ -78,7 +78,7 @@
                         <th>Team Name</th>
                         <th>Captain</th>
                         <th>League</th>
-                        <th>Home Facility</th>
+                        <th>Primary Facility</th>
                         <th>Preferred Days</th>
                         <th>Contact</th>
                         <th>Actions</th>
@@ -111,24 +111,24 @@
                                 <span class="tennis-badge tennis-badge-primary">{{ enhanced_team.team.league.year }}</span>
                             </div>
                         </td>
-                        <td data-label="Home Facility">
+                        <td data-label="Primary Facility">
                             <div class="d-flex align-items-center">
-                                {% if enhanced_team.facility_exists %}
-                                <i class="fas fa-check-circle text-tennis-success me-1"></i>
-                                {% if enhanced_team.facility_id %}
-                                <a href="{{ url_for('view_facility', facility_id=enhanced_team.facility_id) }}" class="text-decoration-none">
-                                    {{ enhanced_team.facility_name }}
-                                </a>
+                                {% if enhanced_team.team.preferred_facilities %}
+                                    {% set primary_facility = enhanced_team.team.get_primary_facility() %}
+                                    <i class="fas fa-check-circle text-tennis-success me-1"></i>
+                                    <a href="{{ url_for('view_facility', facility_id=primary_facility.id) }}" class="text-decoration-none">
+                                        {{ primary_facility.name }}
+                                    </a>
+                                    {% if enhanced_team.team.preferred_facilities|length > 1 %}
+                                        <span class="tennis-badge tennis-badge-info ms-2">+{{ enhanced_team.team.preferred_facilities|length - 1 }}</span>
+                                    {% endif %}
                                 {% else %}
-                                {{ enhanced_team.facility_name }}
-                                {% endif %}
-                                {% else %}
-                                <i class="fas fa-exclamation-triangle text-tennis-warning me-1"></i>
-                                <span>{{ enhanced_team.facility_name }}</span>
+                                    <i class="fas fa-exclamation-triangle text-tennis-warning me-1"></i>
+                                    <span>No facilities assigned</span>
                                 {% endif %}
                             </div>
-                            {% if not enhanced_team.facility_exists %}
-                            <div class="small text-tennis-warning">(Custom facility)</div>
+                            {% if enhanced_team.team.preferred_facilities|length > 1 %}
+                            <div class="small text-muted">{{ enhanced_team.team.preferred_facilities|length }} facilities preferred</div>
                             {% endif %}
                         </td>
                         <td data-label="Preferred Days">
@@ -161,6 +161,13 @@
                                    title="Edit team">
                                     <i class="fas fa-edit"></i>
                                 </a>
+                                <button type="button" 
+                                        class="btn-tennis-danger btn-sm team-delete-btn" 
+                                        data-team-id="{{ enhanced_team.team.id }}"
+                                        data-team-name="{{ enhanced_team.team.name }}"
+                                        title="Delete team">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -217,4 +224,8 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/pages/teams.js') }}"></script>
 {% endblock %}

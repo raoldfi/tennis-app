@@ -312,9 +312,7 @@ class MatchGenerator:
                     league=league,
                     home_team=home_team,
                     visitor_team=visitor_team,
-                    facility=None,  # Unscheduled
-                    date=None,      # Unscheduled
-                    scheduled_times=[]  # Unscheduled
+                    scheduling=None  # Unscheduled - no MatchScheduling object
                 )
                 matches.append(match)
                 print(f"DEBUG: ✅ Successfully created match {match.id}")
@@ -519,7 +517,7 @@ class MatchGenerator:
             id=dummy_team_id,
             name="BYE",
             league=teams[0].league,
-            home_facility=teams[0].home_facility,
+            preferred_facilities=teams[0].preferred_facilities,
             preferred_days=[]
         )
         
@@ -919,7 +917,7 @@ Notes:
                 id=i + 1,
                 name=f"Team {i + 1}",
                 league=league,
-                home_facility=facility,
+                preferred_facilities=[facility],
                 captain=f"Captain {i + 1}",
                 preferred_days=["Saturday", "Sunday"]
             )
@@ -1049,7 +1047,7 @@ def run_demo():
                 id=1,
                 name="Las Cruces Aces",
                 league=league,
-                home_facility=facility1,
+                preferred_facilities=[facility1],
                 captain="John Smith",
                 preferred_days=["Saturday", "Sunday"]
             ),
@@ -1057,7 +1055,7 @@ def run_demo():
                 id=2, 
                 name="Mesilla Valley Smashers",
                 league=league,
-                home_facility=facility2,
+                preferred_facilities=[facility2],
                 captain="Maria Garcia",
                 preferred_days=["Saturday"]
             ),
@@ -1065,7 +1063,7 @@ def run_demo():
                 id=3,
                 name="NMSU Aggies",
                 league=league,
-                home_facility=facility3,
+                preferred_facilities=[facility3],
                 captain="David Johnson", 
                 preferred_days=["Friday", "Saturday"]
             ),
@@ -1073,7 +1071,7 @@ def run_demo():
                 id=4,
                 name="Desert Storm",
                 league=league,
-                home_facility=facility4,
+                preferred_facilities=[facility4],
                 captain="Lisa Brown",
                 preferred_days=["Sunday"]
             ),
@@ -1081,7 +1079,7 @@ def run_demo():
                 id=5,
                 name="Organ Mountain Eagles",
                 league=league,
-                home_facility=facility1,  # Shares facility with Aces
+                preferred_facilities=[facility1],  # Shares facility with Aces
                 captain="Robert Wilson",
                 preferred_days=["Saturday", "Sunday"]
             )
@@ -1092,7 +1090,8 @@ def run_demo():
         print(f"Section: {league.section}, Region: {league.region}")
         print(f"Teams: {len(teams)}")
         for team in teams:
-            print(f"  - {team.name} (Captain: {team.captain}, Home: {team.home_facility.short_name})")
+            preferred_facility_names = [facility.short_name for facility in team.preferred_facilities]
+            print(f"  - {team.name} (Captain: {team.captain}, Home: {', '.join(preferred_facility_names)})")
         print()
         
         # Create match generator

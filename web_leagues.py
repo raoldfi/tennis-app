@@ -189,8 +189,8 @@ def register_routes(app):
                     team_dict = team.__dict__.copy() if hasattr(team, '__dict__') else dict(team)
                     
                     # Get facility name if team has a home facility
-                    if hasattr(team, 'home_facility') and team.home_facility:
-                        team_dict['home_facility_name'] = team.home_facility.name
+                    if team.preferred_facilities:
+                        team_dict['home_facility_name'] = team.get_primary_facility().name
 
                     else:
                         team_dict['home_facility_name'] = None

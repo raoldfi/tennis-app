@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Add Team - Tennis Database{% endblock %}
+{% block title %}{% if is_edit %}Edit Team{% else %}Add Team{% endif %} - Tennis Database{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-10">
         <div class="card">
             <div class="card-header">
-                <i class="fas fa-users"></i> Add New Team
+                <i class="fas fa-{% if is_edit %}edit{% else %}users{% endif %}"></i> {% if is_edit %}Edit Team: {{ team.name }}{% else %}Add New Team{% endif %}
             </div>
             <div class="card-body">
                 <form method="POST">
@@ -17,9 +17,8 @@
                                 <i class="fas fa-hashtag"></i> Team ID *
                             </label>
                             <input type="number" class="form-control" id="id" name="id" 
-                                   min="1" required 
-                                   placeholder="e.g., 1001">
-                            <div class="form-text">Unique identifier</div>
+                                   {% if is_edit %}value="{{ team.id }}" readonly disabled{% else %}min="1" required placeholder="e.g., 1001"{% endif %}>
+                            <div class="form-text">{% if is_edit %}Team ID cannot be changed{% else %}Unique identifier{% endif %}</div>
                         </div>
                         
                         <div class="col-md-9 mb-3">
@@ -27,7 +26,7 @@
                                 <i class="fas fa-users"></i> Team Name *
                             </label>
                             <input type="text" class="form-control" id="name" name="name" 
-                                   required maxlength="255"
+                                   {% if is_edit %}value="{{ team.name }}"{% endif %} required maxlength="255"
                                    placeholder="e.g., Smith - Tennis Center North">
                             <div class="form-text">Team name (often includes captain name and facility)</div>
                         </div>
@@ -41,7 +40,7 @@
                             <select class="form-select" id="league_id" name="league_id" required>
                                 <option value="">Select a league...</option>
                                 {% for league in leagues %}
-                                <option value="{{ league.id }}">
+                                <option value="{{ league.id }}" {% if is_edit and league.id == team.league.id %}selected{% endif %}>
                                     {{ league.name }} ({{ league.year }})
                                 </option>
                                 {% endfor %}
@@ -49,33 +48,88 @@
                             <div class="form-text">League this team competes in</div>
                         </div>
                         
-                        <!-- UPDATED: Home facility section for Facility object -->
+                        <!-- ENHANCED: Facility management section -->
                         <div class="col-md-6 mb-3">
-                            <label for="home_facility_id" class="form-label">
-                                <i class="fas fa-building"></i> Home Facility *
+                            <label class="form-label">
+                                <i class="fas fa-building"></i> Preferred Facilities *
                             </label>
-                            <select class="form-select" id="home_facility_id" name="home_facility_id" required>
-                                <option value="">Select a facility...</option>
-                                {% for facility in facilities %}
-                                <option value="{{ facility.id }}" 
-                                        data-name="{{ facility.name }}" 
-                                        data-short="{{ facility.short_name or '' }}"
-                                        data-location="{{ facility.location or '' }}">
-                                    {{ facility.name }}
-                                    {% if facility.short_name %}({{ facility.short_name }}){% endif %}
-                                    {% if facility.location %}- {{ facility.location }}{% endif %}
-                                </option>
-                                {% endfor %}
-                            </select>
-                            <div class="form-text">
-                                Select the facility where this team plays home matches
-                                {% if facilities|length == 0 %}
-                                <br><span class="text-warning">
-                                    <i class="fas fa-exclamation-triangle"></i> 
-                                    No facilities available. Please add facilities first.
-                                </span>
-                                {% endif %}
+                            
+                            <!-- Selected Facilities List -->
+                            <div class="card">
+                                <div class="card-header bg-light py-2">
+                                    <h6 class="mb-0">Selected Facilities</h6>
+                                </div>
+                                <div class="card-body p-2">
+                                    <div id="selectedFacilities" class="facility-list">
+                                        {% if is_edit and team.preferred_facilities %}
+                                            {% for facility in team.preferred_facilities %}
+                                            <div class="facility-item d-flex align-items-center justify-content-between mb-2 p-2 bg-light rounded" data-facility-id="{{ facility.id }}">
+                                                <div class="facility-info">
+                                                    <span class="facility-name fw-bold">{{ facility.name }}</span>
+                                                    {% if facility.short_name %}<span class="text-muted"> ({{ facility.short_name }})</span>{% endif %}
+                                                    {% if facility.location %}<br><small class="text-muted">{{ facility.location }}</small>{% endif %}
+                                                    {% if loop.first %}<span class="badge bg-primary ms-2">Primary</span>{% endif %}
+                                                </div>
+                                                <div class="facility-actions">
+                                                    {% if not loop.first %}
+                                                    <button type="button" class="btn btn-sm btn-outline-primary me-1 move-up-btn" title="Move up">
+                                                        <i class="fas fa-arrow-up"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                    {% if not loop.last %}
+                                                    <button type="button" class="btn btn-sm btn-outline-primary me-1 move-down-btn" title="Move down">
+                                                        <i class="fas fa-arrow-down"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Remove facility">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
+                                        <div id="noFacilitiesMessage" class="text-muted text-center py-3">
+                                            <i class="fas fa-building"></i><br>
+                                            No facilities selected. Add facilities using the dropdown below.
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             </div>
+                            
+                            <!-- Add Facility Dropdown -->
+                            <div class="mt-3">
+                                <div class="input-group">
+                                    <select class="form-select" id="facilityToAdd">
+                                        <option value="">Select a facility to add...</option>
+                                        {% for facility in facilities %}
+                                        <option value="{{ facility.id }}" 
+                                                data-name="{{ facility.name }}" 
+                                                data-short="{{ facility.short_name or '' }}"
+                                                data-location="{{ facility.location or '' }}">
+                                            {{ facility.name }}
+                                            {% if facility.short_name %}({{ facility.short_name }}){% endif %}
+                                            {% if facility.location %}- {{ facility.location }}{% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="button" class="btn btn-outline-primary" id="addFacilityBtn">
+                                        <i class="fas fa-plus"></i> Add
+                                    </button>
+                                </div>
+                                <div class="form-text">
+                                    Add facilities where this team can play matches. The first facility will be the primary facility.
+                                    {% if facilities|length == 0 %}
+                                    <br><span class="text-warning">
+                                        <i class="fas fa-exclamation-triangle"></i> 
+                                        No facilities available. <a href="{{ url_for('add_facility') }}" target="_blank">Add facilities first</a>.
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Hidden input to store selected facility IDs for form submission -->
+                            <input type="hidden" id="preferred_facility_ids" name="preferred_facility_ids" value="" required>
                         </div>
                     </div>
                     
@@ -85,7 +139,7 @@
                                 <i class="fas fa-user"></i> Captain *
                             </label>
                             <input type="text" class="form-control" id="captain" name="captain" 
-                                   required maxlength="255"
+                                   {% if is_edit %}value="{{ team.captain }}"{% endif %} required maxlength="255"
                                    placeholder="e.g., John Smith">
                             <div class="form-text">Team captain's name</div>
                         </div>
@@ -99,7 +153,8 @@
                                 <div class="col-md-6">
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" 
-                                               id="day_{{ day }}" name="preferred_days" value="{{ day }}">
+                                               id="day_{{ day }}" name="preferred_days" value="{{ day }}"
+                                               {% if is_edit and day in team.preferred_days %}checked{% endif %}>
                                         <label class="form-check-label" for="day_{{ day }}">
                                             {{ day }}
                                         </label>
@@ -119,12 +174,12 @@
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary" 
                                 {% if facilities|length == 0 %}disabled title="Add facilities before creating teams"{% endif %}>
-                            <i class="fas fa-plus"></i> Add Team
+                            <i class="fas fa-{% if is_edit %}save{% else %}plus{% endif %}"></i> {% if is_edit %}Save Changes{% else %}Add Team{% endif %}
                         </button>
                         <a href="{{ url_for('teams') }}" class="btn btn-secondary">
                             <i class="fas fa-times"></i> Cancel
                         </a>
-                        <button type="button" class="btn btn-outline-info" onclick="generateTeamName()">
+                        <button type="button" class="btn btn-outline-info" id="generateTeamNameBtn">
                             <i class="fas fa-magic"></i> Auto-Generate Name
                         </button>
                     </div>
@@ -212,105 +267,10 @@
 </div>
 {% endblock %}
 
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/facility-management.css') }}">
+{% endblock %}
+
 {% block scripts %}
-<script>
-function generateTeamName() {
-    const captain = document.getElementById('captain').value.trim();
-    const facilitySelect = document.getElementById('home_facility_id');
-    const selectedOption = facilitySelect.options[facilitySelect.selectedIndex];
-    
-    if (captain && selectedOption.value) {
-        const facilityName = selectedOption.getAttribute('data-name');
-        const facilityShort = selectedOption.getAttribute('data-short');
-        
-        // Extract last name from captain (assume "First Last" format)
-        const lastName = captain.split(' ').pop();
-        
-        // Use short name if available and under 15 chars, otherwise use full name
-        const facilityDisplay = (facilityShort && facilityShort.length > 0 && facilityShort.length <= 15) 
-            ? facilityShort 
-            : facilityName;
-        
-        const suggestedName = `${lastName} - ${facilityDisplay}`;
-        document.getElementById('name').value = suggestedName;
-        
-        // Highlight the updated field briefly
-        const nameField = document.getElementById('name');
-        nameField.classList.add('bg-warning', 'bg-opacity-25');
-        setTimeout(() => {
-            nameField.classList.remove('bg-warning', 'bg-opacity-25');
-        }, 1500);
-    }
-}
-
-// Auto-generate team name when both captain and facility are filled
-document.getElementById('captain').addEventListener('blur', function() {
-    if (this.value.trim() && document.getElementById('home_facility_id').value && !document.getElementById('name').value.trim()) {
-        generateTeamName();
-    }
-});
-
-document.getElementById('home_facility_id').addEventListener('change', function() {
-    if (this.value && document.getElementById('captain').value.trim() && !document.getElementById('name').value.trim()) {
-        generateTeamName();
-    }
-});
-
-// Show facility details when hovering over facility option
-document.getElementById('home_facility_id').addEventListener('change', function() {
-    const selectedOption = this.options[this.selectedIndex];
-    if (selectedOption.value) {
-        const facilityName = selectedOption.getAttribute('data-name');
-        const facilityShort = selectedOption.getAttribute('data-short');
-        const facilityLocation = selectedOption.getAttribute('data-location');
-        
-        // Update form text with facility details
-        const formText = this.nextElementSibling;
-        let detailText = `Selected: <strong>${facilityName}</strong>`;
-        if (facilityShort) {
-            detailText += ` (${facilityShort})`;
-        }
-        if (facilityLocation) {
-            detailText += ` - ${facilityLocation}`;
-        }
-        formText.innerHTML = detailText;
-    }
-});
-
-// Validation for preferred days - warn if no days selected
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('form');
-    form.addEventListener('submit', function(e) {
-        const checkboxes = document.querySelectorAll('input[name="preferred_days"]:checked');
-        
-        if (checkboxes.length === 0) {
-            const proceed = confirm('No preferred days selected. The team will be available for scheduling on any day. Continue?');
-            if (!proceed) {
-                e.preventDefault();
-                return;
-            }
-        }
-    });
-});
-
-// Facility search functionality
-function filterFacilities() {
-    const searchTerm = document.getElementById('facilitySearch').value.toLowerCase();
-    const select = document.getElementById('home_facility_id');
-    const options = select.options;
-    
-    for (let i = 1; i < options.length; i++) { // Skip first option (placeholder)
-        const option = options[i];
-        const facilityName = option.getAttribute('data-name').toLowerCase();
-        const facilityShort = (option.getAttribute('data-short') || '').toLowerCase();
-        const facilityLocation = (option.getAttribute('data-location') || '').toLowerCase();
-        
-        const matches = facilityName.includes(searchTerm) || 
-                       facilityShort.includes(searchTerm) || 
-                       facilityLocation.includes(searchTerm);
-        
-        option.style.display = matches ? '' : 'none';
-    }
-}
-</script>
+<script src="{{ url_for('static', filename='js/pages/team-facility-management.js') }}"></script>
 {% endblock %}

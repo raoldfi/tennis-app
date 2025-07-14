@@ -187,59 +187,27 @@ class ViewTeamPage {
             return;
         }
         
-        // Use TennisUI confirmation if available, otherwise use confirm()
-        let confirmed;
-        if (typeof TennisUI !== 'undefined' && TennisUI.showConfirmDialog) {
-            confirmed = await TennisUI.showConfirmDialog(
-                'Unschedule Match',
-                `Are you sure you want to unschedule "${description}"?`,
-                'Unschedule',
-                'btn-tennis-warning'
-            );
-        } else {
-            confirmed = confirm(`Are you sure you want to unschedule ${description}?`);
-        }
-        
-        if (!confirmed) return;
-        
         try {
-            // Use TennisUI API if available, otherwise use fetch
-            let result;
-            if (typeof TennisUI !== 'undefined' && TennisUI.apiCall) {
-                result = await TennisUI.apiCall(`/matches/${matchId}/schedule`, {
-                    method: 'DELETE'
-                });
-            } else {
-                const response = await fetch(`/api/matches/${matchId}/unschedule`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        reason: 'Unscheduled from team view'
-                    })
-                });
-                result = await response.json();
-            }
+            // Create and submit a form to trigger the DELETE request and redirect
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/matches/${matchId}/schedule`;
+            form.style.display = 'none';
             
-            // Show success notification
-            if (typeof TennisUI !== 'undefined' && TennisUI.showNotification) {
-                TennisUI.showNotification(result.message || `${description} has been unscheduled successfully.`, 'success');
-            } else {
-                alert(`${description} has been unscheduled successfully.`);
-            }
+            // Add hidden input for method override (common pattern for DELETE in forms)
+            const methodInput = document.createElement('input');
+            methodInput.type = 'hidden';
+            methodInput.name = '_method';
+            methodInput.value = 'DELETE';
+            form.appendChild(methodInput);
             
-            // Reload the page to reflect changes
-            setTimeout(() => window.location.reload(), 1000);
+            document.body.appendChild(form);
+            form.submit();
             
         } catch (error) {
             console.error('Error unscheduling match:', error);
-            
-            if (typeof TennisUI !== 'undefined' && TennisUI.showNotification) {
-                TennisUI.showNotification(error.message || 'Error unscheduling match. Please try again.', 'danger');
-            } else {
-                alert('Error unscheduling match. Please try again.');
-            }
+            // On error, reload the page to show any flash messages
+            window.location.reload();
         }
     }
 }

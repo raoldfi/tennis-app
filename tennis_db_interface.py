@@ -44,6 +44,24 @@ class TennisDBInterface(ABC):
         """Test if database connection is alive"""
         pass
 
+
+    # ========== Transaction Management ==========
+    # ========== Transaction Management ==========
+    @abstractmethod
+    def begin_transaction(self, dry_run: bool = True):
+        """Start a transaction with optional dry-run mode"""
+        pass
+    
+    @abstractmethod
+    def commit_transaction(self):
+        """Commit the current transaction"""
+        pass
+    
+    @abstractmethod
+    def rollback_transaction(self):
+        """Rollback the current transaction"""
+        pass
+
     # ========== Team Management ==========
     @abstractmethod
     def add_team(self, team: 'Team') -> bool:
@@ -70,9 +88,6 @@ class TennisDBInterface(ABC):
         """Delete a team"""
         pass
         
-    @abstractmethod
-    def check_team_date_conflict(self, team: 'Team', date: str) -> bool:
-        pass
 
     # ========== League Management ==========
     @abstractmethod
@@ -131,6 +146,21 @@ class TennisDBInterface(ABC):
         pass
 
     @abstractmethod
+    def update_match(self, match: Match) -> bool:
+        """
+        Update a tennis match.  This does not include any checks
+        for scheduling conflicts or availability. It simply updates
+        the match details in the database.
+
+        Args:
+            match (Match): The match object containing details of the match to be updated.
+
+        Returns:
+            bool: True if the update was successful, False otherwise.
+        """
+        pass
+
+    @abstractmethod
     def get_matches_on_date(self, date: str) -> List['Match']:
         """Get all matches scheduled on a specific date, optionally at a specific facility"""
         pass
@@ -171,57 +201,22 @@ class TennisDBInterface(ABC):
 
  
     # ========== Match Scheduling Operations ==========
-    @abstractmethod
-    def schedule_match(self, 
-                       match: Match, 
-                       date: str, 
-                       times: List[str], 
-                       scheduling_mode: str) -> Dict[str, Any]:
-        """
-        Schedules a tennis match with validation checks for facility availability and scheduling constraints.
-        The facility should already be assigned to the match object.
 
-        Args:
-            match (Match): The match object containing details of the match to be scheduled, including the facility.
-            date (str): The date for the match in 'YYYY-MM-DD' format.
-            times (List[str]): A list of time slots (e.g., ['10:00', '11:00']) requested for the match.
-            scheduling_mode (str): The mode of scheduling (e.g., 'same_time', 'split_times', 'custom').
 
-        Returns:
-            Dict[str, Any]: A dictionary containing the result of the scheduling operation, including success status,
-                            scheduled match details, and any validation errors or messages.
-        """
 
     @abstractmethod
-    def preview_match_scheduling(self, match: Match, date: str, 
-                            times: List[str], scheduling_mode: str) -> Dict[str, Any]:
+    def optimize_auto_schedule(self, matches: List['Match'], max_iterations: int = 10, 
+                             progress_callback=None) -> Dict[str, Any]:
         """
-        Preview what would happen if scheduling a match without actually doing it.
-
-        Args:
-            match: Match object to preview scheduling for
-            date: Date to schedule the match
-            times: List of proposed times for the match
-            mode: Scheduling mode ('same_time', 'split_times', 'custom', etc.)
-
-        Returns:
-            A dictionary containing the preview results, including potential conflicts,
-            available times, and any validation errors.
-        """
-        pass
-
-    
-    @abstractmethod
-    def auto_schedule_matches(self, matches: List['Match'], dry_run: bool = True, seed: int = None) -> Dict:
-        """
-        Attempt to automatically schedule a list of matches
+        Run auto-schedule optimization with multiple iterations to find best scheduling
         
         Args:
             matches: List of matches to schedule
-            dry_run: If True, don't actually schedule, just report what would happen
+            max_iterations: Maximum number of iterations to run
+            progress_callback: Optional callback function for progress updates
             
         Returns:
-            Dictionary with scheduling results and statistics
+            Dictionary with optimization results including best seed and quality metrics
         """
         pass
 

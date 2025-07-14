@@ -60,7 +60,11 @@ USTA_DIVISIONS = [
     "7.0 Mixed",
     "8.0 Mixed",
     "9.0 Mixed",
-    "10.0 Mixed"
+    "10.0 Mixed",
+    "4.5-3.5 Tri-Level Women",
+    "4.5-3.5 Tri-Level Men",
+    "4.0-3.0 Tri-Level Women",
+    "4.0-3.0 Tri-Level Men"
 ]
 
 def get_usta_constants() -> Dict[str, list]:

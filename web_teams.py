@@ -75,19 +75,37 @@ def register_routes(app):
         
         if request.method == 'POST':
             try:
-                # Get facility object instead of facility name
-                facility_id = int(request.form.get('home_facility_id'))
-                facility = db.get_facility(facility_id)
-                if not facility:
-                    flash('Invalid facility selected.', 'error')
+                # Get facility IDs from the comma-separated hidden input
+                facility_ids_str = request.form.get('preferred_facility_ids', '')
+                if not facility_ids_str.strip():
+                    flash('At least one facility must be selected.', 'error')
                     return redirect(url_for('add_team'))
                 
-                # Create team with Facility object
+                # Parse comma-separated facility IDs
+                facility_ids = [id.strip() for id in facility_ids_str.split(',') if id.strip()]
+                if not facility_ids:
+                    flash('At least one facility must be selected.', 'error')
+                    return redirect(url_for('add_team'))
+                
+                # Get facility objects for all selected facilities (maintaining order)
+                facilities = []
+                for facility_id in facility_ids:
+                    try:
+                        facility = db.get_facility(int(facility_id))
+                        if not facility:
+                            flash(f'Invalid facility selected: {facility_id}', 'error')
+                            return redirect(url_for('add_team'))
+                        facilities.append(facility)
+                    except ValueError:
+                        flash(f'Invalid facility ID format: {facility_id}', 'error')
+                        return redirect(url_for('add_team'))
+                
+                # Create team with preferred facilities list
                 team = Team(
                     id=int(request.form.get('id')),
                     name=request.form.get('name'),
                     league=db.get_league(int(request.form.get('league_id'))),
-                    home_facility=facility,  # CHANGED: pass Facility object
+                    preferred_facilities=facilities,  # CHANGED: pass multiple facilities
                     captain=request.form.get('captain') or None,
                     preferred_days=request.form.getlist('preferred_days')
                 )
@@ -153,19 +171,37 @@ def register_routes(app):
         
         if request.method == 'POST':
             try:
-                # Get facility object instead of facility name
-                facility_id = int(request.form.get('home_facility_id'))
-                facility = db.get_facility(facility_id)
-                if not facility:
-                    flash('Invalid facility selected.', 'error')
+                # Get facility IDs from the comma-separated hidden input
+                facility_ids_str = request.form.get('preferred_facility_ids', '')
+                if not facility_ids_str.strip():
+                    flash('At least one facility must be selected.', 'error')
                     return redirect(url_for('edit_team', team_id=team_id))
                 
-                # Update team with new Facility object
+                # Parse comma-separated facility IDs
+                facility_ids = [id.strip() for id in facility_ids_str.split(',') if id.strip()]
+                if not facility_ids:
+                    flash('At least one facility must be selected.', 'error')
+                    return redirect(url_for('edit_team', team_id=team_id))
+                
+                # Get facility objects for all selected facilities (maintaining order)
+                facilities = []
+                for facility_id in facility_ids:
+                    try:
+                        facility = db.get_facility(int(facility_id))
+                        if not facility:
+                            flash(f'Invalid facility selected: {facility_id}', 'error')
+                            return redirect(url_for('edit_team', team_id=team_id))
+                        facilities.append(facility)
+                    except ValueError:
+                        flash(f'Invalid facility ID format: {facility_id}', 'error')
+                        return redirect(url_for('edit_team', team_id=team_id))
+                
+                # Update team with preferred facilities list
                 updated_team = Team(
                     id=team.id,
                     name=request.form.get('name'),
                     league=db.get_league(int(request.form.get('league_id'))),
-                    home_facility=facility,  # CHANGED: pass Facility object
+                    preferred_facilities=facilities,  # CHANGED: pass multiple facilities
                     captain=request.form.get('captain') or None,
                     preferred_days=request.form.getlist('preferred_days')
                 )
@@ -177,11 +213,11 @@ def register_routes(app):
             except Exception as e:
                 flash(f'Error updating team: {e}', 'error')
         
-        # GET request - show form
+        # GET request - show form using the same template as add_team
         try:
             leagues = db.list_leagues()
             facilities = db.list_facilities()  # For dropdown
-            return render_template('edit_team.html', team=team, leagues=leagues, facilities=facilities)
+            return render_template('add_team.html', team=team, leagues=leagues, facilities=facilities, is_edit=True)
         except Exception as e:
             flash(f'Error loading form data: {e}', 'error')
             return redirect(url_for('teams'))
@@ -263,7 +299,7 @@ def register_routes(app):
                     'id': team.id,
                     'name': team.name,
                     'captain': getattr(team, 'captain', ''),
-                    'home_facility': team.home_facility.name if hasattr(team, 'home_facility') and team.home_facility else '',
+                    'primary_facility': team.get_primary_facility().name if team.preferred_facilities else '',
                     'league_name': team.league.name,
                     'league_id': team.league.id
                 }
@@ -297,16 +333,17 @@ def enhance_teams_with_facility_info(teams_list, db):
         facility_id = None
         facility_location = None
         
-        if hasattr(team, 'home_facility') and team.home_facility:
-            if hasattr(team.home_facility, 'name'):
+        if team.preferred_facilities:
+            primary_facility = team.get_primary_facility()
+            if hasattr(primary_facility, 'name'):
                 # Team has a Facility object
-                facility_name = team.home_facility.name
+                facility_name = primary_facility.name
                 facility_exists = True
-                facility_id = getattr(team.home_facility, 'id', None)
-                facility_location = getattr(team.home_facility, 'location', None)
+                facility_id = getattr(primary_facility, 'id', None)
+                facility_location = getattr(primary_facility, 'location', None)
             else:
                 # Team has a facility name string
-                facility_name = str(team.home_facility)
+                facility_name = str(primary_facility)
                 # Check if this facility exists in the database
                 facilities = db.list_facilities()
                 for facility in facilities:
@@ -372,11 +409,12 @@ def filter_teams_by_search(teams_list, search_query):
             searchable_text.append(team.league.name.lower())
         
         # Facility name
-        if hasattr(team, 'home_facility') and team.home_facility:
-            if hasattr(team.home_facility, 'name'):
-                searchable_text.append(team.home_facility.name.lower())
+        if team.preferred_facilities:
+            primary_facility = team.get_primary_facility()
+            if hasattr(primary_facility, 'name'):
+                searchable_text.append(primary_facility.name.lower())
             else:
-                searchable_text.append(str(team.home_facility).lower())
+                searchable_text.append(str(primary_facility).lower())
         
         # Join all searchable text
         full_text = ' '.join(searchable_text)
@@ -434,12 +472,13 @@ def search_teams_advanced(teams_list, search_query):
                         field_match = True
                         break
                 elif field in ['facility', 'fac']:
-                    if hasattr(team, 'home_facility') and team.home_facility:
+                    if team.preferred_facilities:
                         facility_name = ""
-                        if hasattr(team.home_facility, 'name'):
-                            facility_name = team.home_facility.name.lower()
-                        elif isinstance(team.home_facility, str):
-                            facility_name = team.home_facility.lower()
+                        primary_facility = team.get_primary_facility()
+                        if hasattr(primary_facility, 'name'):
+                            facility_name = primary_facility.name.lower()
+                        elif isinstance(primary_facility, str):
+                            facility_name = primary_facility.lower()
                         if value in facility_name:
                             field_match = True
                             break
@@ -479,11 +518,12 @@ def search_teams_advanced(teams_list, search_query):
                 searchable_text.append(team.captain.lower())
             if hasattr(team, 'contact_email') and team.contact_email:
                 searchable_text.append(team.contact_email.lower())
-            if hasattr(team, 'home_facility') and team.home_facility:
-                if hasattr(team.home_facility, 'name') and team.home_facility.name:
-                    searchable_text.append(team.home_facility.name.lower())
-                elif isinstance(team.home_facility, str):
-                    searchable_text.append(team.home_facility.lower())
+            if team.preferred_facilities:
+                primary_facility = team.get_primary_facility()
+                if hasattr(primary_facility, 'name') and primary_facility.name:
+                    searchable_text.append(primary_facility.name.lower())
+                elif isinstance(primary_facility, str):
+                    searchable_text.append(primary_facility.lower())
             if hasattr(team, 'league') and team.league:
                 if hasattr(team.league, 'name') and team.league.name:
                     searchable_text.append(team.league.name.lower())

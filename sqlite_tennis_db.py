@@ -25,7 +25,7 @@ from sql_team_manager import SQLTeamManager
 from sql_league_manager import SQLLeagueManager
 from sql_facility_manager import SQLFacilityManager
 from sql_match_manager import SQLMatchManager
-from sql_scheduling_manager import SQLSchedulingManager
+from scheduling_manager import SchedulingManager
 
 """
 Clean YAML Import/Export Implementation for SQLiteTennisDB
@@ -329,7 +329,7 @@ class YAMLImportExportMixin:
             stats['teams']['processed'] += 1
             
             try:
-                self._validate_required_fields(record, ['id', 'name', 'league_id', 'home_facility_id'], 'team', i)
+                self._validate_required_fields(record, ['id', 'name', 'league_id', 'preferred_facility_ids'], 'team', i)
                 
                 # Check if exists
                 if skip_existing and self.get_team(record['id']):
@@ -341,18 +341,22 @@ class YAMLImportExportMixin:
                 if not league:
                     raise ValueError(f"League ID {record['league_id']} not found")
                 
-                home_facility = self.get_facility(record['home_facility_id'])
-                if not home_facility:
-                    raise ValueError(f"Home facility ID {record['home_facility_id']} not found")
+                # Resolve all preferred facilities
+                preferred_facilities = []
+                for facility_id in record['preferred_facility_ids']:
+                    facility = self.get_facility(facility_id)
+                    if not facility:
+                        raise ValueError(f"Preferred facility ID {facility_id} not found")
+                    preferred_facilities.append(facility)
                 
                 # Create team with object references
                 team_data = record.copy()
                 team_data.update({
                     'league': league,
-                    'home_facility': home_facility
+                    'preferred_facilities': preferred_facilities
                 })
                 team_data.pop('league_id')
-                team_data.pop('home_facility_id')
+                team_data.pop('preferred_facility_ids')
                 
                 team = Team(**team_data)
                 
@@ -463,7 +467,7 @@ class YAMLImportExportMixin:
         for i, record in enumerate(teams_data):
             stats['teams']['processed'] += 1
             try:
-                self._validate_required_fields(record, ['id', 'name', 'league_id', 'home_facility_id'], 'team', i)
+                self._validate_required_fields(record, ['id', 'name', 'league_id', 'preferred_facility_ids'], 'team', i)
                 # Additional validation could go here
             except Exception as e:
                 stats['teams']['errors'].append(f"Team record {i}: {str(e)}")
@@ -593,10 +597,20 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
                 league_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 captain TEXT,
-                home_facility_id INTEGER,
                 preferred_days TEXT,
-                FOREIGN KEY (league_id) REFERENCES leagues(id) ON DELETE CASCADE ON UPDATE CASCADE,
-                FOREIGN KEY (home_facility_id) REFERENCES facilities(id) ON DELETE RESTRICT ON UPDATE CASCADE
+                FOREIGN KEY (league_id) REFERENCES leagues(id) ON DELETE CASCADE ON UPDATE CASCADE
+            );
+            
+            CREATE TABLE IF NOT EXISTS team_preferred_facilities (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                team_id INTEGER NOT NULL,
+                facility_id INTEGER NOT NULL,
+                priority_order INTEGER NOT NULL DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+                FOREIGN KEY (facility_id) REFERENCES facilities(id) ON DELETE CASCADE,
+                UNIQUE(team_id, facility_id),
+                UNIQUE(team_id, priority_order)
             );
     
             CREATE TABLE IF NOT EXISTS matches (
@@ -623,7 +637,9 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
             CREATE INDEX IF NOT EXISTS idx_facility_schedules_lookup ON facility_schedules(facility_id, day, time);
             CREATE INDEX IF NOT EXISTS idx_matches_team_date ON matches(home_team_id, visitor_team_id, date);
             CREATE INDEX IF NOT EXISTS idx_facilities_short_name ON facilities(short_name);
-            CREATE INDEX IF NOT EXISTS idx_teams_home_facility ON teams(home_facility_id);
+            CREATE INDEX IF NOT EXISTS idx_team_preferred_facilities_team ON team_preferred_facilities(team_id);
+            CREATE INDEX IF NOT EXISTS idx_team_preferred_facilities_facility ON team_preferred_facilities(facility_id);
+            CREATE INDEX IF NOT EXISTS idx_team_preferred_facilities_priority ON team_preferred_facilities(team_id, priority_order);
             """)
         
         except sqlite3.Error as e:
@@ -635,7 +651,7 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
         self.league_manager = SQLLeagueManager(self.cursor)
         self.facility_manager = SQLFacilityManager(self.cursor, self)
         self.match_manager = SQLMatchManager(self.cursor, self)
-        self.scheduling_manager = SQLSchedulingManager(self.cursor, self)
+        self.scheduling_manager = SchedulingManager(self)
     
     # ========== Connection Management ==========
     
@@ -912,13 +928,8 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
 
     # ========== Match Scheduling Operations ==========
 
-    def schedule_match(self, 
-                       match: Match, 
-                       date: str, 
-                       times: List[str],
-                       scheduling_mode: str) -> Dict[str, Any]:
-        return self.match_manager.schedule_match(
-            match, date, times, scheduling_mode)
+    def update_match(self, match: Match) -> bool:
+        return self.match_manager.update_match(match)
 
     def preview_match_scheduling(self, match: Match, date: str, 
                             times: List[str], scheduling_mode: str) -> Dict[str, Any]:
@@ -942,6 +953,11 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
     def auto_schedule_matches(self, matches: List['Match'], dry_run: bool = True,  seed: int = None) -> Dict:
         return self.match_manager.auto_schedule_matches(matches=matches, dry_run=dry_run, seed=seed)
 
+    def optimize_auto_schedule(self, matches: List['Match'], max_iterations: int = 10, 
+                             progress_callback=None) -> Dict[str, Any]:
+        """Run auto-schedule optimization with multiple iterations"""
+        return self.scheduling_manager.optimize_auto_schedule(matches, max_iterations, progress_callback)
+
     def unschedule_match(self, match: Match) -> bool:
         return self.match_manager.unschedule_match(match)
     
@@ -959,17 +975,16 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
     # ========== Advanced Scheduling Operations ==========
     
     def get_team_conflicts(self, team: Team, date: str, time: str, duration_hours: int = 3) -> List[Dict]:
-        return self.scheduling_manager.get_team_conflicts(team.id, date, time, duration_hours)
+        # TODO: Implement team conflict checking if needed
+        return []
 
     def get_facility_conflicts(self, facility: Facility, date: str, time: str, duration_hours: int = 3, 
                              exclude_match_id: Optional[int] = None) -> List[Dict]:
-        return self.scheduling_manager.get_facility_conflicts(
-            facility.id, date, time, duration_hours, exclude_match_id
-        )
+        # TODO: Implement facility conflict checking if needed
+        return []
 
     def get_scheduling_summary(self, league: Optional[League] = None) -> Dict[str, Any]:
-        league_id = league.id if league else None
-        return self.scheduling_manager.get_scheduling_summary(league_id)
+        return self.scheduling_manager.get_scheduling_summary(league)
 
     # ========== Statistics and Reporting ==========
     

@@ -1,0 +1,322 @@
+facilities:
+  # VR - Great availability with high concurrency on weekends
+  - id: 8
+    name: "Ventana Ranch Tennis Center"
+    short_name: "VR"
+    location: "Ventana Ranch Tennis Center, Albuquerque, NM"
+    total_courts: 6
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:30"
+            available_courts: 6
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 6
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 6
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 6
+      Friday:
+        start_times:
+          - time: "18:00"
+            available_courts: 6
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates:
+      - "2025-09-01"
+
+
+  # NDB - North Domingo Baca
+  - id: 13
+    name: "North Domingo Baca Tennis Center"
+    short_name: "NDB"
+    location: "North Domingo Baca Tennis Center, Albuquerque, NM"
+    total_courts: 6
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:00"
+            available_courts: 6
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 6
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 6
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 6
+      Friday:
+        start_times:
+          - time: "18:00"
+            available_courts: 6
+      Saturday:
+        start_times: []
+      Sunday:
+        start_times: []
+    unavailable_dates:
+      - "2025-09-01"
+
+
+  # JC - High weekday and weekend capacity, great for big leagues
+  - id: 16
+    name: "Jerry Cline Tennis Complex"
+    short_name: "JC"
+    location: "Jerry Cline Tennis Complex, Albuquerque, NM"
+    total_courts: 12
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:00"
+            available_courts: 12
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 12
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 12
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 12
+      Friday:
+        start_times:
+          - time: "18:00"
+            available_courts: 12
+
+      Saturday:
+        start_times:
+          - time: "10:00"
+            available_courts: 6
+          - time: "12:00"
+            available_courts: 6
+          - time: "14:00"
+            available_courts: 6
+      Sunday:
+        start_times:
+          - time: "10:00"
+            available_courts: 6
+          - time: "12:00"
+            available_courts: 6
+          - time: "14:00"
+            available_courts: 6
+    unavailable_dates:
+      - "2025-09-01"
+
+
+# Generated from 2025 TriLevel Schedule For Ron.xlsx
+# Date range: 2025-08-25 to 2025-09-15
+
+leagues:
+  # 4.0/3.5/3.0 Tri-Level Men
+  - id: 301
+    name: "2025 Adult 18+ 4.0/3.5/3.0 Tri-Level Men"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "4.0-3.0 Tri-Level Men"
+    num_lines_per_match: 3  # Tri-Level typically has 3 lines (one for each level)
+    num_matches: 4  # Estimated based on team count
+    allow_split_lines: true
+    preferred_days:
+      - "Monday"
+      - "Wednesday"
+    backup_days:
+      - "Friday"
+    start_date: "2025-08-25"
+    end_date: "2025-09-15"
+
+  # 4.0/3.5/3.0 Tri-Level Women
+  - id: 302
+    name: "2025 Adult 18+ 4.0/3.5/3.0 Tri-Level Women"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "4.0-3.0 Tri-Level Women"
+    num_lines_per_match: 3  # Tri-Level typically has 3 lines (one for each level)
+    num_matches: 5  # Estimated based on team count
+    allow_split_lines: true
+    preferred_days:
+      - "Monday"
+      - "Wednesday"
+    backup_days:
+      - "Friday"
+    start_date: "2025-08-25"
+    end_date: "2025-09-15"
+
+  # 4.5/4.0/3.5 Tri-Level Men
+  - id: 303
+    name: "2025 Adult 18+ 4.5/4.0/3.5 Tri-Level Men"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "4.5-3.5 Tri-Level Men"
+    num_lines_per_match: 3  # Tri-Level typically has 3 lines (one for each level)
+    num_matches: 8  # Estimated based on team count
+    allow_split_lines: true
+    preferred_days:
+      - "Monday"
+      - "Wednesday"
+      - "Friday"
+    backup_days: []
+    start_date: "2025-08-25"
+    end_date: "2025-09-15"
+
+  # 4.5/4.0/3.5 Tri-Level Women
+  - id: 304
+    name: "2025 Adult 18+ 4.5/4.0/3.5 Tri-Level Women"
+    year: 2025
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "4.5-3.5 Tri-Level Women"
+    num_lines_per_match: 3  # Tri-Level typically has 3 lines (one for each level)
+    num_matches: 6  # Estimated based on team count
+    allow_split_lines: true
+    preferred_days:
+      - "Monday"
+      - "Wednesday"
+    backup_days:
+      - "Friday"
+    start_date: "2025-08-25"
+    end_date: "2025-09-15"
+
+teams:
+  # 4.0/3.5/3.0 Tri-Level Men Teams
+  - id: 3001
+    name: "Kim"
+    league_id: 301
+    home_facility_id: 16
+    captain: "Kim"
+    preferred_days: []
+
+  - id: 3002
+    name: "Schloss"
+    league_id: 301
+    home_facility_id: 16
+    captain: "Schloss"
+    preferred_days: []
+
+  # 4.0/3.5/3.0 Tri-Level Women Teams
+  - id: 3003
+    name: "Calvini"
+    league_id: 302
+    home_facility_id: 16
+    captain: "Calvini"
+    preferred_days: []
+
+  - id: 3004
+    name: "Hurst"
+    league_id: 302
+    home_facility_id: 13
+    captain: "Hurst"
+    preferred_days: []
+
+  - id: 3005
+    name: "Roybal"
+    league_id: 302
+    home_facility_id: 16
+    captain: "Roybal"
+    preferred_days: []
+
+  - id: 3006
+    name: "Mick"
+    league_id: 302
+    home_facility_id: 16
+    captain: "Mick"
+    preferred_days: []
+
+  - id: 3007
+    name: "Twisted Sisters"
+    league_id: 302
+    home_facility_id: 16
+    captain: "Twisted Sisters"
+    preferred_days: []
+
+  - id: 3008
+    name: "Romero"
+    league_id: 302
+    home_facility_id: 8
+    captain: "Romero"
+    preferred_days: []
+
+  # 4.5/4.0/3.5 Tri-Level Men Teams
+  - id: 3009
+    name: "Bacala"
+    league_id: 303
+    home_facility_id: 16
+    captain: "Bacala"
+    preferred_days: []
+
+  - id: 3010
+    name: "Orozco"
+    league_id: 303
+    home_facility_id: 16
+    captain: "Orozco"
+    preferred_days: []
+
+  - id: 3011
+    name: "Friedman"
+    league_id: 303
+    home_facility_id: 16
+    captain: "Friedman"
+    preferred_days: []
+
+  - id: 3012
+    name: "Nguyener-Nguyener Chicken Dinner"
+    league_id: 303
+    home_facility_id: 16
+    captain: "Nguyener"
+    preferred_days: []
+
+  - id: 3013
+    name: "Olson"
+    league_id: 303
+    home_facility_id: 16
+    captain: "Olson"
+    preferred_days: []
+
+  # 4.5/4.0/3.5 Tri-Level Women Teams
+  - id: 3014
+    name: "Bradshaw"
+    league_id: 304
+    home_facility_id: 16
+    captain: "Bradshaw"
+    preferred_days: []
+
+  - id: 3015
+    name: "James"
+    league_id: 304
+    home_facility_id: 16
+    captain: "James"
+    preferred_days: []
+
+  - id: 3016
+    name: "Pitcher"
+    league_id: 304
+    home_facility_id: 13
+    captain: "Pitcher"
+    preferred_days: []
+
+  - id: 3017
+    name: "Odom"
+    league_id: 304
+    home_facility_id: 16
+    captain: "Odom"
+    preferred_days: []

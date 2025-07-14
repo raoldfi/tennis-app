@@ -18,6 +18,9 @@ import json
 import yaml
 import time
 
+from scheduling_manager import SchedulingManager
+
+import scheduling_manager
 from usta import Match, MatchType, League
 from web_matches_calendar import create_calendar_context
 
@@ -251,35 +254,47 @@ def register_routes(app, get_db):
             flash(f"Error loading match: {str(e)}", "error")
             return redirect(url_for("matches"))
 
-    @app.route("/matches/<int:match_id>/schedule", methods=["DELETE"])
+    @app.route("/matches/<int:match_id>/schedule", methods=["DELETE", "POST"])
     def unschedule_match(match_id):
         """Unschedule a match - remove all scheduling information"""
+        # Handle method override for forms (POST with _method=DELETE)
+        if request.method == "POST" and request.form.get("_method") != "DELETE":
+            # This is a regular schedule POST, delegate to schedule_match
+            return schedule_match(match_id)
+            
         db = get_db()
         if db is None:
-            return jsonify({"error": "No database connected"}), 500
+            flash("No database connected", "error")
+            return redirect(url_for("matches"))
 
         try:
             match = db.get_match(match_id)
             if not match:
-                return jsonify({"error": "Match not found"}), 404
+                flash("Match not found", "error")
+                return redirect(url_for("matches"))
 
             if match.is_unscheduled():
-                return jsonify({"warning": f"match {match_id} is already unscheduled"})
+                flash(f"Match {match_id} is already unscheduled", "warning")
+                return redirect(url_for("matches"))
 
-            success = db.unschedule_match(match)
+            scheduling_manager = SchedulingManager(db)
+            success = scheduling_manager.unschedule_match(match)
 
             if success:
-                return jsonify(
-                    {
-                        "success": True,
-                        "message": f"Match {match_id} has been unscheduled successfully",
-                    }
-                )
+                # Get match description for flash message
+                home_team = match.home_team.name if match.home_team else "TBD"
+                visitor_team = match.visitor_team.name if match.visitor_team else "TBD"
+                match_description = f"{home_team} vs {visitor_team}"
+                
+                flash(f"Match unscheduled: {match_description}", "success")
+                return redirect(url_for("matches"))
             else:
-                return jsonify({"error": f"Could not unschedule match_id {match_id}"})
+                flash(f"Could not unschedule match {match_id}", "error")
+                return redirect(url_for("matches"))
 
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            flash(f"Error unscheduling match: {str(e)}", "error")
+            return redirect(url_for("matches"))
 
     @app.route("/matches/<int:match_id>/schedule", methods=["POST"])
     def schedule_match(match_id):
@@ -318,21 +333,21 @@ def register_routes(app, get_db):
             if not facility:
                 return jsonify({"error": "Invalid facility"}), 400
 
-            # Parse date
+            # Validate date format
             try:
-                match_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                datetime.strptime(date_str, "%Y-%m-%d").date()
             except ValueError:
                 return jsonify({"error": "Invalid date format"}), 400
 
-            # Update match
-            match.facility = facility
-            match.date = date_str  # Store as string in YYYY-MM-DD format
-            match.scheduled_times = times
+            # Schedule the match using the new MatchScheduling API
+            match.schedule_lines_split_times(facility, date_str, times)
 
-            # Save to database
-            db.schedule_match_split_times(
-                match=match, facility=facility, date=match_date, timeslots=times
-            )
+            # Save to database using SchedulingManager
+            scheduling_manager = SchedulingManager(db)
+            success = scheduling_manager.schedule_match(match)
+            
+            if not success:
+                return jsonify({"error": "Failed to save match scheduling to database"}), 500
 
             print(f"Match {match_id} scheduled successfully")
 
@@ -509,40 +524,78 @@ def register_routes(app, get_db):
                 f"Found {len(matches_to_schedule)} unscheduled matches to auto-schedule"
             )
 
-            # Call the database auto_schedule_matches method with list of Match objects
+            # Get scheduling mode and parameters
+            schedule_mode = request.form.get("schedule_mode", "standard")
+            dry_run = request.form.get("dry_run", "true").lower() in ["true", "1", "yes"]
+            
+            print(f"Scheduling mode: {schedule_mode}, dry_run: {dry_run}")
+            
+            # Call the appropriate scheduling method based on mode
             try:
-                print(
-                    f"Calling db.match_manager.auto_schedule_matches with {len(matches_to_schedule)} matches"
-                )
-                # Get dry_run parameter from form, default to True
-                dry_run = request.form.get("dry_run", "true").lower() in [
-                    "true",
-                    "1",
-                    "yes",
-                ]
-
-                # Generate a random seed for reproducible scheduling
-                import random
-                
-                # Check if a seed was provided (for Execute Scheduling button)
-                provided_seed = request.form.get("seed")
-                if provided_seed:
-                    try:
-                        seed = int(provided_seed)
-                        print(f"Using provided seed for reproducible scheduling: {seed}")
-                    except (ValueError, TypeError):
-                        # If provided seed is invalid, generate a new one
-                        seed = int(time.time() * 1000) % 2**31
-                        print(f"Invalid provided seed, generated new seed: {seed}")
+                if schedule_mode == "optimized":
+                    # Use optimizer with multiple iterations
+                    iterations = request.form.get("iterations", 10, type=int)
+                    print(f"Using optimized scheduling with {iterations} iterations")
+                    
+                    # Progress callback for optimizer
+                    progress_data = {'current_iteration': 0, 'best_result': None}
+                    def progress_callback(update):
+                        progress_data['current_iteration'] = update['iteration']
+                        progress_data['best_result'] = update
+                        print(f"Optimization iteration {update['iteration']}/{update['max_iterations']}: "
+                              f"unscheduled={update['best_unscheduled_count']}, "
+                              f"quality={update['best_quality_score']:.1f}")
+                    
+                    # Use SchedulingManager for optimization
+                    scheduling_manager = SchedulingManager(db)
+                    
+                    # Run optimization
+                    optimization_result = scheduling_manager.optimize_auto_schedule(
+                        matches=matches_to_schedule, 
+                        max_iterations=iterations,
+                        progress_callback=progress_callback
+                    )
+                    
+                    if optimization_result.get('optimization_completed', False):
+                        # Get the best seed from optimization
+                        seed = optimization_result['best_seed']
+                        print(f"Optimization completed. Best seed: {seed}")
+                        
+                        # Always run a single iteration with the best seed for consistent results
+                        print(f"Running {'dry-run' if dry_run else 'execution'} with optimized seed {seed}")
+                        scheduling_results = scheduling_manager.auto_schedule_matches(
+                            matches=matches_to_schedule, dry_run=dry_run, seed=seed
+                        )
+                    else:
+                        return jsonify({"error": f"Optimization failed: {optimization_result.get('error', 'Unknown error')}"}), 500
+                        
                 else:
-                    # Generate a new random seed based on current time
-                    seed = int(time.time() * 1000) % 2**31
-                    print(f"Generated new seed for reproducible scheduling: {seed}")
-
-                # UPDATED: Use match_manager instead of scheduling_manager
-                scheduling_results = db.match_manager.auto_schedule_matches(
-                    matches=matches_to_schedule, dry_run=dry_run, seed=seed
-                )
+                    # Standard single-iteration scheduling
+                    print(f"Using standard scheduling (single iteration)")
+                    
+                    # Generate a random seed for reproducible scheduling
+                    import random
+                    
+                    # Check if a seed was provided (for Execute Scheduling button)
+                    provided_seed = request.form.get("seed")
+                    if provided_seed:
+                        try:
+                            seed = int(provided_seed)
+                            print(f"Using provided seed for reproducible scheduling: {seed}")
+                        except (ValueError, TypeError):
+                            # If provided seed is invalid, generate a new one
+                            seed = int(time.time() * 1000) % 2**31
+                            print(f"Invalid provided seed, generated new seed: {seed}")
+                    else:
+                        # Generate a new random seed based on current time
+                        seed = int(time.time() * 1000) % 2**31
+                        print(f"Generated new seed for reproducible scheduling: {seed}")
+                    
+                    # Use SchedulingManager for standard auto-schedule
+                    scheduling_manager = SchedulingManager(db)
+                    scheduling_results = scheduling_manager.auto_schedule_matches(
+                        matches=matches_to_schedule, dry_run=dry_run, seed=seed
+                    )
 
                 # Extract results based on match_manager return format
                 scheduled_count = scheduling_results.get("scheduled", 0)
@@ -777,10 +830,13 @@ def register_routes(app, get_db):
             unscheduled_count = 0
             errors = []
 
+
+            scheduling_manager = SchedulingManager(db)
+
             for match in matches_to_unschedule:
                 try:
                     # Save to database
-                    if db.unschedule_match(match):
+                    if scheduling_manager.unschedule_match(match):
                         unscheduled_count += 1
                         print(f"Successfully unscheduled match {match.id}")
 
@@ -1018,6 +1074,125 @@ def register_routes(app, get_db):
         except Exception as e:
             print(f"Error in calendar_data endpoint: {str(e)}")
             return jsonify({"error": f"Failed to load calendar data: {str(e)}"}), 500
+
+    # ==================== OPTIMIZER OPERATIONS ====================
+
+    @app.route("/api/optimize-auto-schedule", methods=["POST"])
+    def optimize_auto_schedule():
+        """Run auto-schedule optimization with multiple iterations"""
+        print(f"\n=== AUTO-SCHEDULE OPTIMIZER ===")
+        db = get_db()
+        if db is None:
+            return jsonify({"error": "No database connected"}), 500
+
+        try:
+            # Get parameters
+            scope = request.form.get("scope", "all")
+            league_id = request.form.get("league_id", type=int)
+            max_iterations = request.form.get("max_iterations", 10, type=int)
+            
+            # Validate max_iterations
+            if max_iterations < 1 or max_iterations > 100:
+                return jsonify({"error": "Max iterations must be between 1 and 100"}), 400
+
+            print(f"Optimizer scope: {scope}, league_id: {league_id}, max_iterations: {max_iterations}")
+
+            # Get the matches to optimize based on scope (same logic as bulk_auto_schedule)
+            matches_to_optimize = []
+
+            if scope == "all":
+                matches_to_optimize = db.list_matches(match_type=MatchType.UNSCHEDULED)
+                print(f"Optimizing all unscheduled matches: {len(matches_to_optimize)} found")
+
+            elif scope == "league" and league_id:
+                league = db.get_league(league_id)
+                if not league:
+                    return jsonify({"error": f"League {league_id} not found"}), 400
+
+                matches_to_optimize = db.list_matches(league=league, match_type=MatchType.UNSCHEDULED)
+                print(f"Optimizing unscheduled matches for league '{league.name}': {len(matches_to_optimize)} found")
+
+            elif scope == "selected":
+                # Apply current filter parameters
+                league_id_filter = request.form.get("league_id", type=int)
+                start_date = request.form.get("start_date")
+                end_date = request.form.get("end_date")
+                search_query = request.form.get("search", "").strip()
+
+                league = db.get_league(league_id_filter) if league_id_filter else None
+                all_matches = db.list_matches(league=league, match_type=MatchType.UNSCHEDULED)
+                matches_to_optimize = filter_matches(all_matches, start_date, end_date, search_query)
+                print(f"Optimizing filtered unscheduled matches: {len(matches_to_optimize)} found")
+
+            else:
+                return jsonify({"error": "Invalid scope or missing parameters"}), 400
+
+            if not matches_to_optimize:
+                return jsonify({
+                    "success": True,
+                    "message": "No unscheduled matches found to optimize",
+                    "optimization_completed": True,
+                    "best_seed": None,
+                    "best_unscheduled_count": 0,
+                    "best_quality_score": 0,
+                    "results_history": []
+                })
+
+            print(f"Starting optimization for {len(matches_to_optimize)} unscheduled matches")
+
+            # Use SchedulingManager for optimization
+            scheduling_manager = SchedulingManager(db)
+            
+            # Run the optimization
+            optimization_result = scheduling_manager.optimize_auto_schedule(
+                matches=matches_to_optimize, 
+                max_iterations=max_iterations
+            )
+
+            if not optimization_result.get('optimization_completed', False):
+                error_msg = optimization_result.get('error', 'Unknown optimization error')
+                return jsonify({"error": f"Optimization failed: {error_msg}"}), 500
+
+            # Extract optimization results
+            best_seed = optimization_result.get('best_seed')
+            best_unscheduled_count = optimization_result.get('best_unscheduled_count', float('inf'))
+            best_quality_score = optimization_result.get('best_quality_score', 0)
+            results_history = optimization_result.get('results_history', [])
+            improvement_found = optimization_result.get('improvement_found', False)
+
+            print(f"Optimization completed: best_seed={best_seed}, unscheduled={best_unscheduled_count}, quality={best_quality_score}")
+
+            # Prepare response
+            response = {
+                "success": True,
+                "optimization_completed": True,
+                "max_iterations": max_iterations,
+                "total_matches": len(matches_to_optimize),
+                "best_seed": best_seed,
+                "best_unscheduled_count": best_unscheduled_count,
+                "best_quality_score": best_quality_score,
+                "improvement_found": improvement_found,
+                "results_history": results_history
+            }
+
+            if improvement_found:
+                response["message"] = f"✅ Optimization found best result with seed {best_seed}: {len(matches_to_optimize) - best_unscheduled_count} matches schedulable (quality score: {best_quality_score})"
+            else:
+                response["message"] = f"⚠️ Optimization completed but no schedulable matches found after {max_iterations} iterations"
+
+            return jsonify(response)
+
+        except Exception as e:
+            print(f"Optimize auto-schedule error: {str(e)}")
+            traceback.print_exc()
+            return jsonify({"error": f"Optimization failed: {str(e)}"}), 500
+
+    @app.route("/api/optimize-progress/<int:optimization_id>")
+    def get_optimization_progress(optimization_id):
+        """Get progress of running optimization (placeholder for future real-time updates)"""
+        # This is a placeholder endpoint for future real-time progress tracking
+        # For now, optimizations run synchronously
+        return jsonify({"error": "Real-time progress tracking not yet implemented"}), 501
 
     # ==================== JINJA2 FILTERS ====================
 

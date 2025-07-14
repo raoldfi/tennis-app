@@ -1,0 +1,193 @@
+/* Enhanced Facility Management Styles */
+
+.facility-list {
+    min-height: 100px;
+}
+
+.facility-item {
+    border: 1px solid #dee2e6;
+    transition: all 0.2s ease-in-out;
+    background-color: #f8f9fa;
+}
+
+.facility-item:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-color: #007bff;
+    background-color: #ffffff;
+}
+
+.facility-info {
+    flex: 1;
+}
+
+.facility-name {
+    font-size: 0.95rem;
+    color: #2c3e50;
+}
+
+.facility-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.facility-actions .btn {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    min-width: 32px;
+}
+
+.move-up-btn, .move-down-btn {
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.move-up-btn:hover, .move-down-btn:hover {
+    opacity: 1;
+}
+
+.move-up-btn:disabled, .move-down-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+#noFacilitiesMessage {
+    color: #6c757d;
+    font-style: italic;
+    background-color: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+}
+
+#noFacilitiesMessage i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    color: #adb5bd;
+}
+
+/* Add facility dropdown styling */
+#facilityToAdd {
+    border-radius: 0.375rem 0 0 0.375rem;
+    border-right: 0;
+}
+
+#addFacilityBtn {
+    border-radius: 0 0.375rem 0.375rem 0;
+    border-left: 0;
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+    transition: all 0.2s ease;
+}
+
+#addFacilityBtn:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#addFacilityBtn:disabled {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Animation for new facilities being added */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.facility-item-new {
+    animation: fadeInUp 0.3s ease-out;
+}
+
+/* Primary facility badge styling */
+.badge.bg-primary {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+}
+
+/* Selected facilities card styling */
+.facility-management-card .card-header {
+    background-color: #e3f2fd;
+    border-bottom: 1px solid #bbdefb;
+}
+
+.facility-management-card .card-header h6 {
+    color: #1976d2;
+    font-weight: 600;
+}
+
+/* Drag and drop styling (for future enhancement) */
+.facility-item.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+}
+
+.facility-list.drag-over {
+    background-color: #e3f2fd;
+    border: 2px dashed #2196f3;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .facility-actions {
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .facility-actions .btn {
+        padding: 2px 6px;
+        font-size: 0.7rem;
+        min-width: 28px;
+    }
+    
+    .facility-info {
+        margin-bottom: 0.5rem;
+    }
+}
+
+/* Error state styling */
+.facility-item.error {
+    border-color: #dc3545;
+    background-color: #f8d7da;
+}
+
+.facility-item.error .facility-name {
+    color: #721c24;
+}
+
+/* Loading state */
+.facility-item.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.facility-item.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

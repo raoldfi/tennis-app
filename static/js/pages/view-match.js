@@ -47,25 +47,28 @@ class ViewMatchPage {
     async clearSchedule(matchId = null) {
         const targetMatchId = matchId || this.matchId;
         
-        const confirmed = await TennisUI.showConfirmDialog(
-            'Clear Schedule',
-            'Are you sure you want to clear the schedule for this match? This action cannot be undone.',
-            'Clear Schedule',
-            'btn-tennis-warning'
-        );
-
-        if (!confirmed) return;
-        
         try {
-            const result = await TennisUI.apiCall(`/api/matches/${targetMatchId}/schedule`, {
-                method: 'DELETE'
+            // Direct clear schedule without confirmation - use fetch without AJAX headers to get redirect
+            const response = await fetch(`/matches/${targetMatchId}/schedule`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                    // Intentionally NOT setting X-Requested-With to trigger redirect behavior
+                }
             });
 
-            TennisUI.showNotification(result.message || 'Match schedule cleared successfully', 'success');
-            setTimeout(() => location.reload(), 1500);
+            // If the server redirects, follow it
+            if (response.redirected) {
+                window.location.href = response.url;
+            } else {
+                // Fallback - reload current page to show flash messages
+                window.location.reload();
+            }
             
         } catch (error) {
-            TennisUI.showNotification(`Failed to clear schedule: ${error.message}`, 'danger');
+            console.error('Error clearing schedule:', error);
+            // On error, reload the page to show any flash messages
+            window.location.reload();
         }
     }
 

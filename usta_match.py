@@ -24,6 +24,161 @@ if TYPE_CHECKING:
     from usta_facility import Facility
 
 
+
+
+@dataclass
+class MatchScheduling:
+    """
+    Encapsulates scheduling information for a tennis match
+    
+    Contains facility, date, and scheduled times with validation.
+    Either all data is present (complete scheduling) or the object shouldn't exist.
+    """
+    
+    facility: "Facility"  # Direct Facility object reference
+    date: str  # YYYY-MM-DD format
+    scheduled_times: List[str] = field(default_factory=list)  # Array of HH:MM times
+
+    qscore: int = 0  # Quality score for scheduling, default is 0
+
+    def __post_init__(self) -> None:
+        """Validate scheduling data"""
+        # Validate facility
+        if self.facility is None:
+            raise ValueError("Facility cannot be None in MatchScheduling")
+        
+        # Use duck typing to avoid circular import issues
+        if not hasattr(self.facility, "id") or not hasattr(self.facility, "name"):
+            raise TypeError(
+                f"Facility must be a Facility-like object with 'id' and 'name' attributes, got: {type(self.facility).__name__}"
+            )
+        
+        # Validate date format
+        if not isinstance(self.date, str):
+            raise ValueError("Date must be a string")
+        
+        try:
+            parts = self.date.split("-")
+            if len(parts) != 3:
+                raise ValueError("Invalid date format")
+            year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+            if not (1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31):
+                raise ValueError("Invalid date values")
+        except (ValueError, IndexError):
+            raise ValueError(
+                f"Invalid date format: '{self.date}'. Expected YYYY-MM-DD format"
+            )
+        
+        # Validate scheduled_times
+        if not isinstance(self.scheduled_times, list):
+            raise ValueError("scheduled_times must be a list")
+        
+        for i, time_str in enumerate(self.scheduled_times):
+            if not isinstance(time_str, str):
+                raise ValueError(
+                    f"All scheduled times must be strings, item {i} is {type(time_str)}"
+                )
+            try:
+                parts = time_str.split(":")
+                if len(parts) != 2:
+                    raise ValueError("Invalid time format")
+                hour, minute = int(parts[0]), int(parts[1])
+                if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                    raise ValueError("Invalid time values")
+            except (ValueError, IndexError):
+                raise ValueError(
+                    f"Invalid time format: '{time_str}'. Expected HH:MM format"
+                )
+        
+        # Sort times to maintain order
+        self.scheduled_times.sort()
+    
+    @property
+    def is_complete(self) -> bool:
+        """Check if scheduling has all required data"""
+        return (
+            self.facility is not None 
+            and self.date is not None 
+            and len(self.scheduled_times) > 0
+        )
+    
+    def get_earliest_time(self) -> Optional[str]:
+        """Get the earliest scheduled time, or None if no times scheduled"""
+        return min(self.scheduled_times) if self.scheduled_times else None
+    
+    def get_latest_time(self) -> Optional[str]:
+        """Get the latest scheduled time, or None if no times scheduled"""
+        return max(self.scheduled_times) if self.scheduled_times else None
+    
+    def get_duration_hours(self) -> float:
+        """Estimate total duration in hours based on earliest and latest times"""
+        if len(self.scheduled_times) < 2:
+            return 3.0  # Default 3 hours for single time or no times
+        
+        earliest = self.get_earliest_time()
+        latest = self.get_latest_time()
+        
+        if not earliest or not latest:
+            return 3.0
+        
+        # Parse times and calculate difference
+        earliest_parts = earliest.split(":")
+        latest_parts = latest.split(":")
+        
+        earliest_minutes = int(earliest_parts[0]) * 60 + int(earliest_parts[1])
+        latest_minutes = int(latest_parts[0]) * 60 + int(latest_parts[1])
+        
+        duration_minutes = (
+            latest_minutes - earliest_minutes + 180
+        )  # Add 3 hours for last match
+        return duration_minutes / 60.0
+    
+    def add_scheduled_time(self, time: str) -> None:
+        """Add a scheduled time and maintain sorted order"""
+        # Validate time format
+        try:
+            parts = time.split(":")
+            if len(parts) != 2:
+                raise ValueError("Invalid time format")
+            hour, minute = int(parts[0]), int(parts[1])
+            if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                raise ValueError("Invalid time values")
+        except (ValueError, IndexError):
+            raise ValueError(f"Invalid time format: '{time}'. Expected HH:MM format")
+        
+        if time not in self.scheduled_times:
+            self.scheduled_times.append(time)
+            self.scheduled_times.sort()
+    
+    def remove_scheduled_time(self, time: str) -> bool:
+        """Remove a scheduled time. Returns True if time was found and removed."""
+        if time in self.scheduled_times:
+            self.scheduled_times.remove(time)
+            return True
+        return False
+    
+    def clear_scheduled_times(self) -> None:
+        """Clear all scheduled times"""
+        self.scheduled_times.clear()
+    
+    def get_date_time_strings(self) -> List[str]:
+        """Get combined date and time strings for all scheduled lines"""
+        return [f"{self.date} {time}" for time in self.scheduled_times]
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization"""
+        return {
+            "facility_id": self.facility.id,
+            "facility_name": self.facility.name,
+            "date": self.date,
+            "scheduled_times": self.scheduled_times.copy(),
+            "num_times": len(self.scheduled_times),
+            "earliest_time": self.get_earliest_time(),
+            "latest_time": self.get_latest_time(),
+            "duration_hours": self.get_duration_hours()
+        }
+
+
 class MatchType(Enum):
     """Enumeration of match filtering types for list_matches function"""
 
@@ -62,7 +217,7 @@ class Match:
     """
     Represents a tennis match with direct object references
 
-    The match contains an array of scheduled times instead of Line objects.
+    The match uses a MatchScheduling object to contain facility, date, and scheduled times.
     All lines are assumed to be at the same facility and date, but can have different start times.
 
     Core fields (id, league, home_team, visitor_team) are immutable after creation.
@@ -74,11 +229,7 @@ class Match:
     league: "League"  # Direct League object reference (IMMUTABLE)
     home_team: "Team"  # Direct Team object reference (IMMUTABLE)
     visitor_team: "Team"  # Direct Team object reference (IMMUTABLE)
-    facility: Optional["Facility"] = None  # Direct Facility object reference (mutable)
-    date: Optional[str] = None  # YYYY-MM-DD format (mutable)
-    scheduled_times: List[str] = field(
-        default_factory=list
-    )  # Array of HH:MM times (mutable)
+    scheduling: Optional[MatchScheduling] = None  # Scheduling information (mutable)
 
     # a score field to represent the match score
     score: int = 0  # Match score, default is 0 (mutable)
@@ -108,61 +259,14 @@ class Match:
         self._immutable_home_team = self.home_team
         self._immutable_visitor_team = self.visitor_team
 
-        # If the facility is None, set it to the home_team's facility
-        if self.facility is None:
-            if self.home_team and hasattr(self.home_team, "home_facility"):
-                self.facility = self.home_team.home_facility
-            else:
-                raise ValueError(
-                    "Facility must be provided or home_team must have a facility"
-                )
-        elif self.facility is not None:
-            # Use duck typing instead of isinstance check to avoid circular import issues
-            if not hasattr(self.facility, "id") or not hasattr(self.facility, "name"):
-                raise TypeError(
-                    f"Facility must be a Facility-like object with 'id' and 'name' attributes, got: {type(self.facility).__name__}"
-                )
-
         # Validation
         if not isinstance(self.id, int) or self.id <= 0:
             raise ValueError(f"Match ID must be a positive integer, got: {self.id}")
 
-        # Validate date format if provided
-        if self.date is not None:
-            if not isinstance(self.date, str):
-                raise ValueError("Date must be a string or None")
-            try:
-                parts = self.date.split("-")
-                if len(parts) != 3:
-                    raise ValueError("Invalid date format")
-                year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
-                if not (1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31):
-                    raise ValueError("Invalid date values")
-            except (ValueError, IndexError):
-                raise ValueError(
-                    f"Invalid date format: '{self.date}'. Expected YYYY-MM-DD format"
-                )
-
-        # Validate scheduled_times
-        if not isinstance(self.scheduled_times, list):
-            raise ValueError("scheduled_times must be a list")
-
-        for i, time_str in enumerate(self.scheduled_times):
-            if not isinstance(time_str, str):
-                raise ValueError(
-                    f"All scheduled times must be strings, item {i} is {type(time_str)}"
-                )
-            try:
-                parts = time_str.split(":")
-                if len(parts) != 2:
-                    raise ValueError("Invalid time format")
-                hour, minute = int(parts[0]), int(parts[1])
-                if not (0 <= hour <= 23 and 0 <= minute <= 59):
-                    raise ValueError("Invalid time values")
-            except (ValueError, IndexError):
-                raise ValueError(
-                    f"Invalid time format: '{time_str}'. Expected HH:MM format"
-                )
+        # Validate scheduling if provided
+        if self.scheduling is not None:
+            if not isinstance(self.scheduling, MatchScheduling):
+                raise TypeError("scheduling must be a MatchScheduling object or None")
 
         # Mark as initialized
         self._initialized = True
@@ -209,7 +313,8 @@ class Match:
 
     def get_facility(self) -> Optional["Facility"]:
         """Get the facility object (mutable)"""
-        return self.facility
+        return self.scheduling.facility if self.scheduling else None
+
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Override setattr to protect immutable fields after initialization"""
@@ -301,39 +406,38 @@ class Match:
     # ========== Match Scheduling Status ==========
 
     def is_scheduled(self) -> bool:
-        """Check if the match is scheduled (has facility, date, and at least one time)"""
-        return all(
-            [
-                self.facility is not None,
-                self.date is not None,
-                len(self.scheduled_times) > 0,
-            ]
-        )
+        """Check if the match is scheduled (has complete scheduling information)"""
+        return self.scheduling is not None and self.scheduling.is_complete
 
     def is_unscheduled(self) -> bool:
         """Check if the match is unscheduled"""
-        return not self.is_scheduled()
+        return self.scheduling is None
 
     def is_partially_scheduled(self) -> bool:
         """Check if the match is partially scheduled (has some but not all required lines)"""
         if self.is_unscheduled():
             return False
         expected_lines = self.league.num_lines_per_match
-        return 0 < len(self.scheduled_times) < expected_lines
+        actual_lines = len(self.scheduling.scheduled_times)
+        return 0 < actual_lines < expected_lines
 
     def is_fully_scheduled(self) -> bool:
         """Check if the match is fully scheduled (has all required lines)"""
         if self.is_unscheduled():
             return False
         expected_lines = self.league.num_lines_per_match
-        return len(self.scheduled_times) == expected_lines
+        actual_lines = len(self.scheduling.scheduled_times)
+        return actual_lines == expected_lines
 
     def is_split(self) -> bool:
         """Check if the match is a split match or if all lines are scheduled for the same time"""
-        if not self.scheduled_times:
-            return True  # An empty list is not split
-        first_time = self.scheduled_times[0]
-        return all(t == first_time for t in self.scheduled_times)
+        if self.is_unscheduled():
+            return False  # An empty list is not split
+        scheduled_times = self.scheduling.scheduled_times
+        if not scheduled_times:
+            return False
+        first_time = scheduled_times[0]
+        return not all(t == first_time for t in scheduled_times)
 
     def get_status(self) -> str:
         """Get the scheduling status of the match"""
@@ -346,15 +450,17 @@ class Match:
         else:
             return "over_scheduled"  # More lines than expected
 
-    def get_prioritized_scheduling_dates(
+    # ========== Match Scheduling Options ==========
+    
+    def get_prioritized_scheduling_options(
         self,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         num_dates: Optional[int] = 50,
-        minimum_quality: int = 40,
-    ) -> List[Tuple[str, int]]:
+        minimum_quality: int = 1,
+    ) -> List[MatchScheduling]:
         """
-        Find prioritized dates for scheduling a specific match, prioritizing team and league preferences.
+        Find prioritized options for scheduling a specific match, prioritizing team and league preferences.
 
         Args:
             start_date: Start date for search (defaults to league start_date)
@@ -362,7 +468,7 @@ class Match:
             num_dates: Number of dates to return
 
         Returns:
-            List of tuples (date_string, qscore) in YYYY-MM-DD format, ordered by qscore
+            List of MatchScheduling objects, ordered by qscore
             Uses the same quality scoring system as get_quality_score()
 
         Raises:
@@ -406,7 +512,7 @@ class Match:
             start_dt = datetime.strptime(search_start, "%Y-%m-%d")
             end_dt = datetime.strptime(search_end, "%Y-%m-%d")
 
-            candidate_dates = []
+            candidate_options = []
             current = start_dt
 
             # Iterate through each day in the date range
@@ -425,7 +531,23 @@ class Match:
 
                     # Skip dates with a quality score below the minimum
                     if qscore > minimum_quality:
-                        candidate_dates.append((date_str, qscore))
+                        # create a MatchScheduling object for each potential facility for this date
+                        if not self.home_team.preferred_facilities:
+                            raise ValueError(
+                                f"Home team {self.home_team.name} has no preferred facilities set"
+                            )
+                        facility = self.home_team.get_primary_facility()
+                        if not facility:
+                            raise ValueError(
+                                f"Home team {self.home_team.name} has no primary facility available"
+                            )
+                        
+                        scheduling = MatchScheduling(
+                            facility=facility,
+                            date=date_str,
+                            qscore=qscore
+                        )
+                        candidate_options.append(scheduling)
 
                     current += timedelta(days=1)
 
@@ -435,14 +557,14 @@ class Match:
                     continue
 
             # If no candidate dates found, return empty list
-            if not candidate_dates:
+            if not candidate_options:
                 return []
 
             # Sort by qscore (higher number = higher priority)
-            candidate_dates.sort(key=lambda x: x[1], reverse=True)
+            candidate_options.sort(key=lambda x: x.qscore, reverse=True)
 
-            # Return the requested number of dates with their quality scores
-            return candidate_dates[:num_dates]
+            # Return the requested number of options with their quality scores
+            return candidate_options[:num_dates]
 
         except Exception as e:
             # Catch any errors during date calculation and raise a runtime error
@@ -452,19 +574,47 @@ class Match:
 
     # ========== Match Line Management ==========
 
-    def get_scheduled_times(self) -> List[str]:
-        """
-        Get the list of scheduled times for this match.
-
-        Returns:
-            List of scheduled time strings in HH:MM format, sorted chronologically.
-            Returns empty list if no times are scheduled.
-        """
-        return self.scheduled_times if self.scheduled_times else []
 
     def get_num_scheduled_lines(self) -> int:
         """Get the number of scheduled lines (times)"""
-        return len(self.scheduled_times)
+        return len(self.scheduling.scheduled_times) if self.scheduling else 0
+    
+    def get_scheduled_times(self) -> List[str]:
+        """Get the list of scheduled times for this match"""
+        return self.scheduling.scheduled_times.copy() if self.scheduling else []
+    
+    def get_date_time_strings(self) -> List[str]:
+        """Get combined date and time strings for all scheduled lines"""
+        return self.scheduling.get_date_time_strings() if self.scheduling else []
+    
+    def get_earliest_time(self) -> Optional[str]:
+        """Get the earliest scheduled time, or None if no times scheduled"""
+        return self.scheduling.get_earliest_time() if self.scheduling else None
+    
+    def get_latest_time(self) -> Optional[str]:
+        """Get the latest scheduled time, or None if no times scheduled"""
+        return self.scheduling.get_latest_time() if self.scheduling else None
+    
+    def get_match_duration_hours(self) -> float:
+        """Estimate match duration in hours based on earliest and latest times"""
+        return self.scheduling.get_duration_hours() if self.scheduling else 3.0
+    
+    def add_scheduled_time(self, time: str) -> None:
+        """Add a scheduled time for a new line"""
+        if self.scheduling is None:
+            raise ValueError("Cannot add scheduled time to unscheduled match. Use a scheduling method first.")
+        self.scheduling.add_scheduled_time(time)
+
+    def remove_scheduled_time(self, time: str) -> bool:
+        """Remove a scheduled time. Returns True if time was found and removed."""
+        if self.scheduling is None:
+            return False
+        return self.scheduling.remove_scheduled_time(time)
+
+    def clear_scheduled_times(self) -> None:
+        """Clear all scheduled times (unschedule all lines)"""
+        if self.scheduling is not None:
+            self.scheduling.clear_scheduled_times()
 
     def get_expected_lines(self) -> int:
         """Get the expected number of lines from the league configuration"""
@@ -474,72 +624,26 @@ class Match:
         """Get the number of lines still needed to be scheduled"""
         return max(0, self.get_expected_lines() - self.get_num_scheduled_lines())
 
-    def add_scheduled_time(self, time: str) -> None:
-        """Add a scheduled time for a new line"""
-        # Validate time format
-        try:
-            parts = time.split(":")
-            if len(parts) != 2:
-                raise ValueError("Invalid time format")
-            hour, minute = int(parts[0]), int(parts[1])
-            if not (0 <= hour <= 23 and 0 <= minute <= 59):
-                raise ValueError("Invalid time values")
-        except (ValueError, IndexError):
-            raise ValueError(f"Invalid time format: '{time}'. Expected HH:MM format")
 
-        if time not in self.scheduled_times:
-            self.scheduled_times.append(time)
-            self.scheduled_times.sort()  # Keep times sorted
-
-    def remove_scheduled_time(self, time: str) -> bool:
-        """Remove a scheduled time. Returns True if time was found and removed."""
-        if time in self.scheduled_times:
-            self.scheduled_times.remove(time)
-            return True
-        return False
-
-    def clear_scheduled_times(self) -> None:
-        """Clear all scheduled times (unschedule all lines)"""
-        self.scheduled_times.clear()
+    # ========== Convenience Properties ==========
+    
+    @property
+    def facility(self) -> Optional["Facility"]:
+        """Get the facility object through MatchScheduling delegation"""
+        return self.scheduling.facility if self.scheduling else None
+    
+    @property  
+    def date(self) -> Optional[str]:
+        """Get the scheduled date through MatchScheduling delegation"""
+        return self.scheduling.date if self.scheduling else None
+    
+    @property
+    def scheduled_times(self) -> List[str]:
+        """Get the scheduled times through MatchScheduling delegation"""
+        return self.scheduling.scheduled_times.copy() if self.scheduling else []
 
     # ========== Match Information ==========
 
-    def get_date_time_strings(self) -> List[str]:
-        """Get combined date and time strings for all scheduled lines"""
-        if not self.date:
-            return []
-        return [f"{self.date} {time}" for time in self.scheduled_times]
-
-    def get_earliest_time(self) -> Optional[str]:
-        """Get the earliest scheduled time, or None if no times scheduled"""
-        return min(self.scheduled_times) if self.scheduled_times else None
-
-    def get_latest_time(self) -> Optional[str]:
-        """Get the latest scheduled time, or None if no times scheduled"""
-        return max(self.scheduled_times) if self.scheduled_times else None
-
-    def get_match_duration_hours(self) -> float:
-        """Estimate match duration in hours based on earliest and latest times"""
-        if len(self.scheduled_times) < 2:
-            return 3.0  # Default 3 hours for single time or no times
-
-        earliest = self.get_earliest_time()
-        latest = self.get_latest_time()
-
-        if not earliest or not latest:
-            return 3.0
-
-        # Parse times and calculate difference
-        earliest_parts = earliest.split(":")
-        latest_parts = latest.split(":")
-
-        earliest_minutes = int(earliest_parts[0]) * 60 + int(earliest_parts[1])
-        latest_minutes = int(latest_parts[0]) * 60 + int(latest_parts[1])
-
-        duration_minutes = (
-            latest_minutes - earliest_minutes + 180
-        )  # Add 3 hours for last match
-        return duration_minutes / 60.0
 
     # ========== Quality Scoring ==========
 
@@ -618,8 +722,8 @@ class Match:
             return base_quality
 
         except (ValueError, AttributeError) as e:
-            # If there's an error calculating, return lowest quality
-            return 20
+            # Raise error if there's an issue calculating quality score
+            raise RuntimeError(f"Error calculating quality score for match {self.id}: {e}")
 
     def update_quality_score(self) -> None:
         """Update the quality_score field based on current scheduling"""
@@ -644,6 +748,27 @@ class Match:
 
     # ========== Match Scheduling Operations ==========
 
+    def assign_scheduling(self, scheduling: MatchScheduling) -> bool:
+        """
+        Assign a MatchScheduling object to this match.
+
+        Args:
+            scheduling: MatchScheduling object containing facility, date, and times
+
+        Returns:
+            True if successful, raises ValueError if scheduling is invalid
+        """
+        if not isinstance(scheduling, MatchScheduling):
+            raise ValueError("scheduling must be a MatchScheduling object")
+        
+        # Validate the scheduling data
+        if not scheduling.is_complete:
+            raise ValueError("MatchScheduling must have complete data (facility, date, times)")
+
+        self.scheduling = scheduling
+        return True
+    
+    
     def schedule_lines_split_times(
         self, facility: "Facility", date: str, scheduled_times: List[str]
     ) -> bool:
@@ -691,19 +816,23 @@ class Match:
                     f"Invalid time format: '{time_str}'. Expected HH:MM format"
                 )
 
-        # Set match details
-        self.facility = facility
-        self.date = date
-        self.scheduled_times = sorted(scheduled_times.copy())  # Sort to maintain order
+        # Create MatchScheduling object
+        self.scheduling = MatchScheduling(
+            facility=facility,
+            date=date,
+            scheduled_times=sorted(scheduled_times.copy())  # Sort to maintain order
+        )
         return True
 
     def schedule_all_lines_same_time(
         self, facility: "Facility", date: str, time: str
     ) -> bool:
         """Schedule all lines at the same time slot"""
-        self.facility = facility
-        self.date = date
-        self.scheduled_times = [time] * self.league.num_lines_per_match
+        self.scheduling = MatchScheduling(
+            facility=facility,
+            date=date,
+            scheduled_times=[time] * self.league.num_lines_per_match
+        )
         return True
 
     def schedule_lines_custom_times(
@@ -729,18 +858,17 @@ class Match:
                 f"Custom mode requires exactly {expected_lines} time slots, got {len(times)}"
             )
 
-        # Update match properties
-        self.facility = facility
-        self.date = date
-        self.scheduled_times = times.copy()  # Make a copy to avoid reference issues
-
+        # Create MatchScheduling object
+        self.scheduling = MatchScheduling(
+            facility=facility,
+            date=date,
+            scheduled_times=times.copy()  # Make a copy to avoid reference issues
+        )
         return True
 
     def unschedule(self) -> bool:
         """Unschedule the match (remove facility, date, and all times)"""
-        self.facility = None
-        self.date = None
-        self.scheduled_times.clear()
+        self.scheduling = None
         return True
 
     # ========== Convenience Properties ==========

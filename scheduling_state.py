@@ -179,6 +179,29 @@ class SchedulingState:
             'match_id': match.id
         })
     
+    def clear_match_bookings(self, match_id: int):
+        """Clear all bookings for a specific match"""
+        # Remove facility bookings for this match
+        keys_to_update = []
+        for booking_key, match_ids in self.facility_bookings.items():
+            if match_id in match_ids:
+                keys_to_update.append(booking_key)
+        
+        for booking_key in keys_to_update:
+            self.facility_bookings[booking_key].remove(match_id)
+            # If no more matches at this time, remove the key entirely
+            if not self.facility_bookings[booking_key]:
+                del self.facility_bookings[booking_key]
+        
+        # Remove team bookings for this match
+        team_keys_to_remove = []
+        for team_key, booked_match_id in self.team_bookings.items():
+            if booked_match_id == match_id:
+                team_keys_to_remove.append(team_key)
+        
+        for team_key in team_keys_to_remove:
+            del self.team_bookings[team_key]
+    
     def clear(self):
         """Clear all bookings and operations"""
         self.facility_bookings.clear()

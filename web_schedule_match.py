@@ -13,6 +13,7 @@ from streamlit import success
 
 from usta import League, Match, Facility, FacilityAvailabilityInfo, TimeSlotAvailability
 from web_database import get_db, close_db
+from scheduling_options import SchedulingOptions
 
 # Ensure we have the correct imports
 
@@ -61,118 +62,46 @@ def schedule_match_form(match_id: int):
             return redirect(url_for("view_match", match_id=match_id))
 
 
-        # Validate that match has a facility
+        # Validate that match has a facility (prefer match facility, fall back to home team facility)
         facility = match.get_facility()
+        if not facility and match.home_team:
+            facility = match.home_team.get_primary_facility() if match.home_team.preferred_facilities else None
+        
         if not facility:
-            flash("No facility associated with this match", "warning")
+            flash("No facility available for this match. Please assign a facility to the home team.", "warning")
             return redirect(url_for("matches"))
 
-        # Try to get viable dates, but handle the case where none are found
+        # Use the new SchedulingOptions class to get comprehensive scheduling data
         try:
-            viable_dates = db.match_manager.get_viable_scheduling_dates(
+            from scheduling_manager import SchedulingManager
+            scheduling_manager = SchedulingManager(db)
+            scheduling_options = scheduling_manager.get_scheduling_options(
                 match=match, max_dates=20
             )
             
-            # Filter out None values and ensure we have valid dates
-            viable_dates = [date for date in viable_dates if date is not None and isinstance(date, str)]
+            # Check if we have any scheduling options
+            if not scheduling_options.has_any_options():
+                available_dates = []
+                print("No scheduling options found for this match")
+            else:
+                # Use the built-in to_dict method to get template-compatible data
+                scheduling_data = scheduling_options.to_dict()
+                available_dates = scheduling_data.get('available_dates', [])
+                
+                # Add existing matches information to each date option
+                for date_option in available_dates:
+                    try:
+                        existing_matches = get_existing_matches_on_date(db, facility, date_option['date'])
+                        date_option['existing_matches'] = existing_matches
+                    except Exception as e:
+                        print(f"Error getting existing matches for {date_option['date']}: {e}")
+                        date_option['existing_matches'] = []
+                
+                print(f"Found {len(available_dates)} scheduling options using SchedulingOptions class")
             
         except Exception as e:
-            print(f"Error getting viable dates: {e}")
-            viable_dates = []
-
-        # Get facility availability if we have viable dates
-        facility_availability = []
-        if viable_dates:
-            try:
-                facility_availability = db.facility_manager.get_facility_availability(
-                    facility=facility,
-                    dates=viable_dates,
-                    max_days=20,  # Allow some buffer
-                )
-            except Exception as e:
-                print(f"Error getting facility availability: {e}")
-                facility_availability = []
-        
-        # Convert FacilityAvailabilityInfo objects to format expected by template
-        available_dates = []
-
-        for facility_info in facility_availability:
-            # put info expected by the form
-            date_obj = datetime.strptime(facility_info.date, "%Y-%m-%d")
-            num_lines = match.league.num_lines_per_match
-
-            # available times are the set of times that can accommodate the match
-            set_times = set(facility_info.get_available_times(num_lines))
-            if match.league.allow_split_lines:
-                # If split lines are allowed, we can also consider half the lines
-                set_times.update(
-                    facility_info.get_available_times(math.ceil(num_lines / 2))
-                )
-
-            available_times = list(set_times)
-            available_times.sort()
-
-            # Create time slot details from facility availability
-            time_slot_details = []
-            for time_slot in facility_info.time_slots:
-                time_slot_details.append({
-                    "time": time_slot.time,
-                    "total_courts": time_slot.total_courts,
-                    "available_courts": time_slot.available_courts,
-                    "used_courts": time_slot.used_courts,
-                    "utilization_percentage": time_slot.utilization_percentage
-                })
-
-            # Get facility for existing matches lookup
-            facility = match.get_facility()
-            
-            # get the already scheduled matches on this date, its ok if this is empty
-            existing_matches = []
-            try:
-                if facility:
-                    existing_matches = get_existing_matches_on_date(db, facility, facility_info.date)
-            except Exception as e:
-                print(f"Error getting existing matches: {e}")
-                existing_matches = []
-
-            # Generate quality description based on match
-            try:
-                quality_score = match.get_quality_score(facility_info.date)
-            except Exception as e:
-                print(f"Error calculating quality score for date {facility_info.date}: {e}")
-                quality_score = 50  # Default fallback value
-                
-            if quality_score >= 80:
-                quality_description = "Ideal scheduling window"
-            elif quality_score >= 60:
-                quality_description = "Good scheduling option" 
-            elif quality_score >= 40:
-                quality_description = "Acceptable scheduling time"
-            else:
-                quality_description = "Available but not preferred"
-
-            date_option = {
-                    "date": facility_info.date,
-                    "day_name": facility_info.day_of_week,
-                    "formatted_date": date_obj.strftime("%B %d, %Y"),
-                    "available_times": available_times,
-                    "time_slot_details": time_slot_details,  # Enhanced court info per time
-                    "score": quality_score,  # Use match quality score directly
-                    "match_quality": quality_score,  # Add match quality for display
-                    "quality_description": quality_description,  # Use match object's method
-                    "in_round": bool(quality_score >= 80),  # Qualities 80+ are within round
-                    "conflicts": None,
-                    "existing_matches": existing_matches,  # Add existing match details
-                    "courts_available": facility_info.available_court_slots,
-                    "total_court_slots": facility_info.total_court_slots,
-                    "utilization_percentage": facility_info.overall_utilization_percentage,
-                    "facility_name": facility_info.facility_name,
-                    }
-            available_dates.append(date_option)
-            print(f"Added date option: {facility_info.date} with {len(available_times)} times, quality: {quality_score}, description: {quality_description}")
-
-        # Sort available dates by quality score (highest first)
-        available_dates.sort(key=lambda x: x["score"], reverse=True)
+            print(f"Error getting scheduling options: {e}")
+            available_dates = []
 
         # Prepare match_info for template
         match_info = {
@@ -185,14 +114,13 @@ def schedule_match_form(match_id: int):
             "lines_needed": match.league.num_lines_per_match if match.league else 3
         }
         
-        # Prepare facility_info for template
-        facility_obj = match.get_facility()
+        # Prepare facility_info for template (use the facility we determined earlier)
         facility_info = None
-        if facility_obj:
+        if facility:
             facility_info = {
-                "id": facility_obj.id,
-                "name": facility_obj.name,
-                "location": facility_obj.location
+                "id": facility.id,
+                "name": facility.name,
+                "location": facility.location
             }
 
         # Render the scheduling form with available dates
@@ -203,7 +131,7 @@ def schedule_match_form(match_id: int):
             match_info=match_info,
             league=league,
             available_dates=available_dates,
-            facility=facility_obj,
+            facility=facility,
             facility_info=facility_info,
             num_lines_per_match=league.num_lines_per_match,
             allow_split_lines=league.allow_split_lines,
@@ -218,17 +146,15 @@ def schedule_match_form(match_id: int):
 
 
 def check_team_conflicts(db, match, date):
-    """Simple team conflict checking"""
-    if match.home_team and db.check_team_date_conflict(
-        match.home_team, date
-    ):
-        return f"Home team {match.home_team.name} has a conflict on {date}"
-
-    if match.visitor_team and db.check_team_date_conflict(
-        match.visitor_team, date
-    ):
-        return f"Visitor team {match.visitor_team.name} has a conflict on {date}"
-
+    """Simple team conflict checking using SchedulingManager"""
+    from scheduling_manager import SchedulingManager
+    scheduling_manager = SchedulingManager(db)
+    
+    # Check for team conflicts on the specific date
+    team_conflict_dates = scheduling_manager.filter_team_conflicts(match, [date])
+    if not team_conflict_dates:
+        return f"Team conflict detected on {date}"
+    
     return None
 
 
@@ -337,7 +263,7 @@ def api_schedule_match():
         if facility_id:
             facility = db.get_facility(facility_id)
         if not facility and match.home_team:
-            facility = match.home_team.home_facility
+            facility = match.home_team.get_primary_facility() if match.home_team.preferred_facilities else None
         if not facility:
             return jsonify({"success": False, "error": "No facility available"})
 
@@ -346,14 +272,32 @@ def api_schedule_match():
         if team_conflict_error:
             return jsonify({"success": False, "error": team_conflict_error})
 
-        # Ensure the match has the facility assigned
-        if not match.facility:
-            match.facility = facility
+        # Schedule the match using the new MatchScheduling API
+        if scheduling_mode == "same_time":
+            if not times:
+                return jsonify({"success": False, "error": "No times provided"})
+            match.schedule_all_lines_same_time(facility, date, times[0])
+        elif scheduling_mode == "split_times" or scheduling_mode == "custom":
+            match.schedule_lines_split_times(facility, date, times)
+        else:
+            return jsonify({"success": False, "error": f"Unknown scheduling mode: {scheduling_mode}"})
 
-        # Use the database schedule_match method
-        result = db.schedule_match(
-            match=match, date=date, times=times, scheduling_mode=scheduling_mode
-        )
+        # Save to database using SchedulingManager
+        from scheduling_manager import SchedulingManager
+        scheduling_manager = SchedulingManager(db)
+        success = scheduling_manager.schedule_match(match)
+        
+        if success:
+            result = {
+                "success": True,
+                "message": f"Match scheduled for {date} at {facility.name}",
+                "match_id": match.id,
+                "date": date,
+                "facility": facility.name,
+                "times": times
+            }
+        else:
+            result = {"success": False, "error": "Failed to save match scheduling to database"}
 
         return jsonify(result)
 
@@ -475,24 +419,42 @@ def refresh_scheduling_options(match_id: int):
             facility = db.get_facility(facility_id)
 
         if not facility and match.home_team:
-            facility = match.home_team.home_facility
+            facility = match.home_team.get_primary_facility() if match.home_team.preferred_facilities else None
 
         if not facility:
             return jsonify(
                 {"success": False, "error": "No facility available for this match"}
             )
 
-        # Get fresh scheduling options
-        scheduling_options = get_scheduling_options_from_facility_availability(
-            db=db,
+        # Get fresh scheduling options using SchedulingManager
+        from scheduling_manager import SchedulingManager
+        scheduling_manager = SchedulingManager(db)
+        
+        scheduling_options = scheduling_manager.get_scheduling_options(
             match=match,
-            facility=facility,
-            start_date=start_date,
-            end_date=end_date,
-            max_dates=max_dates,
+            max_dates=max_dates
         )
+        
+        # Convert to the expected JSON format
+        if scheduling_options.has_any_options():
+            scheduling_data = scheduling_options.to_dict()
+            result = {
+                "success": True,
+                "available_dates": scheduling_data.get('available_dates', []),
+                "search_params": {
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "max_dates": max_dates,
+                }
+            }
+        else:
+            result = {
+                "success": False,
+                "available_dates": [],
+                "error": "No scheduling options found for this match"
+            }
 
-        return jsonify(scheduling_options)
+        return jsonify(result)
 
     except Exception as e:
         return jsonify(
@@ -534,8 +496,10 @@ def api_preview_schedule_match():
         if not facility:
             return jsonify({"success": False, "error": "Facility not found"})
 
-        # Use the enhanced database preview method
-        result = db.preview_match_scheduling(
+        # Use the SchedulingManager preview method
+        from scheduling_manager import SchedulingManager
+        scheduling_manager = SchedulingManager(db)
+        result = scheduling_manager.preview_match_scheduling(
             match=match, date=date, times=times, scheduling_mode=scheduling_mode
         )
 
@@ -703,6 +667,9 @@ def calculate_scheduling_score(facility_info, match, lines_needed):
         3,
     )
 
+    # Note: match parameter available for future enhancements (e.g., league preferences)
+    _ = match  # Suppress unused parameter warning
+    
     return base_score + utilization_bonus + weekend_bonus + time_options_bonus
 
 
@@ -710,13 +677,20 @@ def check_match_conflicts(db, match, date, available_times):
     """Check for team conflicts on the given date/times"""
     conflicts = []
 
-    for team in [match.home_team, match.visitor_team]:
-        if team:
-            for time in available_times[:3]:  # Check first few times only
-                team_conflicts = db.scheduling_manager.get_team_conflicts(
-                    team.id, date, time, duration_hours=3
-                )
-                conflicts.extend(team_conflicts)
+    # Use SchedulingManager for conflict checking
+    from scheduling_manager import SchedulingManager
+    scheduling_manager = SchedulingManager(db)
+    
+    # Check for team conflicts on the specific date
+    team_conflict_dates = scheduling_manager.filter_team_conflicts(match, [date])
+    if not team_conflict_dates:
+        conflicts.append({
+            "type": "team_conflict",
+            "message": f"Team conflict detected on {date}"
+        })
+
+    # Note: available_times parameter available for future enhancements (e.g., time-specific conflicts)
+    _ = available_times  # Suppress unused parameter warning
 
     return conflicts
 
@@ -759,14 +733,30 @@ def get_match_scheduling_data(match_id: int, facility_id: Optional[int] = None) 
             facility = db.get_facility(facility_id)
 
         if not facility and match.home_team:
-            facility = match.home_team.home_facility
+            facility = match.home_team.get_primary_facility() if match.home_team.preferred_facilities else None
 
         if not facility:
             return {"success": False, "error": "No facility available"}
 
-        return get_scheduling_options_from_facility_availability(
-            db=db, match=match, facility=facility
-        )
+        # Use SchedulingManager for scheduling options
+        from scheduling_manager import SchedulingManager
+        scheduling_manager = SchedulingManager(db)
+        
+        scheduling_options = scheduling_manager.get_scheduling_options(match=match)
+        
+        # Convert to expected dictionary format
+        if scheduling_options.has_any_options():
+            scheduling_data = scheduling_options.to_dict()
+            return {
+                "success": True,
+                "available_dates": scheduling_data.get('available_dates', []),
+            }
+        else:
+            return {
+                "success": False, 
+                "error": "No scheduling options found for this match",
+                "available_dates": []
+            }
 
     except Exception as e:
         return {"success": False, "error": str(e)}

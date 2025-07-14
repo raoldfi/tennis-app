@@ -49,32 +49,37 @@ class SQLTeamManager:
             if not self.db.league_manager.get_league(team.league.id):
                 raise ValueError(f"League with ID {team.league.id} does not exist")
             
-            # Verify facility exists
-            if not self.db.facility_manager.get_facility(team.home_facility.id):
-                raise ValueError(f"Facility with ID {team.home_facility.id} does not exist")
+            # Verify all preferred facilities exist
+            for facility in team.preferred_facilities:
+                if not self.db.facility_manager.get_facility(facility.id):
+                    raise ValueError(f"Facility with ID {facility.id} does not exist")
             
             # Convert preferred_days list to comma-separated string for storage
             preferred_days_str = ','.join(team.preferred_days) if team.preferred_days else ''
             
+            # Insert team record (without home_facility_id)
             query = """
-                INSERT INTO teams (id, name, league_id, home_facility_id, captain, preferred_days)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO teams (id, name, league_id, captain, preferred_days)
+                VALUES (?, ?, ?, ?, ?)
             """
             params = (
                 team.id,
                 team.name,
                 team.league.id,
-                team.home_facility.id,
                 team.captain,
                 preferred_days_str
             )
             
-            description = f"Add team {team.id}: {team.name} (League: {team.league.name}, Home: {team.home_facility.name})"
+            description = f"Add team {team.id}: {team.name} (League: {team.league.name})"
             
             if hasattr(self.db, 'execute_operation'):
                 self.db.execute_operation('add_team', query, params, description)
             else:
                 self.cursor.execute(query, params)
+            
+            # Insert preferred facilities
+            self._add_team_preferred_facilities(team.id, team.preferred_facilities)
+            
         except sqlite3.IntegrityError as e:
             raise ValueError(f"Database integrity error adding team: {e}")
         except sqlite3.Error as e:
@@ -100,10 +105,10 @@ class SQLTeamManager:
             if not league:
                 raise RuntimeError(f"League {team_data['league_id']} not found for team {team_id}")
             
-            # Get the facility object
-            facility = self.db.facility_manager.get_facility(team_data['home_facility_id'])
-            if not facility:
-                raise RuntimeError(f"Facility {team_data['home_facility_id']} not found for team {team_id}")
+            # Get preferred facilities
+            preferred_facilities = self._get_team_preferred_facilities(team_id)
+            if not preferred_facilities:
+                raise RuntimeError(f"No preferred facilities found for team {team_id}")
             
             # Convert preferred_days from string to list
             preferred_days = []
@@ -114,7 +119,7 @@ class SQLTeamManager:
                 id=team_data['id'],
                 name=team_data['name'],
                 league=league,
-                home_facility=facility,
+                preferred_facilities=preferred_facilities,
                 captain=team_data.get('captain'),
                 preferred_days=preferred_days
             )
@@ -151,10 +156,10 @@ class SQLTeamManager:
                 if not league:
                     raise RuntimeError(f"Data integrity error: League with ID {team_data['league_id']} not found")
                 
-                # Get the facility object using home_facility_id
-                facility = self.db.facility_manager.get_facility(team_data['home_facility_id'])
-                if not facility:
-                    raise RuntimeError(f"Data integrity error: Facility with ID {team_data['home_facility_id']} not found")
+                # Get preferred facilities
+                preferred_facilities = self._get_team_preferred_facilities(team_data['id'])
+                if not preferred_facilities:
+                    raise RuntimeError(f"Data integrity error: No preferred facilities found for team {team_data['id']}")
                 
                 # Convert comma-separated string back to list
                 preferred_days = []
@@ -167,7 +172,7 @@ class SQLTeamManager:
                         id=team_data['id'],
                         name=team_data['name'],
                         league=league,
-                        home_facility=facility,
+                        preferred_facilities=preferred_facilities,
                         captain=team_data.get('captain'),
                         preferred_days=preferred_days
                     )
@@ -196,28 +201,29 @@ class SQLTeamManager:
             if not self.db.league_manager.get_league(team.league.id):
                 raise ValueError(f"League with ID {team.league.id} does not exist")
             
-            # Verify facility exists
-            if not self.db.facility_manager.get_facility(team.home_facility.id):
-                raise ValueError(f"Facility with ID {team.home_facility.id} does not exist")
+            # Verify all preferred facilities exist
+            for facility in team.preferred_facilities:
+                if not self.db.facility_manager.get_facility(facility.id):
+                    raise ValueError(f"Facility with ID {facility.id} does not exist")
             
             # Convert preferred_days list to comma-separated string for storage
             preferred_days_str = ','.join(team.preferred_days) if team.preferred_days else ''
             
+            # Update team record (without home_facility_id)
             query = """
                 UPDATE teams 
-                SET name = ?, league_id = ?, home_facility_id = ?, captain = ?, preferred_days = ?
+                SET name = ?, league_id = ?, captain = ?, preferred_days = ?
                 WHERE id = ?
             """
             params = (
                 team.name,
                 team.league.id,
-                team.home_facility.id,
                 team.captain,
                 preferred_days_str,
                 team.id
             )
             
-            description = f"Update team {team.id}: {team.name} (League: {team.league.name}, Home: {team.home_facility.name})"
+            description = f"Update team {team.id}: {team.name} (League: {team.league.name})"
             
             if hasattr(self.db, 'execute_operation'):
                 self.db.execute_operation('update_team', query, params, description)
@@ -227,6 +233,9 @@ class SQLTeamManager:
             # Check if the update was successful
             if self.cursor.rowcount == 0:
                 raise RuntimeError(f"Failed to update team {team.id}")
+            
+            # Update preferred facilities
+            self._update_team_preferred_facilities(team.id, team.preferred_facilities)
                 
         except sqlite3.IntegrityError as e:
             raise ValueError(f"Database integrity error updating team: {e}")
@@ -274,20 +283,27 @@ class SQLTeamManager:
         return True
 
     def get_teams_by_facility(self, facility_id: int) -> List[Team]:
-        """Get all teams that use a specific facility as their home"""
+        """Get all teams that have a specific facility in their preferred facilities"""
         if not isinstance(facility_id, int) or facility_id <= 0:
             raise ValueError(f"Facility ID must be a positive integer, got: {facility_id}")
         
         try:
-            self.cursor.execute("SELECT * FROM teams WHERE home_facility_id = ? ORDER BY name", (facility_id,))
+            # Query teams that have this facility in their preferred list
+            query = """
+                SELECT DISTINCT t.* FROM teams t
+                JOIN team_preferred_facilities tpf ON t.id = tpf.team_id
+                WHERE tpf.facility_id = ?
+                ORDER BY t.name
+            """
+            self.cursor.execute(query, (facility_id,))
             
             teams = []
             for row in self.cursor.fetchall():
                 team_data = self._dictify(row)
                 league = self.db.league_manager.get_league(team_data['league_id'])
-                facility = self.db.facility_manager.get_facility(team_data['home_facility_id'])
+                preferred_facilities = self._get_team_preferred_facilities(team_data['id'])
                 
-                if league and facility:
+                if league and preferred_facilities:
                     # Convert preferred_days
                     preferred_days = []
                     if team_data.get('preferred_days'):
@@ -297,7 +313,7 @@ class SQLTeamManager:
                         id=team_data['id'],
                         name=team_data['name'],
                         league=league,
-                        home_facility=facility,
+                        preferred_facilities=preferred_facilities,
                         captain=team_data.get('captain'),
                         preferred_days=preferred_days
                     ))
@@ -520,3 +536,46 @@ class SQLTeamManager:
             
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error checking team facility conflict: {e}")
+
+    def _get_team_preferred_facilities(self, team_id: int) -> List[Facility]:
+        """Get ordered list of preferred facilities for a team"""
+        try:
+            query = """
+                SELECT tpf.facility_id FROM team_preferred_facilities tpf
+                WHERE tpf.team_id = ?
+                ORDER BY tpf.priority_order
+            """
+            self.cursor.execute(query, (team_id,))
+            
+            facilities = []
+            for row in self.cursor.fetchall():
+                facility_id = row['facility_id']
+                facility = self.db.facility_manager.get_facility(facility_id)
+                if facility:
+                    facilities.append(facility)
+            return facilities
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error getting team preferred facilities: {e}")
+
+    def _add_team_preferred_facilities(self, team_id: int, facilities: List[Facility]) -> None:
+        """Add preferred facilities for a team"""
+        try:
+            for i, facility in enumerate(facilities):
+                query = """
+                    INSERT INTO team_preferred_facilities (team_id, facility_id, priority_order)
+                    VALUES (?, ?, ?)
+                """
+                self.cursor.execute(query, (team_id, facility.id, i + 1))
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error adding team preferred facilities: {e}")
+
+    def _update_team_preferred_facilities(self, team_id: int, facilities: List[Facility]) -> None:
+        """Update preferred facilities for a team"""
+        try:
+            # Delete existing preferences
+            self.cursor.execute("DELETE FROM team_preferred_facilities WHERE team_id = ?", (team_id,))
+            
+            # Add new preferences
+            self._add_team_preferred_facilities(team_id, facilities)
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Database error updating team preferred facilities: {e}")

@@ -162,8 +162,8 @@
                                 <td><strong><a href="{{ url_for('view_team', team_id=team.id) }}" class="text-decoration-none">{{ team.name }}</a></strong></td>
                                 <td>{{ team.captain }}</td>
                                 <td>
-                                    {% if team.home_facility %}
-                                        <a href="{{ url_for('view_facility', facility_id=team.home_facility.id) }}" class="text-decoration-none">{{ team.home_facility.name }}</a>
+                                    {% if team.preferred_facilities %}
+                                        <a href="{{ url_for('view_facility', facility_id=team.get_primary_facility().id) }}" class="text-decoration-none">{{ team.get_primary_facility().name }}</a>
                                     {% else %}
                                         <span class="text-muted">Not set</span>
                                     {% endif %}

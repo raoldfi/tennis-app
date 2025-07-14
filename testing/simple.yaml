@@ -115,7 +115,7 @@ teams:
   - id: 2001
     name: "Team 1"
     league_id: 201
-    home_facility_id: 18
+    preferred_facility_ids: [18, 14]
     captain: "Babbitt"
     preferred_days:
       - "Saturday"
@@ -124,7 +124,7 @@ teams:
   - id: 2002
     name: "Team 2"
     league_id: 201
-    home_facility_id: 14
+    preferred_facility_ids: [14, 18]
     captain: "Lowe"
     preferred_days: []
   

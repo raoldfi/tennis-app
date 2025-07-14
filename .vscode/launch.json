@@ -22,12 +22,12 @@
             "args": "${command:pickArgs}"
         },
         {
-            "name": "CLI auto-schedule --execute",
+            "name": "CLI optimize-schedule",
             "type": "debugpy",
             "request": "launch",
             "program": "simple_cli.py",
             "console": "integratedTerminal",
-            "args": "--db-path tennis.db auto-schedule --execute"
+            "args": "--db-path tennis.db optimize-schedule"
         },
          {
             "name": "CLI auto-schedule",

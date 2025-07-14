@@ -615,36 +615,25 @@ class TennisUI {
     }
     
     /**
-     * Enhanced unscheduleMatch method with better error handling
+     * Enhanced unscheduleMatch method - direct action with flash messages
      */
     static async unscheduleMatch(matchId, description) {
-        const confirmed = await this.showConfirmDialog(
-            'Unschedule Match',
-            `Are you sure you want to unschedule "${description}"?<br><small class="text-muted">This will remove all scheduling information for this match.</small>`,
-            'Unschedule',
-            'btn-tennis-warning'
-        );
-    
-        if (!confirmed) return;
-    
         try {
-            // Show loading state
-            const buttons = document.querySelectorAll(`[data-match-id="${matchId}"][data-action="unschedule"]`);
-            buttons.forEach(btn => {
-                btn.disabled = true;
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                btn.dataset.originalText = originalText;
-            });
-    
-            const result = await this.apiCall(`/matches/${matchId}/schedule`, {
-                method: 'DELETE'
-            });
-    
-            this.showNotification(result.message || 'Match unscheduled successfully!', 'success');
+            // Create and submit a form to trigger the DELETE request and redirect
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/matches/${matchId}/schedule`;
+            form.style.display = 'none';
             
-            // Reload page after short delay
-            setTimeout(() => window.location.reload(), 1000);
+            // Add hidden input for method override (common pattern for DELETE in forms)
+            const methodInput = document.createElement('input');
+            methodInput.type = 'hidden';
+            methodInput.name = '_method';
+            methodInput.value = 'DELETE';
+            form.appendChild(methodInput);
+            
+            document.body.appendChild(form);
+            form.submit();
             
         } catch (error) {
             this.showNotification(error.message || 'Failed to unschedule match.', 'danger');

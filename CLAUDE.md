@@ -66,7 +66,7 @@ This is a **tennis league scheduling application** using an **interface-based ar
 - `SQLLeagueManager` - League management
 - `SQLFacilityManager` - Facility and availability management
 - `SQLMatchManager` - Match creation and scheduling
-- `SQLSchedulingManager` - Auto-scheduling algorithms
+- `SchedulingManager` - Generic auto-scheduling algorithms using TennisDBInterface
 
 **Interfaces**:
 - **Web Interface** - Flask app with Bootstrap templates

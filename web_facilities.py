@@ -61,7 +61,7 @@ def register_routes(app):
                 for league in leagues:
                     teams = db.list_teams(league)
                     # Check if any teams in this league use this facility
-                    facility_teams = [team for team in teams if team.home_facility.id == facility_id]
+                    facility_teams = [team for team in teams if team.preferred_facilities and any(f.id == facility_id for f in team.preferred_facilities)]
                     if facility_teams:
                         # Create the facilities_used list in the correct format
                         facilities_used = [{

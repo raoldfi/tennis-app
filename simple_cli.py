@@ -36,6 +36,8 @@ from typing import Dict, Any, Optional, List, Tuple
 import logging
 from dataclasses import dataclass, field
 
+from scheduling_manager import SchedulingManager
+import scheduling_manager
 from usta import Match, MatchType, League, Team, Facility
 
 logging.basicConfig(
@@ -165,6 +167,18 @@ Examples:
         auto_schedule_parser.add_argument("--execute", action="store_true", 
                                          help="ACTUALLY execute scheduling (default is dry-run)")
         auto_schedule_parser.add_argument("--progress", action="store_true", help="Show progress")
+        auto_schedule_parser.add_argument("--seed", type=int, help="Seed for reproducible scheduling (optional)")
+        
+        # Optimize command - find best auto-schedule with multiple iterations
+        optimize_parser = subparsers.add_parser("optimize-schedule", help="Run auto-schedule optimization with multiple iterations")
+        optimize_parser.add_argument("--league-id", type=int, help="League ID")
+        optimize_parser.add_argument("--league-ids", help="Comma-separated league IDs")
+        optimize_parser.add_argument("--max-matches", type=int, help="Maximum matches to process")
+        optimize_parser.add_argument("--iterations", type=int, default=10, 
+                                   help="Number of optimization iterations (default: 10, max: 100)")
+        optimize_parser.add_argument("--execute", action="store_true", 
+                                   help="Execute with best seed after optimization (default is dry-run)")
+        optimize_parser.add_argument("--progress", action="store_true", help="Show progress")
         
         # Schedule command - DRY-RUN BY DEFAULT
         schedule_parser = subparsers.add_parser("schedule", help="Schedule specific match (DRY-RUN by default)")
@@ -239,6 +253,8 @@ Examples:
                 return self.handle_generate_matches(args, db)
             elif args.command == "auto-schedule":
                 return self.handle_auto_schedule(args, db)
+            elif args.command == "optimize-schedule":
+                return self.handle_optimize_schedule(args, db)
             elif args.command == "schedule":
                 return self.handle_schedule(args, db)
             elif args.command == "unschedule":
@@ -655,178 +671,8 @@ Examples:
         
         return {'valid': len(errors) == 0, 'errors': errors}
     
-    def _preview_yaml_data(self, data):
-        """Preview what would be loaded from YAML data"""
-        if 'facilities' in data:
-            facilities = data['facilities']
-            print(f"  Facilities ({len(facilities)}):")
-            for facility in facilities[:5]:  # Show first 5
-                print(f"    - {facility.get('name', 'Unknown')}")
-            if len(facilities) > 5:
-                print(f"    ... and {len(facilities) - 5} more")
-        
-        if 'leagues' in data:
-            leagues = data['leagues']
-            print(f"  Leagues ({len(leagues)}):")
-            for league in leagues[:5]:
-                print(f"    - {league.get('name', 'Unknown')} ({league.get('year', 'Unknown')})")
-            if len(leagues) > 5:
-                print(f"    ... and {len(leagues) - 5} more")
-        
-        if 'teams' in data:
-            teams = data['teams']
-            print(f"  Teams ({len(teams)}):")
-            for team in teams[:5]:
-                print(f"    - {team.get('name', 'Unknown')} ({team.get('league_name', 'Unknown')})")
-            if len(teams) > 5:
-                print(f"    ... and {len(teams) - 5} more")
-        
-        if 'matches' in data:
-            matches = data['matches']
-            print(f"  Matches ({len(matches)}):")
-            for match in matches[:3]:
-                print(f"    - Match in {match.get('league_name', 'Unknown')}")
-            if len(matches) > 3:
-                print(f"    ... and {len(matches) - 3} more")
-    
-    def _load_yaml_data(self, data, db) -> Dict:
-        """Actually load YAML data into database"""
-        result = {
-            'success': True,
-            'facilities_loaded': 0,
-            'leagues_loaded': 0,
-            'teams_loaded': 0,
-            'matches_loaded': 0,
-            'errors': []
-        }
-        
-        try:
-            # Load facilities first
-            if 'facilities' in data:
-                for facility_data in data['facilities']:
-                    try:
-                        facility = Facility(
-                            name=facility_data['name'],
-                            short_name=facility_data.get('short_name', facility_data['name'][:10]),
-                            location=facility_data.get('location', ''),
-                            total_courts=facility_data.get('total_courts', 6)
-                        )
-                        db.add_facility(facility)
-                        result['facilities_loaded'] += 1
-                    except Exception as e:
-                        result['errors'].append(f"Failed to load facility {facility_data.get('name', 'Unknown')}: {e}")
-            
-            # Load leagues
-            if 'leagues' in data:
-                for league_data in data['leagues']:
-                    try:
-                        league = League(
-                            name=league_data['name'],
-                            year=league_data['year'],
-                            section=league_data['section'],
-                            region=league_data['region'],
-                            age_group=league_data['age_group'],
-                            division=league_data['division'],
-                            num_lines_per_match=league_data.get('num_lines_per_match', 3),
-                            num_matches=league_data.get('num_matches', 10)
-                        )
-                        db.add_league(league)
-                        result['leagues_loaded'] += 1
-                    except Exception as e:
-                        result['errors'].append(f"Failed to load league {league_data.get('name', 'Unknown')}: {e}")
-            
-            # Load teams
-            if 'teams' in data:
-                for team_data in data['teams']:
-                    try:
-                        # Find league by name
-                        league_name = team_data['league_name']
-                        leagues = db.list_leagues()
-                        league = next((l for l in leagues if l.name == league_name), None)
-                        
-                        if not league:
-                            result['errors'].append(f"League '{league_name}' not found for team {team_data.get('name', 'Unknown')}")
-                            continue
-                        
-                        # Find facility by name if specified
-                        facility = None
-                        if 'home_facility_name' in team_data:
-                            facilities = db.list_facilities()
-                            facility = next((f for f in facilities if f.name == team_data['home_facility_name']), None)
-                            if not facility:
-                                result['errors'].append(f"Facility '{team_data['home_facility_name']}' not found for team {team_data.get('name', 'Unknown')}")
-                        
-                        team = Team(
-                            name=team_data['name'],
-                            league=league,
-                            captain=team_data.get('captain', ''),
-                            home_facility=facility,
-                            preferred_days=team_data.get('preferred_days', [])
-                        )
-                        db.add_team(team)
-                        result['teams_loaded'] += 1
-                    except Exception as e:
-                        result['errors'].append(f"Failed to load team {team_data.get('name', 'Unknown')}: {e}")
-            
-            # Load matches
-            if 'matches' in data:
-                for match_data in data['matches']:
-                    try:
-                        # Find league, home team, visitor team by names
-                        league_name = match_data['league_name']
-                        home_team_name = match_data['home_team_name']
-                        visitor_team_name = match_data['visitor_team_name']
-                        
-                        leagues = db.list_leagues()
-                        league = next((l for l in leagues if l.name == league_name), None)
-                        if not league:
-                            result['errors'].append(f"League '{league_name}' not found for match")
-                            continue
-                        
-                        teams = db.list_teams(league)
-                        home_team = next((t for t in teams if t.name == home_team_name), None)
-                        visitor_team = next((t for t in teams if t.name == visitor_team_name), None)
-                        
-                        if not home_team:
-                            result['errors'].append(f"Home team '{home_team_name}' not found in league '{league_name}'")
-                            continue
-                        if not visitor_team:
-                            result['errors'].append(f"Visitor team '{visitor_team_name}' not found in league '{league_name}'")
-                            continue
-                        
-                        match = Match(
-                            league=league,
-                            home_team=home_team,
-                            visitor_team=visitor_team,
-                            round_number=match_data.get('round', 1),
-                            num_rounds=match_data.get('num_rounds', 1)
-                        )
-                        
-                        # If scheduling info provided, schedule the match
-                        if all(k in match_data for k in ['facility_name', 'date', 'times']):
-                            facilities = db.list_facilities()
-                            facility = next((f for f in facilities if f.name == match_data['facility_name']), None)
-                            if facility:
-                                match.schedule_all_lines_same_time(
-                                    facility=facility,
-                                    date=match_data['date'],
-                                    time=match_data['times'][0] if match_data['times'] else "09:00"
-                                )
-                        
-                        db.add_match(match)
-                        result['matches_loaded'] += 1
-                    except Exception as e:
-                        result['errors'].append(f"Failed to load match: {e}")
-            
-            if result['errors']:
-                result['success'] = False
-            
-            return result
-            
-        except Exception as e:
-            result['success'] = False
-            result['errors'].append(f"General loading error: {e}")
-            return result
+
+
     
     def _create_match(self, args, db, dry_run):
         """Create a match"""
@@ -947,7 +793,7 @@ Examples:
                     name=args.name,
                     league=league,
                     captain=args.captain or '',
-                    home_facility=facility
+                    preferred_facilities=[facility] if facility else []
                 )
                 db.add_team(team)
                 print(f"✅ Team created successfully with ID {team.id}")
@@ -1050,14 +896,14 @@ Examples:
                         'name': team.name,
                         'league_name': team.league.name,
                         'captain': team.captain,
-                        'home_facility_name': team.home_facility.name if team.home_facility else None
+                        'home_facility_name': team.get_primary_facility().name if team.preferred_facilities else None
                     }
                     for team in teams
                 ]
                 print(json.dumps(teams_data, indent=2))
             else:
                 for team in teams:
-                    facility_info = f" (Home: {team.home_facility.name})" if team.home_facility else ""
+                    facility_info = f" (Primary: {team.get_primary_facility().name})" if team.preferred_facilities else ""
                     print(f"Team {team.id}: {team.name} ({team.league.name}){facility_info}")
                 
         elif args.table == "facilities":
@@ -1163,10 +1009,21 @@ Examples:
             print(f"Processing {len(all_unscheduled_matches)} unscheduled matches...")
             print("-" * 60)
             
+            # Determine seed to use
+            if args.seed is not None:
+                seed = args.seed
+                print(f"Using provided seed: {seed}")
+            else:
+                # Generate seed using same method as web interface
+                import time
+                seed = int(time.time() * 1000) % 2**31
+                print(f"Generated seed: {seed}")
+            
             # Auto-schedule all matches at once
             try:
-                results = db.auto_schedule_matches(all_unscheduled_matches, dry_run=dry_run, seed=123)
-                
+                scheduling_manager = SchedulingManager(db)
+                results = scheduling_manager.auto_schedule_matches(all_unscheduled_matches, dry_run=dry_run, seed=seed)
+
                 scheduled_count = results.get('scheduled', 0)
                 failed_count = results.get('failed', 0)
                 
@@ -1236,6 +1093,169 @@ Examples:
                 traceback.print_exc()
             return 1
     
+    def handle_optimize_schedule(self, args, db):
+        """Handle auto-schedule optimization with multiple iterations"""
+        try:
+            # Validate iterations parameter
+            if args.iterations < 1 or args.iterations > 100:
+                print("Error: iterations must be between 1 and 100")
+                return 1
+            
+            # Parse target leagues
+            target_league_ids = None
+            if args.league_id:
+                target_league_ids = [args.league_id]
+            elif args.league_ids:
+                try:
+                    target_league_ids = [int(x.strip()) for x in args.league_ids.split(',')]
+                except ValueError:
+                    print("Error: Invalid league IDs format")
+                    return 1
+            
+            # Get all unscheduled matches at once
+            from usta import MatchType
+            if target_league_ids:
+                # Get matches for specific leagues
+                all_unscheduled_matches = []
+                for league_id in target_league_ids:
+                    league = db.get_league(league_id)
+                    if league:
+                        league_matches = db.list_matches(league=league, match_type=MatchType.UNSCHEDULED)
+                        all_unscheduled_matches.extend(league_matches)
+                    else:
+                        print(f"Warning: League {league_id} not found")
+            else:
+                # Get all unscheduled matches from all leagues
+                all_unscheduled_matches = db.list_matches(match_type=MatchType.UNSCHEDULED)
+            
+            if not all_unscheduled_matches:
+                print("No unscheduled matches found")
+                return 0
+            
+            # Apply max limit if specified
+            if args.max_matches and len(all_unscheduled_matches) > args.max_matches:
+                all_unscheduled_matches = all_unscheduled_matches[:args.max_matches]
+                print(f"Limited to {args.max_matches} matches for testing")
+            
+            # Determine mode
+            dry_run = not args.execute
+            
+            if dry_run:
+                print(f"🧪 DRY RUN MODE: Optimizing auto-schedule for {len(all_unscheduled_matches)} matches")
+                print("Use --execute flag to run best result after optimization")
+            else:
+                print(f"🚀 EXECUTING: Optimizing auto-schedule for {len(all_unscheduled_matches)} matches")
+                print("Will execute with best seed after optimization")
+            
+            print(f"Running {args.iterations} optimization iterations...")
+            print("-" * 60)
+            
+            # Run optimization
+            try:
+                optimization_result = db.optimize_auto_schedule(
+                    matches=all_unscheduled_matches, 
+                    max_iterations=args.iterations
+                )
+                
+                if not optimization_result.get('optimization_completed', False):
+                    error_msg = optimization_result.get('error', 'Unknown optimization error')
+                    print(f"❌ Optimization failed: {error_msg}")
+                    return 1
+                
+                # Extract optimization results
+                best_seed = optimization_result.get('best_seed')
+                best_unscheduled_count = optimization_result.get('best_unscheduled_count', float('inf'))
+                best_quality_score = optimization_result.get('best_quality_score', 0)
+                results_history = optimization_result.get('results_history', [])
+                improvement_found = optimization_result.get('improvement_found', False)
+                
+                print(f"✅ Optimization completed after {args.iterations} iterations")
+                print("-" * 60)
+                
+                if improvement_found:
+                    schedulable_count = len(all_unscheduled_matches) - best_unscheduled_count
+                    print(f"🎯 BEST RESULT FOUND:")
+                    print(f"  Seed: {best_seed}")
+                    print(f"  Schedulable matches: {schedulable_count}/{len(all_unscheduled_matches)}")
+                    print(f"  Unscheduled matches: {best_unscheduled_count}")
+                    print(f"  Average quality score: {best_quality_score:.1f}")
+                    
+                    if args.progress and results_history:
+                        print(f"\n📊 OPTIMIZATION PROGRESS:")
+                        print("Iteration | Seed      | Schedulable | Unscheduled | Quality")
+                        print("-" * 60)
+                        for result in results_history[-10:]:  # Show last 10 iterations
+                            iteration = result['iteration']
+                            seed = result['seed']
+                            scheduled = result['scheduled_count']
+                            unscheduled = result['unscheduled_count']
+                            quality = result['avg_quality_score']
+                            is_best = seed == best_seed
+                            marker = " *" if is_best else ""
+                            print(f"{iteration:9d} | {seed:9d} | {scheduled:11d} | {unscheduled:11d} | {quality:7.1f}{marker}")
+                    
+                    # Execute with best seed if requested
+                    if not dry_run:
+                        print(f"\n🚀 EXECUTING with best seed {best_seed}...")
+                        execute_result = db.auto_schedule_matches(
+                            all_unscheduled_matches, 
+                            dry_run=False, 
+                            seed=best_seed
+                        )
+                        
+                        scheduled_count = execute_result.get('scheduled', 0)
+                        failed_count = execute_result.get('failed', 0)
+                        
+                        print(f"\n✅ EXECUTION COMPLETED:")
+                        print(f"  Scheduled: {scheduled_count} matches")
+                        print(f"  Failed: {failed_count} matches")
+                        
+                        if args.progress and execute_result.get('scheduling_details'):
+                            print("\nSample scheduled matches:")
+                            for detail in execute_result['scheduling_details'][:5]:
+                                facility = detail.get('facility', 'Unknown')
+                                date = detail.get('date', 'Unknown')
+                                times = detail.get('times', [])
+                                times_str = ', '.join(times) if times else 'No times'
+                                quality = detail.get('quality_score', 0)
+                                print(f"  Match {detail['match_id']}: {facility} on {date} at {times_str} (quality: {quality})")
+                    else:
+                        print(f"\n💡 To execute this optimization result, run:")
+                        print(f"   --execute --iterations {args.iterations}")
+                        print(f"\n   Or use the best seed directly with auto-schedule:")
+                        cmd_parts = ["auto-schedule"]
+                        if args.league_id:
+                            cmd_parts.append(f"--league-id {args.league_id}")
+                        elif args.league_ids:
+                            cmd_parts.append(f"--league-ids {args.league_ids}")
+                        if args.max_matches:
+                            cmd_parts.append(f"--max-matches {args.max_matches}")
+                        cmd_parts.append("--execute")
+                        print(f"   {' '.join(cmd_parts)} (with seed {best_seed})")
+                else:
+                    print(f"⚠️ No schedulable matches found after {args.iterations} iterations")
+                    if args.progress and results_history:
+                        print(f"\n📊 All iterations had 0 schedulable matches")
+                        print("This might indicate:")
+                        print("  - Insufficient facility availability")
+                        print("  - Team scheduling conflicts")
+                        print("  - Configuration issues")
+                
+                return 0
+                
+            except Exception as e:
+                print(f"❌ Error during optimization: {e}")
+                if args.verbose:
+                    import traceback
+                    traceback.print_exc()
+                return 1
+            
+        except Exception as e:
+            print(f"Error in optimize-schedule: {e}")
+            if args.verbose:
+                traceback.print_exc()
+            return 1
+    
     def handle_schedule(self, args, db):
         """Handle single match scheduling with dry-run by default"""
         try:
@@ -1280,9 +1300,10 @@ Examples:
                 return 0
             else:
                 # Actually schedule the match
-                success = db.match_manager.schedule_match_all_lines_same_time(
-                    match, facility, args.date, args.time
+                result = db.schedule_match(
+                    match, args.date, [args.time], "same_time"
                 )
+                success = result.get('success', False)
                 
                 if success:
                     print("✅ Match scheduled successfully!")
@@ -1346,10 +1367,11 @@ Examples:
                 return 0
             else:
                 # Actually unschedule
+                scheduling_manager = SchedulingManager(db)
                 unscheduled_count = 0
                 for match in matches_to_unschedule:
                     try:
-                        db.match_manager.unschedule_match(match)
+                        scheduling_manager.unschedule_match(match)
                         unscheduled_count += 1
                         if args.progress:
                             print(f"  Unscheduled match {match.id}")

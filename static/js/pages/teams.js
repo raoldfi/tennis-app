@@ -76,31 +76,119 @@ class TeamsPage {
     // ==================== TEAM OPERATIONS ====================
 
     async deleteTeam(teamId, teamName) {
-        const confirmed = await TennisUI.showConfirmDialog(
-            'Delete Team',
-            `Are you sure you want to delete team "${teamName}"? This action cannot be undone and may affect matches involving this team.`,
-            'Delete Team',
-            'btn-tennis-danger'
-        );
+        // Use native confirm if TennisUI is not available
+        let confirmed;
+        if (typeof TennisUI !== 'undefined' && TennisUI.showConfirmDialog) {
+            confirmed = await TennisUI.showConfirmDialog(
+                'Delete Team',
+                `Are you sure you want to delete team "${teamName}"? This action cannot be undone and may affect matches involving this team.`,
+                'Delete Team',
+                'btn-tennis-danger'
+            );
+        } else {
+            confirmed = confirm(`Are you sure you want to delete team "${teamName}"?\n\nThis action cannot be undone and may affect matches involving this team.`);
+        }
 
         if (!confirmed) return;
 
         try {
-            const result = await TennisUI.apiCall(`/api/teams/${teamId}`, {
-                method: 'DELETE'
+            const response = await fetch(`/teams/${teamId}/delete`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
             });
 
-            TennisUI.showNotification(result.message || 'Team deleted successfully!', 'success');
-            
-            // Reload page to reflect changes
-            setTimeout(() => window.location.reload(), 1000);
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                // Show success notification
+                if (typeof TennisUI !== 'undefined' && TennisUI.showNotification) {
+                    TennisUI.showNotification(result.message || 'Team deleted successfully!', 'success');
+                } else {
+                    this.showSimpleAlert(result.message || 'Team deleted successfully!', 'success');
+                }
+                
+                // Remove the row from the table with animation
+                this.removeTeamRowFromTable(teamId);
+                
+            } else {
+                throw new Error(result.error || 'Failed to delete team');
+            }
             
         } catch (error) {
-            TennisUI.showNotification(
-                error.message || 'Failed to delete team. Please try again.',
-                'danger'
-            );
+            console.error('Error deleting team:', error);
+            if (typeof TennisUI !== 'undefined' && TennisUI.showNotification) {
+                TennisUI.showNotification(
+                    error.message || 'Failed to delete team. Please try again.',
+                    'danger'
+                );
+            } else {
+                this.showSimpleAlert(error.message || 'Failed to delete team. Please try again.', 'error');
+            }
         }
+    }
+
+    removeTeamRowFromTable(teamId) {
+        const button = document.querySelector(`[data-team-id="${teamId}"]`);
+        if (button) {
+            const row = button.closest('tr');
+            if (row) {
+                row.style.transition = 'all 0.3s ease-out';
+                row.style.opacity = '0';
+                row.style.transform = 'translateX(-100%)';
+                
+                setTimeout(() => {
+                    row.remove();
+                    this.updateTeamCount();
+                    
+                    // Check if no teams remain and show empty state
+                    const tbody = document.querySelector('.tennis-table tbody');
+                    if (tbody && tbody.children.length === 0) {
+                        location.reload(); // Reload to show empty state
+                    }
+                }, 300);
+            }
+        }
+    }
+
+    updateTeamCount() {
+        const badge = document.querySelector('.tennis-badge-primary');
+        if (badge) {
+            const currentText = badge.textContent;
+            const match = currentText.match(/\d+/);
+            if (match) {
+                const currentCount = parseInt(match[0]);
+                const newCount = currentCount - 1;
+                badge.textContent = `${newCount} team${newCount !== 1 ? 's' : ''}`;
+            }
+        }
+    }
+
+    showSimpleAlert(message, type = 'info') {
+        // Fallback alert function if TennisUI is not available
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+        
+        const iconClass = type === 'success' ? 'check-circle' : 
+                         type === 'error' ? 'exclamation-triangle' : 
+                         'info-circle';
+        
+        alertDiv.innerHTML = `
+            <i class="fas fa-${iconClass}"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alertDiv);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
     }
 
     exportSingleTeam(teamId, teamName) {

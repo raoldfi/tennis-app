@@ -189,7 +189,7 @@ class SQLFacilityManager:
 
             # Check if facility is referenced by teams
             self.cursor.execute(
-                "SELECT COUNT(*) as count FROM teams WHERE home_facility_id = ?",
+                "SELECT COUNT(*) as count FROM team_preferred_facilities WHERE facility_id = ?",
                 (facility_id,),
             )
             team_count = self.cursor.fetchone()["count"]
@@ -782,8 +782,8 @@ class SQLFacilityManager:
         if not dates:
             raise ValueError("dates list cannot be empty")
 
-        if len(dates) > max_days:
-            raise ValueError(f"Cannot check more than {max_days} dates at once")
+        # if len(dates) > max_days:
+        #     raise ValueError(f"Cannot check more than {max_days} dates at once")
 
         # Validate all date formats in one pass
         for date in dates:
@@ -952,6 +952,16 @@ class SQLFacilityManager:
             time = time_slot.time
             total_courts = time_slot.available_courts
             used_courts = scheduled_times.count(time)
+            
+            # Ensure used_courts doesn't exceed total_courts (defensive programming)
+            # This can happen if there are data inconsistencies or overbooking
+            if used_courts > total_courts:
+                logger.warning(
+                    f"Over-booking detected: {used_courts} courts used > {total_courts} total courts "
+                    f"at time {time}. Capping used_courts to total_courts."
+                )
+                used_courts = total_courts
+            
             available_courts = max(0, total_courts - used_courts)
             utilization_percentage = (
                 (used_courts / total_courts * 100) if total_courts > 0 else 0
@@ -1072,16 +1082,19 @@ class SQLFacilityManager:
         geographic_distribution = {}
         
         for team in teams:
-            facility_id = team.home_facility.id
-            facility_name = team.home_facility.name
-            facility_location = team.home_facility.location or "Unknown"
+            if not team.preferred_facilities:
+                continue
+            primary_facility = team.get_primary_facility()
+            facility_id = primary_facility.id
+            facility_name = primary_facility.name
+            facility_location = primary_facility.location or "Unknown"
             
             if facility_id not in facilities_used:
                 facilities_used[facility_id] = {
                     "facility_id": facility_id,
                     "facility_name": facility_name,
                     "facility_location": facility_location,
-                    "total_courts": team.home_facility.total_courts,
+                    "total_courts": primary_facility.total_courts,
                     "teams_count": 0,
                     "teams": []
                 }
@@ -1238,7 +1251,7 @@ class SQLFacilityManager:
             
             for league in all_leagues:
                 teams = self.db.list_teams(league)
-                facility_teams = [team for team in teams if team.home_facility.id == facility.id]
+                facility_teams = [team for team in teams if team.preferred_facilities and any(f.id == facility.id for f in team.preferred_facilities)]
                 
                 if facility_teams:
                     leagues_using_facility.append(league)

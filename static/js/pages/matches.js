@@ -265,6 +265,33 @@ class MatchesPage {
                                     </div>
                                     <div class="tennis-form-text">Check to preview changes without actually scheduling matches</div>
                                 </div>
+                                <div class="tennis-form-group">
+                                    <label class="tennis-form-label">Scheduling Mode</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="schedule_mode" value="standard" id="standardMode" checked>
+                                        <label class="form-check-label" for="standardMode">
+                                            <strong>Standard Auto-Schedule</strong>
+                                        </label>
+                                        <div class="tennis-form-text">Single attempt with current algorithm</div>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="schedule_mode" value="optimized" id="optimizedMode">
+                                        <label class="form-check-label" for="optimizedMode">
+                                            <strong>Optimized Auto-Schedule</strong>
+                                        </label>
+                                        <div class="tennis-form-text">Multiple iterations to find best scheduling solution</div>
+                                    </div>
+                                </div>
+                                <div class="tennis-form-group" id="optimizedSettings" style="display: none;">
+                                    <label for="iterations" class="tennis-form-label">Optimization Iterations</label>
+                                    <select class="tennis-form-control" id="iterations" name="iterations">
+                                        <option value="5">5 iterations (Fast)</option>
+                                        <option value="10" selected>10 iterations (Balanced)</option>
+                                        <option value="20">20 iterations (Thorough)</option>
+                                        <option value="50">50 iterations (Comprehensive)</option>
+                                    </select>
+                                    <div class="tennis-form-text">More iterations may find better solutions but take longer</div>
+                                </div>
                                 ` : ''}
                                 
                                 <div class="tennis-status tennis-status-scheduled">
@@ -325,6 +352,9 @@ class MatchesPage {
             if (modalId === 'bulkAutoScheduleModal') {
                 const dryRunCheckbox = modalElement.querySelector('#dryRunCheckbox');
                 const actionBtn = modalElement.querySelector('#modalActionBtn');
+                const standardModeRadio = modalElement.querySelector('#standardMode');
+                const optimizedModeRadio = modalElement.querySelector('#optimizedMode');
+                const optimizedSettings = modalElement.querySelector('#optimizedSettings');
                 
                 if (dryRunCheckbox && actionBtn) {
                     dryRunCheckbox.addEventListener('change', function() {
@@ -334,6 +364,21 @@ class MatchesPage {
                         } else {
                             actionBtn.innerHTML = '<i class="fas fa-magic"></i> Execute Auto-Schedule';
                             actionBtn.className = 'btn-tennis-warning';
+                        }
+                    });
+                }
+                
+                // Handle scheduling mode radio buttons
+                if (standardModeRadio && optimizedModeRadio && optimizedSettings) {
+                    standardModeRadio.addEventListener('change', function() {
+                        if (this.checked) {
+                            optimizedSettings.style.display = 'none';
+                        }
+                    });
+                    
+                    optimizedModeRadio.addEventListener('change', function() {
+                        if (this.checked) {
+                            optimizedSettings.style.display = 'block';
                         }
                     });
                 }
@@ -434,6 +479,12 @@ class MatchesPage {
             window.lastAutoScheduleSeed = result.seed;
             console.log('🌱 SEED DEBUG: Stored seed for future execution:', result.seed);
             console.log('🌱 SEED DEBUG: typeof stored seed:', typeof result.seed);
+            
+            // Also store the scheduling mode for reference
+            if (this.lastFormData && this.lastFormData.schedule_mode) {
+                window.lastScheduleMode = this.lastFormData.schedule_mode;
+                console.log('🌱 SEED DEBUG: Stored schedule mode:', window.lastScheduleMode);
+            }
         } else {
             console.warn('🌱 SEED DEBUG: No seed found in result!', result);
         }
@@ -562,6 +613,13 @@ class MatchesPage {
         if (window.lastAutoScheduleSeed) {
             formData.set('seed', window.lastAutoScheduleSeed);
             console.log('🌱 SEED DEBUG: Using stored seed for execution:', window.lastAutoScheduleSeed);
+            console.log('🌱 SEED DEBUG: Form data before execution:', Object.fromEntries(formData.entries()));
+            
+            // If this was from optimization, make sure we maintain the mode
+            if (window.lastScheduleMode) {
+                formData.set('schedule_mode', window.lastScheduleMode);
+                console.log('🌱 SEED DEBUG: Using stored schedule mode for execution:', window.lastScheduleMode);
+            }
         } else {
             console.warn('🌱 SEED DEBUG: No stored seed found! This execution may produce different results than the preview.');
         }
@@ -625,8 +683,16 @@ class MatchesPage {
 
     // Helper function for bulk operations with refresh capability
     executeBulkOperationWithRefresh(title, endpoint, formData, modalId, successCallback) {
-        // Show loading state
-        TennisUI.showNotification(`${title}: Processing...`, 'info', 3000);
+        // Check if this is an optimization operation
+        const isOptimization = formData.get('schedule_mode') === 'optimized';
+        const iterations = isOptimization ? formData.get('iterations') : 0;
+        
+        // Show appropriate loading state
+        if (isOptimization) {
+            this.showOptimizationProgress(iterations);
+        } else {
+            TennisUI.showNotification(`${title}: Processing...`, 'info', 3000);
+        }
         
         fetch(endpoint, {
             method: 'POST',
@@ -634,6 +700,11 @@ class MatchesPage {
         })
         .then(response => response.json())
         .then(data => {
+            // Hide optimization progress if it was shown
+            if (isOptimization) {
+                this.hideOptimizationProgress();
+            }
+            
             if (data.error) {
                 throw new Error(data.error);
             }
@@ -653,8 +724,103 @@ class MatchesPage {
             }
         })
         .catch(error => {
+            // Hide optimization progress on error
+            if (isOptimization) {
+                this.hideOptimizationProgress();
+            }
             TennisUI.showNotification(error.message || 'Operation failed', 'danger');
         });
+    }
+
+    showOptimizationProgress(iterations) {
+        // Remove existing progress modal if it exists
+        const existingModal = document.getElementById('optimizationProgressModal');
+        if (existingModal) existingModal.remove();
+
+        // Create progress modal
+        const progressHTML = `
+            <div class="modal fade" id="optimizationProgressModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content tennis-card">
+                        <div class="modal-body tennis-card-body text-center py-4">
+                            <div class="mb-3">
+                                <div class="tennis-spinner mx-auto mb-3" style="width: 3rem; height: 3rem;"></div>
+                            </div>
+                            <h5 class="tennis-section-title mb-3">
+                                <i class="fas fa-magic text-primary"></i> Optimizing Schedule
+                            </h5>
+                            <p class="text-muted mb-3">Running ${iterations} iterations to find the best scheduling solution...</p>
+                            <div class="progress mb-3" style="height: 8px;">
+                                <div class="progress-bar progress-bar-animated" role="progressbar" style="width: 0%" id="optimizationProgressBar"></div>
+                            </div>
+                            <small class="text-muted">This may take a few moments. Please do not close this window.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', progressHTML);
+
+        // Show modal
+        const modalElement = document.getElementById('optimizationProgressModal');
+        const modal = new bootstrap.Modal(modalElement, {
+            backdrop: 'static',
+            keyboard: false
+        });
+        modal.show();
+
+        // Animate progress bar
+        this.animateOptimizationProgress(iterations);
+    }
+
+    animateOptimizationProgress(iterations) {
+        const progressBar = document.getElementById('optimizationProgressBar');
+        if (!progressBar) return;
+
+        let progress = 0;
+        const increment = 100 / (iterations * 10); // Slower progress for more iterations
+        
+        const progressInterval = setInterval(() => {
+            progress += increment;
+            if (progress > 95) {
+                progress = 95; // Cap at 95% until actual completion
+                clearInterval(progressInterval);
+            }
+            progressBar.style.width = `${Math.min(progress, 100)}%`;
+        }, 200); // Update every 200ms
+
+        // Store interval ID for cleanup
+        this.optimizationProgressInterval = progressInterval;
+    }
+
+    hideOptimizationProgress() {
+        // Clear any running progress animation
+        if (this.optimizationProgressInterval) {
+            clearInterval(this.optimizationProgressInterval);
+            this.optimizationProgressInterval = null;
+        }
+
+        // Complete the progress bar
+        const progressBar = document.getElementById('optimizationProgressBar');
+        if (progressBar) {
+            progressBar.style.width = '100%';
+            progressBar.classList.remove('progress-bar-animated');
+        }
+
+        // Hide and remove modal after a brief delay
+        setTimeout(() => {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('optimizationProgressModal'));
+            if (modal) {
+                modal.hide();
+                // Remove modal from DOM after it's hidden
+                setTimeout(() => {
+                    const modalElement = document.getElementById('optimizationProgressModal');
+                    if (modalElement) modalElement.remove();
+                }, 300);
+            }
+        }, 500);
     }
 
     handleBulkUnschedule() {
@@ -734,28 +900,27 @@ class MatchesPage {
     }
 
     async unscheduleMatch(matchId, matchDescription) {
-        // Use TennisUI for confirmation dialogs
-        const confirmed = await TennisUI.showConfirmDialog(
-            'Unschedule Match',
-            `Are you sure you want to remove the schedule for "${matchDescription}"?`,
-            'Unschedule',
-            'btn-tennis-warning'
-        );
-
-        if (!confirmed) return;
-
         try {
-            // Use TennisUI for API calls
-            const result = await TennisUI.apiCall(`/matches/${matchId}/schedule`, {
-                method: 'DELETE'
-            });
-
-            // Use TennisUI for notifications
-            TennisUI.showNotification(result.message || 'Match unscheduled successfully!', 'success');
-            setTimeout(() => this.preserveSortAndReload(), 1000);
+            // Create and submit a form to trigger the DELETE request and redirect
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/matches/${matchId}/schedule`;
+            form.style.display = 'none';
+            
+            // Add hidden input for method override (common pattern for DELETE in forms)
+            const methodInput = document.createElement('input');
+            methodInput.type = 'hidden';
+            methodInput.name = '_method';
+            methodInput.value = 'DELETE';
+            form.appendChild(methodInput);
+            
+            document.body.appendChild(form);
+            form.submit();
             
         } catch (error) {
-            TennisUI.showNotification(error.message || 'Failed to unschedule match.', 'danger');
+            console.error('Error unscheduling match:', error);
+            // On error, reload the page to show any flash messages
+            window.location.reload();
         }
     }
 
@@ -817,28 +982,35 @@ class MatchesPage {
     }
 
     clearSchedule() {
-        // Use TennisUI for confirmation dialogs
-        TennisUI.showConfirmDialog(
-            'Clear Schedule',
-            'Are you sure you want to clear the schedule for this match?',
-            'Clear Schedule',
-            'btn-tennis-warning'
-        ).then(confirmed => {
-            if (confirmed) {
-                // Use TennisUI for API calls
-                TennisUI.apiCall(`/matches/${this.currentMatchId}/schedule`, {
-                    method: 'DELETE'
-                })
-                .then(result => {
-                    TennisUI.hideModal('scheduleMatchModal');
-                    TennisUI.showNotification(result.message || 'Match schedule cleared successfully', 'success');
-                    setTimeout(() => this.preserveSortAndReload(), 1500);
-                })
-                .catch(error => {
-                    TennisUI.showNotification(`Failed to clear schedule: ${error.message}`, 'danger');
-                });
-            }
-        });
+        try {
+            // Direct clear schedule without confirmation - use fetch without AJAX headers to get redirect
+            TennisUI.hideModal('scheduleMatchModal');
+            
+            fetch(`/matches/${this.currentMatchId}/schedule`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                    // Intentionally NOT setting X-Requested-With to trigger redirect behavior
+                }
+            })
+            .then(response => {
+                // If the server redirects, follow it
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    // Fallback to matches page to show flash messages
+                    window.location.href = '/matches';
+                }
+            })
+            .catch(error => {
+                console.error('Error clearing schedule:', error);
+                // On error, reload the page to show any flash messages
+                window.location.reload();
+            });
+        } catch (error) {
+            console.error('Error in clearSchedule:', error);
+            window.location.reload();
+        }
     }
 
     // ==================== UTILITY FUNCTIONS ====================

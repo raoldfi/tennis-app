@@ -172,7 +172,16 @@
                             <div class="tennis-card-body">
                                 <!-- Date Info -->
                                 <h6 class="mb-2 fw-bold text-tennis-primary">{{ date_option.day_name }}</h6>
-                                <p class="mb-3 text-tennis-muted">{{ date_option.formatted_date }}</p>
+                                <p class="mb-2 text-tennis-muted">{{ date_option.formatted_date }}</p>
+                                
+                                <!-- Facility Info -->
+                                {% if date_option.facility_name %}
+                                <div class="mb-3">
+                                    <p class="mb-0 small text-tennis-secondary">
+                                        <i class="fas fa-building me-1"></i>{{ date_option.facility_name }}
+                                    </p>
+                                </div>
+                                {% endif %}
                                 
                                 <!-- Match Quality Badge -->
                                 {% if date_option.quality_description %}
@@ -209,10 +218,19 @@
                                     <div class="small">
                                         {% for slot in date_option.time_slot_details[:3] %}
                                         <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <span class="tennis-badge tennis-badge-light">{{ slot.time }}</span>
-                                            <span class="text-tennis-muted small">
-                                                <i class="fas fa-tennis-ball me-1"></i>{{ slot.available_courts }}/{{ slot.total_courts }} courts
+                                            <span class="tennis-badge 
+                                                {% if slot.available_courts >= slot.total_courts * 0.7 %}tennis-badge-success
+                                                {% elif slot.available_courts >= slot.total_courts * 0.3 %}tennis-badge-warning  
+                                                {% else %}tennis-badge-danger{% endif %}">
+                                                {{ slot.time }} 
+                                                <small>({{ slot.available_courts }}/{{ slot.total_courts }})</small>
                                             </span>
+                                            <div class="capacity-indicator" style="width: 40px; height: 6px; background: #e9ecef; border-radius: 3px; overflow: hidden;">
+                                                <div class="capacity-fill" style="width: {{ (slot.available_courts / slot.total_courts * 100) if slot.total_courts > 0 else 0 }}%; height: 100%; background: 
+                                                    {% if slot.available_courts >= slot.total_courts * 0.7 %}#28a745
+                                                    {% elif slot.available_courts >= slot.total_courts * 0.3 %}#ffc107
+                                                    {% else %}#dc3545{% endif %}; transition: width 0.3s ease;"></div>
+                                            </div>
                                         </div>
                                         {% endfor %}
                                         {% if date_option.time_slot_details|length > 3 %}
@@ -504,6 +522,9 @@ class ScheduleMatchUI {
                 this.selectedDate = card.dataset.date;
                 this.availableTimes = card.dataset.times ? 
                     card.dataset.times.split(',') : [];
+                
+                // Extract time slot details for enhanced display
+                this.timeSlotDetails = this.extractTimeSlotDetails(card);
                 this.selectedTimes = [];
                 
                 this.updateSelectedDateDisplay();
@@ -511,6 +532,27 @@ class ScheduleMatchUI {
                 this.updateUI();
             });
         });
+    }
+    
+    extractTimeSlotDetails(card) {
+        // Extract time slot details from the selected card's HTML
+        const timeSlotDetails = [];
+        const slotElements = card.querySelectorAll('.tennis-badge');
+        
+        slotElements.forEach(badge => {
+            const timeText = badge.textContent.trim();
+            // Look for pattern like "09:00 (3/12)"
+            const match = timeText.match(/(\d{2}:\d{2})\s*\((\d+)\/(\d+)\)/);
+            if (match) {
+                timeSlotDetails.push({
+                    time: match[1],
+                    available_courts: parseInt(match[2]),
+                    total_courts: parseInt(match[3])
+                });
+            }
+        });
+        
+        return timeSlotDetails;
     }
 
     initializeSchedulingMode() {
@@ -556,23 +598,63 @@ class ScheduleMatchUI {
         const cardBody = container.querySelector('.tennis-card-body');
         const section = document.getElementById('times-section');
         
-        if (this.availableTimes.length > 0) {
+        // Use enhanced time slot details if available, otherwise fallback to basic times
+        if (this.timeSlotDetails && this.timeSlotDetails.length > 0) {
+            // Generate enhanced time slots with court information
+            cardBody.innerHTML = this.timeSlotDetails.map(slot => {
+                const utilizationPercent = slot.total_courts > 0 ? 
+                    ((slot.total_courts - slot.available_courts) / slot.total_courts * 100) : 0;
+                
+                let badgeClass = 'tennis-badge-light';
+                if (slot.available_courts >= slot.total_courts * 0.7) {
+                    badgeClass = 'tennis-badge-success';
+                } else if (slot.available_courts >= slot.total_courts * 0.3) {
+                    badgeClass = 'tennis-badge-warning';
+                } else {
+                    badgeClass = 'tennis-badge-danger';
+                }
+                
+                return `
+                    <div class="time-slot-enhanced d-flex align-items-center justify-content-between p-2 mb-2 border rounded time-slot" 
+                         data-time="${slot.time}" 
+                         data-available-courts="${slot.available_courts}"
+                         data-total-courts="${slot.total_courts}"
+                         style="cursor: pointer; transition: all 0.2s ease; min-width: 180px;">
+                        <div>
+                            <span class="tennis-badge ${badgeClass}">${slot.time}</span>
+                            <small class="text-muted ms-2">${slot.available_courts}/${slot.total_courts} courts</small>
+                        </div>
+                        <div class="capacity-indicator" style="width: 30px; height: 4px; background: #e9ecef; border-radius: 2px; overflow: hidden;">
+                            <div class="capacity-fill" style="width: ${100 - utilizationPercent}%; height: 100%; 
+                                background: ${slot.available_courts >= slot.total_courts * 0.7 ? '#28a745' : 
+                                          slot.available_courts >= slot.total_courts * 0.3 ? '#ffc107' : '#dc3545'}; 
+                                transition: width 0.3s ease;"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            section.style.display = 'block';
+        } else if (this.availableTimes.length > 0) {
+            // Fallback to basic time display
             cardBody.innerHTML = this.availableTimes.map(time => 
                 `<span class="tennis-badge tennis-badge-light time-slot" data-time="${time}">${time}</span>`
             ).join('');
             
-            // Add click handlers to time slots
-            cardBody.querySelectorAll('.time-slot').forEach(slot => {
-                slot.addEventListener('click', (e) => {
-                    const time = e.target.dataset.time;
-                    this.toggleTimeSelection(time, e.target);
-                });
-            });
-            
             section.style.display = 'block';
         } else {
             section.style.display = 'none';
+            return;
         }
+        
+        // Add click handlers to time slots
+        cardBody.querySelectorAll('.time-slot').forEach(slot => {
+            slot.addEventListener('click', (e) => {
+                const timeElement = e.target.closest('.time-slot');
+                const time = timeElement.dataset.time;
+                this.toggleTimeSelection(time, timeElement);
+            });
+        });
     }
 
     toggleTimeSelection(time, element) {

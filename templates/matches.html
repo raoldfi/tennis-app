@@ -930,51 +930,32 @@ function showBulkDeleteModal() {
 }
 
 function unscheduleMatch(matchId, description, button) {
-    if (!confirm(`Are you sure you want to unschedule this match?\n\n${description}`)) {
-        return;
-    }
-    
     // Show loading state
     const originalText = button.innerHTML;
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     button.disabled = true;
     
-    // Call the unschedule route using DELETE method
+    // Direct unschedule without confirmation - use fetch without AJAX headers to get redirect
     fetch(`/matches/${matchId}/schedule`, {
         method: 'DELETE',
         headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
+            'Content-Type': 'application/json'
+            // Intentionally NOT setting X-Requested-With to trigger redirect behavior
         }
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Show success message
-            alert(data.message || 'Match unscheduled successfully');
-            
-            // Reload the page to refresh the table
-            window.location.reload();
-        } else if (data.warning) {
-            // Handle warning case (match already unscheduled)
-            alert(data.warning);
-            
-            // Still reload to refresh the view
-            window.location.reload();
+    .then(response => {
+        // If the server redirects, follow it
+        if (response.redirected) {
+            window.location.href = response.url;
         } else {
-            // Handle error case
-            const errorMsg = data.error || 'Failed to unschedule match';
-            alert(errorMsg);
+            // Fallback to matches page
+            window.location.href = '/matches';
         }
     })
     .catch(error => {
         console.error('Error unscheduling match:', error);
-        alert('Network error while unscheduling match');
-    })
-    .finally(() => {
-        // Restore button state
-        button.innerHTML = originalText;
-        button.disabled = false;
+        // On error, reload the page to show any flash messages
+        window.location.reload();
     });
 }
 </script>
