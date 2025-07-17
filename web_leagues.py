@@ -186,28 +186,53 @@ def register_routes(app):
             enhanced_teams = []
             if teams:
                 for team in teams:
-                    team_dict = team.__dict__.copy() if hasattr(team, '__dict__') else dict(team)
-                    
-                    # Get facility name if team has a home facility
-                    if team.preferred_facilities:
-                        team_dict['home_facility_name'] = team.get_primary_facility().name
-
-                    else:
-                        team_dict['home_facility_name'] = None
+                    # Handle both Team objects and dictionaries
+                    if hasattr(team, '__dict__'):  # It's a Team object
+                        team_dict = team.__dict__.copy()
+                        
+                        # Get facility name and ID if team has a home facility
+                        if hasattr(team, 'preferred_facilities') and team.preferred_facilities:
+                            try:
+                                primary_facility = team.get_primary_facility()
+                                team_dict['home_facility_name'] = primary_facility.name
+                                team_dict['home_facility_id'] = primary_facility.id
+                            except (AttributeError, IndexError):
+                                team_dict['home_facility_name'] = None
+                                team_dict['home_facility_id'] = None
+                        else:
+                            team_dict['home_facility_name'] = None
+                            team_dict['home_facility_id'] = None
+                    else:  # It's already a dictionary
+                        team_dict = dict(team) if not isinstance(team, dict) else team.copy()
+                        # For dictionary case, we can't call get_primary_facility(), so set to None or use existing value
+                        if 'home_facility_name' not in team_dict:
+                            team_dict['home_facility_name'] = None
                     
                     # Handle preferred_days as a list
-                    if hasattr(team, 'preferred_days'):
-                        if isinstance(team.preferred_days, str):
-                            # If it's a string, try to parse it as JSON or split by comma
-                            try:
-                                import json
-                                team_dict['preferred_days'] = json.loads(team.preferred_days)
-                            except:
-                                team_dict['preferred_days'] = [day.strip() for day in team.preferred_days.split(',') if day.strip()]
+                    if hasattr(team, '__dict__'):  # Team object
+                        if hasattr(team, 'preferred_days'):
+                            if isinstance(team.preferred_days, str):
+                                # If it's a string, try to parse it as JSON or split by comma
+                                try:
+                                    import json
+                                    team_dict['preferred_days'] = json.loads(team.preferred_days)
+                                except:
+                                    team_dict['preferred_days'] = [day.strip() for day in team.preferred_days.split(',') if day.strip()]
+                            else:
+                                team_dict['preferred_days'] = team.preferred_days
                         else:
-                            team_dict['preferred_days'] = team.preferred_days
-                    else:
-                        team_dict['preferred_days'] = []
+                            team_dict['preferred_days'] = []
+                    else:  # Dictionary
+                        # For dictionary case, preferred_days might already be in the right format
+                        if 'preferred_days' in team_dict:
+                            if isinstance(team_dict['preferred_days'], str):
+                                try:
+                                    import json
+                                    team_dict['preferred_days'] = json.loads(team_dict['preferred_days'])
+                                except:
+                                    team_dict['preferred_days'] = [day.strip() for day in team_dict['preferred_days'].split(',') if day.strip()]
+                        else:
+                            team_dict['preferred_days'] = []
                     
                     enhanced_teams.append(team_dict)
             

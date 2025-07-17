@@ -268,21 +268,16 @@ class SQLMatchManager:
                 
                 # Update scheduling state for conflict detection when scheduling
                 if hasattr(self.db, "scheduling_state") and self.db.scheduling_state:
-                    # Clear existing bookings for this match first
-                    self.db.scheduling_state.clear_match_bookings(match.id)
-                    
-                    # Book new time slots and team dates
+                    # Atomically update bookings to avoid race conditions
                     if match.scheduling and match.scheduling.scheduled_times:
-                        for time in match.scheduling.scheduled_times:
-                            self.db.scheduling_state.book_time_slot(
-                                match.id, facility_id, date, time
-                            )
-                        self.db.scheduling_state.book_team_date(
-                            match.id, match.home_team.id, date
+                        self.db.scheduling_state.update_match_bookings(
+                            match.id, facility_id, date, 
+                            match.scheduling.scheduled_times,
+                            match.home_team.id, match.visitor_team.id
                         )
-                        self.db.scheduling_state.book_team_date(
-                            match.id, match.visitor_team.id, date
-                        )
+                    else:
+                        # Clear bookings if match has no scheduling
+                        self.db.scheduling_state.clear_match_bookings(match.id)
             else:
                 # Match is unscheduled - remove scheduling information
                 scheduled_times_json = None
@@ -344,173 +339,6 @@ class SQLMatchManager:
 
     # ========== ADDITIONAL UTILITY METHODS ==========
 
-    def preview_match_scheduling(
-        self, match: Match, date: str, times: List[str], scheduling_mode: str
-    ) -> Dict[str, Any]:
-        """
-        Preview what would happen if scheduling a match without actually doing it.
-
-        Args:
-            match: Match object to preview scheduling for
-            date: Date to schedule the match
-            times: List of proposed times for the match
-            mode: Scheduling mode ('same_time', 'split_times', 'custom', etc.)
-
-        Returns detailed information about conflicts, availability, and proposed schedule
-        """
-        try:
-            lines_needed = match.league.num_lines_per_match if match.league else 3
-
-            # Validate input parameters
-            if not isinstance(match, Match):
-                raise TypeError(f"Expected Match object, got: {type(match)}")
-            if not isinstance(date, str):
-                raise TypeError(f"Expected date as string, got: {type(date)}")
-            if not isinstance(times, list):
-                raise TypeError(f"Expected times as list, got: {type(times)}")
-            if scheduling_mode not in ["same_time", "split_times", "custom", "auto"]:
-                raise ValueError(f"Invalid scheduling mode: {scheduling_mode}")
-            if not times:
-                raise ValueError("Times list cannot be empty for scheduling preview")
-
-            # Check to see if there are team conflicts for the match on the given date
-            valid_dates = self.filter_team_conflicts(match, [date])
-            if not valid_dates:
-                return {
-                    "schedulable": False,
-                    "conflicts": [
-                        {
-                            "type": "team_conflict",
-                            "message": "Team conflict detected on the given date",
-                        }
-                    ],
-                    "proposed_times": [],
-                    "mode": scheduling_mode,
-                    "lines_needed": lines_needed,
-                }
-            date = valid_dates[0]  # Use the first valid date
-
-            # Check if match has a facility assigned
-            if not match.facility:
-                return {
-                    "schedulable": False,
-                    "conflicts": [
-                        {
-                            "type": "no_facility",
-                            "message": "No facility assigned to match",
-                        }
-                    ],
-                    "proposed_times": [],
-                    "mode": scheduling_mode,
-                    "lines_needed": lines_needed,
-                }
-
-            # Initialize preview result
-            preview_result = {
-                "schedulable": False,
-                "conflicts": [],
-                "proposed_times": times,
-                "mode": scheduling_mode,
-                "lines_needed": lines_needed,
-                "date": date,
-                "facility_name": (
-                    match.facility.name if match.facility else "Unknown Facility"
-                ),
-                "scheduling_mode": scheduling_mode,
-                "scheduling_details": f"Attempting to schedule {lines_needed} lines using {scheduling_mode} mode",
-                "success": False,
-                "warnings": [],
-                "operations": [],
-            }
-
-            # Get facility availability
-            availability_list = self.db.facility_manager.get_facility_availability(
-                facility=match.facility, dates=[date], max_days=1
-            )
-            # If no availability or facility is not available, return conflict
-            if not availability_list or not availability_list[0].available:
-                preview_result["conflicts"].append(
-                    {
-                        "type": "facility_unavailable",
-                        "message": f"Facility {match.facility.name} not available on {date}",
-                    }
-                )
-                return preview_result
-
-            facility_info = availability_list[0]
-
-            # Validate scheduling times based on mode
-            proposed_times = []
-
-            # For 'same_time' mode, we need each time slot to accommodate all lines.
-            if scheduling_mode == "same_time":
-                valid_times = facility_info.get_available_times(lines_needed)
-                if not valid_times:
-                    preview_result["conflicts"].append(
-                        {
-                            "type": "no_available_times",
-                            "message": f"No available times for mode '{scheduling_mode}' with {lines_needed} lines",
-                        }
-                    )
-                    return preview_result
-
-                # any time is fine for same time mode
-                proposed_times = valid_times
-
-            elif scheduling_mode == "split_times":
-                # For 'split_times', we need two time slots that can accommodate half the lines each
-                courts_per_slot = math.ceil(lines_needed / 2)
-                valid_times = facility_info.get_available_times(courts_per_slot)
-                if len(valid_times) < 2:
-                    preview_result["conflicts"].append(
-                        {
-                            "type": "no_available_times",
-                            "message": f"Not enough available times for mode '{scheduling_mode}' with {lines_needed} lines",
-                        }
-                    )
-                    return preview_result
-                proposed_times = valid_times[:2]
-
-            elif scheduling_mode == "custom":
-                # Raise an unimplemented error for custom mode
-                raise NotImplementedError("Custom scheduling mode is not implemented")
-
-            elif scheduling_mode == "auto":
-                # Raise and unimplemented error for auto mode
-                raise NotImplementedError("Auto scheduling mode is not implemented")
-
-            # if we reach here, we have valid proposed times
-            preview_result["schedulable"] = True
-            preview_result["proposed_times"] = proposed_times
-            preview_result["success"] = True
-            preview_result["scheduling_details"] = (
-                f"Successfully found {len(proposed_times)} available time slots for {lines_needed} lines using {scheduling_mode} mode"
-            )
-            preview_result["operations"] = [
-                {
-                    "type": "update_match",
-                    "description": f"Update match {match.id} with {scheduling_mode} scheduling",
-                },
-                {
-                    "type": "set_facility",
-                    "description": f"Set facility to {match.facility.name}",
-                },
-                {"type": "set_date", "description": f"Set date to {date}"},
-                {
-                    "type": "set_times",
-                    "description": f'Set times to {", ".join(times)}',
-                },
-            ]
-
-            return preview_result
-
-        except Exception as e:
-            return {
-                "schedulable": False,
-                "conflicts": [{"type": "exception", "message": str(e)}],
-                "proposed_times": [],
-                "mode": scheduling_mode,
-            }
 
     def _check_facility_time_conflicts(
         self,

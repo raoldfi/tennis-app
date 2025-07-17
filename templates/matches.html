@@ -320,9 +320,13 @@
                                         <i class="fas fa-exclamation-circle"></i> Partial
                                     </span>
                                     {% endif %}
-                                    {% if match.get_quality_score() %}
+                                    {% set quality_result = match.calculate_quality_score() %}
+                                    {% if quality_result and quality_result[0] %}
                                     <div class="small">
-                                        Quality: <strong>{{ match.get_quality_score() }}</strong>
+                                        Quality: <strong>{{ quality_result[0] }}</strong>
+                                        {% if quality_result[1] %}
+                                        <br><span class="text-muted" style="font-size: 0.8em;">{{ quality_result[1]|join(', ') }}</span>
+                                        {% endif %}
                                     </div>
                                     {% endif %}
                                 {% else %}
@@ -557,9 +561,13 @@
                                         <i class="fas fa-exclamation-circle"></i> Partial
                                     </span>
                                     {% endif %}
-                                    {% if match.get_quality_score() %}
+                                    {% set quality_result = match.calculate_quality_score() %}
+                                    {% if quality_result and quality_result[0] %}
                                     <div class="small">
-                                        Quality: <strong>{{ match.get_quality_score() }}</strong>
+                                        Quality: <strong>{{ quality_result[0] }}</strong>
+                                        {% if quality_result[1] %}
+                                        <br><span class="text-muted" style="font-size: 0.8em;">{{ quality_result[1]|join(', ') }}</span>
+                                        {% endif %}
                                     </div>
                                     {% endif %}
                                 {% else %}

@@ -261,7 +261,13 @@ def api_schedule_match():
 
         facility = None
         if facility_id:
-            facility = db.get_facility(facility_id)
+            try:
+                facility_id = int(facility_id)
+                if facility_id > 0:
+                    facility = db.get_facility(facility_id)
+            except (ValueError, TypeError):
+                # Invalid facility_id, will fall back to home team facility
+                pass
         if not facility and match.home_team:
             facility = match.home_team.get_primary_facility() if match.home_team.preferred_facilities else None
         if not facility:
@@ -272,15 +278,55 @@ def api_schedule_match():
         if team_conflict_error:
             return jsonify({"success": False, "error": team_conflict_error})
 
-        # Schedule the match using the new MatchScheduling API
+        # Create MatchScheduling object and assign it to the match
+        from usta_match import MatchScheduling
+        
+        # Prepare the scheduled times based on the mode
+        lines_needed = match.league.num_lines_per_match if match.league else 3
+        
         if scheduling_mode == "same_time":
             if not times:
                 return jsonify({"success": False, "error": "No times provided"})
-            match.schedule_all_lines_same_time(facility, date, times[0])
-        elif scheduling_mode == "split_times" or scheduling_mode == "custom":
-            match.schedule_lines_split_times(facility, date, times)
+            # For same_time mode, all lines use the same time
+            scheduled_times = [times[0]] * lines_needed
+            
+        elif scheduling_mode == "split_times":
+            if len(times) < 2:
+                return jsonify({"success": False, "error": "Split times mode requires at least 2 time slots"})
+            # For split_times mode, distribute lines across the provided times
+            # Typically split into two groups, but handle multiple times if provided
+            scheduled_times = []
+            lines_per_time = lines_needed // len(times)
+            extra_lines = lines_needed % len(times)
+            
+            for i, time in enumerate(times):
+                # Add base lines for this time slot
+                lines_for_this_time = lines_per_time
+                # Distribute any extra lines to the first time slots
+                if i < extra_lines:
+                    lines_for_this_time += 1
+                scheduled_times.extend([time] * lines_for_this_time)
+                
+        elif scheduling_mode == "custom":
+            # For custom mode, we need exactly lines_needed time values
+            if len(times) != lines_needed:
+                return jsonify({
+                    "success": False, 
+                    "error": f"Custom mode requires exactly {lines_needed} time slots (one per line), got {len(times)}"
+                })
+            scheduled_times = times
+            
         else:
             return jsonify({"success": False, "error": f"Unknown scheduling mode: {scheduling_mode}"})
+        
+        # Create MatchScheduling object and assign it
+        match_scheduling = MatchScheduling(
+            facility=facility,
+            date=date,
+            scheduled_times=scheduled_times,
+            qscore=0  # Default quality score, could be calculated if needed
+        )
+        match.assign_scheduling(match_scheduling)
 
         # Save to database using SchedulingManager
         from scheduling_manager import SchedulingManager
@@ -416,7 +462,13 @@ def refresh_scheduling_options(match_id: int):
         # Get facility
         facility = None
         if facility_id:
-            facility = db.get_facility(facility_id)
+            try:
+                facility_id = int(facility_id)
+                if facility_id > 0:
+                    facility = db.get_facility(facility_id)
+            except (ValueError, TypeError):
+                # Invalid facility_id, will fall back to home team facility
+                pass
 
         if not facility and match.home_team:
             facility = match.home_team.get_primary_facility() if match.home_team.preferred_facilities else None
@@ -484,7 +536,7 @@ def api_preview_schedule_match():
         scheduling_mode = data.get("scheduling_mode", "custom")
 
         # Basic validation
-        if not all([match_id, facility_id, date, times]):
+        if not all([match_id, date, times]):
             return jsonify({"success": False, "error": "Missing required fields"})
 
         # Get objects
@@ -492,15 +544,27 @@ def api_preview_schedule_match():
         if not match:
             return jsonify({"success": False, "error": "Match not found"})
 
-        facility = db.get_facility(facility_id)
+        facility = None
+        if facility_id:
+            try:
+                facility_id = int(facility_id)
+                if facility_id > 0:
+                    facility = db.get_facility(facility_id)
+            except (ValueError, TypeError):
+                # Invalid facility_id, will fall back to home team facility
+                pass
+        
+        if not facility and match.home_team:
+            facility = match.home_team.get_primary_facility() if match.home_team.preferred_facilities else None
+        
         if not facility:
-            return jsonify({"success": False, "error": "Facility not found"})
+            return jsonify({"success": False, "error": "No facility available"})
 
         # Use the SchedulingManager preview method
         from scheduling_manager import SchedulingManager
         scheduling_manager = SchedulingManager(db)
         result = scheduling_manager.preview_match_scheduling(
-            match=match, date=date, times=times, scheduling_mode=scheduling_mode
+            match=match, date=date, times=times, scheduling_mode=scheduling_mode, facility=facility
         )
 
         # Return the preview result with success flag
@@ -538,161 +602,7 @@ def add_scheduling_routes_to_app(app):
 # ======== Scheduling Options Retrieval ========
 
 
-# NEW: Using db.get_facility_availability
-def get_scheduling_options_from_facility_availability(
-    db, match, facility, start_date=None, end_date=None, max_dates=20
-):
-    """
-    Get scheduling options using db.get_facility_availability instead of utils.get_scheduling_options
-
-    Returns:
-        Dictionary with 'success', 'available_dates', and 'search_params' keys
-    """
-    try:
-        # Generate date range to check
-        from datetime import datetime, timedelta
-
-        # Use provided dates or generate default range
-        if start_date:
-            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        else:
-            start_dt = datetime.now()
-
-        if end_date:
-            end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-        else:
-            end_dt = start_dt + timedelta(
-                days=max_dates * 2
-            )  # Give buffer for finding enough dates
-
-        # Generate list of dates to check
-        dates_to_check = []
-        current_dt = start_dt
-        while (
-            current_dt <= end_dt and len(dates_to_check) < max_dates * 3
-        ):  # Extra buffer
-            dates_to_check.append(current_dt.strftime("%Y-%m-%d"))
-            current_dt += timedelta(days=1)
-
-        # Get facility availability for all dates at once
-        facility_availability_list = db.facility_manager.get_facility_availability(
-            facility=facility, dates=dates_to_check, max_days=max_dates * 2
-        )
-
-        # Convert FacilityAvailabilityInfo objects to the format expected by the template
-        available_dates = []
-        lines_needed = match.league.num_lines_per_match if match.league else 3
-
-        for facility_info in facility_availability_list:
-            if not facility_info.available:
-                continue  # Skip unavailable dates
-
-            # Extract available times that can accommodate the needed lines
-            available_times = []
-            for time_slot in facility_info.time_slots:
-                if time_slot.can_accommodate(lines_needed):
-                    available_times.append(time_slot.time)
-
-            if not available_times:
-                continue  # Skip dates with no suitable times
-
-            # Calculate scheduling score based on availability
-            score = calculate_scheduling_score(facility_info, match, lines_needed)
-
-            # Check for conflicts (team conflicts, etc.)
-            conflicts = check_match_conflicts(
-                db, match, facility_info.date, available_times
-            )
-
-            # Create date option in expected format
-            date_option = {
-                "date": facility_info.date,
-                "day_name": facility_info.day_of_week,
-                "formatted_date": format_date_for_display(facility_info.date),
-                "available_times": available_times,
-                "score": score,
-                "conflicts": conflicts,
-                "courts_available": facility_info.available_court_slots,
-                "facility_name": facility_info.facility_name,
-                "utilization_percentage": facility_info.overall_utilization_percentage,
-            }
-
-            available_dates.append(date_option)
-
-            # Stop once we have enough good options
-            if len(available_dates) >= max_dates:
-                break
-
-        # Sort by score (highest first)
-        available_dates.sort(key=lambda x: x["score"], reverse=True)
-
-        return {
-            "success": True,
-            "available_dates": available_dates[:max_dates],
-            "search_params": {
-                "start_date": start_date,
-                "end_date": end_date,
-                "max_dates": max_dates,
-            },
-        }
-
-    except Exception as e:
-        return {
-            "success": False,
-            "error": f"Error getting scheduling options: {str(e)}",
-            "available_dates": [],
-        }
-
-
-def calculate_scheduling_score(facility_info, match, lines_needed):
-    """Calculate a scheduling score based on facility availability and match preferences"""
-    base_score = 5
-
-    # Prefer dates with lower overall utilization
-    utilization_bonus = (100 - facility_info.overall_utilization_percentage) / 20
-
-    # Prefer weekends for recreational leagues (if that info is available)
-    weekend_bonus = 1 if facility_info.day_of_week in ["Saturday", "Sunday"] else 0
-
-    # Bonus for having multiple time options
-    time_options_bonus = min(
-        len(
-            [
-                slot
-                for slot in facility_info.time_slots
-                if slot.can_accommodate(lines_needed)
-            ]
-        )
-        - 1,
-        3,
-    )
-
-    # Note: match parameter available for future enhancements (e.g., league preferences)
-    _ = match  # Suppress unused parameter warning
-    
-    return base_score + utilization_bonus + weekend_bonus + time_options_bonus
-
-
-def check_match_conflicts(db, match, date, available_times):
-    """Check for team conflicts on the given date/times"""
-    conflicts = []
-
-    # Use SchedulingManager for conflict checking
-    from scheduling_manager import SchedulingManager
-    scheduling_manager = SchedulingManager(db)
-    
-    # Check for team conflicts on the specific date
-    team_conflict_dates = scheduling_manager.filter_team_conflicts(match, [date])
-    if not team_conflict_dates:
-        conflicts.append({
-            "type": "team_conflict",
-            "message": f"Team conflict detected on {date}"
-        })
-
-    # Note: available_times parameter available for future enhancements (e.g., time-specific conflicts)
-    _ = available_times  # Suppress unused parameter warning
-
-    return conflicts
+# Legacy functions removed - now using SchedulingManager.get_scheduling_options exclusively
 
 
 def format_date_for_display(date_str):

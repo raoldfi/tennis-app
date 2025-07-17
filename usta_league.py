@@ -36,7 +36,14 @@ class League:
     backup_days: List[str] = field(default_factory=list)  # Backup days for scheduling
     start_date: Optional[str] = None  # League start date in YYYY-MM-DD format
     end_date: Optional[str] = None  # League end date in YYYY-MM-DD format
-    
+
+    # Penalty constants for quality scoring (make this configurable?)
+    TEAM_PENALTY: int = 80  # Penalty for scheduling on a day not preferred by any team
+    LEAGUE_PENALTY: int = 40  # Penalty for scheduling on a day not preferred by the league
+    ROUND_PENALTY: int = 20  # Penalty for scheduling outside the preferred round
+    FACILITY_PENALTY: int = 1  # Penalty for facility preference based on index
+
+
     def __post_init__(self) -> None:
         """Validate league data against USTA constants"""
         if not isinstance(self.id, int) or self.id <= 0:

@@ -10,12 +10,15 @@ Core fields (id, league, home_team, visitor_team) are immutable after creation.
 
 from __future__ import annotations
 from dataclasses import dataclass, field
+from turtle import pen
 from typing import List, Dict, Optional, Any, Tuple, TYPE_CHECKING
 from datetime import date, datetime, timedelta
 from enum import Enum
 import itertools
 import re
 from collections import defaultdict
+
+from click import Option
 
 # Use TYPE_CHECKING for all USTA classes to avoid circular imports
 if TYPE_CHECKING:
@@ -234,10 +237,11 @@ class Match:
     # a score field to represent the match score
     score: int = 0  # Match score, default is 0 (mutable)
 
-    # priority score for scheduled matches based on date assignment
-    priority_score: int = (
-        0  # Priority score based on date assignment, default is 0 (mutable)
+    # quality score for scheduled matches based on date assignment
+    qscore: int = (
+        0  # Quality score based on date assignment, default is 0 (mutable)
     )
+    qscore_penalties: List[str] = field(default_factory=list)  # List of penalties applied during quality scoring (mutable)
 
     # Private storage for immutable fields - use different names to avoid conflicts
     _immutable_id: Optional[int] = field(init=False, repr=False, default=None)
@@ -465,11 +469,11 @@ class Match:
         Args:
             start_date: Start date for search (defaults to league start_date)
             end_date: End date for search (defaults to league end_date)
-            num_dates: Number of dates to return
+            num_dates: Maximum number of dates to return
 
         Returns:
             List of MatchScheduling objects, ordered by qscore
-            Uses the same quality scoring system as get_quality_score()
+            Uses the same quality scoring system as calculate_quality_score()
 
         Raises:
             ValueError: If any validation fails
@@ -481,17 +485,6 @@ class Match:
             if not self.league.start_date or not self.league.end_date:
                 raise ValueError(
                     "League start_date and end_date must be set to calculate scheduling dates"
-                )
-
-            # Create a set that includes both preferred and backup days
-            preferred_days = set(self.league.preferred_days)
-            backup_days = set(self.league.backup_days)
-            all_allowed_days = preferred_days | backup_days
-
-            # Verify that all_allowed_days is not empty
-            if not all_allowed_days:
-                raise ValueError(
-                    "League must have preferred_days or backup_days set to calculate scheduling dates"
                 )
 
             # Use league dates or reasonable defaults for search range
@@ -521,33 +514,31 @@ class Match:
                     day_name = current.strftime("%A")
                     date_str = current.strftime("%Y-%m-%d")
 
-                    # Skip days that the league doesn't allow (DO WE WANT THIS TO BE AN OPTION)
-                    if day_name not in all_allowed_days:
-                        current += timedelta(days=1)
-                        continue
+                    # iterate through facilities
+                    facilities = self.home_team.preferred_facilities
 
-                    # Calculate quality score for this date
-                    qscore = self.get_quality_score(date_str)
-
-                    # Skip dates with a quality score below the minimum
-                    if qscore > minimum_quality:
-                        # create a MatchScheduling object for each potential facility for this date
-                        if not self.home_team.preferred_facilities:
+                    for facility in facilities:
+                        if not facility:
                             raise ValueError(
                                 f"Home team {self.home_team.name} has no preferred facilities set"
                             )
-                        facility = self.home_team.get_primary_facility()
-                        if not facility:
-                            raise ValueError(
-                                f"Home team {self.home_team.name} has no primary facility available"
-                            )
                         
-                        scheduling = MatchScheduling(
-                            facility=facility,
-                            date=date_str,
-                            qscore=qscore
-                        )
-                        candidate_options.append(scheduling)
+                        # if the facility is not available on this date, skip it
+                        if not facility.is_available_on_date(date_str):
+                            continue
+                        
+                        # Calculate quality score for this date
+                        qscore, _ = self.calculate_quality_score(date=date_str, facility=facility)
+
+                        # Skip dates with a quality score below the minimum
+                        if qscore >= minimum_quality:
+                            
+                            scheduling = MatchScheduling(
+                                facility=facility,
+                                date=date_str,
+                                qscore=qscore
+                            )
+                            candidate_options.append(scheduling)
 
                     current += timedelta(days=1)
 
@@ -647,22 +638,37 @@ class Match:
 
     # ========== Quality Scoring ==========
 
-    def get_quality_score(self, date: Optional[str] = None) -> int:
+    def calculate_quality_score(self, 
+                                date: Optional[str] = None,
+                                facility: Optional["Facility"] = None) -> Tuple[int, Optional[List[str]]]:
         """
         Calculate a quality score for a match based on a date assignment.
 
         Args:
             date: Optional date string in YYYY-MM-DD format. If not provided, uses self.date.
+            facility: Optional Facility object. If provided, checks against home team's preferred facilities.
 
-        Returns:
-            Quality score (higher number = higher quality):
-            - 0: Unscheduled (no quality)
-            - 100: Optimal - Teams' League preferred + Within round
-            - 80: Good - Teams' League backup + Within round
-            - 60: Fair - League preferred + Outside round
-            - 40: Acceptable - League backup + Outside round
-            - 20: Poor - Scheduled on a day not preferred by anyone
+        Returns a quality score as an integer and a list of penalties applied:
+            Quality score (higher number = higher quality) and a string describing penalties:
+            - 100: Optimal - Teams' League preferred + Within round + Preferred facility
+            - 80-100: Good - Teams' League backup + Within round
+            - 60-80: Fair - League preferred + Outside round
+            - 40-60: Acceptable - League backup + Outside round
+            - 20-40: Poor - Scheduled on a day not preferred by anyone
+            - 0-20: Worst - No quality
         """
+        # get penalty constants from league
+        if not self.league:
+            raise ValueError("League must be set to calculate quality score")
+        
+        TEAM_PENALTY = self.league.TEAM_PENALTY
+        LEAGUE_PENALTY = self.league.LEAGUE_PENALTY
+        ROUND_PENALTY = self.league.ROUND_PENALTY
+        FACILITY_PENALTY = self.league.FACILITY_PENALTY
+
+        # Initialize penalties to empty list
+        penalties = []
+
         # Use provided date or fall back to match's current date
         target_date = date or self.date
 
@@ -700,26 +706,53 @@ class Match:
             round_end = round_start + timedelta(days=days_per_round)
             in_round = round_start.date() <= match_date.date() <= round_end.date()
 
-            # Calculate base quality
-            base_quality = 20  # Default: not preferred by anyone
-
-            # Deal with preferred and backup days first
-            if day_name in self.league.preferred_days:
-                base_quality = 100  # League prefers this day
-            elif day_name in self.league.backup_days:
-                base_quality = 80  # League backup day
-
-            # Add penalty if outside round
-            if not in_round:
-                base_quality -= 40
+            # Start at 100
+            quality = 100  # Default: not preferred by anyone
 
             # if there are team preferred days and this day is not in them return 20
             if team_preferred_days is not None:
-                # If the day is not in team preferred days, set to optimal quality
-                if day_name not in team_preferred_days:
-                    return 20
+                if day_name in team_preferred_days:
+                    quality -= 0  # No penalty for team preferred day
+                else:
+                    quality -= TEAM_PENALTY  # Severe penalty for not preferred day for teams
+                    penalties.append(f"team_penalty:{TEAM_PENALTY}")
 
-            return base_quality
+            # Deal with preferred and backup days first
+            if day_name in self.league.preferred_days:
+                quality -= 0  # No penalty for league preferred day
+            elif day_name in self.league.backup_days:
+                quality -= LEAGUE_PENALTY  # League backup day
+                penalties.append(f"league_penalty:{LEAGUE_PENALTY}")
+            else:
+                quality -= 3 * LEAGUE_PENALTY  # outside all preferred and backup days
+                penalties.append(f"league_penalty:{3 * LEAGUE_PENALTY}")
+
+            # Make sure the facility is one of the home team's preferred facilities
+            if facility is not None and facility not in self.home_team.preferred_facilities:
+                raise ValueError(
+                    f"Facility {facility.name} is not preferred by home team {self.home_team.name}"
+                )
+            
+            # Deal with facility preferences
+            if facility is None and self.scheduling and self.scheduling.facility:
+                facility = self.scheduling.facility
+
+            # the facility is provided, iterate through the home team's preferred facilities
+            if facility is not None and self.home_team.preferred_facilities:
+                facilities = self.home_team.preferred_facilities
+                for i, pref_facility in enumerate(facilities):
+                    if facility.id == pref_facility.id:
+                        quality -= i * FACILITY_PENALTY  # Penalty based on index in preferred facilities
+                        if i > 0:
+                            penalties.append(f"facility_penalty:{i * FACILITY_PENALTY}")
+                        break
+
+            # Add penalty if outside round
+            if not in_round:
+                quality -= ROUND_PENALTY
+                penalties.append(f"round_penalty:{ROUND_PENALTY}")
+
+            return (quality, penalties)
 
         except (ValueError, AttributeError) as e:
             # Raise error if there's an issue calculating quality score
@@ -727,10 +760,12 @@ class Match:
 
     def update_quality_score(self) -> None:
         """Update the quality_score field based on current scheduling"""
-        self.quality_score = self.get_quality_score()
+        result = self.calculate_quality_score()
+        self.qscore = result[0]
+        self.qscore_penalties = result[1]
 
     @staticmethod
-    def get_quality_score_description(score: int = None) -> str:
+    def calculate_quality_score_description(score: int = None) -> str:
         """Get a human-readable description of quality scores (static method)"""
         descriptions = {
             0: "Unscheduled (no quality)",
@@ -769,102 +804,102 @@ class Match:
         return True
     
     
-    def schedule_lines_split_times(
-        self, facility: "Facility", date: str, scheduled_times: List[str]
-    ) -> bool:
-        """
-        Schedule lines using an array of scheduled times (split times mode)
+    # def schedule_lines_split_times(
+    #     self, facility: "Facility", date: str, scheduled_times: List[str]
+    # ) -> bool:
+    #     """
+    #     Schedule lines using an array of scheduled times (split times mode)
 
-        Args:
-            facility: Facility where match will be played
-            date: Date in YYYY-MM-DD format
-            scheduled_times: List of times for each line (e.g., ["09:00", "09:00", "12:00"])
-                            Length must match league.num_lines_per_match
+    #     Args:
+    #         facility: Facility where match will be played
+    #         date: Date in YYYY-MM-DD format
+    #         scheduled_times: List of times for each line (e.g., ["09:00", "09:00", "12:00"])
+    #                         Length must match league.num_lines_per_match
 
-        Examples:
-            # 3-line match with 2 lines at 9:00 AM, 1 line at 12:00 PM
-            match.schedule_lines_split_times(facility, "2025-06-25", ["09:00", "09:00", "12:00"])
+    #     Examples:
+    #         # 3-line match with 2 lines at 9:00 AM, 1 line at 12:00 PM
+    #         match.schedule_lines_split_times(facility, "2025-06-25", ["09:00", "09:00", "12:00"])
 
-            # 4-line match with 2 lines at each time
-            match.schedule_lines_split_times(facility, "2025-06-25", ["09:00", "09:00", "12:00", "12:00"])
+    #         # 4-line match with 2 lines at each time
+    #         match.schedule_lines_split_times(facility, "2025-06-25", ["09:00", "09:00", "12:00", "12:00"])
 
-            # 5-line match with 3 lines at first time, 2 at second
-            match.schedule_lines_split_times(facility, "2025-06-25", ["09:00", "09:00", "09:00", "12:00", "12:00"])
-        """
-        # Validate that we have the correct number of times
-        expected_lines = self.league.num_lines_per_match
-        if len(scheduled_times) != expected_lines:
-            raise ValueError(
-                f"Must provide exactly {expected_lines} scheduled times, got {len(scheduled_times)}"
-            )
+    #         # 5-line match with 3 lines at first time, 2 at second
+    #         match.schedule_lines_split_times(facility, "2025-06-25", ["09:00", "09:00", "09:00", "12:00", "12:00"])
+    #     """
+    #     # Validate that we have the correct number of times
+    #     expected_lines = self.league.num_lines_per_match
+    #     if len(scheduled_times) != expected_lines:
+    #         raise ValueError(
+    #             f"Must provide exactly {expected_lines} scheduled times, got {len(scheduled_times)}"
+    #         )
 
-        # Validate each time format
-        for i, time_str in enumerate(scheduled_times):
-            if not isinstance(time_str, str):
-                raise ValueError(
-                    f"All scheduled times must be strings, item {i} is {type(time_str)}"
-                )
-            try:
-                parts = time_str.split(":")
-                if len(parts) != 2:
-                    raise ValueError("Invalid time format")
-                hour, minute = int(parts[0]), int(parts[1])
-                if not (0 <= hour <= 23 and 0 <= minute <= 59):
-                    raise ValueError("Invalid time values")
-            except (ValueError, IndexError):
-                raise ValueError(
-                    f"Invalid time format: '{time_str}'. Expected HH:MM format"
-                )
+    #     # Validate each time format
+    #     for i, time_str in enumerate(scheduled_times):
+    #         if not isinstance(time_str, str):
+    #             raise ValueError(
+    #                 f"All scheduled times must be strings, item {i} is {type(time_str)}"
+    #             )
+    #         try:
+    #             parts = time_str.split(":")
+    #             if len(parts) != 2:
+    #                 raise ValueError("Invalid time format")
+    #             hour, minute = int(parts[0]), int(parts[1])
+    #             if not (0 <= hour <= 23 and 0 <= minute <= 59):
+    #                 raise ValueError("Invalid time values")
+    #         except (ValueError, IndexError):
+    #             raise ValueError(
+    #                 f"Invalid time format: '{time_str}'. Expected HH:MM format"
+    #             )
 
-        # Create MatchScheduling object
-        self.scheduling = MatchScheduling(
-            facility=facility,
-            date=date,
-            scheduled_times=sorted(scheduled_times.copy())  # Sort to maintain order
-        )
-        return True
+    #     # Create MatchScheduling object
+    #     self.scheduling = MatchScheduling(
+    #         facility=facility,
+    #         date=date,
+    #         scheduled_times=sorted(scheduled_times.copy())  # Sort to maintain order
+    #     )
+    #     return True
 
-    def schedule_all_lines_same_time(
-        self, facility: "Facility", date: str, time: str
-    ) -> bool:
-        """Schedule all lines at the same time slot"""
-        self.scheduling = MatchScheduling(
-            facility=facility,
-            date=date,
-            scheduled_times=[time] * self.league.num_lines_per_match
-        )
-        return True
+    # def schedule_all_lines_same_time(
+    #     self, facility: "Facility", date: str, time: str
+    # ) -> bool:
+    #     """Schedule all lines at the same time slot"""
+    #     self.scheduling = MatchScheduling(
+    #         facility=facility,
+    #         date=date,
+    #         scheduled_times=[time] * self.league.num_lines_per_match
+    #     )
+    #     return True
 
-    def schedule_lines_custom_times(
-        self, facility: "Facility", date: str, times: List[str]
-    ) -> bool:
-        """
-        Schedule match lines with custom times for each line
+    # def schedule_lines_custom_times(
+    #     self, facility: "Facility", date: str, times: List[str]
+    # ) -> bool:
+    #     """
+    #     Schedule match lines with custom times for each line
 
-        Args:
-            facility: Facility where match will be played
-            date: Date in YYYY-MM-DD format
-            times: List of time strings, one for each line
+    #     Args:
+    #         facility: Facility where match will be played
+    #         date: Date in YYYY-MM-DD format
+    #         times: List of time strings, one for each line
 
-        Returns:
-            True if successful
-        """
-        if not isinstance(times, list):
-            raise ValueError("Times must be a list")
+    #     Returns:
+    #         True if successful
+    #     """
+    #     if not isinstance(times, list):
+    #         raise ValueError("Times must be a list")
 
-        expected_lines = self.get_expected_lines()
-        if len(times) != expected_lines:
-            raise ValueError(
-                f"Custom mode requires exactly {expected_lines} time slots, got {len(times)}"
-            )
+    #     expected_lines = self.get_expected_lines()
+    #     if len(times) != expected_lines:
+    #         raise ValueError(
+    #             f"Custom mode requires exactly {expected_lines} time slots, got {len(times)}"
+    #         )
 
-        # Create MatchScheduling object
-        self.scheduling = MatchScheduling(
-            facility=facility,
-            date=date,
-            scheduled_times=times.copy()  # Make a copy to avoid reference issues
-        )
-        return True
+    #     # Create MatchScheduling object
+    #     self.scheduling = MatchScheduling(
+    #         facility=facility,
+    #         date=date,
+    #         scheduled_times=times.copy()  # Make a copy to avoid reference issues
+    #     )
+    #     return True
 
     def unschedule(self) -> bool:
         """Unschedule the match (remove facility, date, and all times)"""

@@ -8,10 +8,10 @@ finding optimal scheduling possibilities.
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any, TYPE_CHECKING
+from typing import List, Dict, Optional, Any, TYPE_CHECKING, Iterator
 from datetime import datetime, timedelta
 
-from matplotlib.pylab import ceil
+import math
 
 # Use TYPE_CHECKING for imports to avoid circular dependencies
 if TYPE_CHECKING:
@@ -102,36 +102,28 @@ class TimeSlotInfo:
 
 
 @dataclass
-class DateOption:
+class FacilityOption:
     """
-    Scheduling option for a specific date.
+    Scheduling option for a specific facility on a specific date.
     
-    This class represents all the scheduling possibilities for a particular date,
-    including time slots, quality scoring, and any conflicts.
+    This class represents the scheduling possibilities for a particular facility
+    on a given date, including time slots, quality scoring, and facility-specific data.
     """
     
-    date: str  # Date in YYYY-MM-DD format
-    day_of_week: str  # Day name (e.g., "Monday", "Tuesday")
+    facility_id: int  # Facility ID
+    facility_name: str  # Name of the facility
     time_slots: List[TimeSlotInfo] = field(default_factory=list)
-    quality_score: int = 0  # Match quality score for this date
-    conflicts: List[str] = field(default_factory=list)  # List of conflict descriptions
-    facility_name: str = ""  # Name of the facility
+    quality_score: int = 0  # Match quality score for this facility on this date
+    conflicts: List[str] = field(default_factory=list)  # List of facility-specific conflicts
+    facility: Optional['Facility'] = None  # Reference to the actual facility object
     
     def __post_init__(self) -> None:
-        """Validate date option data"""
-        # Validate date format
-        if not isinstance(self.date, str):
-            raise ValueError("Date must be a string")
+        """Validate facility option data"""
+        if not isinstance(self.facility_id, int) or self.facility_id <= 0:
+            raise ValueError("Facility ID must be a positive integer")
         
-        try:
-            datetime.strptime(self.date, "%Y-%m-%d")
-        except ValueError:
-            raise ValueError(f"Invalid date format: '{self.date}'. Expected YYYY-MM-DD format")
-        
-        # Validate day of week
-        valid_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        if self.day_of_week not in valid_days:
-            raise ValueError(f"Invalid day of week: '{self.day_of_week}'. Must be one of {valid_days}")
+        if not isinstance(self.facility_name, str) or not self.facility_name.strip():
+            raise ValueError("Facility name must be a non-empty string")
         
         # Validate time slots
         if not isinstance(self.time_slots, list):
@@ -170,18 +162,150 @@ class DateOption:
         return suitable_slots[:limit]
     
     def has_conflicts(self) -> bool:
-        """Check if this date has any scheduling conflicts"""
+        """Check if this facility has any scheduling conflicts"""
         return len(self.conflicts) > 0
     
     def get_total_available_slots(self) -> int:
         """Get total number of available time slots"""
         return len([slot for slot in self.time_slots if slot.available_courts > 0])
     
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization"""
+        return {
+            "facility_id": self.facility_id,
+            "facility_name": self.facility_name,
+            "time_slots": [slot.to_dict() for slot in self.time_slots],
+            "available_times": self.get_available_times(1),  # Basic availability
+            "quality_score": self.quality_score,
+            "conflicts": self.conflicts,
+            "total_time_slots": len(self.time_slots),
+            "available_time_slots": self.get_total_available_slots(),
+            "has_conflicts": self.has_conflicts()
+        }
+
+
+@dataclass
+class DateOption:
+    """
+    Scheduling option for a specific date with multiple facility options.
+    
+    This class represents all the scheduling possibilities for a particular date
+    across multiple facilities, including quality scoring and conflicts.
+    """
+    
+    date: str  # Date in YYYY-MM-DD format
+    day_of_week: str  # Day name (e.g., "Monday", "Tuesday")
+    facility_options: List[FacilityOption] = field(default_factory=list)
+    overall_quality_score: int = 0  # Best quality score across all facilities for this date
+    
+    def __post_init__(self) -> None:
+        """Validate date option data"""
+        # Validate date format
+        if not isinstance(self.date, str):
+            raise ValueError("Date must be a string")
+        
+        try:
+            datetime.strptime(self.date, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError(f"Invalid date format: '{self.date}'. Expected YYYY-MM-DD format")
+        
+        # Validate day of week
+        valid_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        if self.day_of_week not in valid_days:
+            raise ValueError(f"Invalid day of week: '{self.day_of_week}'. Must be one of {valid_days}")
+        
+        # Validate facility options
+        if not isinstance(self.facility_options, list):
+            raise ValueError("Facility options must be a list")
+        
+        for facility_option in self.facility_options:
+            if not isinstance(facility_option, FacilityOption):
+                raise ValueError("All facility options must be FacilityOption instances")
+        
+        # Calculate overall quality score as the best score among all facilities
+        if self.facility_options:
+            self.overall_quality_score = max(opt.quality_score for opt in self.facility_options)
+    
+    def get_available_times(self, courts_needed: int) -> List[str]:
+        """Get list of times that can accommodate the requested number of courts across all facilities"""
+        all_times = []
+        for facility_option in self.facility_options:
+            all_times.extend(facility_option.get_available_times(courts_needed))
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_times = []
+        for time in all_times:
+            if time not in seen:
+                seen.add(time)
+                unique_times.append(time)
+        return unique_times
+    
+    def get_best_time_slots(self, courts_needed: int, limit: int = 5) -> List[TimeSlotInfo]:
+        """
+        Get the best time slots that can accommodate the match across all facilities, sorted by availability.
+        
+        Args:
+            courts_needed: Number of courts required
+            limit: Maximum number of slots to return
+            
+        Returns:
+            List of TimeSlotInfo objects sorted by availability (most available first)
+        """
+        all_suitable_slots = []
+        for facility_option in self.facility_options:
+            all_suitable_slots.extend(facility_option.get_best_time_slots(courts_needed, limit=10))
+        
+        # Sort by availability percentage (highest first)
+        all_suitable_slots.sort(key=lambda slot: slot.availability_percentage, reverse=True)
+        
+        return all_suitable_slots[:limit]
+    
+    def has_conflicts(self) -> bool:
+        """Check if this date has any scheduling conflicts across all facilities"""
+        return any(facility_option.has_conflicts() for facility_option in self.facility_options)
+    
+    def get_total_available_slots(self) -> int:
+        """Get total number of available time slots across all facilities"""
+        return sum(facility_option.get_total_available_slots() for facility_option in self.facility_options)
+    
     def get_peak_utilization(self) -> float:
-        """Get the highest utilization percentage across all time slots"""
-        if not self.time_slots:
+        """Get the highest utilization percentage across all time slots in all facilities"""
+        if not self.facility_options:
             return 0.0
-        return max(slot.utilization_percentage for slot in self.time_slots)
+        max_utilizations = []
+        for facility_option in self.facility_options:
+            if facility_option.time_slots:
+                max_utilizations.append(max(slot.utilization_percentage for slot in facility_option.time_slots))
+        return max(max_utilizations) if max_utilizations else 0.0
+    
+    def get_best_facility_option(self) -> Optional[FacilityOption]:
+        """Get the facility option with the highest quality score"""
+        if not self.facility_options:
+            return None
+        return max(self.facility_options, key=lambda opt: opt.quality_score)
+    
+    def get_facility_option(self, facility_id: int) -> Optional[FacilityOption]:
+        """Get a specific facility option by facility ID"""
+        for facility_option in self.facility_options:
+            if facility_option.facility_id == facility_id:
+                return facility_option
+        return None
+    
+    def add_facility_option(self, facility_option: FacilityOption) -> None:
+        """Add a facility option to this date"""
+        if not isinstance(facility_option, FacilityOption):
+            raise TypeError("Expected FacilityOption instance")
+        
+        # Check for duplicate facility
+        existing_facility_ids = [opt.facility_id for opt in self.facility_options]
+        if facility_option.facility_id in existing_facility_ids:
+            raise ValueError(f"Facility option for facility {facility_option.facility_id} already exists")
+        
+        self.facility_options.append(facility_option)
+        
+        # Update overall quality score
+        if self.facility_options:
+            self.overall_quality_score = max(opt.quality_score for opt in self.facility_options)
     
     @classmethod
     def from_facility_info(cls, facility_info: 'FacilityAvailabilityInfo', match: 'Match') -> 'DateOption':
@@ -213,34 +337,77 @@ class DateOption:
             time_slots.append(time_slot)
         
         # Calculate quality score
-        quality_score = match.get_quality_score(facility_info.date) if match else 0
+        quality_score, conflicts = match.calculate_quality_score(facility_info.date) if match else (0, [])
         
+        # Create a FacilityOption from the facility info
+        facility_option = FacilityOption(
+            facility_id=getattr(facility_info, 'facility_id', 0),
+            facility_name=facility_info.facility_name,
+            time_slots=time_slots,
+            quality_score=quality_score,
+            conflicts=conflicts if isinstance(conflicts, list) else [],
+            facility=getattr(facility_info, 'facility', None)
+        )
+
         return cls(
             date=facility_info.date,
             day_of_week=day_of_week,
-            time_slots=time_slots,
-            quality_score=quality_score,
-            facility_name=facility_info.facility_name
+            facility_options=[facility_option],
+            overall_quality_score=quality_score
         )
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization"""
+        # Generate quality description based on score
+        quality_description = self._get_quality_description()
+        
+        # For backward compatibility, aggregate time slots and facility info
+        all_time_slots = []
+        all_conflicts = []
+        facility_names = []
+        
+        for facility_option in self.facility_options:
+            all_time_slots.extend(facility_option.time_slots)
+            all_conflicts.extend(facility_option.conflicts)
+            facility_names.append(facility_option.facility_name)
+        
+        # Remove duplicate time slots (same time)
+        unique_time_slots = []
+        seen_times = set()
+        for slot in all_time_slots:
+            if slot.time not in seen_times:
+                unique_time_slots.append(slot)
+                seen_times.add(slot.time)
+        
         return {
             "date": self.date,
             "day_of_week": self.day_of_week,
             "formatted_date": datetime.strptime(self.date, "%Y-%m-%d").strftime("%B %d, %Y"),
-            "time_slots": [slot.to_dict() for slot in self.time_slots],
-            "time_slot_details": [slot.to_dict() for slot in self.time_slots],  # For template compatibility
+            "time_slots": [slot.to_dict() for slot in unique_time_slots],
+            "time_slot_details": [slot.to_dict() for slot in unique_time_slots],  # For template compatibility
             "available_times": self.get_available_times(1),  # Basic availability
-            "quality_score": self.quality_score,
-            "match_quality": self.quality_score,  # For template compatibility
-            "conflicts": self.conflicts,
-            "facility_name": self.facility_name,
-            "total_time_slots": len(self.time_slots),
+            "quality_score": self.overall_quality_score,
+            "match_quality": self.overall_quality_score,  # For template compatibility
+            "quality_description": quality_description,  # For template display
+            "conflicts": list(set(all_conflicts)),  # Remove duplicates
+            "facility_name": ", ".join(facility_names) if facility_names else "Multiple Facilities",
+            "facility_options": [opt.to_dict() for opt in self.facility_options],  # New multi-facility data
+            "total_time_slots": len(unique_time_slots),
             "available_time_slots": self.get_total_available_slots(),
             "peak_utilization": self.get_peak_utilization(),
             "has_conflicts": self.has_conflicts()
         }
+    
+    def _get_quality_description(self) -> str:
+        """Generate a human-readable description of the quality score"""
+        if self.overall_quality_score >= 80:
+            return f"Optimal match quality (Score: {self.overall_quality_score})"
+        elif self.overall_quality_score >= 60:
+            return f"Good match quality (Score: {self.overall_quality_score})"
+        elif self.overall_quality_score >= 40:
+            return f"Fair match quality (Score: {self.overall_quality_score})"
+        else:
+            return f"Poor match quality (Score: {self.overall_quality_score})"
 
 
 class SchedulingOptions:
@@ -298,7 +465,7 @@ class SchedulingOptions:
         # Sort by quality score (highest first), then by total available slots
         sorted_options = sorted(
             self.date_options,
-            key=lambda option: (option.quality_score, option.get_total_available_slots()),
+            key=lambda option: (option.overall_quality_score, option.get_total_available_slots()),
             reverse=True
         )
         
@@ -316,7 +483,7 @@ class SchedulingOptions:
         """
         return [
             option for option in self.date_options
-            if option.quality_score >= min_quality
+            if option.overall_quality_score >= min_quality
         ]
     
     def can_schedule_on_date(self, date: str, courts_needed: Optional[int] = None) -> bool:
@@ -407,11 +574,11 @@ class SchedulingOptions:
                 "weekday_dates": 0
             }
         
-        quality_scores = [option.quality_score for option in self.date_options]
+        quality_scores = [option.overall_quality_score for option in self.date_options]
         
         return {
             "total_dates": len(self.date_options),
-            "total_time_slots": sum(len(option.time_slots) for option in self.date_options),
+            "total_time_slots": sum(sum(len(facility_opt.time_slots) for facility_opt in option.facility_options) for option in self.date_options),
             "total_possibilities": self.get_total_scheduling_possibilities(),
             "best_quality_score": max(quality_scores),
             "average_quality_score": sum(quality_scores) / len(quality_scores),
@@ -479,7 +646,7 @@ class SchedulingOptions:
         """Return True if there are any scheduling options"""
         return self.has_any_options()
     
-    def __iter__(self):
+    def __iter__(self) -> Iterator[DateOption]:
         """Iterate over date options"""
         return iter(self.date_options)
     
@@ -503,16 +670,17 @@ class SchedulingOptions:
             
         best_date_option = best_dates[0]
         
-        # Determine how many courts we need
-        courts_needed = self.match.league.num_lines_per_match if self.match.league else 1
-        
-        # Get the best time slots for this date
-        best_time_slots = best_date_option.get_best_time_slots(courts_needed, limit=10)
-        if not best_time_slots:
-            return None
+
             
         # Convert time slots to list of time strings based on scheduling mode
         if scheduling_mode == "same_time":
+
+            # For same_time, we need to find the best time slots that can accommodate all courts
+            courts_needed = self.match.league.num_lines_per_match if self.match.league else 1
+            best_time_slots = best_date_option.get_best_time_slots(courts_needed, limit=3)
+            if not best_time_slots:
+                return None
+
             # For same_time, we just need one time slot that can accommodate all courts
             suitable_slots = [slot for slot in best_time_slots if slot.can_accommodate(courts_needed)]
             if not suitable_slots:
@@ -522,13 +690,25 @@ class SchedulingOptions:
             selected_times = [suitable_slots[0].time] * courts_needed
 
         elif scheduling_mode == "split_times":
+
+            # For split_times, we need to find multiple time slots that can accommodate the courts
+            total_courts = self.match.league.num_lines_per_match if self.match.league else 1
+
+            # for split times, we need half the courts in one slot and half in another
+            # Get the best time slots that can accommodate at least half the courts each
+            courts_needed = math.ceil(total_courts / 2)  # Half the courts for split times
+            best_time_slots = best_date_option.get_best_time_slots(courts_needed, limit=3)
+            if not best_time_slots and len(best_time_slots) < 2:
+                return None
+            
+            
             # For split_times, we need at least 2 time slots that can accommodate half
             # of the courts each
-            suitable_slots = [slot for slot in best_time_slots if slot.can_accommodate(ceil(courts_needed / 2))]
+            suitable_slots = [slot for slot in best_time_slots if slot.can_accommodate(math.ceil(courts_needed / 2))]
             if len(suitable_slots) < 2:
                 return None
             # Use the first two available time slots, we need a selected time for each court
-            selected_times = [suitable_slots[0].time, suitable_slots[1].time] * ceil(courts_needed / 2)
+            selected_times = [suitable_slots[0].time, suitable_slots[1].time] * math.ceil(courts_needed / 2)
             # If we have more courts than slots, repeat the last time slot
             if len(selected_times) < courts_needed:
                 selected_times += [suitable_slots[-1].time] * (courts_needed - len(selected_times))
@@ -547,49 +727,69 @@ class SchedulingOptions:
         # Import here to avoid circular imports
         from usta_match import MatchScheduling
         
+        # Determine the facility to use
+        facility_to_use = self.facility
+        if not facility_to_use:
+            best_facility_option = best_date_option.get_best_facility_option()
+            facility_to_use = best_facility_option.facility if best_facility_option else None
+        
+        if not facility_to_use:
+            return None  # Cannot create MatchScheduling without a facility
+        
         return MatchScheduling(
-            facility=self.facility,
+            facility=facility_to_use,
             date=best_date_option.date,
             scheduled_times=selected_times,
-            qscore=best_date_option.quality_score
+            qscore=best_date_option.overall_quality_score
         )
     
     def get_all_match_scheduling_options(self, limit: int = 10) -> List['MatchScheduling']:
         """
-        Get multiple MatchScheduling objects for different dates/times.
+        Get multiple MatchScheduling objects for different dates/times/facilities.
+        
+        This method returns options for all facility combinations, not just the best facility per date.
+        Each date can have multiple options representing different facilities.
         
         Args:
             limit: Maximum number of options to return
             
         Returns:
-            List of MatchScheduling objects sorted by quality
+            List of MatchScheduling objects sorted by quality score (best first)
         """
-        match_scheduling_options = []
-        
-        # Get the best dates
-        best_dates = self.get_best_dates(limit=limit)
-        courts_needed = self.match.league.num_lines_per_match if self.match.league else 1
-        
         from usta_match import MatchScheduling
         
-        for date_option in best_dates:
-            best_time_slots = date_option.get_best_time_slots(courts_needed, limit=3)
-            
-            for time_slot in best_time_slots:
-                if time_slot.can_accommodate(courts_needed):
-                    match_scheduling = MatchScheduling(
-                        facility=self.facility,
-                        date=date_option.date,
-                        scheduled_times=[time_slot.time],
-                        qscore=date_option.quality_score
-                    )
-                    match_scheduling_options.append(match_scheduling)
-                    
-                    # Stop if we've reached the limit
-                    if len(match_scheduling_options) >= limit:
-                        return match_scheduling_options
+        # Get the best dates (but we'll consider all facilities for each date)
+        best_dates = self.get_best_dates(limit=limit * 2)  # Get more dates since we'll have multiple facilities per date
+        courts_needed = self.match.league.num_lines_per_match if self.match.league else 1
         
-        return match_scheduling_options
+        # Collect all facility options across all dates, then sort by quality
+        all_facility_options: List[MatchScheduling] = []
+        
+        for date_option in best_dates:
+            # For each date, consider ALL facility options, not just the best one
+            for facility_option in date_option.facility_options:
+                # Get the best time slots for THIS specific facility
+                best_time_slots = facility_option.get_best_time_slots(courts_needed, limit=3)
+                
+                for time_slot in best_time_slots:
+                    if time_slot.can_accommodate(courts_needed):
+                        # Use the specific facility for this option
+                        facility_to_use = self.facility or facility_option.facility
+                        
+                        if facility_to_use:
+                            match_scheduling = MatchScheduling(
+                                facility=facility_to_use,
+                                date=date_option.date,
+                                scheduled_times=[time_slot.time],
+                                qscore=facility_option.quality_score  # Use facility-specific quality score
+                            )
+                            all_facility_options.append(match_scheduling)
+        
+        # Sort all options by quality score (highest first)
+        all_facility_options.sort(key=lambda option: option.qscore, reverse=True)
+        
+        # Return the top options up to the limit
+        return all_facility_options[:limit]
 
     def __repr__(self) -> str:
         """String representation"""

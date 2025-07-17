@@ -26,9 +26,9 @@ from web_matches_calendar import create_calendar_context
 
 
 def format_score_description() -> str:
-    """Format quality score description as colored HTML list using Match.get_quality_score_description()"""
+    """Format quality score description as colored HTML list using Match.calculate_quality_score_description()"""
     # Get the raw description from the Match class
-    raw_description = Match.get_quality_score_description()
+    raw_description = Match.calculate_quality_score_description()
     
     # Parse the description to extract individual score items
     # Format: "Quality scores: 20 = poor - scheduled..., 40 = acceptable - league..., ..."
@@ -148,7 +148,7 @@ def register_routes(app, get_db):
             for match in matches_display:
                 if match.is_scheduled() and match.date:
                     try:
-                        quality_score = match.get_quality_score()
+                        quality_score, _ = match.calculate_quality_score()
                         quality_scores.append(quality_score)
                     except Exception:
                         continue  # Skip matches that can't calculate quality
@@ -339,8 +339,15 @@ def register_routes(app, get_db):
             except ValueError:
                 return jsonify({"error": "Invalid date format"}), 400
 
-            # Schedule the match using the new MatchScheduling API
-            match.schedule_lines_split_times(facility, date_str, times)
+            # Create MatchScheduling object and assign it to the match
+            from usta_match import MatchScheduling
+            match_scheduling = MatchScheduling(
+                facility=facility,
+                date=date_str,
+                scheduled_times=times,
+                qscore=0  # Default quality score, could be calculated if needed
+            )
+            match.assign_scheduling(match_scheduling)
 
             # Save to database using SchedulingManager
             scheduling_manager = SchedulingManager(db)

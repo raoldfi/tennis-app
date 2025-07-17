@@ -931,27 +931,10 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
     def update_match(self, match: Match) -> bool:
         return self.match_manager.update_match(match)
 
-    def preview_match_scheduling(self, match: Match, date: str, 
-                            times: List[str], scheduling_mode: str) -> Dict[str, Any]:
-        """
-        Preview the scheduling of a match at a given facility, date, and times with a specified scheduling mode.
-
-        Args:
-            match: The Match object to be scheduled.
-            facility: The Facility object where the match is to be scheduled.
-            date: The date (YYYY-MM-DD) for the match.
-            times: List of time strings representing proposed match times.
-            scheduling_mode: The scheduling mode to use (e.g., 'all_lines_same_time', 'split_times', etc.).
-
-        Returns:
-            Dictionary containing the preview results, including any conflicts or scheduling details.
-        """
-        return self.match_manager.preview_match_scheduling(
-            match, date, times, scheduling_mode)
 
 
     def auto_schedule_matches(self, matches: List['Match'], dry_run: bool = True,  seed: int = None) -> Dict:
-        return self.match_manager.auto_schedule_matches(matches=matches, dry_run=dry_run, seed=seed)
+        return self.scheduling_manager.auto_schedule_matches(matches=matches, dry_run=dry_run, seed=seed)
 
     def optimize_auto_schedule(self, matches: List['Match'], max_iterations: int = 10, 
                              progress_callback=None) -> Dict[str, Any]:

@@ -615,8 +615,12 @@ class MatchesPage {
             console.log('🌱 SEED DEBUG: Using stored seed for execution:', window.lastAutoScheduleSeed);
             console.log('🌱 SEED DEBUG: Form data before execution:', Object.fromEntries(formData.entries()));
             
-            // If this was from optimization, make sure we maintain the mode
-            if (window.lastScheduleMode) {
+            // If this was from optimization, force standard mode to avoid re-running optimization
+            // We already have the optimal seed, so we just need to execute with it
+            if (window.lastScheduleMode === 'optimized') {
+                formData.set('schedule_mode', 'standard');
+                console.log('🌱 SEED DEBUG: Forcing standard mode for execution after optimization (using optimal seed)');
+            } else if (window.lastScheduleMode) {
                 formData.set('schedule_mode', window.lastScheduleMode);
                 console.log('🌱 SEED DEBUG: Using stored schedule mode for execution:', window.lastScheduleMode);
             }

@@ -13,7 +13,7 @@ from typing import List, Optional, Dict, Any
 from regex import F
 from usta import Match, League, Facility
 from usta_match import MatchScheduling
-from scheduling_options import SchedulingOptions
+from scheduling_options import SchedulingOptions, DateOption, FacilityOption, TimeSlotInfo
 from tennis_db_interface import TennisDBInterface
 
 
@@ -63,48 +63,104 @@ class SchedulingManager:
 
             # Extract dates from the MatchScheduling objects
             dates = [option.date for option in prioritized_match_scheduling]
-            
-            # Get the facility (prefer match facility, fall back to home team facility)
-            facility = match.get_facility()
-            if not facility and match.home_team:
-                facility = match.home_team.get_primary_facility() if match.home_team.preferred_facilities else None
-            
-            if not facility:
-                raise ValueError("No facility available for match")
+            if not dates:
+                raise ValueError("No valid dates found for match scheduling")
 
-            # Get detailed facility availability information
-            facility_availability_list = self.db.get_facility_availability(
-                facility=facility, 
-                dates=dates, 
-                max_days=max_dates
-            )
+            # extract the facilities from the match scheduling options
+            facilities = [option.facility for option in prioritized_match_scheduling if option.facility]
 
-            # Filter out unavailable dates and dates with conflicts
+            # get facilities availability for the range of dates
+            if not facilities:
+                raise ValueError("No facilities available for match scheduling")
+
+            # Get availability information for each facility
+            # This will return a dictionary of facility ID to availability info
+            filter_availability_info = {}
+            for facility in facilities:
+                availability = self.db.get_facility_availability(
+                    facility=facility,
+                    dates=dates
+                )
+                filter_availability_info[facility.id] = availability
+
             filtered_availability = []
-            for facility_info in facility_availability_list:
-                if not facility_info.available:
+
+            for option in prioritized_match_scheduling:
+                # get the list for this facility
+                facility_availability_list = filter_availability_info.get(option.facility.id, [])
+
+                # get the facility_info for this date
+                facility_info = next((info for info in facility_availability_list if info.date == option.date), None)
+
+                if not facility_info:
+                    # If no availability info for this date, skip this option
                     continue
-                
-                # Check if facility can accommodate the match
-                can_accommodate, _ = facility_info.can_accommodate_match(match)
+
+                can_accommodate, _ = facility_info.can_accommodate_match(match) 
                 if not can_accommodate:
-                    continue
-                    
-                # Check for team conflicts if not ignoring them
-                if not ignore_conflicts:
-                    if (self.db.check_team_date_conflict(match.home_team, facility_info.date) or 
-                        self.db.check_team_date_conflict(match.visitor_team, facility_info.date)):
-                        continue
+                    continue  # Skip this facility if it can't accommodate the match
+
+                # If it can accommodate, add the option to the filtered list
+                option.scheduled_times = facility_info.get_available_times(match.league.num_lines_per_match)
+                filtered_availability.append(option)
+
+            # Create and return SchedulingOptions by building DateOptions from the filtered availability
+            scheduling_options = SchedulingOptions(match=match)
+            
+            # Group filtered options by date to create DateOption objects
+            from collections import defaultdict
+            date_groups = defaultdict(list)
+            
+            for option in filtered_availability:
+                date_groups[option.date].append(option)
+            
+            # Create DateOption objects for each date with multiple facilities
+            for date_str, options_for_date in date_groups.items():
+                from datetime import datetime
+                date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+                day_of_week = date_obj.strftime("%A")
                 
-                filtered_availability.append(facility_info)
-
-            # Create and return SchedulingOptions using the factory method
-            scheduling_options = SchedulingOptions.from_facility_availability_list(
-                match=match,
-                facility_availability_list=filtered_availability,
-                facility=facility
-            )
-
+                # Create FacilityOption objects for each facility on this date
+                facility_options = []
+                for option in options_for_date:
+                    # Get facility availability info for quality scoring and time slots
+                    facility_availability_list = filter_availability_info.get(option.facility.id, [])
+                    facility_info = next((info for info in facility_availability_list if info.date == option.date), None)
+                    
+                    if facility_info:
+                        # Convert time slots
+                        time_slots = []
+                        for slot in facility_info.time_slots:
+                            time_slot = TimeSlotInfo(
+                                time=slot.time,
+                                total_courts=slot.total_courts,
+                                available_courts=slot.available_courts,
+                                used_courts=slot.used_courts
+                            )
+                            time_slots.append(time_slot)
+                        
+                        # Calculate quality score for this facility on this date
+                        quality_score, conflicts = match.calculate_quality_score(option.date) if match else (0, [])
+                        
+                        facility_option = FacilityOption(
+                            facility_id=option.facility.id,
+                            facility_name=option.facility.name,
+                            time_slots=time_slots,
+                            quality_score=quality_score,
+                            conflicts=conflicts if isinstance(conflicts, list) else [],
+                            facility=option.facility
+                        )
+                        facility_options.append(facility_option)
+                
+                # Create DateOption with all facility options for this date
+                if facility_options:
+                    date_option = DateOption(
+                        date=date_str,
+                        day_of_week=day_of_week,
+                        facility_options=facility_options
+                    )
+                    scheduling_options.add_date_option(date_option)
+            
             return scheduling_options
 
         except Exception as e:
@@ -417,7 +473,7 @@ class SchedulingManager:
                     if success:
                         results["scheduled"] += 1
                         # Calculate quality score for scheduled match
-                        quality_score = match.get_quality_score()
+                        quality_score, _ = match.calculate_quality_score()
                         results["scheduling_details"].append(
                             {
                                 "match_id": match.id,
@@ -479,7 +535,7 @@ class SchedulingManager:
             raise RuntimeError(f"Error unscheduling match: {e}")
 
     def preview_match_scheduling(
-        self, match: Match, date: str, times: List[str], scheduling_mode: str
+        self, match: Match, date: str, times: List[str], scheduling_mode: str, facility: Optional['Facility'] = None
     ) -> Dict[str, Any]:
         """
         Preview what would happen if scheduling a match without actually doing it.
@@ -489,6 +545,7 @@ class SchedulingManager:
             date: Date to schedule the match
             times: List of proposed times for the match
             scheduling_mode: Scheduling mode ('same_time', 'split_times', 'custom', etc.)
+            facility: Optional facility to use for the preview (if None, uses match facility or home team facility)
 
         Returns:
             Dictionary with detailed information about conflicts, availability, and proposed schedule
@@ -525,10 +582,11 @@ class SchedulingManager:
                 }
             date = valid_dates[0]  # Use the first valid date
 
-            # Get facility (prefer match facility, fall back to home team facility)
-            facility = match.get_facility()
-            if not facility and match.home_team:
-                facility = match.home_team.get_primary_facility() if match.home_team.preferred_facilities else None
+            # Get facility (use provided facility, or prefer match facility, fall back to home team facility)
+            if not facility:
+                facility = match.get_facility()
+                if not facility and match.home_team:
+                    facility = match.home_team.get_primary_facility() if match.home_team.preferred_facilities else None
 
             if not facility:
                 return {

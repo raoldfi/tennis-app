@@ -1,0 +1,213 @@
+/**
+ * Schedule Match Page Styles
+ * Styles for the match scheduling interface
+ */
+
+/* Date card selection styles */
+.date-card.selected {
+    border-color: var(--tennis-success) !important;
+    transform: translateY(-4px) !important;
+    box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3) !important;
+}
+
+/* Quality score badge */
+.optimal-score {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9em;
+    z-index: 10;
+}
+
+/* Time slot selection styles */
+.time-slot {
+    display: inline-block;
+    margin: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.time-slot:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.time-slot.selected {
+    border-color: var(--tennis-success) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+.time-slot.selected.split-first {
+    border-color: var(--tennis-primary) !important;
+    box-shadow: 0 4px 15px rgba(var(--tennis-primary), 0.3);
+}
+
+.time-slot.selected.split-second {
+    border-color: var(--tennis-secondary) !important;
+    box-shadow: 0 4px 15px rgba(var(--tennis-secondary), 0.3);
+}
+
+/* Existing matches display */
+.existing-matches {
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.existing-match-item:hover {
+    border-color: var(--tennis-info) !important;
+}
+
+/* Available times container */
+#available-times-container .tennis-card-body {
+    display: block;
+    min-height: 60px;
+}
+
+/* Facility time group styling */
+.facility-time-group {
+    margin-bottom: 1rem;
+}
+
+.facility-time-group:last-child {
+    margin-bottom: 0;
+}
+
+.facility-name {
+    font-size: 0.9rem;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.5rem;
+}
+
+.time-slots-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 0.5rem;
+}
+
+.time-slot-enhanced {
+    flex: 1;
+    min-width: 180px;
+    max-width: 100%;
+}
+
+/* Operations preview styling */
+.operations-preview {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 0.5rem;
+    background-color: #f8f9fa;
+}
+
+.operation-item {
+    padding: 0.25rem 0;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 0.875rem;
+}
+
+.operation-item:last-child {
+    border-bottom: none;
+}
+
+.preview-status .alert {
+    margin-bottom: 0;
+}
+
+/* Capacity indicator styles */
+.capacity-indicator {
+    position: relative;
+    overflow: hidden;
+}
+
+.capacity-fill {
+    transition: width 0.3s ease;
+}
+
+/* Split times helper */
+#split-times-helper {
+    margin-top: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .time-slot-enhanced {
+        min-width: 150px;
+    }
+    
+    .facility-time-group {
+        margin-bottom: 0.75rem;
+    }
+    
+    .time-slots-container {
+        gap: 4px;
+    }
+}
+
+/* Animation for time slot selection */
+@keyframes selectTimeSlot {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.time-slot.selected {
+    animation: selectTimeSlot 0.3s ease-out;
+}
+
+/* Loading state for preview button */
+.btn-tennis-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Enhanced button states */
+.btn-outline-tennis-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Match info styling */
+.match-info-container {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Quality score coloring */
+.quality-score-optimal {
+    background-color: var(--tennis-success);
+    color: white;
+}
+
+.quality-score-good {
+    background-color: var(--tennis-primary);
+    color: white;
+}
+
+.quality-score-fair {
+    background-color: var(--tennis-warning);
+    color: white;
+}
+
+.quality-score-poor {
+    background-color: var(--tennis-light);
+    color: var(--tennis-dark);
+}

@@ -201,6 +201,22 @@ class SchedulingState:
         
         for team_key in team_keys_to_remove:
             del self.team_bookings[team_key]
+
+    def update_match_bookings(self, match_id: int, facility_id: int, date: str, 
+                              times: List[str], home_team_id: int, visitor_team_id: int):
+        """
+        Atomically update bookings for a match to avoid race conditions during scheduling.
+        This method clears existing bookings and adds new ones in a single operation.
+        """
+        # Clear existing bookings first
+        self.clear_match_bookings(match_id)
+        
+        # Book new time slots and team dates
+        if times:
+            for time in times:
+                self.book_time_slot(match_id, facility_id, date, time)
+            self.book_team_date(match_id, home_team_id, date)
+            self.book_team_date(match_id, visitor_team_id, date)
     
     def clear(self):
         """Clear all bookings and operations"""

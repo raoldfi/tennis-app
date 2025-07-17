@@ -202,14 +202,14 @@ teams:
   - id: 3001
     name: "Kim"
     league_id: 301
-    home_facility_id: 16
+    preferred_facility_ids: [16,13,8]
     captain: "Kim"
     preferred_days: []
 
   - id: 3002
     name: "Schloss"
     league_id: 301
-    home_facility_id: 16
+    preferred_facility_ids: [16,13,8]
     captain: "Schloss"
     preferred_days: []
 
@@ -217,42 +217,42 @@ teams:
   - id: 3003
     name: "Calvini"
     league_id: 302
-    home_facility_id: 16
+    preferred_facility_ids: [16,13,8]
     captain: "Calvini"
     preferred_days: []
 
   - id: 3004
     name: "Hurst"
     league_id: 302
-    home_facility_id: 13
+    preferred_facility_ids: [16,13,8]
     captain: "Hurst"
     preferred_days: []
 
   - id: 3005
     name: "Roybal"
     league_id: 302
-    home_facility_id: 16
+    preferred_facility_ids: [16,13,8]
     captain: "Roybal"
     preferred_days: []
 
   - id: 3006
     name: "Mick"
     league_id: 302
-    home_facility_id: 16
+    preferred_facility_ids: [16,13,8]
     captain: "Mick"
     preferred_days: []
 
   - id: 3007
     name: "Twisted Sisters"
     league_id: 302
-    home_facility_id: 16
+    preferred_facility_ids: [16,13,8]
     captain: "Twisted Sisters"
     preferred_days: []
 
   - id: 3008
     name: "Romero"
     league_id: 302
-    home_facility_id: 8
+    preferred_facility_ids: [8,16,13]
     captain: "Romero"
     preferred_days: []
 
@@ -260,35 +260,35 @@ teams:
   - id: 3009
     name: "Bacala"
     league_id: 303
-    home_facility_id: 16
+    preferred_facility_ids: [16,13,8]
     captain: "Bacala"
     preferred_days: []
 
   - id: 3010
     name: "Orozco"
     league_id: 303
-    home_facility_id: 16
+    preferred_facility_ids: [16,13,8]
     captain: "Orozco"
     preferred_days: []
 
   - id: 3011
     name: "Friedman"
     league_id: 303
-    home_facility_id: 16
+    preferred_facility_ids: [16,13,8]
     captain: "Friedman"
     preferred_days: []
 
   - id: 3012
     name: "Nguyener-Nguyener Chicken Dinner"
     league_id: 303
-    home_facility_id: 16
+    preferred_facility_ids: [16,13,8]
     captain: "Nguyener"
     preferred_days: []
 
   - id: 3013
     name: "Olson"
     league_id: 303
-    home_facility_id: 16
+    preferred_facility_ids: [16,13,8]
     captain: "Olson"
     preferred_days: []
 
@@ -296,27 +296,27 @@ teams:
   - id: 3014
     name: "Bradshaw"
     league_id: 304
-    home_facility_id: 16
+    preferred_facility_ids: [16,13,8]
     captain: "Bradshaw"
     preferred_days: []
 
   - id: 3015
     name: "James"
     league_id: 304
-    home_facility_id: 16
+    preferred_facility_ids: [16,13,8]
     captain: "James"
     preferred_days: []
 
   - id: 3016
     name: "Pitcher"
     league_id: 304
-    home_facility_id: 13
+    preferred_facility_ids: [16,13,8]
     captain: "Pitcher"
     preferred_days: []
 
   - id: 3017
     name: "Odom"
     league_id: 304
-    home_facility_id: 16
+    preferred_facility_ids: [16,13,8]
     captain: "Odom"
     preferred_days: []
