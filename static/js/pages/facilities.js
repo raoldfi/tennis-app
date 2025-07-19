@@ -128,7 +128,7 @@ class FacilitiesPage {
         // Re-append sorted rows
         rows.forEach(row => tbody.appendChild(row));
         
-        TennisUI.showNotification(`Sorted by ${header.textContent.trim()} (${newDirection})`, 'info');
+        //TennisUI.showNotification(`Sorted by ${header.textContent.trim()} (${newDirection})`, 'info');
     }
 
     initializeTooltips() {

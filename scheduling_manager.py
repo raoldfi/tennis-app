@@ -66,6 +66,13 @@ class SchedulingManager:
             if not dates:
                 raise ValueError("No valid dates found for match scheduling")
 
+            # Filter out dates where either team has conflicts
+            if not ignore_conflicts:
+                dates = self.filter_team_conflicts(match, dates)
+                if not dates:
+                    # If no valid dates after filtering, return empty SchedulingOptions
+                    return SchedulingOptions(match=match)
+
             # extract the facilities from the match scheduling options
             facilities = [option.facility for option in prioritized_match_scheduling if option.facility]
 

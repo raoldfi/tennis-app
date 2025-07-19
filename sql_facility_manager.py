@@ -849,16 +849,13 @@ class SQLFacilityManager:
                         )
                         continue
 
-            # Extract scheduled times from scheduling_state
-            state = self.db.scheduling_state if hasattr(self.db, "scheduling_state") else None
-
-            if state:
+            # In dry run mode, use scheduling state instead of database to avoid double-counting
+            # The scheduling state is initialized from database and then updated with new bookings
+            if hasattr(self.db, "dry_run_active") and self.db.dry_run_active and self.db.scheduling_state:
+                # In dry run mode, replace database results with scheduling state
                 for date in dates:
-                    state_dates = state.get_facility_usage(facility.id, date)
-
-                    # add state_dates to the scheduled_times_by_date
-                    if state_dates:
-                        scheduled_times_by_date[date].extend(state_dates)
+                    state_dates = self.db.scheduling_state.get_facility_usage(facility.id, date)
+                    scheduled_times_by_date[date] = state_dates  # Replace, don't extend
 
             logger.debug(
                 f"Retrieved scheduled times for {len(scheduled_times_by_date)} dates for facility {facility.id}"

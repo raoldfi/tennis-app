@@ -385,16 +385,17 @@ class SQLTeamManager:
             row = self.cursor.fetchone()
             database_conflict = row and row['count'] > 0
 
-            if database_conflict:
-                print(f"DEBUG-d: Team {team.id} has a database conflict on {date}")
+            # if database_conflict:
+            #     print(f"DEBUG-d: Team {team.id} has a database conflict on {date}")
             
             # Also check scheduling state if in dry run mode
             state_conflict = False
             if self.db.dry_run_active and self.db.scheduling_state:
                 state_conflict = self.db.scheduling_state.has_team_conflict(team.id, date)
-            if state_conflict:
-                print(f"DEBUG-s: Team {team.id} has a state conflict on {date} in dry run mode")
-                print(f"DEBUG: Team bookings: {[(k, v) for k, v in self.db.scheduling_state.team_bookings.items() if k[0] == team.id]}")
+            
+            # if state_conflict:
+                # print(f"DEBUG-s: Team {team.id} has a state conflict on {date} in dry run mode")
+                # print(f"DEBUG: Team bookings: {[(k, v) for k, v in self.db.scheduling_state.team_bookings.items() if k[0] == team.id]}")
             
             # Return true if either has a conflict
             return database_conflict or state_conflict

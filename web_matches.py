@@ -623,8 +623,10 @@ def register_routes(app, get_db):
                     detail for detail in scheduling_details 
                     if detail.get('quality_score') is not None
                 ]
+
+                # average should include unscheduled matches as well
                 average_quality_score = round(
-                    sum(detail['quality_score'] for detail in scheduled_matches_with_quality) / len(scheduled_matches_with_quality)
+                    sum(detail['quality_score'] for detail in scheduled_matches_with_quality) / total_count
                     if scheduled_matches_with_quality else 0, 1
                 )
 

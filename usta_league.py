@@ -41,7 +41,7 @@ class League:
     TEAM_PENALTY: int = 80  # Penalty for scheduling on a day not preferred by any team
     LEAGUE_PENALTY: int = 40  # Penalty for scheduling on a day not preferred by the league
     ROUND_PENALTY: int = 20  # Penalty for scheduling outside the preferred round
-    FACILITY_PENALTY: int = 1  # Penalty for facility preference based on index
+    FACILITY_PENALTY: int = 20  # Penalty for facility preference based on index
 
 
     def __post_init__(self) -> None:

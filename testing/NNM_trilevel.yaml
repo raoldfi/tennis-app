@@ -31,7 +31,10 @@ facilities:
       Sunday:
         start_times: []
     unavailable_dates:
+      - "2025-08-26"
       - "2025-09-01"
+      - "2025-09-09"
+      - "2025-09-16"
 
 
   # NDB - North Domingo Baca
@@ -66,7 +69,10 @@ facilities:
       Sunday:
         start_times: []
     unavailable_dates:
+      - "2025-08-26"
       - "2025-09-01"
+      - "2025-09-09"
+      - "2025-09-16"
 
 
   # JC - High weekday and weekend capacity, great for big leagues
@@ -79,23 +85,23 @@ facilities:
       Monday:
         start_times:
           - time: "18:00"
-            available_courts: 12
+            available_courts: 6
       Tuesday:
         start_times:
           - time: "18:00"
-            available_courts: 12
+            available_courts: 6
       Wednesday:
         start_times:
           - time: "18:00"
-            available_courts: 12
+            available_courts: 6
       Thursday:
         start_times:
           - time: "18:00"
-            available_courts: 12
+            available_courts: 6
       Friday:
         start_times:
           - time: "18:00"
-            available_courts: 12
+            available_courts: 6
 
       Saturday:
         start_times:
@@ -114,7 +120,10 @@ facilities:
           - time: "14:00"
             available_courts: 6
     unavailable_dates:
+      - "2025-08-26"
       - "2025-09-01"
+      - "2025-09-09"
+      - "2025-09-16"
 
 
 # Generated from 2025 TriLevel Schedule For Ron.xlsx
@@ -174,7 +183,8 @@ leagues:
       - "Monday"
       - "Wednesday"
       - "Friday"
-    backup_days: []
+    backup_days: 
+      - "Tuesday"
     start_date: "2025-08-25"
     end_date: "2025-09-15"
 
