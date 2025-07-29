@@ -36,7 +36,7 @@ import yaml
 import os
 import logging
 from typing import List, Dict, Optional, Any
-from datetime import datetime
+from datetime import datetime, date
 
 logger = logging.getLogger(__name__)
 
@@ -268,6 +268,7 @@ class YAMLImportExportMixin:
     def _import_leagues(self, leagues_data: List[Dict], stats: Dict, skip_existing: bool) -> None:
         """Import leagues from YAML data"""
         from usta_league import League
+        from datetime import date
         
         for i, record in enumerate(leagues_data):
             stats['leagues']['processed'] += 1
@@ -280,7 +281,14 @@ class YAMLImportExportMixin:
                     stats['leagues']['skipped'] += 1
                     continue
                 
-                league = League(**record)
+                # Convert date strings to date objects if present
+                record_copy = record.copy()
+                if 'start_date' in record_copy and record_copy['start_date'] and isinstance(record_copy['start_date'], str):
+                    record_copy['start_date'] = date.fromisoformat(record_copy['start_date'])
+                if 'end_date' in record_copy and record_copy['end_date'] and isinstance(record_copy['end_date'], str):
+                    record_copy['end_date'] = date.fromisoformat(record_copy['end_date'])
+                
+                league = League(**record_copy)
                 
                 if self.add_league(league):
                     stats['leagues']['imported'] += 1
@@ -822,8 +830,8 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
     def delete_team(self, team: Team) -> bool:
         return self.team_manager.delete_team(team.id)
 
-    def check_team_date_conflict(self, team: Team, date: str) -> bool:
-        return self.team_manager.check_team_date_conflict(team, date)
+    def check_team_date_conflict(self, team: Team, date_obj: date) -> bool:
+        return self.team_manager.check_team_date_conflict(team, date_obj)
 
     # ========== League Management ==========
     
@@ -861,7 +869,7 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
 
     def get_facility_availability(self, 
                                   facility: Facility, 
-                                  dates: List[str],
+                                  dates: List[date],
                                   max_days: int = 50) -> List['FacilityAvailabilityInfo']:
         return self.facility_manager.get_facility_availability(facility, dates, max_days)
 
@@ -923,8 +931,8 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
     def delete_match(self, match: Match) -> bool:
         return self.match_manager.delete_match(match.id)
 
-    def get_matches_on_date(self, date: str) -> List[Match]:
-        return self.match_manager.get_matches_on_date(date)
+    def get_matches_on_date(self, date_obj: date) -> List[Match]:
+        return self.match_manager.get_matches_on_date(date_obj)
 
     # ========== Match Scheduling Operations ==========
 
@@ -950,10 +958,10 @@ class SQLiteTennisDB(YAMLImportExportMixin, TennisDBInterface):
     def get_available_times_at_facility(self, facility: Facility, date: str, courts_needed: int = 1) -> List[str]:
         return self.match_manager.get_available_times_at_facility(facility, date, courts_needed)
 
-    def is_schedulable(self, match: Match, date: str, 
+    def is_schedulable(self, match: Match, date_obj: date, 
                        facility: Optional['Facility'] = None,
                        allow_split_lines: Optional[bool]=False) -> bool:
-        return self.scheduling_manager.is_schedulable(match, date, facility, allow_split_lines)
+        return self.scheduling_manager.is_schedulable(match, date_obj, facility, allow_split_lines)
 
     # ========== Advanced Scheduling Operations ==========
     

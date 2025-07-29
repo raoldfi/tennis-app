@@ -15,7 +15,7 @@ Key improvements:
 import sqlite3
 import json
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from tennis_db_interface import TennisDBInterface
 from usta import Match, MatchType, Facility, League, Team
 import math
@@ -90,9 +90,12 @@ class SQLMatchManager:
             # Create MatchScheduling object if match is scheduled
             scheduling = None
             if match_facility and match_data.get("date") and scheduled_times:
+                # Convert string date to date object
+                from datetime import datetime
+                date_obj = datetime.strptime(match_data["date"], "%Y-%m-%d").date()
                 scheduling = MatchScheduling(
                     facility=match_facility,
-                    date=match_data["date"],
+                    date=date_obj,
                     scheduled_times=scheduled_times
                 )
 
@@ -159,7 +162,7 @@ class SQLMatchManager:
                 home_team_id,
                 visitor_team_id,
                 facility_id,
-                match.scheduling.date if match.scheduling else None,
+                match.scheduling.date.strftime('%Y-%m-%d') if match.scheduling and match.scheduling.date else None,
                 scheduled_times_json,
                 status,
                 match.round,
@@ -198,11 +201,17 @@ class SQLMatchManager:
             raise RuntimeError(f"Database error deleting match: {e}")
         return True
 
-    def get_matches_on_date(self, date: str) -> List[Match]:
+    def get_matches_on_date(self, date_obj: date) -> List[Match]:
         """Get all scheduled matches on a specific date"""
+        
+        if not isinstance(date_obj, date):
+            raise ValueError("Date must be a date object")
+        
         try:
+            # Convert date object to string for database query
+            date_str = date_obj.strftime('%Y-%m-%d')
             where_conditions = ["date = ?", "status = 'scheduled'"]
-            params = [date]
+            params = [date_str]
 
             query = "SELECT id FROM matches WHERE " + " AND ".join(where_conditions)
             query += " ORDER BY id"
@@ -263,7 +272,7 @@ class SQLMatchManager:
                 # Match is scheduled - update with scheduling information
                 scheduled_times_json = json.dumps(match.scheduling.scheduled_times) if match.scheduling.scheduled_times else None
                 facility_id = match.scheduling.facility.id if match.scheduling.facility else None
-                date = match.scheduling.date if match.scheduling else None
+                date = match.scheduling.date.strftime('%Y-%m-%d') if match.scheduling and match.scheduling.date else None
                 status = "scheduled"
                 
                 # Update scheduling state for conflict detection when scheduling

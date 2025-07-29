@@ -8,7 +8,8 @@ Updated to work without Line class references.
 """
 
 import sqlite3
-from typing import List, Optional
+from typing import List, Optional, Union
+from datetime import date
 from usta import League
 
 
@@ -61,8 +62,8 @@ class SQLLeagueManager:
                 league.allow_split_lines,
                 preferred_days_str,
                 backup_days_str,
-                league.start_date,
-                league.end_date
+                league.start_date.isoformat() if league.start_date else None,
+                league.end_date.isoformat() if league.end_date else None
             ))
         except sqlite3.IntegrityError as e:
             raise ValueError(f"Database integrity error adding league: {e}")
@@ -101,6 +102,12 @@ class SQLLeagueManager:
             # Convert allow_split_lines from integer to boolean
             league_data['allow_split_lines'] = bool(league_data.get('allow_split_lines', 0))
             
+            # Convert date strings back to date objects
+            if league_data.get('start_date'):
+                league_data['start_date'] = date.fromisoformat(league_data['start_date'])
+            if league_data.get('end_date'):
+                league_data['end_date'] = date.fromisoformat(league_data['end_date'])
+            
             return League(**league_data)
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error retrieving league {league_id}: {e}")
@@ -131,6 +138,12 @@ class SQLLeagueManager:
                 
                 # Convert allow_split_lines from integer to boolean
                 league_data['allow_split_lines'] = bool(league_data.get('allow_split_lines', 0))
+                
+                # Convert date strings back to date objects
+                if league_data.get('start_date'):
+                    league_data['start_date'] = date.fromisoformat(league_data['start_date'])
+                if league_data.get('end_date'):
+                    league_data['end_date'] = date.fromisoformat(league_data['end_date'])
                 
                 leagues.append(League(**league_data))
             
@@ -171,8 +184,8 @@ class SQLLeagueManager:
                 league.allow_split_lines,
                 preferred_days_str,
                 backup_days_str,
-                league.start_date,
-                league.end_date,
+                league.start_date.isoformat() if league.start_date else None,
+                league.end_date.isoformat() if league.end_date else None,
                 league.id
             ))
             
@@ -250,6 +263,12 @@ class SQLLeagueManager:
                 # Convert allow_split_lines from integer to boolean
                 league_data['allow_split_lines'] = bool(league_data.get('allow_split_lines', 0))
                 
+                # Convert date strings back to date objects
+                if league_data.get('start_date'):
+                    league_data['start_date'] = date.fromisoformat(league_data['start_date'])
+                if league_data.get('end_date'):
+                    league_data['end_date'] = date.fromisoformat(league_data['end_date'])
+                
                 leagues.append(League(**league_data))
             
             return leagues
@@ -291,13 +310,19 @@ class SQLLeagueManager:
                 # Convert allow_split_lines from integer to boolean
                 league_data['allow_split_lines'] = bool(league_data.get('allow_split_lines', 0))
                 
+                # Convert date strings back to date objects
+                if league_data.get('start_date'):
+                    league_data['start_date'] = date.fromisoformat(league_data['start_date'])
+                if league_data.get('end_date'):
+                    league_data['end_date'] = date.fromisoformat(league_data['end_date'])
+                
                 leagues.append(League(**league_data))
             
             return leagues
         except sqlite3.Error as e:
             raise RuntimeError(f"Database error getting leagues by section/region: {e}")
 
-    def get_active_leagues(self, current_date: str = None) -> List[League]:
+    def get_active_leagues(self, current_date: Optional[Union[str, date]] = None) -> List[League]:
         """
         Get all leagues that are currently active
         
@@ -308,8 +333,9 @@ class SQLLeagueManager:
             List of active leagues
         """
         if current_date is None:
-            from datetime import date
-            current_date = date.today().strftime('%Y-%m-%d')
+            current_date = date.today().isoformat()
+        elif isinstance(current_date, date):
+            current_date = current_date.isoformat()
         
         try:
             self.cursor.execute("""
@@ -340,6 +366,12 @@ class SQLLeagueManager:
                 
                 # Convert allow_split_lines from integer to boolean
                 league_data['allow_split_lines'] = bool(league_data.get('allow_split_lines', 0))
+                
+                # Convert date strings back to date objects
+                if league_data.get('start_date'):
+                    league_data['start_date'] = date.fromisoformat(league_data['start_date'])
+                if league_data.get('end_date'):
+                    league_data['end_date'] = date.fromisoformat(league_data['end_date'])
                 
                 leagues.append(League(**league_data))
             

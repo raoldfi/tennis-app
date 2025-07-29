@@ -10,6 +10,7 @@ Updated to include get_available_dates API for facility availability checking.
 
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional, Tuple, Any, TYPE_CHECKING
+from datetime import date
 
 # Use TYPE_CHECKING to avoid circular imports for type hints
 if TYPE_CHECKING:
@@ -161,7 +162,7 @@ class TennisDBInterface(ABC):
         pass
 
     @abstractmethod
-    def get_matches_on_date(self, date: str) -> List['Match']:
+    def get_matches_on_date(self, date: 'date') -> List['Match']:
         """Get all matches scheduled on a specific date, optionally at a specific facility"""
         pass
 
@@ -194,7 +195,7 @@ class TennisDBInterface(ABC):
     @abstractmethod
     def get_facility_availability(self, 
                                   facility: 'Facility', 
-                                  dates: List[str],
+                                  dates: List[date],
                                   max_days: int = 50) -> List['FacilityAvailabilityInfo']:
         """ Get availability information for a facility over a date range """
         pass
@@ -232,7 +233,7 @@ class TennisDBInterface(ABC):
 
     
     @abstractmethod
-    def is_schedulable(self, match: Match, date: str, 
+    def is_schedulable(self, match: Match, date_obj: date, 
                        facility: Optional['Facility'] = None,
                        allow_split_lines: Optional[bool]=False) -> bool:
         pass

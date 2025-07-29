@@ -10,9 +10,9 @@ Core fields (id, league, home_team, visitor_team) are immutable after creation.
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from turtle import pen
 from typing import List, Dict, Optional, Any, Tuple, TYPE_CHECKING
-from datetime import date, datetime, timedelta
+from datetime import date as date_type, datetime, timedelta
+from datetime import date
 from enum import Enum
 import itertools
 import re
@@ -39,7 +39,7 @@ class MatchScheduling:
     """
     
     facility: "Facility"  # Direct Facility object reference
-    date: str  # YYYY-MM-DD format
+    date: date  # Date object
     scheduled_times: List[str] = field(default_factory=list)  # Array of HH:MM times
 
     qscore: int = 0  # Quality score for scheduling, default is 0
@@ -57,20 +57,8 @@ class MatchScheduling:
             )
         
         # Validate date format
-        if not isinstance(self.date, str):
-            raise ValueError("Date must be a string")
-        
-        try:
-            parts = self.date.split("-")
-            if len(parts) != 3:
-                raise ValueError("Invalid date format")
-            year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
-            if not (1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31):
-                raise ValueError("Invalid date values")
-        except (ValueError, IndexError):
-            raise ValueError(
-                f"Invalid date format: '{self.date}'. Expected YYYY-MM-DD format"
-            )
+        if not isinstance(self.date, date):
+            raise ValueError("Date must be a date object")
         
         # Validate scheduled_times
         if not isinstance(self.scheduled_times, list):
@@ -419,7 +407,7 @@ class Match:
 
     def is_partially_scheduled(self) -> bool:
         """Check if the match is partially scheduled (has some but not all required lines)"""
-        if self.is_unscheduled():
+        if self.is_unscheduled() or self.scheduling is None:
             return False
         expected_lines = self.league.num_lines_per_match
         actual_lines = len(self.scheduling.scheduled_times)
@@ -427,7 +415,7 @@ class Match:
 
     def is_fully_scheduled(self) -> bool:
         """Check if the match is fully scheduled (has all required lines)"""
-        if self.is_unscheduled():
+        if self.is_unscheduled() or self.scheduling is None:
             return False
         expected_lines = self.league.num_lines_per_match
         actual_lines = len(self.scheduling.scheduled_times)
@@ -435,7 +423,7 @@ class Match:
 
     def is_split(self) -> bool:
         """Check if the match is a split match or if all lines are scheduled for the same time"""
-        if self.is_unscheduled():
+        if self.is_unscheduled() or self.scheduling is None:
             return False  # An empty list is not split
         scheduled_times = self.scheduling.scheduled_times
         if not scheduled_times:
@@ -458,8 +446,8 @@ class Match:
     
     def get_prioritized_scheduling_options(
         self,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
         num_dates: Optional[int] = 50,
         minimum_quality: int = 1,
     ) -> List[MatchScheduling]:
@@ -488,22 +476,24 @@ class Match:
                 )
 
             # Use league dates or reasonable defaults for search range
-            search_start = (
-                start_date
-                or self.league.start_date
-                or datetime.now().strftime("%Y-%m-%d")
-            )
-            search_end = end_date or self.league.end_date
-
-            if not search_end:
+            if start_date:
+                search_start = start_date
+            elif self.league.start_date:
+                search_start = self.league.start_date
+            else:
+                search_start = datetime.now().date()
+                
+            if end_date:
+                search_end = end_date
+            elif self.league.end_date:
+                search_end = self.league.end_date
+            else:
                 # Default to 16 weeks from start
-                start_dt = datetime.strptime(search_start, "%Y-%m-%d")
-                end_dt = start_dt + timedelta(weeks=16)
-                search_end = end_dt.strftime("%Y-%m-%d")
+                search_end = search_start + timedelta(weeks=16)
 
             # Generate candidate dates using the priority calculation logic
-            start_dt = datetime.strptime(search_start, "%Y-%m-%d")
-            end_dt = datetime.strptime(search_end, "%Y-%m-%d")
+            start_dt = search_start
+            end_dt = search_end
 
             candidate_options = []
             current = start_dt
@@ -512,7 +502,7 @@ class Match:
             while current <= end_dt:
                 try:
                     day_name = current.strftime("%A")
-                    date_str = current.strftime("%Y-%m-%d")
+                    # current_date = current.date()
 
                     # iterate through facilities
                     facilities = self.home_team.preferred_facilities
@@ -524,18 +514,18 @@ class Match:
                             )
                         
                         # if the facility is not available on this date, skip it
-                        if not facility.is_available_on_date(date_str):
+                        if not facility.is_available_on_date(current):
                             continue
                         
                         # Calculate quality score for this date
-                        qscore, _ = self.calculate_quality_score(date=date_str, facility=facility)
+                        qscore, _ = self.calculate_quality_score(date_obj=current, facility=facility)
 
                         # Skip dates with a quality score below the minimum
                         if qscore >= minimum_quality:
                             
                             scheduling = MatchScheduling(
                                 facility=facility,
-                                date=date_str,
+                                date=current,
                                 qscore=qscore
                             )
                             candidate_options.append(scheduling)
@@ -624,7 +614,7 @@ class Match:
         return self.scheduling.facility if self.scheduling else None
     
     @property  
-    def date(self) -> Optional[str]:
+    def date(self) -> Optional[date]:
         """Get the scheduled date through MatchScheduling delegation"""
         return self.scheduling.date if self.scheduling else None
     
@@ -639,13 +629,13 @@ class Match:
     # ========== Quality Scoring ==========
 
     def calculate_quality_score(self, 
-                                date: Optional[str] = None,
+                                date_obj: Optional[date_type] = None,
                                 facility: Optional["Facility"] = None) -> Tuple[int, Optional[List[str]]]:
         """
         Calculate a quality score for a match based on a date assignment.
 
         Args:
-            date: Optional date string in YYYY-MM-DD format. If not provided, uses self.date.
+            date: Optional date object. If not provided, uses self.date.
             facility: Optional Facility object. If provided, checks against home team's preferred facilities.
 
         Returns a quality score as an integer and a list of penalties applied:
@@ -670,15 +660,16 @@ class Match:
         penalties = []
 
         # Use provided date or fall back to match's current date
-        target_date = date or self.date
+        target_date = date_obj or self.date
+        if not isinstance(target_date, date):
+            raise ValueError("target_date must be a date object")
 
         if not target_date:
-            return 0  # No date to evaluate
+            return (0, [])  # No date to evaluate
 
         try:
             # Get the day of week for the target date
-            match_date = datetime.strptime(target_date, "%Y-%m-%d")
-            day_name = match_date.strftime("%A")
+            day_name = target_date.strftime("%A")
 
             # Determine team requirements
             hp = set(self.home_team.preferred_days)
@@ -692,9 +683,9 @@ class Match:
 
             # Check if the date is within the match's round
             if not self.league.start_date or not self.league.end_date:
-                return 99  # Cannot calculate without league dates
-            league_start = datetime.strptime(self.league.start_date, "%Y-%m-%d")
-            league_end = datetime.strptime(self.league.end_date, "%Y-%m-%d")
+                return (99, [])  # Cannot calculate without league dates
+            league_start = self.league.start_date
+            league_end = self.league.end_date
             league_days = (league_end - league_start).days
             days_per_round = league_days // self.num_rounds
             if league_days % self.num_rounds != 0:
@@ -704,7 +695,7 @@ class Match:
                 days=(self.round - 1) * days_per_round
             )
             round_end = round_start + timedelta(days=days_per_round)
-            in_round = round_start.date() <= match_date.date() <= round_end.date()
+            in_round = round_start <= target_date <= round_end
 
             # Start at 100
             quality = 100  # Default: not preferred by anyone
@@ -762,10 +753,10 @@ class Match:
         """Update the quality_score field based on current scheduling"""
         result = self.calculate_quality_score()
         self.qscore = result[0]
-        self.qscore_penalties = result[1]
+        self.qscore_penalties = result[1] or []
 
     @staticmethod
-    def calculate_quality_score_description(score: int = None) -> str:
+    def calculate_quality_score_description(score: Optional[int] = None) -> str:
         """Get a human-readable description of quality scores (static method)"""
         descriptions = {
             0: "Unscheduled (no quality)",

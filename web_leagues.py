@@ -8,7 +8,7 @@ from flask import render_template, request, redirect, url_for, flash, jsonify, m
 from werkzeug.utils import secure_filename
 import yaml
 import json
-from datetime import datetime
+from datetime import datetime, date
 import traceback
 import tempfile
 import os
@@ -124,8 +124,12 @@ def register_routes(app):
                 league.num_matches = league_data['num_matches']
                 league.num_lines_per_match = league_data['num_lines_per_match']
                 league.allow_split_lines = league_data['allow_split_lines']
-                league.start_date = league_data['start_date']
-                league.end_date = league_data['end_date']
+                
+                # Convert date strings to date objects
+                if league_data['start_date']:
+                    league.start_date = date.fromisoformat(league_data['start_date'])
+                if league_data['end_date']:
+                    league.end_date = date.fromisoformat(league_data['end_date'])
                 
                 # Add to database
                 if db.add_league(league):
@@ -341,8 +345,15 @@ def register_routes(app):
                     league.num_matches = updated_data['num_matches']
                     league.num_lines_per_match = updated_data['num_lines_per_match']
                     league.allow_split_lines = updated_data['allow_split_lines']
-                    league.start_date = updated_data['start_date']
-                    league.end_date = updated_data['end_date']
+                    # Convert date strings to date objects
+                    if updated_data['start_date']:
+                        league.start_date = date.fromisoformat(updated_data['start_date'])
+                    else:
+                        league.start_date = None
+                    if updated_data['end_date']:
+                        league.end_date = date.fromisoformat(updated_data['end_date'])
+                    else:
+                        league.end_date = None
                     # ADD THESE TWO LINES:
                     league.preferred_days = updated_data['preferred_days']
                     league.backup_days = updated_data['backup_days']
@@ -510,8 +521,8 @@ def register_routes(app):
                 'num_matches': getattr(league, 'num_matches', 0),
                 'num_lines_per_match': getattr(league, 'num_lines_per_match', 0),
                 'allow_split_lines': getattr(league, 'allow_split_lines', False),
-                'start_date': getattr(league, 'start_date', None),
-                'end_date': getattr(league, 'end_date', None),
+                'start_date': getattr(league, 'start_date', None).isoformat() if getattr(league, 'start_date', None) else None,
+                'end_date': getattr(league, 'end_date', None).isoformat() if getattr(league, 'end_date', None) else None,
                 'teams_count': len(teams) if teams else 0,
                 'matches_count': len(matches) if matches else 0,
                 'scheduled_matches': len([m for m in (matches or []) if hasattr(m, 'date') and m.date]),

@@ -149,7 +149,7 @@
                                 <i class="fas fa-play"></i> Season Start Date
                             </label>
                             <input type="date" class="form-control" id="start_date" name="start_date" 
-                                   value="{{ league.start_date or '' }}">
+                                   value="{{ league.start_date.isoformat() if league.start_date else '' }}">
                             <div class="form-text">When the league season begins (optional)</div>
                         </div>
                         
@@ -158,7 +158,7 @@
                                 <i class="fas fa-stop"></i> Season End Date
                             </label>
                             <input type="date" class="form-control" id="end_date" name="end_date" 
-                                   value="{{ league.end_date or '' }}">
+                                   value="{{ league.end_date.isoformat() if league.end_date else '' }}">
                             <div class="form-text">When the league season ends (optional)</div>
                         </div>
                     </div>

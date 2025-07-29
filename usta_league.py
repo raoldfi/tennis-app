@@ -34,8 +34,8 @@ class League:
     allow_split_lines: bool = False  # Whether lines can be split across different time slots
     preferred_days: List[str] = field(default_factory=list)  # Preferred days for scheduling (e.g., ["Saturday", "Sunday"])
     backup_days: List[str] = field(default_factory=list)  # Backup days for scheduling
-    start_date: Optional[str] = None  # League start date in YYYY-MM-DD format
-    end_date: Optional[str] = None  # League end date in YYYY-MM-DD format
+    start_date: Optional[date] = None  # League start date
+    end_date: Optional[date] = None  # League end date
 
     # Penalty constants for quality scoring (make this configurable?)
     TEAM_PENALTY: int = 80  # Penalty for scheduling on a day not preferred by any team
@@ -101,8 +101,8 @@ class League:
             'allow_split_lines': self.allow_split_lines,
             'preferred_days': self.preferred_days,
             'backup_days': self.backup_days,
-            'start_date': self.start_date,
-            'end_date': self.end_date
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'end_date': self.end_date.isoformat() if self.end_date else None
         }
 
 

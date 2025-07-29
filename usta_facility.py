@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Tuple, List, Dict, Any, Optional
-from datetime import date, datetime, timedelta
+from datetime import date as date_type, datetime, timedelta
+from datetime import date
 import itertools
 import re
 from collections import defaultdict
@@ -263,7 +264,7 @@ class Line:
     match_id: int
     line_number: int  # 1, 2, 3, etc. (line position within the match)
     facility_id: Optional[int] = None  # None for unscheduled lines
-    date: Optional[str] = None  # YYYY-MM-DD format, None for unscheduled
+    date: Optional[date] = None  # Date object, None for unscheduled
     time: Optional[str] = None  # HH:MM format, None for unscheduled
     court_number: Optional[int] = None  # Specific court number if facility tracks them
     
@@ -285,17 +286,8 @@ class Line:
         
         # Validate date format if provided
         if self.date is not None:
-            if not isinstance(self.date, str):
-                raise ValueError("Date must be a string or None")
-            try:
-                parts = self.date.split('-')
-                if len(parts) != 3:
-                    raise ValueError("Invalid date format")
-                year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
-                if not (1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31):
-                    raise ValueError("Invalid date values")
-            except (ValueError, IndexError):
-                raise ValueError(f"Invalid date format: '{self.date}'. Expected YYYY-MM-DD format")
+            if not isinstance(self.date, date):
+                raise ValueError("Date must be a date object or None")
         
         # Validate time format if provided
         if self.time is not None:
@@ -334,8 +326,8 @@ class Line:
         """Get the facility ID (None if unscheduled)"""
         return self.facility_id
     
-    def get_date(self) -> Optional[str]:
-        """Get the scheduled date in YYYY-MM-DD format (None if unscheduled)"""
+    def get_date(self) -> Optional[date_type]:
+        """Get the scheduled date (None if unscheduled)"""
         return self.date
     
     def get_time(self) -> Optional[str]:
@@ -375,14 +367,14 @@ class Line:
         """Get the scheduling status of the line"""
         return "scheduled" if self.is_scheduled() else "unscheduled"
     
-    def schedule(self, facility_id: int, date: str, time: str, court_number: Optional[int] = None) -> 'Line':
+    def schedule(self, facility_id: int, match_date: date_type, time: str, court_number: Optional[int] = None) -> 'Line':
         """Return a new Line instance with scheduling information"""
         return Line(
             id=self.id,
             match_id=self.match_id,
             line_number=self.line_number,
             facility_id=facility_id,
-            date=date,
+            date=match_date,
             time=time,
             court_number=court_number
         )
@@ -407,7 +399,7 @@ class Facility:
     short_name: Optional[str] = None  # Short name for display (e.g., "VR", "TCA")
     location: Optional[str] = None
     schedule: WeeklySchedule = field(default_factory=WeeklySchedule)
-    unavailable_dates: List[str] = field(default_factory=list)  # List of dates in "YYYY-MM-DD" format
+    unavailable_dates: List[date] = field(default_factory=list)  # List of date objects
     total_courts: int = 0  # Total number of courts at the facility
     
     def __eq__(self, other: Any) -> bool:
@@ -460,19 +452,9 @@ class Facility:
 
 
         # Validate date formats in unavailable_dates
-        for date_str in self.unavailable_dates:
-            if not isinstance(date_str, str):
-                raise ValueError(f"All unavailable dates must be strings, got: {type(date_str)}")
-            try:
-                # Validate YYYY-MM-DD format
-                parts = date_str.split('-')
-                if len(parts) != 3:
-                    raise ValueError("Invalid date format")
-                year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
-                if not (1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31):
-                    raise ValueError("Invalid date values")
-            except (ValueError, IndexError):
-                raise ValueError(f"Invalid date format: '{date_str}'. Expected YYYY-MM-DD format")
+        for date_obj in self.unavailable_dates:
+            if not isinstance(date_obj, date):
+                raise ValueError(f"All unavailable dates must be date objects, got: {type(date_obj)}")
 
         if self.total_courts == 0:
             # make total_courts the maximum of the schedule's available courts for a single time slot
@@ -508,8 +490,8 @@ class Facility:
         """Get the weekly schedule"""
         return self.schedule
     
-    def get_unavailable_dates(self) -> List[str]:
-        """Get list of unavailable dates in YYYY-MM-DD format"""
+    def get_unavailable_dates(self) -> List[date]:
+        """Get list of unavailable dates"""
         return self.unavailable_dates.copy()
     
     def get_total_courts(self) -> int:
@@ -664,30 +646,22 @@ class Facility:
             self.short_name = self.generate_short_name()
         return self.short_name
     
-    def add_unavailable_date(self, date_str: str) -> None:
+    def add_unavailable_date(self, date_obj: date) -> None:
         """Add a date to the unavailable dates list"""
-        # Validate the date format first
-        try:
-            parts = date_str.split('-')
-            if len(parts) != 3:
-                raise ValueError("Invalid date format")
-            year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
-            if not (1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31):
-                raise ValueError("Invalid date values")
-        except (ValueError, IndexError):
-            raise ValueError(f"Invalid date format: '{date_str}'. Expected YYYY-MM-DD format")
+        if not isinstance(date_obj, date):
+            raise ValueError("Date must be a date object")
         
-        if date_str not in self.unavailable_dates:
-            self.unavailable_dates.append(date_str)
+        if date_obj not in self.unavailable_dates:
+            self.unavailable_dates.append(date_obj)
     
-    def remove_unavailable_date(self, date_str: str) -> None:
+    def remove_unavailable_date(self, date_obj: date) -> None:
         """Remove a date from the unavailable dates list"""
-        if date_str in self.unavailable_dates:
-            self.unavailable_dates.remove(date_str)
+        if date_obj in self.unavailable_dates:
+            self.unavailable_dates.remove(date_obj)
     
-    def is_available_on_date(self, date_str: str) -> bool:
+    def is_available_on_date(self, date_obj: date) -> bool:
         """Check if the facility is available on a specific date"""
-        return date_str not in self.unavailable_dates
+        return date_obj not in self.unavailable_dates
     
     def get_available_courts_on_day_time(self, day: str, time: str) -> Optional[int]:
         """Get the number of available courts for a specific day and time"""
@@ -697,11 +671,10 @@ class Facility:
         except ValueError:
             return None
         
-    def get_available_courts_on_date_time(self, date_str: str, time: str) -> Optional[int]:
+    def get_available_courts_on_date_time(self, date_obj: date, time: str) -> Optional[int]:
         """Get the number of available courts for a specific date and time"""
-        # Convert date_str to day of week
+        # Convert date to day of week
         try:
-            date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
             day_of_week = date_obj.strftime('%A')  # Get full weekday name
             return self.get_available_courts_on_day_time(day_of_week, time)
         except ValueError:
@@ -972,7 +945,7 @@ class FacilityAvailabilityInfo:
     """
     facility_id: int
     facility_name: str
-    date: str  # YYYY-MM-DD format
+    date: date  # Date object
     day_of_week: str  # Full day name (Monday, Tuesday, etc.)
     available: bool  # Whether facility is available on this date
     time_slots: List[TimeSlotAvailability] = field(default_factory=list)
@@ -991,18 +964,8 @@ class FacilityAvailabilityInfo:
             raise ValueError("Facility name must be a non-empty string")
         
         # Validate date format
-        if not isinstance(self.date, str):
-            raise ValueError("Date must be a string")
-        
-        try:
-            parts = self.date.split('-')
-            if len(parts) != 3:
-                raise ValueError("Invalid date format")
-            year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
-            if not (1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31):
-                raise ValueError("Invalid date values")
-        except (ValueError, IndexError):
-            raise ValueError(f"Invalid date format: '{self.date}'. Expected YYYY-MM-DD format")
+        if not isinstance(self.date, date):
+            raise ValueError("Date must be a date object")
         
         # Validate day of week
         valid_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -1154,7 +1117,7 @@ class FacilityAvailabilityInfo:
         }
     
     @classmethod
-    def create_unavailable(cls, facility_id: int, facility_name: str, date: str, 
+    def create_unavailable(cls, facility_id: int, facility_name: str, match_date: date_type, 
                           day_of_week: str, reason: str) -> 'FacilityAvailabilityInfo':
         """
         Create a FacilityAvailabilityInfo for an unavailable facility
@@ -1162,7 +1125,7 @@ class FacilityAvailabilityInfo:
         Args:
             facility_id: ID of the facility
             facility_name: Name of the facility
-            date: Date in YYYY-MM-DD format
+            match_date: Date object
             day_of_week: Day of the week
             reason: Reason why facility is unavailable
             
@@ -1172,7 +1135,7 @@ class FacilityAvailabilityInfo:
         return cls(
             facility_id=facility_id,
             facility_name=facility_name,
-            date=date,
+            date=match_date,
             day_of_week=day_of_week,
             available=False,
             time_slots=[],
@@ -1184,7 +1147,7 @@ class FacilityAvailabilityInfo:
         )
     
     @classmethod
-    def from_time_slots(cls, facility_id: int, facility_name: str, date: str, 
+    def from_time_slots(cls, facility_id: int, facility_name: str, match_date: date_type, 
                        day_of_week: str, time_slots: List[TimeSlotAvailability]) -> 'FacilityAvailabilityInfo':
         """
         Create a FacilityAvailabilityInfo from a list of time slots
@@ -1192,7 +1155,7 @@ class FacilityAvailabilityInfo:
         Args:
             facility_id: ID of the facility
             facility_name: Name of the facility
-            date: Date in YYYY-MM-DD format
+            match_date: Date object
             day_of_week: Day of the week
             time_slots: List of TimeSlotAvailability objects
             
@@ -1208,7 +1171,7 @@ class FacilityAvailabilityInfo:
         return cls(
             facility_id=facility_id,
             facility_name=facility_name,
-            date=date,
+            date=match_date,
             day_of_week=day_of_week,
             available=True,
             time_slots=time_slots,

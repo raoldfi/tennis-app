@@ -9,7 +9,7 @@ finding optimal scheduling possibilities.
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any, TYPE_CHECKING, Iterator
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 import math
 
@@ -193,7 +193,7 @@ class DateOption:
     across multiple facilities, including quality scoring and conflicts.
     """
     
-    date: str  # Date in YYYY-MM-DD format
+    date: date  # Date object
     day_of_week: str  # Day name (e.g., "Monday", "Tuesday")
     facility_options: List[FacilityOption] = field(default_factory=list)
     overall_quality_score: int = 0  # Best quality score across all facilities for this date
@@ -201,13 +201,8 @@ class DateOption:
     def __post_init__(self) -> None:
         """Validate date option data"""
         # Validate date format
-        if not isinstance(self.date, str):
-            raise ValueError("Date must be a string")
-        
-        try:
-            datetime.strptime(self.date, "%Y-%m-%d")
-        except ValueError:
-            raise ValueError(f"Invalid date format: '{self.date}'. Expected YYYY-MM-DD format")
+        if not isinstance(self.date, date):
+            raise ValueError("Date must be a date object")
         
         # Validate day of week
         valid_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -319,11 +314,9 @@ class DateOption:
         Returns:
             DateOption instance
         """
-        from datetime import datetime
         
         # Convert date to get day of week
-        date_obj = datetime.strptime(facility_info.date, "%Y-%m-%d")
-        day_of_week = date_obj.strftime("%A")
+        day_of_week = facility_info.date.strftime("%A")
         
         # Convert time slots
         time_slots = []
@@ -380,9 +373,9 @@ class DateOption:
                 seen_times.add(slot.time)
         
         return {
-            "date": self.date,
+            "date": self.date.strftime("%Y-%m-%d"),
             "day_of_week": self.day_of_week,
-            "formatted_date": datetime.strptime(self.date, "%Y-%m-%d").strftime("%B %d, %Y"),
+            "formatted_date": self.date.strftime("%B %d, %Y"),
             "time_slots": [slot.to_dict() for slot in unique_time_slots],
             "time_slot_details": [slot.to_dict() for slot in unique_time_slots],  # For template compatibility
             "available_times": self.get_available_times(1),  # Basic availability
@@ -486,12 +479,12 @@ class SchedulingOptions:
             if option.overall_quality_score >= min_quality
         ]
     
-    def can_schedule_on_date(self, date: str, courts_needed: Optional[int] = None) -> bool:
+    def can_schedule_on_date(self, date_obj: date, courts_needed: Optional[int] = None) -> bool:
         """
         Check if match can be scheduled on a specific date.
         
         Args:
-            date: Date string in YYYY-MM-DD format
+            date_obj: Date object
             courts_needed: Number of courts needed (defaults to match requirement)
             
         Returns:
@@ -500,25 +493,25 @@ class SchedulingOptions:
         if courts_needed is None:
             courts_needed = self.match.league.num_lines_per_match if self.match.league else 1
         
-        date_option = self.get_date_option(date)
+        date_option = self.get_date_option(date_obj)
         if not date_option:
             return False
         
         # Check if any time slot can accommodate the courts needed
         return len(date_option.get_available_times(courts_needed)) > 0
     
-    def get_date_option(self, date: str) -> Optional[DateOption]:
+    def get_date_option(self, date_obj: date) -> Optional[DateOption]:
         """
         Get the DateOption for a specific date.
         
         Args:
-            date: Date string in YYYY-MM-DD format
+            date_obj: Date object
             
         Returns:
             DateOption if found, None otherwise
         """
         for option in self.date_options:
-            if option.date == date:
+            if option.date == date_obj:
                 return option
         return None
     

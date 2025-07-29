@@ -11,6 +11,7 @@ import sqlite3
 from typing import List, Optional, TYPE_CHECKING
 from usta import Team, League, Facility, Match
 from scheduling_state import SchedulingState
+from datetime import date
 
 if TYPE_CHECKING:
     from tennis_db_interface import TennisDBInterface
@@ -353,13 +354,13 @@ class SQLTeamManager:
             raise RuntimeError(f"Database error getting teams by facility name: {e}")
 
 
-    def check_team_date_conflict(self, team: Team, date: str) -> bool:
+    def check_team_date_conflict(self, team: Team, date_obj: date) -> bool:
         """
         Check if a team already has a match scheduled on the given date.
 
         Args:
             team: Team to check
-            date: Date to check (YYYY-MM-DD format)
+            date_obj: Date object to check
 
         Returns:
             True if there's a conflict (team already scheduled on this date), False if no conflict
@@ -367,8 +368,8 @@ class SQLTeamManager:
 
         if not isinstance(team, Team):
             raise TypeError(f"Expected Team object, got: {type(team)}")
-        if not isinstance(date, str) or not date.strip():
-            raise ValueError("Date must be a non-empty string in YYYY-MM-DD format")
+        if not isinstance(date_obj, date):
+            raise ValueError("Date must be a date object")
         
         try:
             # Check database first
@@ -379,7 +380,7 @@ class SQLTeamManager:
                 AND date = ?
                 AND status = 'scheduled'
             """
-            params = [team.id, team.id, date]
+            params = [team.id, team.id, date_obj]
             
             self.cursor.execute(query, params)
             row = self.cursor.fetchone()
@@ -391,7 +392,7 @@ class SQLTeamManager:
             # Also check scheduling state if in dry run mode
             state_conflict = False
             if self.db.dry_run_active and self.db.scheduling_state:
-                state_conflict = self.db.scheduling_state.has_team_conflict(team.id, date)
+                state_conflict = self.db.scheduling_state.has_team_conflict(team.id, date_obj)
             
             # if state_conflict:
                 # print(f"DEBUG-s: Team {team.id} has a state conflict on {date} in dry run mode")
@@ -504,13 +505,13 @@ class SQLTeamManager:
     #     except sqlite3.Error as e:
     #         raise RuntimeError(f"Database error getting team date conflicts: {e}")
 
-    def check_team_facility_conflict(self, team_id: int, date: str, facility_name: str) -> bool:
+    def check_team_facility_conflict(self, team_id: int, match_date: date, facility_name: str) -> bool:
         """
         Check if a team already has a match scheduled at a different facility on the given date.
         
         Args:
             team_id: Team to check
-            date: Date to check (YYYY-MM-DD format)
+            match_date: Date object to check
             facility_name: Facility name being considered for scheduling
             
         Returns:
@@ -528,7 +529,7 @@ class SQLTeamManager:
                 AND (f.name IS NOT NULL AND f.name != ? AND f.short_name != ?)
             """
             
-            self.cursor.execute(query, (team_id, team_id, date, facility_name, facility_name))
+            self.cursor.execute(query, (team_id, team_id, match_date.strftime('%Y-%m-%d'), facility_name, facility_name))
             row = self.cursor.fetchone()
             if row is None:
                 return False

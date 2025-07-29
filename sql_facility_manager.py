@@ -12,7 +12,7 @@ from math import log
 import sqlite3
 import json
 from typing import List, Optional, Dict, Any, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 from panel import state
 from tennis_db_interface import TennisDBInterface
@@ -633,14 +633,14 @@ class SQLFacilityManager:
     # ======== Facility Availability Methods ========
 
     def get_facility_availability(
-        self, facility: Facility, dates: List[str], max_days: int = 50
+        self, facility: Facility, dates: List[date], max_days: int = 50
     ) -> List["FacilityAvailabilityInfo"]:
         """
         Get availability information for a facility over a list of dates.
 
         Args:
             facility: Facility object to check availability for
-            dates: List of dates in YYYY-MM-DD format to check
+            dates: List of date objects to check
             max_days: Maximum number of days to return
 
         Returns:
@@ -674,13 +674,13 @@ class SQLFacilityManager:
                     facility, available_dates
                 )
 
-                for date in available_dates:
+                for date_obj in available_dates:
                     # Get scheduled times for this specific date (from batch query)
-                    scheduled_times = scheduled_times_by_date.get(date, [])
+                    scheduled_times = scheduled_times_by_date.get(date_obj, [])
 
                     # Get availability for this date using cached scheduled times
                     availability_info = self._get_facility_availability_for_date(
-                        facility, date, scheduled_times
+                        facility, date_obj, scheduled_times
                     )
 
                     if availability_info:
@@ -694,33 +694,35 @@ class SQLFacilityManager:
             raise RuntimeError(f"Error getting facility availability: {e}")
 
     def _filter_dates_by_facility_availability(
-        self, facility: Facility, dates: List[str]
-    ) -> Tuple[List[str], List["FacilityAvailabilityInfo"]]:
+        self, facility: Facility, dates: List[date]
+    ) -> Tuple[List[date], List["FacilityAvailabilityInfo"]]:
         """
         Filter dates based on facility availability, splitting into available and unavailable dates.
         This reduces the database query size by filtering out dates that don't need database checks.
 
         Args:
             facility: Facility object to check
-            dates: List of date strings to filter
+            dates: List of date objects to filter
 
         Returns:
             Tuple of (available_dates, unavailable_dates_info) where:
-            - available_dates: List of dates where facility is available (need DB query)
+            - available_dates: List of date objects where facility is available (need DB query)
             - unavailable_dates_info: List of FacilityAvailabilityInfo for unavailable dates
         """
         available_dates = []
         unavailable_dates_info = []
 
-        for date in dates:
-            day_name = self._get_day_name_safe(date)
+        for date_obj in dates:
+            # Convert date object to string for day name calculation and FacilityAvailabilityInfo
+            date_str = date_obj.strftime('%Y-%m-%d')
+            day_name = date_obj.strftime("%A")
 
             # Check facility unavailable dates first (fastest check)
-            if not facility.is_available_on_date(date):
+            if not facility.is_available_on_date(date_obj):
                 unavailable_info = FacilityAvailabilityInfo.create_unavailable(
                     facility_id=facility.id,
                     facility_name=facility.name,
-                    date=date,
+                    match_date=date_obj,
                     day_of_week=day_name,
                     reason="Facility marked as unavailable",
                 )
@@ -734,7 +736,7 @@ class SQLFacilityManager:
                     unavailable_info = FacilityAvailabilityInfo.create_unavailable(
                         facility_id=facility.id,
                         facility_name=facility.name,
-                        date=date,
+                        match_date=date_obj,
                         day_of_week=day_name,
                         reason=f"No time slots available on {day_name}",
                     )
@@ -744,7 +746,7 @@ class SQLFacilityManager:
                 unavailable_info = FacilityAvailabilityInfo.create_unavailable(
                     facility_id=facility.id,
                     facility_name=facility.name,
-                    date=date,
+                    match_date=date_obj,
                     day_of_week=day_name,
                     reason=f"No schedule available for {day_name}",
                 )
@@ -752,32 +754,32 @@ class SQLFacilityManager:
                 continue
 
             # If we get here, facility is available and has schedule - needs DB query
-            available_dates.append(date)
+            available_dates.append(date_obj)
 
         return available_dates, unavailable_dates_info
 
     def _validate_facility_availability_inputs(
-        self, facility: Facility, dates: List[str], max_days: int
+        self, facility: Facility, dates: List[date], max_days: int
     ) -> None:
         """
         Validate inputs for facility availability methods
 
         Args:
             facility: Facility object to validate
-            dates: List of date strings to validate
+            dates: List of date objects to validate
             max_days: Maximum days limit to validate
 
         Raises:
             TypeError: If facility is wrong type or dates is invalid
-            ValueError: If dates format is invalid or too many dates
+            ValueError: If dates list is empty or too many dates
         """
         if not isinstance(facility, Facility):
             raise TypeError(f"Expected Facility object, got: {type(facility)}")
 
         if not isinstance(dates, list) or not all(
-            isinstance(date, str) for date in dates
+            isinstance(date_obj, date) for date_obj in dates
         ):
-            raise TypeError("dates must be a list of date strings in YYYY-MM-DD format")
+            raise TypeError("dates must be a list of date objects")
 
         if not dates:
             raise ValueError("dates list cannot be empty")
@@ -785,23 +787,18 @@ class SQLFacilityManager:
         # if len(dates) > max_days:
         #     raise ValueError(f"Cannot check more than {max_days} dates at once")
 
-        # Validate all date formats in one pass
-        for date in dates:
-            try:
-                datetime.strptime(date, "%Y-%m-%d")
-            except ValueError:
-                raise ValueError(f"Invalid date format: {date}. Expected YYYY-MM-DD")
+        # Date objects are already validated by their type, no need for format validation
 
     def _get_scheduled_times_batch(
-        self, facility: Facility, dates: List[str]
-    ) -> Dict[str, List[str]]:
+        self, facility: Facility, dates: List[date]
+    ) -> Dict[date, List[str]]:
         """
         Get scheduled times for multiple dates in a single database query. This method also 
         handles dry run state if enabled, allowing for more efficient batch processing.
 
         Args:
             facility: Facility object
-            dates: List of date strings in YYYY-MM-DD format
+            dates: List of date objects
 
         Returns:
             Dictionary mapping date -> list of scheduled times for that date
@@ -813,26 +810,34 @@ class SQLFacilityManager:
             if not dates:
                 return {}
 
+            # Convert date objects to strings for database query
+            date_strings = [date_obj.strftime('%Y-%m-%d') for date_obj in dates]
+            
             # Build parameterized query for multiple dates
-            placeholders = ",".join("?" for _ in dates)
+            placeholders = ",".join("?" for _ in date_strings)
             query = f"""
                 SELECT date, scheduled_times 
                 FROM matches 
                 WHERE facility_id = ? AND date IN ({placeholders}) AND status = 'scheduled'
             """
 
-            # Execute single query with facility_id + all dates
-            params = [facility.id] + dates
+            # Execute single query with facility_id + all date strings
+            params = [facility.id] + date_strings
             self.cursor.execute(query, params)
             rows = self.cursor.fetchall()
 
-            # Parse results and group by date
-            scheduled_times_by_date = {date: [] for date in dates}
+            # Parse results and group by date (using original date objects as keys)
+            scheduled_times_by_date = {date_obj: [] for date_obj in dates}
 
-            # Rows is postive only if there are matches in the database
+            # Rows is positive only if there are matches in the database
             for row in rows:
-                date = row["date"]
+                date_str = row["date"]
                 times_json = row["scheduled_times"]
+                
+                # Find the corresponding date object for this date string
+                date_obj = next((d for d in dates if d.strftime('%Y-%m-%d') == date_str), None)
+                if not date_obj:
+                    continue
 
                 if times_json:
                     try:
@@ -840,7 +845,7 @@ class SQLFacilityManager:
 
                         times = json.loads(times_json)
                         if isinstance(times, list):
-                            scheduled_times_by_date[date].extend(times)
+                            scheduled_times_by_date[date_obj].extend(times)
 
                     except (json.JSONDecodeError, TypeError):
                         # Skip invalid JSON, log warning if needed
@@ -853,9 +858,10 @@ class SQLFacilityManager:
             # The scheduling state is initialized from database and then updated with new bookings
             if hasattr(self.db, "dry_run_active") and self.db.dry_run_active and self.db.scheduling_state:
                 # In dry run mode, replace database results with scheduling state
-                for date in dates:
-                    state_dates = self.db.scheduling_state.get_facility_usage(facility.id, date)
-                    scheduled_times_by_date[date] = state_dates  # Replace, don't extend
+                for date_obj in dates:
+                    date_str = date_obj.strftime('%Y-%m-%d')
+                    state_dates = self.db.scheduling_state.get_facility_usage(facility.id, date_str)
+                    scheduled_times_by_date[date_obj] = state_dates  # Replace, don't extend
 
             logger.debug(
                 f"Retrieved scheduled times for {len(scheduled_times_by_date)} dates for facility {facility.id}"
@@ -871,7 +877,7 @@ class SQLFacilityManager:
             )
 
     def _get_facility_availability_for_date(
-        self, facility: Facility, date: str, scheduled_times: List[str]
+        self, facility: Facility, date_obj: date, scheduled_times: List[str]
     ) -> Optional["FacilityAvailabilityInfo"]:
         """
         Get availability information for a facility on a specific date using pre-fetched scheduled times.
@@ -881,7 +887,7 @@ class SQLFacilityManager:
 
         Args:
             facility: Facility object to check availability for
-            date: Date string in YYYY-MM-DD format (pre-validated as available)
+            date_obj: Date object (pre-validated as available)
             scheduled_times: Pre-fetched list of scheduled times for this date
 
         Returns:
@@ -891,8 +897,11 @@ class SQLFacilityManager:
             RuntimeError: If there is an error processing the data
         """
         try:
-            # Get day of week and schedule (these should be valid since date was pre-filtered)
-            day_name = self._get_day_name_safe(date)
+            # Convert date object to string for FacilityAvailabilityInfo
+            date_str = date_obj.strftime('%Y-%m-%d')
+            day_name = date_obj.strftime("%A")
+            
+            # Get day schedule (should be valid since date was pre-filtered)
             day_schedule = facility.schedule.get_day_schedule(day_name)
 
             # Create TimeSlotAvailability objects for each time slot
@@ -904,14 +913,14 @@ class SQLFacilityManager:
             return FacilityAvailabilityInfo.from_time_slots(
                 facility_id=facility.id,
                 facility_name=facility.name,
-                date=date,
+                match_date=date_obj,
                 day_of_week=day_name,
                 time_slots=time_slot_availabilities,
             )
 
         except Exception as e:
             raise RuntimeError(
-                f"Error processing facility availability for {date}: {e}"
+                f"Error processing facility availability for {date_obj}: {e}"
             )
 
     def _get_day_name_safe(self, date: str) -> str:

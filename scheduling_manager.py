@@ -9,8 +9,8 @@ making it backend-agnostic and easily testable.
 """
 
 from typing import List, Optional, Dict, Any
+from datetime import date
 
-from regex import F
 from usta import Match, League, Facility
 from usta_match import MatchScheduling
 from scheduling_options import SchedulingOptions, DateOption, FacilityOption, TimeSlotInfo
@@ -122,9 +122,7 @@ class SchedulingManager:
                 date_groups[option.date].append(option)
             
             # Create DateOption objects for each date with multiple facilities
-            for date_str, options_for_date in date_groups.items():
-                from datetime import datetime
-                date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            for date_obj, options_for_date in date_groups.items():
                 day_of_week = date_obj.strftime("%A")
                 
                 # Create FacilityOption objects for each facility on this date
@@ -162,7 +160,7 @@ class SchedulingManager:
                 # Create DateOption with all facility options for this date
                 if facility_options:
                     date_option = DateOption(
-                        date=date_str,
+                        date=date_obj,
                         day_of_week=day_of_week,
                         facility_options=facility_options
                     )
@@ -174,16 +172,16 @@ class SchedulingManager:
             raise RuntimeError(f"Error getting scheduling options: {e}")
         
 
-    def filter_team_conflicts(self, match: Match, dates: List[str]) -> List[str]:
+    def filter_team_conflicts(self, match: Match, dates: List[date]) -> List[date]:
         """
         Filter out dates where either team is already scheduled
         
         Args:
             match: Match object to check conflicts for
-            dates: List of candidate dates in YYYY-MM-DD format
+            dates: List of candidate date objects
             
         Returns:
-            List of dates with no team conflicts (subset of input dates)
+            List of date objects with no team conflicts (subset of input dates)
         """
         if not isinstance(match, Match):
             raise TypeError(f"Expected Match object, got: {type(match)}")
@@ -195,14 +193,14 @@ class SchedulingManager:
             return []
         
         filtered_dates = []
-        for date in dates:
+        for date_obj in dates:
             # Check for team conflicts on this date
-            home_conflict = self.db.check_team_date_conflict(match.home_team, date)
-            visitor_conflict = self.db.check_team_date_conflict(match.visitor_team, date)
+            home_conflict = self.db.check_team_date_conflict(match.home_team, date_obj)
+            visitor_conflict = self.db.check_team_date_conflict(match.visitor_team, date_obj)
             
             # If no conflicts, add to filtered list
             if not home_conflict and not visitor_conflict:
-                filtered_dates.append(date)
+                filtered_dates.append(date_obj)
                 
         return filtered_dates
 
@@ -263,7 +261,7 @@ class SchedulingManager:
         except Exception as e:
             raise RuntimeError(f"Error filtering facility availability: {e}")
 
-    def is_schedulable(self, match: Match, date: str, 
+    def is_schedulable(self, match: Match, date_obj: date, 
                        facility: Optional['Facility'] = None,
                        allow_split_lines: Optional[bool]=False) -> bool:
         """
@@ -274,7 +272,7 @@ class SchedulingManager:
         
         Args:
             match: Match object to check
-            date: Date string in YYYY-MM-DD format
+            date_obj: Date object to check
             facility: Optional facility to check. If None, uses home team's facility or tries all facilities
             allow_split_lines: Whether to allow split line scheduling
             
@@ -283,28 +281,21 @@ class SchedulingManager:
             
         Examples:
             # Check if match can be scheduled at home facility
-            can_schedule = scheduling_manager.is_schedulable(match, '2025-06-25')
+            from datetime import date
+            can_schedule = scheduling_manager.is_schedulable(match, date(2025, 6, 25))
             
             # Check if match can be scheduled at specific facility
             facility = db.get_facility(5)
-            can_schedule = scheduling_manager.is_schedulable(match, '2025-06-25', facility)
+            can_schedule = scheduling_manager.is_schedulable(match, date(2025, 6, 25), facility)
         """
         try:
-            print(f"\n\n IS_SCHEDULABLE: Checking {date}\n\n")
+            print(f"\n\n IS_SCHEDULABLE: Checking {date_obj}\n\n")
             
             if not isinstance(match, Match):
                 return False
             
-            if not date or not isinstance(date, str):
-                return False
-            
-            # Validate date format
-            try:
-                from datetime import datetime
-                datetime.strptime(date, '%Y-%m-%d')
-            except ValueError as ve:
-                print(f"DATETIME ERROR {ve}")
-                raise ve
+            if not isinstance(date_obj, date):
+                raise TypeError(f"Expected date object, got: {type(date_obj)}")
             
             # STEP 1: Check team conflicts first (blocking check)
             # Use same logic as auto_schedule_match and filter_dates_by_availability
@@ -312,12 +303,12 @@ class SchedulingManager:
             try:
                 # Check home team conflicts
                 if self.db.check_team_date_conflict(team=match.home_team, 
-                                                    date=date):
+                                                    date_obj=date_obj):
                     return False
                 
                 # Check visitor team conflicts  
                 if self.db.check_team_date_conflict(team=match.visitor_team, 
-                                                    date=date):
+                                                    date_obj=date_obj):
                     return False
             except Exception as date_error:
                 print(f"\n\n ==== Team Conflict error: {date_error}\n\n")
@@ -333,12 +324,12 @@ class SchedulingManager:
             try:
             
                 # Check if facility is available on this date
-                if facility.is_available_on_date(date):
+                if facility.is_available_on_date(date_obj):
                 
                     # Check to see if this facility can accommodate the number of lines
                     # Use the database interface to check availability
                     facility_availability = self.db.get_facility_availability(
-                        facility=facility, dates=[date], max_days=1
+                        facility=facility, dates=[date_obj], max_days=1
                     )
                     
                     if facility_availability and facility_availability[0].available:
@@ -542,14 +533,14 @@ class SchedulingManager:
             raise RuntimeError(f"Error unscheduling match: {e}")
 
     def preview_match_scheduling(
-        self, match: Match, date: str, times: List[str], scheduling_mode: str, facility: Optional['Facility'] = None
+        self, match: Match, date: date, times: List[str], scheduling_mode: str, facility: Optional['Facility'] = None
     ) -> Dict[str, Any]:
         """
         Preview what would happen if scheduling a match without actually doing it.
 
         Args:
             match: Match object to preview scheduling for
-            date: Date to schedule the match
+            date: Date object to schedule the match
             times: List of proposed times for the match
             scheduling_mode: Scheduling mode ('same_time', 'split_times', 'custom', etc.)
             facility: Optional facility to use for the preview (if None, uses match facility or home team facility)
@@ -563,8 +554,8 @@ class SchedulingManager:
             # Validate input parameters
             if not isinstance(match, Match):
                 raise TypeError(f"Expected Match object, got: {type(match)}")
-            if not isinstance(date, str):
-                raise TypeError(f"Expected date as string, got: {type(date)}")
+            if not isinstance(date, date):
+                raise TypeError(f"Expected date object, got: {type(date)}")
             if not isinstance(times, list):
                 raise TypeError(f"Expected times as list, got: {type(times)}")
             if scheduling_mode not in ["same_time", "split_times", "custom", "auto"]:
@@ -587,7 +578,7 @@ class SchedulingManager:
                     "mode": scheduling_mode,
                     "lines_needed": lines_needed,
                 }
-            date = valid_dates[0]  # Use the first valid date
+            date_obj = valid_dates[0]  # Use the first valid date
 
             # Get facility (use provided facility, or prefer match facility, fall back to home team facility)
             if not facility:

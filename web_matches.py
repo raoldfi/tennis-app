@@ -138,8 +138,8 @@ def register_routes(app, get_db):
                 if match.date is None:
                     return (1, "")  # Put None dates last
 
-                # match.date is already a string in YYYY-MM-DD format
-                return (0, match.date)
+                # match.date is now a date object, convert to string for sorting
+                return (0, match.date.strftime('%Y-%m-%d'))
 
             matches_display = sorted(filtered_matches, key=sort_key)
 
@@ -341,9 +341,11 @@ def register_routes(app, get_db):
 
             # Create MatchScheduling object and assign it to the match
             from usta_match import MatchScheduling
+            # Convert string date to date object
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
             match_scheduling = MatchScheduling(
                 facility=facility,
-                date=date_str,
+                date=date_obj,
                 scheduled_times=times,
                 qscore=0  # Default quality score, could be calculated if needed
             )
