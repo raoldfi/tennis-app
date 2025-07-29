@@ -662,6 +662,148 @@
     </div>
 </div>
 
+<!-- Comprehensive Facility Statistics -->
+{% if comprehensive_stats %}
+<div class="tennis-card mb-4">
+    <div class="card-header">
+        <i class="fas fa-chart-line"></i> Comprehensive Facility Statistics
+        <span class="badge bg-{{ comprehensive_stats.status.class }} ms-2">{{ comprehensive_stats.status.label }}</span>
+    </div>
+    <div class="card-body">
+        <!-- Core Metrics Summary -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card h-100 text-center">
+                    <div class="card-body">
+                        <i class="fas fa-calendar-check fa-2x mb-2 text-primary"></i>
+                        <h3 class="text-primary">{{ comprehensive_stats.core_metrics.total_scheduled_matches }}</h3>
+                        <small class="text-muted">Total Scheduled Matches</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card h-100 text-center">
+                    <div class="card-body">
+                        <i class="fas fa-clock fa-2x mb-2 text-info"></i>
+                        <h3 class="text-info">{{ "%.1f"|format(comprehensive_stats.core_metrics.total_court_hours_used) }}</h3>
+                        <small class="text-muted">Total Court Hours Used</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card h-100 text-center">
+                    <div class="card-body">
+                        <i class="fas fa-calendar fa-2x mb-2 text-warning"></i>
+                        <h3 class="text-warning">{{ comprehensive_stats.core_metrics.unique_dates_with_matches }}</h3>
+                        <small class="text-muted">Unique Dates with Matches</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card h-100 text-center">
+                    <div class="card-body">
+                        <i class="fas fa-trophy fa-2x mb-2 text-success"></i>
+                        <h3 class="text-success">{{ comprehensive_stats.core_metrics.active_leagues }}</h3>
+                        <small class="text-muted">Active Leagues</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Period Information -->
+        {% if comprehensive_stats.core_metrics.analysis_period %}
+        <div class="alert alert-info mb-4">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Analysis Period:</strong>
+            {% if comprehensive_stats.core_metrics.analysis_period.start_date %}
+                {{ comprehensive_stats.core_metrics.analysis_period.start_date }} to {{ comprehensive_stats.core_metrics.analysis_period.end_date }}
+                ({{ comprehensive_stats.core_metrics.analysis_period.duration_days }} days)
+            {% else %}
+                Data analysis based on all available scheduled matches
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Teams Using This Facility -->
+        {% if comprehensive_stats.teams_using_facility %}
+        <div class="mb-4">
+            <h5><i class="fas fa-users"></i> Teams Using This Facility</h5>
+            <div class="row">
+                {% for team in comprehensive_stats.teams_using_facility[:6] %}
+                <div class="col-md-4 mb-2">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-users text-primary me-2"></i>
+                        <div>
+                            <strong>{{ team.name }}</strong>
+                            <br><small class="text-muted">{{ team.league.name }}</small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% if comprehensive_stats.teams_using_facility|length > 6 %}
+                <div class="col-12">
+                    <small class="text-muted">... and {{ comprehensive_stats.teams_using_facility|length - 6 }} more teams</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Peak Demand Analysis -->
+        {% if comprehensive_stats.peak_demand %}
+        <div class="mb-4">
+            <h5><i class="fas fa-chart-bar"></i> Peak Demand Analysis</h5>
+            <div class="row">
+                {% if comprehensive_stats.peak_demand.total_matches %}
+                <div class="col-md-4">
+                    <div class="border rounded p-3">
+                        <div class="text-center">
+                            <h4 class="text-primary">{{ comprehensive_stats.peak_demand.total_matches }}</h4>
+                            <small class="text-muted">Total Matches</small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if comprehensive_stats.peak_demand.peak_demand_per_day %}
+                <div class="col-md-4">
+                    <div class="border rounded p-3">
+                        <div class="text-center">
+                            <h4 class="text-warning">{{ comprehensive_stats.peak_demand.peak_demand_per_day }}</h4>
+                            <small class="text-muted">Peak Matches/Day</small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if comprehensive_stats.peak_demand.peak_courts_needed %}
+                <div class="col-md-4">
+                    <div class="border rounded p-3">
+                        <div class="text-center">
+                            <h4 class="text-danger">{{ comprehensive_stats.peak_demand.peak_courts_needed }}</h4>
+                            <small class="text-muted">Peak Courts Needed</small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% if comprehensive_stats.peak_demand.league_preferred_days %}
+            <div class="mt-3">
+                <small class="text-muted"><strong>League Preferred Days:</strong> {{ comprehensive_stats.peak_demand.league_preferred_days|join(', ') }}</small>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Message Display -->
+        {% if comprehensive_stats.message %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {{ comprehensive_stats.message }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 <!-- Action Buttons -->
 <div class="mt-4">
     <div class="tennis-action-group">

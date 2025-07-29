@@ -1448,9 +1448,189 @@ Examples:
         return 0
     
     def handle_stats(self, args, db):
-        """Handle stats - same as previous implementation"""
-        # Copy the implementation from the previous version
-        return 0
+        """Handle statistics display for leagues and facilities"""
+        try:
+            print("📊 TENNIS DATABASE STATISTICS")
+            print("=" * 60)
+            
+            # Get basic counts
+            leagues = db.list_leagues()
+            facilities = db.list_facilities()
+            teams = db.list_teams()
+            matches = db.list_matches()
+            
+            print("\n📋 BASIC STATISTICS")
+            print("-" * 30)
+            print(f"Total Leagues: {len(leagues)}")
+            print(f"Total Facilities: {len(facilities)}")
+            print(f"Total Teams: {len(teams)}")
+            print(f"Total Matches: {len(matches)}")
+            
+            # Filter by league if specified
+            if args.league_id:
+                target_league = db.get_league(args.league_id)
+                if not target_league:
+                    print(f"\nError: League {args.league_id} not found")
+                    return 1
+                leagues = [target_league]
+                print(f"\n🎯 FILTERED BY LEAGUE: {target_league.name}")
+            
+            # League Statistics
+            print("\n🏆 LEAGUE STATISTICS")
+            print("-" * 30)
+            
+            for league in leagues:
+                league_teams = db.list_teams(league)
+                league_matches = db.list_matches(league=league)
+                scheduled_matches = [m for m in league_matches if m.is_scheduled()]
+                unscheduled_matches = [m for m in league_matches if not m.is_scheduled()]
+                
+                print(f"\nLeague: {league.name} (ID: {league.id})")
+                print(f"  Year: {league.year}")
+                print(f"  Section: {league.section}, Region: {league.region}")
+                print(f"  Age Group: {league.age_group}, Division: {league.division}")
+                print(f"  Teams: {len(league_teams)}")
+                print(f"  Matches: {len(league_matches)} total")
+                print(f"    Scheduled: {len(scheduled_matches)}")
+                print(f"    Unscheduled: {len(unscheduled_matches)}")
+                
+                if len(league_matches) > 0:
+                    completion_rate = (len(scheduled_matches) / len(league_matches)) * 100
+                    print(f"  Completion Rate: {completion_rate:.1f}%")
+                
+                # Lines per match info
+                if hasattr(league, 'num_lines_per_match'):
+                    print(f"  Lines per Match: {league.num_lines_per_match}")
+                    total_court_hours = len(scheduled_matches) * league.num_lines_per_match
+                    print(f"  Total Court Hours Used: {total_court_hours}")
+            
+            # Facility Statistics
+            print("\n🏟️  FACILITY STATISTICS")
+            print("-" * 30)
+            
+            for facility in facilities:
+                print(f"\nFacility: {facility.name} (ID: {facility.id})")
+                if facility.location:
+                    print(f"  Location: {facility.location}")
+                if facility.total_courts:
+                    print(f"  Total Courts: {facility.total_courts}")
+                
+                # Get facility statistics using the unified method
+                try:
+                    # Get comprehensive facility statistics
+                    facility_stats = db.facility_manager.facility_statistics(
+                        facility=facility,
+                        league=target_league if args.league_id else None,
+                        include_league_breakdown=True,
+                        include_per_day_utilization=True,
+                        include_peak_demand=True,
+                        include_requirements=False
+                    )
+                    
+                    # Display overall utilization
+                    total_utilization = facility_stats.get("total_utilization", 0.0)
+                    total_slots = facility_stats.get("total_available_slots", 0)
+                    used_slots = facility_stats.get("total_time_slots_used", 0)
+                    
+                    print(f"  Total Available Slots: {total_slots}")
+                    print(f"  Used Slots: {used_slots}")
+                    print(f"  Overall Utilization: {total_utilization:.1f}%")
+                    
+                    # Status based on utilization
+                    if total_utilization > 80:
+                        status = "HIGH USAGE ⚠️"
+                    elif total_utilization > 50:
+                        status = "MODERATE USAGE"
+                    elif total_utilization > 0:
+                        status = "LOW USAGE"
+                    else:
+                        status = "UNUSED"
+                    print(f"  Status: {status}")
+                    
+                    # League breakdown
+                    league_breakdown = facility_stats.get("league_breakdown", {})
+                    if league_breakdown:
+                        print(f"  Leagues Using Facility:")
+                        for league_id, league_data in league_breakdown.items():
+                            league_name = league_data.get("league_name", f"League {league_id}")
+                            league_util = league_data.get("utilization_percentage", 0.0)
+                            league_slots = league_data.get("slots_used", 0)
+                            print(f"    • {league_name}: {league_slots} slots ({league_util:.1f}%)")
+                    
+                    # Peak demand
+                    peak_demand = facility_stats.get("peak_demand", {})
+                    if peak_demand:
+                        peak_day = peak_demand.get("peak_day")
+                        peak_slots = peak_demand.get("peak_slots_used", 0)
+                        if peak_day and peak_slots > 0:
+                            print(f"  Peak Day: {peak_day} ({peak_slots} slots)")
+                    
+                    # Daily utilization patterns
+                    per_day_util = facility_stats.get("per_day_utilization", {})
+                    if per_day_util and any(util > 0 for util in per_day_util.values()):
+                        print(f"  Daily Utilization:")
+                        for day, util in per_day_util.items():
+                            if util > 0:
+                                print(f"    • {day}: {util:.1f}%")
+                    
+                except Exception as e:
+                    print(f"  Error calculating statistics: {e}")
+                
+                # Count teams using this facility
+                teams_using_facility = [
+                    team for team in teams 
+                    if team.preferred_facilities and facility in team.preferred_facilities
+                ]
+                if teams_using_facility:
+                    print(f"  Teams Using Facility: {len(teams_using_facility)}")
+                    for team in teams_using_facility[:3]:  # Show first 3
+                        print(f"    • {team.name}")
+                    if len(teams_using_facility) > 3:
+                        print(f"    ... and {len(teams_using_facility) - 3} more")
+            
+            # Overall System Statistics
+            print(f"\n🌐 SYSTEM OVERVIEW")
+            print("-" * 30)
+            
+            # Calculate total utilization across all facilities
+            total_system_slots = 0
+            total_system_used = 0
+            
+            for facility in facilities:
+                try:
+                    facility_stats = db.facility_manager.facility_statistics(
+                        facility=facility,
+                        league=target_league if args.league_id else None
+                    )
+                    total_system_slots += facility_stats.get("total_available_slots", 0)
+                    total_system_used += facility_stats.get("total_time_slots_used", 0)
+                except Exception:
+                    pass
+            
+            if total_system_slots > 0:
+                system_utilization = (total_system_used / total_system_slots) * 100
+                print(f"System-wide Utilization: {system_utilization:.1f}%")
+                print(f"Total System Capacity: {total_system_slots} slots")
+                print(f"Total System Usage: {total_system_used} slots")
+                print(f"Available Capacity: {total_system_slots - total_system_used} slots")
+            
+            # Match scheduling statistics
+            all_scheduled = sum(1 for m in matches if m.is_scheduled())
+            all_unscheduled = sum(1 for m in matches if not m.is_scheduled())
+            
+            if len(matches) > 0:
+                overall_completion = (all_scheduled / len(matches)) * 100
+                print(f"Overall Match Completion: {overall_completion:.1f}%")
+                print(f"Scheduling Backlog: {all_unscheduled} unscheduled matches")
+            
+            print("\n" + "=" * 60)
+            return 0
+            
+        except Exception as e:
+            print(f"Error generating statistics: {e}")
+            if args.verbose:
+                traceback.print_exc()
+            return 1
     
     def handle_health(self, args, db):
         """Handle health check"""

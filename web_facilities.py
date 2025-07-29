@@ -47,78 +47,115 @@ def register_routes(app):
                 flash(f'Facility with ID {facility_id} not found', 'error')
                 return redirect(url_for('facilities'))
             
-            # Calculate utilization data for all leagues using this facility
+            # Calculate comprehensive facility statistics using the unified method
+            facility_stats = {}
             utilization_data = {}
             total_utilization = {
                 "total_court_time_slots": 0,
                 "current_usage": 0,
                 "utilization_percentage": 0.0
             }
+            per_day_utilization = {day: 0.0 for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]}
+            comprehensive_stats = {}
             
             try:
-                # Get all leagues that have teams using this facility
-                leagues = db.list_leagues()
-                for league in leagues:
-                    teams = db.list_teams(league)
-                    # Check if any teams in this league use this facility
-                    facility_teams = [team for team in teams if team.preferred_facilities and any(f.id == facility_id for f in team.preferred_facilities)]
-                    if facility_teams:
-                        # Create the facilities_used list in the correct format
-                        facilities_used = [{
-                            "facility_id": facility_id,
-                            "facility_name": facility.name,
-                            "total_courts": facility.total_courts
-                        }]
-                        # Calculate utilization for this league
-                        league_utilization = db.facility_manager._calculate_current_utilization(
-                            league, facilities_used
-                        )
-                        if league_utilization and str(facility_id) in league_utilization:
-                            league_util_data = league_utilization[str(facility_id)]
-                            utilization_data[league.id] = {
-                                "league_name": league.name,
-                                "league_id": league.id,
-                                "utilization": league_util_data
-                            }
-                            
-                            # Aggregate totals across all leagues
-                            # Note: total_court_time_slots is the same for all leagues (facility capacity)
-                            # so we only set it once, but we sum the usage across leagues
-                            if total_utilization["total_court_time_slots"] == 0:
-                                total_utilization["total_court_time_slots"] = league_util_data["total_court_time_slots"]
-                            total_utilization["current_usage"] += league_util_data["current_usage"]
+                # Use the new unified facility_statistics method for comprehensive data
+                facility_stats = db.facility_manager.facility_statistics(
+                    facility=facility,
+                    league=None,  # Get stats for all leagues
+                    include_league_breakdown=True,
+                    include_per_day_utilization=True,
+                    include_peak_demand=True,
+                    include_requirements=False
+                )
                 
-                # Calculate total utilization percentage
-                if total_utilization["total_court_time_slots"] > 0:
-                    total_utilization["utilization_percentage"] = (
-                        total_utilization["current_usage"] / total_utilization["total_court_time_slots"]
-                    ) * 100
+                # Extract total utilization from the unified stats
+                total_utilization = {
+                    "total_court_time_slots": facility_stats.get("total_available_slots", 0),
+                    "current_usage": facility_stats.get("total_time_slots_used", 0),
+                    "utilization_percentage": facility_stats.get("total_utilization", 0.0)
+                }
+                
+                # Extract per-day utilization
+                if "per_day_utilization" in facility_stats:
+                    per_day_utilization = facility_stats["per_day_utilization"]
+                
+                # Extract league breakdown for individual league utilization
+                if "league_breakdown" in facility_stats:
+                    for league_id, league_data in facility_stats["league_breakdown"].items():
+                        utilization_data[int(league_id)] = {
+                            "league_name": league_data["league_name"],
+                            "league_id": int(league_id),
+                            "utilization": {
+                                "facility_name": facility.name,
+                                "total_court_time_slots": league_data.get("total_available_slots", 0),
+                                "current_usage": league_data.get("slots_used", 0),
+                                "utilization_percentage": league_data.get("utilization_percentage", 0.0)
+                            }
+                        }
+                
+                # Prepare comprehensive stats for detailed display
+                comprehensive_stats = {
+                    "core_metrics": {
+                        "total_scheduled_matches": facility_stats.get("total_scheduled_matches", 0),
+                        "total_court_hours_used": facility_stats.get("total_court_hours_used", 0),
+                        "unique_dates_with_matches": facility_stats.get("unique_dates_with_matches", 0),
+                        "active_leagues": facility_stats.get("active_leagues", 0),
+                        "analysis_period": facility_stats.get("analysis_period", {})
+                    },
+                    "peak_demand": facility_stats.get("peak_demand", {}),
+                    "league_breakdown": facility_stats.get("league_breakdown", {}),
+                    "message": facility_stats.get("message", "")
+                }
+                
+                # Get additional statistics for teams using this facility
+                teams = db.list_teams()
+                teams_using_facility = [
+                    team for team in teams 
+                    if team.preferred_facilities and facility in team.preferred_facilities
+                ]
+                comprehensive_stats["teams_using_facility"] = teams_using_facility
+                
+                # Calculate status based on utilization
+                utilization_pct = total_utilization.get("utilization_percentage", 0)
+                if utilization_pct > 80:
+                    status = "HIGH USAGE"
+                    status_class = "danger"
+                elif utilization_pct > 50:
+                    status = "MODERATE USAGE"
+                    status_class = "warning"
+                elif utilization_pct > 0:
+                    status = "LOW USAGE"
+                    status_class = "success"
+                else:
+                    status = "UNUSED"
+                    status_class = "secondary"
+                
+                comprehensive_stats["status"] = {
+                    "label": status,
+                    "class": status_class
+                }
                 
             except Exception as util_error:
-                print(f"Error calculating utilization: {util_error}")
+                print(f"Error calculating facility statistics: {util_error}")
                 import traceback
                 traceback.print_exc()
-                # Continue without utilization data if there's an error
-                utilization_data = {}
-                total_utilization = {
-                    "total_court_time_slots": 0,
-                    "current_usage": 0,
-                    "utilization_percentage": 0.0
+                # Continue with default values if there's an error
+                comprehensive_stats = {
+                    "core_metrics": {},
+                    "peak_demand": {},
+                    "league_breakdown": {},
+                    "teams_using_facility": [],
+                    "message": f"Error calculating statistics: {util_error}",
+                    "status": {"label": "ERROR", "class": "danger"}
                 }
-            
-            # Calculate per-day utilization
-            per_day_utilization = {}
-            try:
-                per_day_utilization = db.facility_manager.calculate_per_day_utilization(facility)
-            except Exception as day_util_error:
-                print(f"Error calculating per-day utilization: {day_util_error}")
-                per_day_utilization = {day: 0.0 for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]}
             
             return render_template('view_facility.html', 
                                  facility=facility, 
                                  utilization_data=utilization_data, 
                                  total_utilization=total_utilization,
-                                 per_day_utilization=per_day_utilization)
+                                 per_day_utilization=per_day_utilization,
+                                 comprehensive_stats=comprehensive_stats)
             
         except Exception as e:
             flash(f'Error loading facility: {e}', 'error')

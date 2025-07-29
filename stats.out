@@ -1,0 +1,152 @@
+Registered backend: sqlite
+📊 TENNIS DATABASE STATISTICS
+============================================================
+Trying to get Matches for League = None, match_type=all, facility=None, team=None
+Found 51 matches
+
+📋 BASIC STATISTICS
+------------------------------
+Total Leagues: 4
+Total Facilities: 3
+Total Teams: 17
+Total Matches: 51
+
+🏆 LEAGUE STATISTICS
+------------------------------
+Trying to get Matches for League = League(id=301, name='2025 Adult 18+ 4.0/3.5/3.0 Tri-Level Men', year=2025, section='Southwest', region='Northern New Mexico', age_group='18 & Over', division='4.0-3.0 Tri-Level Men', num_lines_per_match=3, num_matches=4, allow_split_lines=True, preferred_days=['Monday', 'Wednesday'], backup_days=['Friday'], start_date='2025-08-25', end_date='2025-09-15', TEAM_PENALTY=80, LEAGUE_PENALTY=40, ROUND_PENALTY=20, FACILITY_PENALTY=20), match_type=all, facility=None, team=None
+Found 4 matches
+
+League: 2025 Adult 18+ 4.0/3.5/3.0 Tri-Level Men (ID: 301)
+  Year: 2025
+  Section: Southwest, Region: Northern New Mexico
+  Age Group: 18 & Over, Division: 4.0-3.0 Tri-Level Men
+  Teams: 2
+  Matches: 4 total
+    Scheduled: 4
+    Unscheduled: 0
+  Completion Rate: 100.0%
+  Lines per Match: 3
+  Total Court Hours Used: 12
+Trying to get Matches for League = League(id=302, name='2025 Adult 18+ 4.0/3.5/3.0 Tri-Level Women', year=2025, section='Southwest', region='Northern New Mexico', age_group='18 & Over', division='4.0-3.0 Tri-Level Women', num_lines_per_match=3, num_matches=5, allow_split_lines=True, preferred_days=['Monday', 'Wednesday'], backup_days=['Friday'], start_date='2025-08-25', end_date='2025-09-15', TEAM_PENALTY=80, LEAGUE_PENALTY=40, ROUND_PENALTY=20, FACILITY_PENALTY=20), match_type=all, facility=None, team=None
+Found 15 matches
+
+League: 2025 Adult 18+ 4.0/3.5/3.0 Tri-Level Women (ID: 302)
+  Year: 2025
+  Section: Southwest, Region: Northern New Mexico
+  Age Group: 18 & Over, Division: 4.0-3.0 Tri-Level Women
+  Teams: 6
+  Matches: 15 total
+    Scheduled: 15
+    Unscheduled: 0
+  Completion Rate: 100.0%
+  Lines per Match: 3
+  Total Court Hours Used: 45
+Trying to get Matches for League = League(id=303, name='2025 Adult 18+ 4.5/4.0/3.5 Tri-Level Men', year=2025, section='Southwest', region='Northern New Mexico', age_group='18 & Over', division='4.5-3.5 Tri-Level Men', num_lines_per_match=3, num_matches=8, allow_split_lines=True, preferred_days=['Monday', 'Wednesday', 'Friday'], backup_days=['Tuesday'], start_date='2025-08-25', end_date='2025-09-15', TEAM_PENALTY=80, LEAGUE_PENALTY=40, ROUND_PENALTY=20, FACILITY_PENALTY=20), match_type=all, facility=None, team=None
+Found 20 matches
+
+League: 2025 Adult 18+ 4.5/4.0/3.5 Tri-Level Men (ID: 303)
+  Year: 2025
+  Section: Southwest, Region: Northern New Mexico
+  Age Group: 18 & Over, Division: 4.5-3.5 Tri-Level Men
+  Teams: 5
+  Matches: 20 total
+    Scheduled: 20
+    Unscheduled: 0
+  Completion Rate: 100.0%
+  Lines per Match: 3
+  Total Court Hours Used: 60
+Trying to get Matches for League = League(id=304, name='2025 Adult 18+ 4.5/4.0/3.5 Tri-Level Women', year=2025, section='Southwest', region='Northern New Mexico', age_group='18 & Over', division='4.5-3.5 Tri-Level Women', num_lines_per_match=3, num_matches=6, allow_split_lines=True, preferred_days=['Monday', 'Wednesday'], backup_days=['Friday'], start_date='2025-08-25', end_date='2025-09-15', TEAM_PENALTY=80, LEAGUE_PENALTY=40, ROUND_PENALTY=20, FACILITY_PENALTY=20), match_type=all, facility=None, team=None
+Found 12 matches
+
+League: 2025 Adult 18+ 4.5/4.0/3.5 Tri-Level Women (ID: 304)
+  Year: 2025
+  Section: Southwest, Region: Northern New Mexico
+  Age Group: 18 & Over, Division: 4.5-3.5 Tri-Level Women
+  Teams: 4
+  Matches: 12 total
+    Scheduled: 12
+    Unscheduled: 0
+  Completion Rate: 100.0%
+  Lines per Match: 3
+  Total Court Hours Used: 36
+
+🏟️  FACILITY STATISTICS
+------------------------------
+
+Facility: Jerry Cline Tennis Complex (ID: 16)
+  Location: Jerry Cline Tennis Complex, Albuquerque, NM
+  Total Courts: 12
+  Total Available Slots: 408
+  Used Slots: 60
+  Overall Utilization: 14.7%
+  Status: LOW USAGE
+  Leagues Using Facility:
+    • 2025 Adult 18+ 4.0/3.5/3.0 Tri-Level Men: 9 slots (20.9%)
+    • 2025 Adult 18+ 4.0/3.5/3.0 Tri-Level Women: 21 slots (48.8%)
+    • 2025 Adult 18+ 4.5/4.0/3.5 Tri-Level Men: 27 slots (46.5%)
+    • 2025 Adult 18+ 4.5/4.0/3.5 Tri-Level Women: 3 slots (7.0%)
+  Daily Utilization:
+    • Monday: 100.0%
+    • Tuesday: 100.0%
+    • Wednesday: 100.0%
+    • Friday: 100.0%
+  Teams Using Facility: 17
+    • Bacala
+    • Bradshaw
+    • Calvini
+    ... and 14 more
+
+Facility: North Domingo Baca Tennis Center (ID: 13)
+  Location: North Domingo Baca Tennis Center, Albuquerque, NM
+  Total Courts: 6
+  Total Available Slots: 96
+  Used Slots: 69
+  Overall Utilization: 71.9%
+  Status: MODERATE USAGE
+  Leagues Using Facility:
+    • 2025 Adult 18+ 4.0/3.5/3.0 Tri-Level Men: 3 slots (7.0%)
+    • 2025 Adult 18+ 4.0/3.5/3.0 Tri-Level Women: 15 slots (34.9%)
+    • 2025 Adult 18+ 4.5/4.0/3.5 Tri-Level Men: 24 slots (41.4%)
+    • 2025 Adult 18+ 4.5/4.0/3.5 Tri-Level Women: 27 slots (62.8%)
+  Daily Utilization:
+    • Monday: 66.7%
+    • Wednesday: 100.0%
+    • Friday: 66.7%
+  Teams Using Facility: 17
+    • Bacala
+    • Bradshaw
+    • Calvini
+    ... and 14 more
+
+Facility: Ventana Ranch Tennis Center (ID: 8)
+  Location: Ventana Ranch Tennis Center, Albuquerque, NM
+  Total Courts: 6
+  Total Available Slots: 78
+  Used Slots: 24
+  Overall Utilization: 30.8%
+  Status: LOW USAGE
+  Leagues Using Facility:
+    • 2025 Adult 18+ 4.0/3.5/3.0 Tri-Level Men: 0 slots (0.0%)
+    • 2025 Adult 18+ 4.0/3.5/3.0 Tri-Level Women: 9 slots (20.9%)
+    • 2025 Adult 18+ 4.5/4.0/3.5 Tri-Level Men: 9 slots (15.5%)
+    • 2025 Adult 18+ 4.5/4.0/3.5 Tri-Level Women: 6 slots (13.9%)
+  Daily Utilization:
+    • Monday: 50.0%
+    • Wednesday: 83.3%
+    • Friday: 25.0%
+  Teams Using Facility: 17
+    • Bacala
+    • Bradshaw
+    • Calvini
+    ... and 14 more
+
+🌐 SYSTEM OVERVIEW
+------------------------------
+System-wide Utilization: 26.3%
+Total System Capacity: 582 slots
+Total System Usage: 153 slots
+Available Capacity: 429 slots
+Overall Match Completion: 100.0%
+Scheduling Backlog: 0 unscheduled matches
+
+============================================================

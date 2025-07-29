@@ -501,9 +501,9 @@ class SQLMatchManager:
                 f"team must be a Team object with an id attribute, got: {type(team)}"
             )
 
-        print(
-            f"Trying to get Matches for League = {league}, match_type={match_type}, facility={facility}, team={team}"
-        )
+        # print(
+        #     f"Trying to get Matches for League = {league}, match_type={match_type}, facility={facility}, team={team}"
+        # )
 
         try:
             # Build query based on filters
@@ -555,7 +555,7 @@ class SQLMatchManager:
                 if match:
                     matches.append(match)
 
-            print(f"Found {len(matches)} matches")
+            # print(f"Found {len(matches)} matches")
             return matches
 
         except sqlite3.Error as e:
