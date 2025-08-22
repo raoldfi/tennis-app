@@ -4,7 +4,7 @@ Cleaned version using Match class methods consistently
 """
 
 from flask import Flask, render_template, request, redirect, url_for, flash
-from datetime import datetime
+from datetime import datetime, date
 import traceback
 
 # Import tennis-specific modules
@@ -91,7 +91,7 @@ def register_routes(app: Flask):
             # Get leagues for filter dropdown
             leagues_list = db.list_leagues()
             
-            return render_template('schedule.html',
+            return render_template('matches.html',
                                  schedule_data=schedule_data_list,
                                  total_matches=total_matches,
                                  total_lines=total_lines,

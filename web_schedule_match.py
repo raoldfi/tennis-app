@@ -242,7 +242,7 @@ def api_schedule_match():
 
         match_id = data.get("match_id")
         facility_id = data.get("facility_id")
-        date = data.get("date")
+        date_str = data.get("date")
         times = data.get("times", [])
         scheduling_mode = data.get(
             "scheduling_mode", "same_time"
@@ -251,8 +251,14 @@ def api_schedule_match():
             return jsonify({"success": False, "error": "Invalid scheduling mode"})
 
         # Basic validation
-        if not all([match_id, date, times]):
+        if not all([match_id, date_str, times]):
             return jsonify({"success": False, "error": "Missing required fields"})
+        
+        # Convert date string to date object
+        try:
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({"success": False, "error": "Invalid date format. Expected YYYY-MM-DD"})
 
         # Get objects
         match = db.get_match(match_id)
@@ -369,10 +375,16 @@ def api_facility_availability(facility_id: int, date: str):
         if not facility:
             return jsonify({"success": False, "error": "Facility not found"})
 
+        # Convert date string to date object
+        try:
+            date_obj = datetime.strptime(date, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({"success": False, "error": "Invalid date format. Expected YYYY-MM-DD"})
+
         # Get facility availability using db.get_facility_availability
         try:
             facility_availability_list = db.facility_manager.get_facility_availability(
-                facility=facility, dates=[date], max_days=1
+                facility=facility, dates=[date_obj], max_days=1
             )
 
             if facility_availability_list and len(facility_availability_list) > 0:
@@ -531,13 +543,20 @@ def api_preview_schedule_match():
 
         match_id = data.get("match_id")
         facility_id = data.get("facility_id")
-        date = data.get("date")
+        date_str = data.get("date")
         times = data.get("times", [])
         scheduling_mode = data.get("scheduling_mode", "custom")
 
         # Basic validation
-        if not all([match_id, date, times]):
+        if not all([match_id, date_str, times]):
             return jsonify({"success": False, "error": "Missing required fields"})
+        
+        # Convert date string to date object
+        try:
+            from datetime import datetime
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({"success": False, "error": "Invalid date format. Expected YYYY-MM-DD"})
 
         # Get objects
         match = db.get_match(match_id)

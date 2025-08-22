@@ -103,7 +103,7 @@ The application includes sophisticated scheduling logic:
 - Use `test` command for validation
 
 ### Data Import/Export
-- Use YAML format for data import/export
+- Use YAML format for data import/export with structured schema validation
 - Test data available in `testing/` directory
 - Import validation prevents invalid data
 

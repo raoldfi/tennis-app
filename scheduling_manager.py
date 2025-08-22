@@ -9,7 +9,7 @@ making it backend-agnostic and easily testable.
 """
 
 from typing import List, Optional, Dict, Any
-from datetime import date
+from datetime import date as date_type
 
 from usta import Match, League, Facility
 from usta_match import MatchScheduling
@@ -172,7 +172,7 @@ class SchedulingManager:
             raise RuntimeError(f"Error getting scheduling options: {e}")
         
 
-    def filter_team_conflicts(self, match: Match, dates: List[date]) -> List[date]:
+    def filter_team_conflicts(self, match: Match, dates: List[date_type]) -> List[date_type]:
         """
         Filter out dates where either team is already scheduled
         
@@ -261,7 +261,7 @@ class SchedulingManager:
         except Exception as e:
             raise RuntimeError(f"Error filtering facility availability: {e}")
 
-    def is_schedulable(self, match: Match, date_obj: date, 
+    def is_schedulable(self, match: Match, date_obj: date_type, 
                        facility: Optional['Facility'] = None,
                        allow_split_lines: Optional[bool]=False) -> bool:
         """
@@ -294,7 +294,7 @@ class SchedulingManager:
             if not isinstance(match, Match):
                 return False
             
-            if not isinstance(date_obj, date):
+            if not isinstance(date_obj, date_type):
                 raise TypeError(f"Expected date object, got: {type(date_obj)}")
             
             # STEP 1: Check team conflicts first (blocking check)
@@ -533,7 +533,7 @@ class SchedulingManager:
             raise RuntimeError(f"Error unscheduling match: {e}")
 
     def preview_match_scheduling(
-        self, match: Match, date: date, times: List[str], scheduling_mode: str, facility: Optional['Facility'] = None
+        self, match: Match, date: date_type, times: List[str], scheduling_mode: str, facility: Optional['Facility'] = None
     ) -> Dict[str, Any]:
         """
         Preview what would happen if scheduling a match without actually doing it.
@@ -554,7 +554,7 @@ class SchedulingManager:
             # Validate input parameters
             if not isinstance(match, Match):
                 raise TypeError(f"Expected Match object, got: {type(match)}")
-            if not isinstance(date, date):
+            if not isinstance(date, date_type):
                 raise TypeError(f"Expected date object, got: {type(date)}")
             if not isinstance(times, list):
                 raise TypeError(f"Expected times as list, got: {type(times)}")

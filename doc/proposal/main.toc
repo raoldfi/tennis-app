@@ -1,0 +1,62 @@
+\contentsline {section}{\numberline {1}General Information}{4}{section.1}%
+\contentsline {section}{\numberline {2}Company Profile}{4}{section.2}%
+\contentsline {section}{\numberline {3}Project Information}{5}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Technologies, Systems Resources, and Assets}{5}{subsection.3.1}%
+\contentsline {subsubsection}{\numberline {3.1.1}Current Implementation Technology Stack}{5}{subsubsection.3.1.1}%
+\contentsline {subsubsection}{\numberline {3.1.2}Proposed Production Infrastructure}{6}{subsubsection.3.1.2}%
+\contentsline {subsection}{\numberline {3.2}Personnel Management and Hiring Strategy}{6}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1}Core Team Structure}{6}{subsubsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.3}Payment Requirements and Financial Structure}{6}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Environmental Responsibility and Sustainability Commitment}{6}{subsection.3.4}%
+\contentsline {subsubsection}{\numberline {3.4.1}Green Technology Practices}{6}{subsubsection.3.4.1}%
+\contentsline {subsubsection}{\numberline {3.4.2}Renewable and Recyclable Products}{7}{subsubsection.3.4.2}%
+\contentsline {section}{\numberline {4}Financial Proposal}{7}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Project Overview}{7}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Detailed Project Cost Breakdown}{7}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Payment Schedule and Milestones}{7}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Cost Justification and Value Proposition}{8}{subsection.4.4}%
+\contentsline {subsection}{\numberline {4.5}Ongoing Support and Maintenance Options}{8}{subsection.4.5}%
+\contentsline {subsubsection}{\numberline {4.5.1}Additional Services (Hourly Rates)}{8}{subsubsection.4.5.1}%
+\contentsline {subsection}{\numberline {4.6}Financial Terms and Conditions}{8}{subsection.4.6}%
+\contentsline {subsection}{\numberline {4.7}Investment Protection and Guarantees}{8}{subsection.4.7}%
+\contentsline {section}{\numberline {5}Approach \& Strategy}{9}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Project Management Methodology}{9}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Coordination with USTA}{9}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Third-Party Vendors}{9}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Required USTA Resources}{9}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}Key Skills Needed from USTA Team}{9}{subsection.5.5}%
+\contentsline {section}{\numberline {6}Schedule}{9}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Phase 1: Discovery \& Software Architecture Design (Weeks 1-6)}{10}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Phase 2: Core Development (Weeks 7-12)}{10}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Phase 3: Beta Testing \& Product Hardening (Weeks 13-16)}{10}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}Phase 4: Deployment \& Go-Live (Weeks 17-19)}{11}{subsection.6.4}%
+\contentsline {subsection}{\numberline {6.5}Key USTA Deliverables}{11}{subsection.6.5}%
+\contentsline {subsection}{\numberline {6.6}Current Project Considerations}{11}{subsection.6.6}%
+\contentsline {section}{\numberline {7}Feature Set and Functional Capabilities}{11}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Core Application Infrastructure}{11}{subsection.7.1}%
+\contentsline {subsubsection}{\numberline {7.1.1}Administrative Dashboard and System Navigation}{11}{subsubsection.7.1.1}%
+\contentsline {subsubsection}{\numberline {7.1.2}Facility Resource Management}{12}{subsubsection.7.1.2}%
+\contentsline {subsubsection}{\numberline {7.1.3}League Administration and Governance}{14}{subsubsection.7.1.3}%
+\contentsline {subsubsection}{\numberline {7.1.4}Team Management and Coordination}{14}{subsubsection.7.1.4}%
+\contentsline {subsection}{\numberline {7.2}Advanced Match Scheduling and Optimization Framework}{15}{subsection.7.2}%
+\contentsline {subsubsection}{\numberline {7.2.1}Automated Match Generation and Distribution}{15}{subsubsection.7.2.1}%
+\contentsline {subsubsection}{\numberline {7.2.2}Intelligent Automated Scheduling Engine}{16}{subsubsection.7.2.2}%
+\contentsline {subsubsection}{\numberline {7.2.3}Interactive Manual Scheduling Interface}{16}{subsubsection.7.2.3}%
+\contentsline {subsection}{\numberline {7.3}Data Integration and Management Framework}{17}{subsection.7.3}%
+\contentsline {subsubsection}{\numberline {7.3.1}Advanced Import/Export Architecture}{17}{subsubsection.7.3.1}%
+\contentsline {subsubsection}{\numberline {7.3.2}Administrative Command Line Interface}{19}{subsubsection.7.3.2}%
+\contentsline {subsection}{\numberline {7.4}Supplementary Capabilities and Enhancement Features}{19}{subsection.7.4}%
+\contentsline {subsection}{\numberline {7.5}Technical Architecture and Implementation Framework}{20}{subsection.7.5}%
+\contentsline {section}{\numberline {8}Disclosures}{20}{section.8}%
+\contentsline {subsection}{\numberline {8.1}I. Operational/Service Compliance (Last 5 Years)}{20}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}II. Criminal Convictions (Last 5 Years)}{20}{subsection.8.2}%
+\contentsline {section}{\numberline {9}Claims/Litigation}{20}{section.9}%
+\contentsline {section}{\numberline {10}Finances}{20}{section.10}%
+\contentsline {section}{\numberline {11}Company Overview}{20}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Business Classification}{20}{subsection.11.1}%
+\contentsline {section}{\numberline {12}Conflicts of Interest}{21}{section.12}%
+\contentsline {section}{\numberline {13}Contract Terms}{21}{section.13}%
+\contentsline {subsection}{\numberline {13.1}Proposed Service Agreement Framework}{21}{subsection.13.1}%
+\contentsline {subsubsection}{\numberline {13.1.1}Information Security Program and Data Privacy}{21}{subsubsection.13.1.1}%
+\contentsline {subsubsection}{\numberline {13.1.2}Standard Terms}{21}{subsubsection.13.1.2}%
+\contentsline {section}{\numberline {14}Other Information}{21}{section.14}%

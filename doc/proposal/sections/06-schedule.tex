@@ -1,0 +1,64 @@
+\section{Schedule}
+\label{sec:schedule}
+
+\textbf{Project Timeline: 19 weeks total}
+
+\subsection{Phase 1: Discovery \& Software Architecture Design (Weeks 1-6)}
+This phase establishes project foundation through comprehensive requirements gathering, data collection, and familiarity with the Tennislink system. By the end of this phase, we should have a good understanding of the various scheduling scenarios and preferences across the broader USTA; an initial set of configuration options for facilities, leagues, teams, matches; and (ideally) a broad set of example datasets for testing. This data will inform the software design and database schema necessary to manage elements needed for Phase 2.
+
+Deliverables:
+\begin{itemize}
+    \item Report detailing results of data collection activity
+    \item Tennislink API assessment to learn how to read, edit, upload facility, league, team, and match information
+    \item Core software architecture design/plan for integration with Tennislink
+\end{itemize}
+
+\subsection{Phase 2: Core Development (Weeks 7-12)}
+This phase adapts and implements the core elements of the League Scheduler Platform integrated with Tennislink. It will include a near-complete implementation of features identified in Section~\ref{sec:feature-set}, guided by configuration parameters identified in the Phase 1 data-collection phase.
+
+Deliverables:
+\begin{itemize}
+    \item Scheduling configuration management for facilities, leagues, teams
+    \item Database schemas (defined or obtained from USTA) for facilities, leagues, teams and matches
+    \item Working tests using Tennislink to ingest facility, team, league data
+    \item Adapt scheduling algorithms to support variety of scenarios identified in Phase 1
+\end{itemize}
+
+\subsection{Phase 3: Beta Testing \& Product Hardening (Weeks 13-16)}
+This phase validates system performance and correctness through comprehensive testing and refinement of all integrated components.
+
+Deliverables:
+\begin{itemize}
+    \item Small scale tests to evaluate correctness of various scheduling scenarios
+    \item Large-scale configuration testing sufficient to demonstrate extreme use cases
+    \item Tennislink Integration testing and refinements
+    \item User experience (UX) evaluation through scheduled session with a subset of league coordinators
+    \item Performance measurement, evaluation, optimization
+    \item Bug resolution and system hardening
+\end{itemize}
+
+\subsection{Phase 4: Deployment \& Go-Live (Weeks 17-19)}
+This phase delivers production-ready system with complete user training and comprehensive documentation.
+
+Deliverables:
+\begin{itemize}
+    \item Final quality assurance testing
+    \item Production environment deployment
+    \item User training and go-live support
+    \item Complete documentation and knowledge transfer
+\end{itemize}
+
+\subsection{Key USTA Deliverables}
+\begin{itemize}
+    \item Tennislink API documentation and access credentials (Week 1)
+    \item Sample league data and venue information (Week 2)
+    \item User feedback from various prototypes (Weeks 8, 15)
+    \item User acceptance testing coordination (Week 16)
+\end{itemize}
+
+\subsection{Current Project Considerations}
+\begin{itemize}
+    \item No conflicting major projects during proposed timeline
+    \item One team member available full-time for USTA project
+    \item Flexibility to accelerate timeline if needed
+\end{itemize}

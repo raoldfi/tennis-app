@@ -106,11 +106,13 @@ python simple_cli.py --db-path tennis.db generate-matches --league-id 1 --execut
 - **Bootstrap Interface**: Clean, responsive design with Tennis UI styling and intuitive navigation
 
 ### 🏢 **Facilities**
-- **View & Manage**: Browse all tennis facilities with comprehensive details
+- **View & Manage**: Browse all tennis facilities with comprehensive details and statistics
 - **Facility Information**: Names, locations, court counts, and availability schedules
 - **Complex Scheduling**: Support for weekly availability patterns, blackout dates, and court-specific constraints
 - **Capacity Management**: Track total courts and available time slots for scheduling optimization
 - **Location Data**: Physical addresses and facility-specific notes for coordination
+- **Utilization Analytics**: Real-time facility utilization statistics with court usage percentages
+- **Interactive Scheduling UI**: Advanced form interface for managing weekly schedules and unavailable dates
 - **Sortable Interface**: Sort by name, location, court count, or availability
 
 ### 🏆 **Leagues**
@@ -123,10 +125,18 @@ python simple_cli.py --db-path tennis.db generate-matches --league-id 1 --execut
 
 ### 👥 **Teams**
 - **Team Management**: View teams with detailed league filtering and organization
-- **Team Details**: Names, captains, contact information, and home facility assignments
+- **Team Details**: Names, captains, contact information, and comprehensive facility management
+- **Multi-Facility Support**: Teams can have multiple preferred facilities with priority ordering:
+  - **Primary Facility**: First facility in the preference list used for initial scheduling attempts
+  - **Secondary Facilities**: Backup options for scheduling flexibility and conflict resolution
+  - **Dynamic Reordering**: Drag-and-drop interface for adjusting facility priorities
+  - **Facility Management**: Add, remove, and reorder preferred facilities through intuitive web interface
 - **Scheduling Preferences**: Team-specific preferred playing days and availability constraints
 - **League Integration**: Filter teams by specific leagues with expanded league information
-- **Home Facility Links**: Direct connection to team home facilities for scheduling coordination
+- **Advanced Facility Integration**: Smart facility selection during scheduling based on:
+  - Facility availability and court capacity
+  - Team facility preferences and priorities
+  - Travel considerations and venue logistics (TODO)
 
 ### 📅 **Matches**
 - **View & Filter**: Browse all matches with advanced filtering by league, facility, team, status, date range, and search
@@ -136,11 +146,15 @@ python simple_cli.py --db-path tennis.db generate-matches --league-id 1 --execut
   - **Fair Distribution**: Minimizes variance in total matches per team for optimal competitive balance
   - **Customizable Rounds**: Configure number of rounds and lines per match based on league requirements
   - **Conflict Prevention**: Validates team availability and prevents impossible scheduling scenarios
-- **Smart Scheduling**: Auto-schedule matches using intelligent algorithms that consider:
-  - Team preferences and availability
-  - League preferred/backup days
-  - Facility availability and constraints
-  - Quality score optimization (20-100 scale)
+- **Smart Scheduling**: Auto-schedule matches using intelligent algorithms with advanced optimization:
+  - **Multi-Algorithm Approach**: Uses SchedulingOptions class for comprehensive date/facility analysis
+  - **Team Preference Integration**: Analyzes both teams' preferred playing days and availability constraints  
+  - **League Day Prioritization**: Considers league preferred days, backup days, and round timing requirements
+  - **Facility Availability Filtering**: Real-time court availability checking with blackout date handling
+  - **Conflict Detection**: Prevents team double-booking and facility overbooking across all scheduling operations
+  - **Quality Score Optimization**: 20-100 scale scoring system evaluating team alignment, league compliance, and round timing
+  - **Iterative Optimization**: Multi-iteration scheduling with seed randomization to find optimal solutions
+  - **Split-Line Support**: Intelligent line distribution across multiple time slots when facility capacity is limited
 - **Manual Scheduling**: Interactive individual match scheduling with visual date selection:
   - Visual date browser with quality scores and facility information
   - Real-time conflict detection and court availability display
@@ -152,16 +166,24 @@ python simple_cli.py --db-path tennis.db generate-matches --league-id 1 --execut
   - **Split Times**: Lines split across multiple time slots (e.g., 2 lines at 9:00 AM, 1 line at 12:00 PM)
   - **Custom Times**: Each line individually scheduled at different times for maximum flexibility
 - **Quality Scoring**: Real-time quality assessment of match schedules based on:
-  - Team preference alignment (100 = optimal, 20 = poor)
+  - Team preference alignment (preferred vs backup days)
   - League day preferences (preferred vs backup days)
   - Round timing compliance (within proper round window)
   - Average quality metrics for batches
-  - Scoring: 100 (preferred, in-round) → 80 (backup, in-round) → 60 (preferred, out-of-round) → 40 (backup, out-of-round) → 20 (no preferences)
+  - Scoring starts at 100 (all preferences met) with point penalties assessed for sheduling options outside of preferences
+  - Configurable penalties to enable user to set priorities to inform scheduling algorithm (TODO)  
 - **Bulk Operations**: 
   - Auto-schedule multiple matches with preview mode
   - Bulk unscheduling and deletion
   - Transaction support with dry-run capabilities
 - **Preview & Retry**: Preview auto-scheduling results with "Try Again" functionality for better outcomes
+- **Optimization Scheduling**: Advanced multi-iteration optimization engine that:
+  - Runs multiple auto-scheduling attempts with different random seeds (1-100 iterations)
+  - Tracks quality metrics across iterations to find the best possible scheduling outcome
+  - Prioritizes solutions that schedule the most matches with highest average quality scores
+- **Calendar View**: Visual calendar interface for viewing scheduled matches by month/week
+- **Data Import/Export**: Comprehensive YAML/JSON import and export functionality for leagues, facilities, teams, and matches
+
 
 ### 📋 **USTA Constants**
 - View official USTA sections, regions, age groups, divisions
@@ -337,7 +359,7 @@ The quality scoring system evaluates match scheduling quality on a 20-100 scale 
 - Use debug mode if needed
 
 ### **Web App Won't Start**
-- Check Python version (3.7+)
+- Check Python version (3.8+)
 - Install missing dependencies: `pip install flask pyyaml`
 - Ensure all files are in correct directories
 - Check import errors in console output
