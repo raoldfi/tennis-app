@@ -1,0 +1,121 @@
+Registered backend: sqlite
+🧪 DRY RUN MODE: Auto-scheduling 10 unscheduled matches
+Use --execute flag to actually schedule matches
+Processing 10 unscheduled matches...
+------------------------------------------------------------
+Using provided seed: 123
+Scheduling match 125430 for teams Team 1 vs Team 2 on 2025-04-27 at El Gancho Fitness Swim Club with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125428 for teams Team 2 vs Team 1 on 2025-04-20 at Lobo Club Tennis with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125424 for teams Team 2 vs Team 1 on 2025-04-06 at Lobo Club Tennis with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125432 for teams Team 2 vs Team 1 on 2025-03-02 at Lobo Club Tennis with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125418 for teams Team 1 vs Team 2 on 2025-03-16 at El Gancho Fitness Swim Club with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125420 for teams Team 2 vs Team 1 on 2025-03-23 at Lobo Club Tennis with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125426 for teams Team 1 vs Team 2 on 2025-04-13 at El Gancho Fitness Swim Club with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125416 for teams Team 2 vs Team 1 on 2025-03-09 at Lobo Club Tennis with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125422 for teams Team 1 vs Team 2 on 2025-03-30 at El Gancho Fitness Swim Club with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125414 for teams Team 1 vs Team 2 on 2025-03-02 at El Gancho Fitness Swim Club with times ['14:00', '14:00', '14:00', '14:00', '14:00']
+
+📋 DRY RUN SUMMARY: 10 operations would have been executed:
+================================================================================
+
+🔸 UPDATE_MATCH Operations (10):
+  1. Update match 125430: Team 1 vs Team 2 at El Gancho Fitness Swim Club on 2025-04-27 at 12:00, 12:00, 12:00, 12:00, 12:00
+     Query: 
+                UPDATE matches 
+                SET league_id = ?, home_team_id = ?, visitor_team_id = ?, 
+                    facility_id = ?, date = ?, scheduled_times = ?, status = ?, 
+                    round = ?, num_rounds = ?
+                WHERE id = ?
+            
+     Params: (201, 2001, 2002, 18, '2025-04-27', '["12:00", "12:00", "12:00", "12:00", "12:00"]', 'scheduled', 9, 10.0, 125430)
+  2. Update match 125428: Team 2 vs Team 1 at Lobo Club Tennis on 2025-04-20 at 12:00, 12:00, 12:00, 12:00, 12:00
+     Query: 
+                UPDATE matches 
+                SET league_id = ?, home_team_id = ?, visitor_team_id = ?, 
+                    facility_id = ?, date = ?, scheduled_times = ?, status = ?, 
+                    round = ?, num_rounds = ?
+                WHERE id = ?
+            
+     Params: (201, 2002, 2001, 14, '2025-04-20', '["12:00", "12:00", "12:00", "12:00", "12:00"]', 'scheduled', 8, 10.0, 125428)
+  3. Update match 125424: Team 2 vs Team 1 at Lobo Club Tennis on 2025-04-06 at 12:00, 12:00, 12:00, 12:00, 12:00
+     Query: 
+                UPDATE matches 
+                SET league_id = ?, home_team_id = ?, visitor_team_id = ?, 
+                    facility_id = ?, date = ?, scheduled_times = ?, status = ?, 
+                    round = ?, num_rounds = ?
+                WHERE id = ?
+            
+     Params: (201, 2002, 2001, 14, '2025-04-06', '["12:00", "12:00", "12:00", "12:00", "12:00"]', 'scheduled', 6, 10.0, 125424)
+  4. Update match 125432: Team 2 vs Team 1 at Lobo Club Tennis on 2025-03-02 at 12:00, 12:00, 12:00, 12:00, 12:00
+     Query: 
+                UPDATE matches 
+                SET league_id = ?, home_team_id = ?, visitor_team_id = ?, 
+                    facility_id = ?, date = ?, scheduled_times = ?, status = ?, 
+                    round = ?, num_rounds = ?
+                WHERE id = ?
+            
+     Params: (201, 2002, 2001, 14, '2025-03-02', '["12:00", "12:00", "12:00", "12:00", "12:00"]', 'scheduled', 10, 10.0, 125432)
+  5. Update match 125418: Team 1 vs Team 2 at El Gancho Fitness Swim Club on 2025-03-16 at 12:00, 12:00, 12:00, 12:00, 12:00
+     Query: 
+                UPDATE matches 
+                SET league_id = ?, home_team_id = ?, visitor_team_id = ?, 
+                    facility_id = ?, date = ?, scheduled_times = ?, status = ?, 
+                    round = ?, num_rounds = ?
+                WHERE id = ?
+            
+     Params: (201, 2001, 2002, 18, '2025-03-16', '["12:00", "12:00", "12:00", "12:00", "12:00"]', 'scheduled', 3, 10.0, 125418)
+  6. Update match 125420: Team 2 vs Team 1 at Lobo Club Tennis on 2025-03-23 at 12:00, 12:00, 12:00, 12:00, 12:00
+     Query: 
+                UPDATE matches 
+                SET league_id = ?, home_team_id = ?, visitor_team_id = ?, 
+                    facility_id = ?, date = ?, scheduled_times = ?, status = ?, 
+                    round = ?, num_rounds = ?
+                WHERE id = ?
+            
+     Params: (201, 2002, 2001, 14, '2025-03-23', '["12:00", "12:00", "12:00", "12:00", "12:00"]', 'scheduled', 4, 10.0, 125420)
+  7. Update match 125426: Team 1 vs Team 2 at El Gancho Fitness Swim Club on 2025-04-13 at 12:00, 12:00, 12:00, 12:00, 12:00
+     Query: 
+                UPDATE matches 
+                SET league_id = ?, home_team_id = ?, visitor_team_id = ?, 
+                    facility_id = ?, date = ?, scheduled_times = ?, status = ?, 
+                    round = ?, num_rounds = ?
+                WHERE id = ?
+            
+     Params: (201, 2001, 2002, 18, '2025-04-13', '["12:00", "12:00", "12:00", "12:00", "12:00"]', 'scheduled', 7, 10.0, 125426)
+  8. Update match 125416: Team 2 vs Team 1 at Lobo Club Tennis on 2025-03-09 at 12:00, 12:00, 12:00, 12:00, 12:00
+     Query: 
+                UPDATE matches 
+                SET league_id = ?, home_team_id = ?, visitor_team_id = ?, 
+                    facility_id = ?, date = ?, scheduled_times = ?, status = ?, 
+                    round = ?, num_rounds = ?
+                WHERE id = ?
+            
+     Params: (201, 2002, 2001, 14, '2025-03-09', '["12:00", "12:00", "12:00", "12:00", "12:00"]', 'scheduled', 2, 10.0, 125416)
+  9. Update match 125422: Team 1 vs Team 2 at El Gancho Fitness Swim Club on 2025-03-30 at 12:00, 12:00, 12:00, 12:00, 12:00
+     Query: 
+                UPDATE matches 
+                SET league_id = ?, home_team_id = ?, visitor_team_id = ?, 
+                    facility_id = ?, date = ?, scheduled_times = ?, status = ?, 
+                    round = ?, num_rounds = ?
+                WHERE id = ?
+            
+     Params: (201, 2001, 2002, 18, '2025-03-30', '["12:00", "12:00", "12:00", "12:00", "12:00"]', 'scheduled', 5, 10.0, 125422)
+  10. Update match 125414: Team 1 vs Team 2 at El Gancho Fitness Swim Club on 2025-03-02 at 14:00, 14:00, 14:00, 14:00, 14:00
+     Query: 
+                UPDATE matches 
+                SET league_id = ?, home_team_id = ?, visitor_team_id = ?, 
+                    facility_id = ?, date = ?, scheduled_times = ?, status = ?, 
+                    round = ?, num_rounds = ?
+                WHERE id = ?
+            
+     Params: (201, 2001, 2002, 18, '2025-03-02', '["14:00", "14:00", "14:00", "14:00", "14:00"]', 'scheduled', 1, 10.0, 125414)
+
+================================================================================
+💡 To execute these operations, run the command again with --execute flag
+------------------------------------------------------------
+DRY RUN SUMMARY:
+  Would schedule: 10 matches
+  Would fail: 0 matches
+
+✅ Dry-run completed successfully!
+Run with --execute flag to actually perform scheduling

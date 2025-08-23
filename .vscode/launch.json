@@ -35,7 +35,15 @@
             "request": "launch",
             "program": "simple_cli.py",
             "console": "integratedTerminal",
-            "args": "--db-path tennis.db auto-schedule"
+            "args": "--db-path tennis.db auto-schedule --seed 123"
+        },
+                 {
+            "name": "CLI auto-schedule --execute",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "simple_cli.py",
+            "console": "integratedTerminal",
+            "args": "--db-path tennis.db auto-schedule --seed 123 --execute"
         },
         {
             "name": "CLI delete matches",

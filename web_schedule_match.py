@@ -13,7 +13,7 @@ from streamlit import success
 
 from usta import League, Match, Facility, FacilityAvailabilityInfo, TimeSlotAvailability
 from web_database import get_db, close_db
-from scheduling_options import SchedulingOptions
+#from scheduling_options import SchedulingOptions
 
 # Ensure we have the correct imports
 
@@ -71,7 +71,7 @@ def schedule_match_form(match_id: int):
             flash("No facility available for this match. Please assign a facility to the home team.", "warning")
             return redirect(url_for("matches"))
 
-        # Use the new SchedulingOptions class to get comprehensive scheduling data
+        # Use the new get_scheduling_options method to get comprehensive scheduling data
         try:
             from scheduling_manager import SchedulingManager
             scheduling_manager = SchedulingManager(db)
@@ -80,24 +80,49 @@ def schedule_match_form(match_id: int):
             )
             
             # Check if we have any scheduling options
-            if not scheduling_options.has_any_options():
+            if not scheduling_options:
                 available_dates = []
                 print("No scheduling options found for this match")
             else:
-                # Use the built-in to_dict method to get template-compatible data
-                scheduling_data = scheduling_options.to_dict()
-                available_dates = scheduling_data.get('available_dates', [])
+                # Convert MatchScheduling objects to template-compatible format
+                available_dates = []
+                processed_dates = set()  # Track unique date-facility combinations
                 
-                # Add existing matches information to each date option
-                for date_option in available_dates:
+                for match_scheduling in scheduling_options:
+                    date_str = match_scheduling.date.strftime('%Y-%m-%d')
+                    date_key = (date_str, match_scheduling.facility.id)
+                    
+                    # Skip if we already processed this date-facility combination
+                    if date_key in processed_dates:
+                        continue
+                    processed_dates.add(date_key)
+                    
+                    # Get existing matches for this date
                     try:
-                        existing_matches = get_existing_matches_on_date(db, facility, date_option['date'])
-                        date_option['existing_matches'] = existing_matches
+                        existing_matches = get_existing_matches_on_date(db, match_scheduling.facility, date_str)
                     except Exception as e:
-                        print(f"Error getting existing matches for {date_option['date']}: {e}")
-                        date_option['existing_matches'] = []
+                        print(f"Error getting existing matches for {date_str}: {e}")
+                        existing_matches = []
+                    
+                    # Create date option entry with proper formatting
+                    date_option = {
+                        'date': date_str,
+                        'date_formatted': match_scheduling.date.strftime('%A, %B %d, %Y'),
+                        'day_of_week': match_scheduling.date.strftime('%A'),
+                        'facility_id': match_scheduling.facility.id,
+                        'facility_name': match_scheduling.facility.name,
+                        'priority': 1,  # Default priority
+                        'priority_label': get_priority_label(1),
+                        'available_times': list(set(match_scheduling.scheduled_times)),  # Get unique times
+                        'existing_matches': existing_matches,
+                        'qscore': match_scheduling.qscore
+                    }
+                    available_dates.append(date_option)
                 
-                print(f"Found {len(available_dates)} scheduling options using SchedulingOptions class")
+                # Sort by qscore (highest first), then by date
+                available_dates.sort(key=lambda x: (-x['qscore'], x['date']))
+                
+                print(f"Found {len(available_dates)} scheduling options from SchedulingManager")
             
         except Exception as e:
             print(f"Error getting scheduling options: {e}")
@@ -500,11 +525,34 @@ def refresh_scheduling_options(match_id: int):
         )
         
         # Convert to the expected JSON format
-        if scheduling_options.has_any_options():
-            scheduling_data = scheduling_options.to_dict()
+        if scheduling_options:
+            # Convert MatchScheduling objects to API format
+            available_dates = []
+            processed_dates = set()
+            
+            for match_scheduling in scheduling_options:
+                date_str = match_scheduling.date.strftime('%Y-%m-%d')
+                date_key = (date_str, match_scheduling.facility.id)
+                
+                if date_key in processed_dates:
+                    continue
+                processed_dates.add(date_key)
+                
+                date_option = {
+                    'date': date_str,
+                    'facility_id': match_scheduling.facility.id,
+                    'facility_name': match_scheduling.facility.name,
+                    'available_times': list(set(match_scheduling.scheduled_times)),
+                    'qscore': match_scheduling.qscore
+                }
+                available_dates.append(date_option)
+            
+            # Sort by qscore (highest first), then by date
+            available_dates.sort(key=lambda x: (-x['qscore'], x['date']))
+            
             result = {
                 "success": True,
-                "available_dates": scheduling_data.get('available_dates', []),
+                "available_dates": available_dates,
                 "search_params": {
                     "start_date": start_date,
                     "end_date": end_date,
@@ -674,11 +722,34 @@ def get_match_scheduling_data(match_id: int, facility_id: Optional[int] = None) 
         scheduling_options = scheduling_manager.get_scheduling_options(match=match)
         
         # Convert to expected dictionary format
-        if scheduling_options.has_any_options():
-            scheduling_data = scheduling_options.to_dict()
+        if scheduling_options:
+            # Convert MatchScheduling objects to expected format
+            available_dates = []
+            processed_dates = set()
+            
+            for match_scheduling in scheduling_options:
+                date_str = match_scheduling.date.strftime('%Y-%m-%d')
+                date_key = (date_str, match_scheduling.facility.id)
+                
+                if date_key in processed_dates:
+                    continue
+                processed_dates.add(date_key)
+                
+                date_option = {
+                    'date': date_str,
+                    'facility_id': match_scheduling.facility.id,
+                    'facility_name': match_scheduling.facility.name,
+                    'available_times': list(set(match_scheduling.scheduled_times)),
+                    'qscore': match_scheduling.qscore
+                }
+                available_dates.append(date_option)
+            
+            # Sort by qscore (highest first), then by date
+            available_dates.sort(key=lambda x: (-x['qscore'], x['date']))
+            
             return {
                 "success": True,
-                "available_dates": scheduling_data.get('available_dates', []),
+                "available_dates": available_dates,
             }
         else:
             return {

@@ -691,9 +691,14 @@ class MatchesPage {
         const isOptimization = formData.get('schedule_mode') === 'optimized';
         const iterations = isOptimization ? formData.get('iterations') : 0;
         
+        // Check if this is an auto-schedule operation
+        const isAutoSchedule = endpoint.includes('bulk-auto-schedule');
+        
         // Show appropriate loading state
         if (isOptimization) {
             this.showOptimizationProgress(iterations);
+        } else if (isAutoSchedule) {
+            this.showAutoScheduleProgress();
         } else {
             TennisUI.showNotification(`${title}: Processing...`, 'info', 3000);
         }
@@ -704,9 +709,11 @@ class MatchesPage {
         })
         .then(response => response.json())
         .then(data => {
-            // Hide optimization progress if it was shown
+            // Hide progress indicators
             if (isOptimization) {
                 this.hideOptimizationProgress();
+            } else if (isAutoSchedule) {
+                this.hideAutoScheduleProgress();
             }
             
             if (data.error) {
@@ -728,9 +735,11 @@ class MatchesPage {
             }
         })
         .catch(error => {
-            // Hide optimization progress on error
+            // Hide progress indicators on error
             if (isOptimization) {
                 this.hideOptimizationProgress();
+            } else if (isAutoSchedule) {
+                this.hideAutoScheduleProgress();
             }
             TennisUI.showNotification(error.message || 'Operation failed', 'danger');
         });
@@ -821,6 +830,61 @@ class MatchesPage {
                 // Remove modal from DOM after it's hidden
                 setTimeout(() => {
                     const modalElement = document.getElementById('optimizationProgressModal');
+                    if (modalElement) modalElement.remove();
+                }, 300);
+            }
+        }, 500);
+    }
+
+    showAutoScheduleProgress() {
+        // Remove existing progress modal if it exists
+        const existingModal = document.getElementById('autoScheduleProgressModal');
+        if (existingModal) existingModal.remove();
+
+        // Create progress modal for standard auto-schedule
+        const progressHTML = `
+            <div class="modal fade" id="autoScheduleProgressModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content tennis-card">
+                        <div class="modal-body tennis-card-body text-center py-4">
+                            <div class="mb-3">
+                                <div class="tennis-spinner mx-auto mb-3" style="width: 3rem; height: 3rem;"></div>
+                            </div>
+                            <h5 class="tennis-section-title mb-3">
+                                <i class="fas fa-magic text-primary"></i> Auto-Scheduling Matches
+                            </h5>
+                            <p class="text-muted mb-3">Running the auto-schedule algorithm to find available time slots...</p>
+                            <small class="text-muted">This may take a few moments. Please do not close this window.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', progressHTML);
+
+        // Show modal
+        const modalElement = document.getElementById('autoScheduleProgressModal');
+        const modal = new bootstrap.Modal(modalElement, {
+            backdrop: 'static',
+            keyboard: false
+        });
+        modal.show();
+
+        // Store modal reference for cleanup
+        this.autoScheduleProgressModal = modal;
+    }
+
+    hideAutoScheduleProgress() {
+        // Hide and remove modal after a brief delay
+        setTimeout(() => {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('autoScheduleProgressModal'));
+            if (modal) {
+                modal.hide();
+                // Remove modal from DOM after it's hidden
+                setTimeout(() => {
+                    const modalElement = document.getElementById('autoScheduleProgressModal');
                     if (modalElement) modalElement.remove();
                 }, 300);
             }

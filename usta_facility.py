@@ -1317,7 +1317,7 @@ class FacilityAvailabilityInfo:
         return suggestions
     
 
-    def can_accommodate_match(self, match: 'Match') -> Tuple[bool, Optional[str]]:
+    def can_accommodate_match(self, match: 'Match') -> Tuple[bool, Optional[List[str]], Optional[str]]:
         """
         Check if this facility can accommodate this match. This method should be 
         able to handle scheduling modes like 'same_time', 'split_times', and 'custom'.
@@ -1326,16 +1326,17 @@ class FacilityAvailabilityInfo:
             match: Unscheduled Match object 
             
         Returns:
-            (can_accommodate, reason)
+            (can_accommodate, available_times, reason)
         """
         if not self.available:
-            return False, f"Facility not available on {self.date}: {self.reason}"
+            return False, None, f"Facility not available on {self.date}: {self.reason}"
 
         lines_needed = match.league.num_lines_per_match
 
         # first check to see if we can accommodate all lines at the same time
-        if lines_needed and len(self.get_available_times(lines_needed)) > 0:
-            return True, None
+        same_time_options = self.get_available_times(lines_needed)
+        if lines_needed and len(same_time_options) > 0:
+            return True, same_time_options, None
         
         # if split times are allowed, check if we can accommodate in two time slots
         if match.league.allow_split_lines:
@@ -1343,8 +1344,10 @@ class FacilityAvailabilityInfo:
             courts_per_slot = math.ceil(lines_needed / 2)
             available_times = self.get_available_times(courts_per_slot)
             if len(available_times) >= 2:
-                return True, None
+                return True, available_times, None
 
         
         # if we reach here, we cannot accommodate the match
-        return False, f"Facility cannot accommodate {lines_needed} lines on {self.date}"
+        # Return any available times even if we can't accommodate the full match
+        all_available_times = self.get_available_times(1)
+        return False, all_available_times if all_available_times else None, f"Facility cannot accommodate {lines_needed} lines on {self.date}"

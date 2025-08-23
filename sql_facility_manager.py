@@ -863,9 +863,9 @@ class SQLFacilityManager:
                     state_dates = self.db.scheduling_state.get_facility_usage(facility.id, date_str)
                     scheduled_times_by_date[date_obj] = state_dates  # Replace, don't extend
 
-            logger.debug(
-                f"Retrieved scheduled times for {len(scheduled_times_by_date)} dates for facility {facility.id}"
-            )
+            # logger.debug(
+            #     f"Retrieved scheduled times for {len(scheduled_times_by_date)} dates for facility {facility.id}"
+            # )
             # Ensure we only return dates that were requested
             return scheduled_times_by_date
 

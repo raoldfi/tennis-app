@@ -1,3 +1,9 @@
 # Ignore databases 
 *.db
 __pycache__
+scheduling_state.py
+doc/proposal/main.fls
+doc/proposal/main.log
+doc/proposal/main.aux
+doc/proposal/main.synctex.gz
+doc/proposal/main.toc

@@ -720,6 +720,7 @@ leagues:
       - "Thursday"
     backup_days:
       - "Wednesday"
+      - "Saturday"
     start_date: "2025-03-01"
     end_date: "2025-05-01"
 
@@ -776,6 +777,7 @@ leagues:
       - "Sunday"
     backup_days:
       - "Friday"
+      - "Saturday"
     start_date: "2025-03-01"
     end_date: "2025-05-01"
 
@@ -794,6 +796,7 @@ leagues:
       - "Saturday"
     backup_days:
       - "Thursday"
+      - "Sunday"
     start_date: "2025-03-01"
     end_date: "2025-05-01"
 
@@ -812,6 +815,7 @@ leagues:
       - "Monday"
     backup_days:
       - "Wednesday"
+      - "Sunday"
     start_date: "2025-03-01"
     end_date: "2025-05-01"
 
@@ -830,6 +834,7 @@ leagues:
       - "Tuesday"
     backup_days:
       - "Thursday"
+      - "Sunday"
     start_date: "2025-03-01"
     end_date: "2025-05-01"
 
@@ -848,6 +853,7 @@ leagues:
       - "Thursday"
     backup_days:
       - "Tuesday"
+      - "Saturday"
     start_date: "2025-03-01"
     end_date: "2025-05-01"
 
@@ -869,6 +875,9 @@ leagues:
       - "Tuesday"
     start_date: "2025-03-01"
     end_date: "2025-05-01"
+
+
+
 # teams_consolidated.yaml - All teams from division files
 teams:
   # 4.5 Women Teams
@@ -899,7 +908,7 @@ teams:
   - id: 2004
     name: "NNM 4.5M Contos - TCA"
     league_id: 202
-    preferred_facilty_ids: [9]
+    preferred_facility_ids: [9]
     captain: "Contos"
     preferred_days: []
   

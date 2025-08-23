@@ -1,0 +1,20 @@
+Registered backend: sqlite
+🚀 EXECUTING: Auto-scheduling 10 unscheduled matches
+Processing 10 unscheduled matches...
+------------------------------------------------------------
+Using provided seed: 123
+Scheduling match 125430 for teams Team 1 vs Team 2 on 2025-04-27 at El Gancho Fitness Swim Club with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125428 for teams Team 2 vs Team 1 on 2025-04-20 at Lobo Club Tennis with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125424 for teams Team 2 vs Team 1 on 2025-04-06 at Lobo Club Tennis with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125432 for teams Team 2 vs Team 1 on 2025-03-02 at Lobo Club Tennis with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125418 for teams Team 1 vs Team 2 on 2025-03-16 at El Gancho Fitness Swim Club with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125420 for teams Team 2 vs Team 1 on 2025-03-23 at Lobo Club Tennis with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125426 for teams Team 1 vs Team 2 on 2025-04-13 at El Gancho Fitness Swim Club with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125416 for teams Team 2 vs Team 1 on 2025-03-09 at Lobo Club Tennis with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+Scheduling match 125422 for teams Team 1 vs Team 2 on 2025-03-30 at El Gancho Fitness Swim Club with times ['12:00', '12:00', '12:00', '12:00', '12:00']
+------------------------------------------------------------
+EXECUTION SUMMARY:
+  Scheduled: 9 matches
+  Failed: 1 matches
+
+✅ Auto-scheduling completed!

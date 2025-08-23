@@ -1,22 +1,108 @@
 """
 Scheduling Options Module
 
-This module provides classes for representing comprehensive scheduling options for tennis matches.
-It includes detailed time slot information, date-specific options, and utility methods for 
-finding optimal scheduling possibilities.
+This module provides functions for generating scheduling options for tennis matches.
+It converts facility availability information directly into MatchScheduling objects
+sorted by quality score.
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any, TYPE_CHECKING, Iterator
-from datetime import datetime, timedelta, date
-
+from typing import List, TYPE_CHECKING
 import math
 
 # Use TYPE_CHECKING for imports to avoid circular dependencies
 if TYPE_CHECKING:
     from usta_match import Match, MatchScheduling
-    from usta_facility import Facility, FacilityAvailabilityInfo
+
+
+def get_scheduling_options(
+    match: 'Match', 
+    limit: int = 20
+) -> List['MatchScheduling']:
+    """
+    Generate scheduling options as a list of MatchScheduling objects sorted by qscore.
+    
+    This function gets facility availability information from the match and converts it
+    directly into MatchScheduling objects, eliminating complex intermediate data structures.
+    
+    Args:
+        match: Match object that needs scheduling
+        limit: Maximum number of MatchScheduling options to return
+        
+    Returns:
+        List of MatchScheduling objects sorted by qscore (best first)
+    """
+    from usta_match import MatchScheduling
+    
+    courts_needed = match.league.num_lines_per_match if match.league else 1
+    scheduling_options: List['MatchScheduling'] = []
+    
+    # Get facility availability from the match's scheduling system
+    # This would typically call something like match.get_facility_availability()
+    # or use the database to get available facilities for the match's date range
+    
+    # For now, we'll assume the match has a method to get facility availability
+    if hasattr(match, 'get_facility_availability'):
+        facility_availability_list = match.get_facility_availability()
+    else:
+        # Fallback: return empty list if no availability method exists
+        return []
+    
+    # Process each facility availability info
+    for facility_info in facility_availability_list:
+        # Skip unavailable facilities
+        if not facility_info.available:
+            continue
+            
+        # Calculate quality score for this date
+        quality_score, _ = match.calculate_quality_score(facility_info.date) if match else (0, [])
+        
+        # Get facility object from facility_info
+        facility_to_use = getattr(facility_info, 'facility', None)
+        if not facility_to_use:
+            continue  # Cannot create MatchScheduling without a facility
+            
+        # Process each time slot that can accommodate the required courts
+        for time_slot in facility_info.time_slots:
+            if time_slot.can_accommodate(courts_needed):
+                # Create same_time scheduling option (all courts at same time)
+                same_time_scheduling = MatchScheduling(
+                    facility=facility_to_use,
+                    date=facility_info.date,
+                    scheduled_times=[time_slot.time] * courts_needed,
+                    qscore=quality_score
+                )
+                scheduling_options.append(same_time_scheduling)
+                
+                # Create split_times option if league allows it and we have enough courts
+                if (hasattr(match.league, 'allow_split_lines') and 
+                    match.league.allow_split_lines and courts_needed >= 2):
+                    
+                    # Find another time slot for split scheduling
+                    for other_slot in facility_info.time_slots:
+                        if (other_slot != time_slot and 
+                            other_slot.can_accommodate(math.ceil(courts_needed / 2))):
+                            
+                            # Create split times scheduling
+                            courts_first_slot = courts_needed // 2
+                            courts_second_slot = courts_needed - courts_first_slot
+                            
+                            split_times = ([time_slot.time] * courts_first_slot + 
+                                         [other_slot.time] * courts_second_slot)
+                            
+                            split_time_scheduling = MatchScheduling(
+                                facility=facility_to_use,
+                                date=facility_info.date,
+                                scheduled_times=split_times,
+                                qscore=quality_score
+                            )
+                            scheduling_options.append(split_time_scheduling)
+                            break  # Only create one split option per time slot
+    
+    # Sort by quality score (highest first), then by date (earliest first)
+    scheduling_options.sort(key=lambda option: (-option.qscore, option.date))
+    
+    return scheduling_options[:limit]
 
 
 @dataclass
@@ -140,7 +226,7 @@ class FacilityOption:
             if slot.can_accommodate(courts_needed)
         ]
     
-    def get_best_time_slots(self, courts_needed: int, limit: int = 5) -> List[TimeSlotInfo]:
+    def get_best_time_slots(self, courts_needed: int, limit: int = 5) -> Optional[List[TimeSlotInfo]]:
         """
         Get the best time slots that can accommodate the match, sorted by availability.
         
@@ -149,12 +235,16 @@ class FacilityOption:
             limit: Maximum number of slots to return
             
         Returns:
-            List of TimeSlotInfo objects sorted by availability (most available first)
+            List of TimeSlotInfo objects sorted by availability (most available first), or None if no suitable slots
         """
         suitable_slots = [
-            slot for slot in self.time_slots
+            slot 
+            for slot in self.time_slots
             if slot.can_accommodate(courts_needed)
         ]
+        
+        if not suitable_slots:
+            return None
         
         # Sort by availability percentage (highest first)
         suitable_slots.sort(key=lambda slot: slot.availability_percentage, reverse=True)
@@ -248,7 +338,12 @@ class DateOption:
         """
         all_suitable_slots = []
         for facility_option in self.facility_options:
-            all_suitable_slots.extend(facility_option.get_best_time_slots(courts_needed, limit=10))
+            time_slots = facility_option.get_best_time_slots(courts_needed, limit=10)
+            if time_slots:
+                all_suitable_slots.extend(time_slots)
+        
+        if len(all_suitable_slots) == 0:
+            return None
         
         # Sort by availability percentage (highest first)
         all_suitable_slots.sort(key=lambda slot: slot.availability_percentage, reverse=True)
@@ -424,6 +519,9 @@ class SchedulingOptions:
         self.facility = facility
         self.date_options: List[DateOption] = []
         self._creation_time = datetime.now()
+        # Priority queue of MatchScheduling options based on match quality (highest quality first)
+        # Uses negative quality scores for max-heap behavior (heapq is min-heap by default)
+        self.prioritized_options: List['MatchScheduling'] = []
     
     def add_date_option(self, date_option: DateOption) -> None:
         """

@@ -1,17 +1,19 @@
 /**
- * Schedule Match Page JavaScript - New Version
- * Handles match scheduling UI interactions optimized for get_scheduling_options data structure
+ * Schedule Match Page JavaScript
+ * Handles match scheduling UI interactions, time slot selection, and API calls
  */
 
 class ScheduleMatchUI {
     constructor() {
-        this.selectedOption = null;
+        this.selectedDate = null;
         this.selectedTimes = [];
-        this.schedulingMode = null; // Will be auto-determined
+        this.selectedFacilityId = null;  // Track which facility the selected times belong to
+        this.facilityOptions = [];  // Store facility options for the selected date
+        this.availableTimes = [];
+        this.schedulingMode = 'same_time';
         this.matchId = null;
         this.linesNeeded = 3;
         this.facilityInfoId = null;
-        this.availableTimes = [];
         this.init();
     }
 
@@ -24,50 +26,79 @@ class ScheduleMatchUI {
             this.facilityInfoId = matchElement.dataset.facilityInfoId ? parseInt(matchElement.dataset.facilityInfoId) : null;
         }
 
-        this.initializeOptionCards();
+        this.initializeDateCards();
+        this.initializeSchedulingMode();
         this.initializeButtons();
+        this.updateModeDescription();
     }
 
-    initializeOptionCards() {
-        document.querySelectorAll('.scheduling-option').forEach(card => {
+    initializeDateCards() {
+        document.querySelectorAll('.date-card').forEach(card => {
             card.addEventListener('click', (e) => {
                 // Remove selection from other cards
-                document.querySelectorAll('.scheduling-option').forEach(c => c.classList.remove('selected'));
+                document.querySelectorAll('.date-card').forEach(c => c.classList.remove('selected'));
                 
                 // Select this card
                 card.classList.add('selected');
                 
-                // Extract option data
-                this.selectedOption = {
-                    date: card.dataset.date,
-                    facilityId: card.dataset.facilityId,
-                    facilityName: card.dataset.facilityName,
-                    qscore: card.dataset.qscore,
-                    priority: card.dataset.priority,
-                    availableTimes: card.dataset.times ? card.dataset.times.split(',') : []
-                };
+                // Update selected date
+                this.selectedDate = card.dataset.date;
+                this.availableTimes = card.dataset.times ? 
+                    card.dataset.times.split(',') : [];
                 
-                // Reset time selections and auto-determine scheduling mode
+                // Extract facility options for the selected date
+                try {
+                    this.facilityOptions = JSON.parse(card.dataset.facilityOptions || '[]');
+                } catch (e) {
+                    console.warn('Failed to parse facility options:', e);
+                    this.facilityOptions = [];
+                }
+                
+                // Extract time slot details for enhanced display
+                this.timeSlotDetails = this.extractTimeSlotDetails(card);
                 this.selectedTimes = [];
-                this.availableTimes = this.selectedOption.availableTimes;
-                this.schedulingMode = this.determineSchedulingMode(this.availableTimes.length);
+                this.selectedFacilityId = null;  // Reset facility selection
                 
-                this.updateSelectedOptionDisplay();
+                this.updateSelectedDateDisplay();
                 this.updateAvailableTimesDisplay();
-                this.updateModeDescription();
                 this.updateUI();
             });
         });
     }
+    
+    extractTimeSlotDetails(card) {
+        // Extract time slot details from the selected card's HTML
+        const timeSlotDetails = [];
+        const slotElements = card.querySelectorAll('.tennis-badge');
+        
+        slotElements.forEach(badge => {
+            const timeText = badge.textContent.trim();
+            // Look for pattern like "09:00 (3/12)"
+            const match = timeText.match(/(\d{2}:\d{2})\s*\((\d+)\/(\d+)\)/);
+            if (match) {
+                timeSlotDetails.push({
+                    time: match[1],
+                    available_courts: parseInt(match[2]),
+                    total_courts: parseInt(match[3])
+                });
+            }
+        });
+        
+        return timeSlotDetails;
+    }
 
-    determineSchedulingMode(numAvailableTimes) {
-        // Auto-determine scheduling mode based on available times
-        if (numAvailableTimes === 1) {
-            return 'same_time';
-        } else if (numAvailableTimes === 2) {
-            return 'split_times';
-        } else {
-            return 'custom';
+    initializeSchedulingMode() {
+        const modeSelect = document.getElementById('scheduling-mode');
+        if (modeSelect) {
+            modeSelect.addEventListener('change', (e) => {
+                this.schedulingMode = e.target.value;
+                this.selectedTimes = []; // Clear selections when mode changes
+                this.updateModeDescription();
+                this.updateSelectedTimesDisplay();
+                this.updateAvailableTimesDisplay(); // Re-render time slots
+                this.updateScheduleButton();
+                this.updateSplitTimesHelper();
+            });
         }
     }
 
@@ -88,49 +119,21 @@ class ScheduleMatchUI {
         }
     }
 
-    updateSelectedOptionDisplay() {
-        const display = document.getElementById('selected-option-display');
+    updateSelectedDateDisplay() {
+        const display = document.getElementById('selected-date-display');
         if (!display) return;
         
         const cardBody = display.querySelector('.tennis-card-body');
-        if (this.selectedOption) {
-            const dateObj = new Date(this.selectedOption.date + 'T00:00:00');
+        if (this.selectedDate) {
+            const dateObj = new Date(this.selectedDate + 'T00:00:00');
             const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-            const formattedDate = dateObj.toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            });
-            
             cardBody.innerHTML = `
-                <div class="mb-2">
-                    <strong class="text-tennis-primary">${dayName}</strong><br>
-                    <small class="text-tennis-muted">${formattedDate}</small>
-                </div>
-                <div class="mb-2">
-                    <i class="fas fa-building me-1"></i>
-                    <strong>${this.selectedOption.facilityName}</strong>
-                </div>
-                ${this.selectedOption.qscore ? `
-                <div class="mb-2">
-                    <span class="tennis-badge tennis-badge-${this.getQualityBadgeClass(this.selectedOption.qscore)}">
-                        Quality: ${this.selectedOption.qscore}
-                    </span>
-                </div>` : ''}
-                <div class="small text-tennis-info">
-                    ${this.availableTimes.length} time options available
-                </div>
+                <strong class="text-tennis-primary">${this.selectedDate}</strong><br>
+                <small class="text-tennis-muted">${dayName}</small>
             `;
         } else {
-            cardBody.innerHTML = '<em class="text-tennis-muted">Select an option from the left</em>';
+            cardBody.innerHTML = '<em class="text-tennis-muted">Select a date from the left</em>';
         }
-    }
-
-    getQualityBadgeClass(qscore) {
-        if (qscore >= 80) return 'success';
-        if (qscore >= 60) return 'primary';
-        if (qscore >= 40) return 'warning';
-        return 'light';
     }
 
     updateAvailableTimesDisplay() {
@@ -140,175 +143,204 @@ class ScheduleMatchUI {
         const cardBody = container.querySelector('.tennis-card-body');
         const section = document.getElementById('times-section');
         
-        if (this.availableTimes.length > 0) {
-            // Auto-select times based on scheduling mode
-            if (this.schedulingMode === 'same_time') {
-                // For same_time, auto-select the only available time
-                this.selectedTimes = [this.availableTimes[0]];
-                cardBody.innerHTML = `
-                    <div class="time-slot d-flex align-items-center justify-content-between selected" 
-                         data-time="${this.availableTimes[0]}" 
-                         data-facility-id="${this.selectedOption?.facilityId || ''}"
-                         style="cursor: default; transition: all 0.2s ease;">
-                        <div>
-                            <span class="tennis-badge tennis-badge-success">${this.availableTimes[0]}</span>
+        // Use enhanced facility options with time slot details
+        if (this.facilityOptions && this.facilityOptions.length > 0) {
+            // Generate time slots organized by facility
+            let timeSlotsHtml = '';
+            
+            this.facilityOptions.forEach(facilityOption => {
+                if (facilityOption.time_slots && facilityOption.time_slots.length > 0) {
+                    timeSlotsHtml += `
+                        <div class="facility-time-group mb-3">
+                            <div class="facility-name text-tennis-secondary fw-bold mb-2">
+                                <i class="fas fa-building me-1"></i>${facilityOption.facility_name}
+                            </div>
+                            <div class="time-slots-container">
+                                ${facilityOption.time_slots.map(slot => {
+                                    const utilizationPercent = slot.total_courts > 0 ? 
+                                        ((slot.total_courts - slot.available_courts) / slot.total_courts * 100) : 0;
+                                    
+                                    let badgeClass = 'tennis-badge-light';
+                                    if (slot.available_courts >= slot.total_courts * 0.7) {
+                                        badgeClass = 'tennis-badge-success';
+                                    } else if (slot.available_courts >= slot.total_courts * 0.3) {
+                                        badgeClass = 'tennis-badge-warning';
+                                    } else {
+                                        badgeClass = 'tennis-badge-danger';
+                                    }
+                                    
+                                    return `
+                                        <div class="time-slot-enhanced d-flex align-items-center justify-content-between p-2 mb-2 border rounded time-slot" 
+                                             data-time="${slot.time}" 
+                                             data-facility-id="${facilityOption.facility_id}"
+                                             data-available-courts="${slot.available_courts}"
+                                             data-total-courts="${slot.total_courts}"
+                                             style="cursor: pointer; transition: all 0.2s ease; min-width: 180px;">
+                                            <div>
+                                                <span class="tennis-badge ${badgeClass}">${slot.time}</span>
+                                                <small class="text-muted ms-2">${slot.available_courts}/${slot.total_courts} courts</small>
+                                            </div>
+                                            <div class="capacity-indicator" style="width: 30px; height: 4px; background: #e9ecef; border-radius: 2px; overflow: hidden;">
+                                                <div class="capacity-fill" style="width: ${100 - utilizationPercent}%; height: 100%; 
+                                                    background: ${slot.available_courts >= slot.total_courts * 0.7 ? '#28a745' : 
+                                                              slot.available_courts >= slot.total_courts * 0.3 ? '#ffc107' : '#dc3545'}; 
+                                                    transition: width 0.3s ease;"></div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
                         </div>
-                        <div class="time-select-indicator">
-                            <i class="fas fa-circle-check" style="display: block; color: var(--tennis-success);"></i>
+                    `;
+                }
+            });
+            
+            cardBody.innerHTML = timeSlotsHtml;
+            section.style.display = 'block';
+        } else if (this.timeSlotDetails && this.timeSlotDetails.length > 0) {
+            // Fallback: Generate enhanced time slots with court information (without facility grouping)
+            cardBody.innerHTML = this.timeSlotDetails.map(slot => {
+                const utilizationPercent = slot.total_courts > 0 ? 
+                    ((slot.total_courts - slot.available_courts) / slot.total_courts * 100) : 0;
+                
+                let badgeClass = 'tennis-badge-light';
+                if (slot.available_courts >= slot.total_courts * 0.7) {
+                    badgeClass = 'tennis-badge-success';
+                } else if (slot.available_courts >= slot.total_courts * 0.3) {
+                    badgeClass = 'tennis-badge-warning';
+                } else {
+                    badgeClass = 'tennis-badge-danger';
+                }
+                
+                return `
+                    <div class="time-slot-enhanced d-flex align-items-center justify-content-between p-2 mb-2 border rounded time-slot" 
+                         data-time="${slot.time}" 
+                         data-facility-id="${this.facilityInfoId || ''}"
+                         data-available-courts="${slot.available_courts}"
+                         data-total-courts="${slot.total_courts}"
+                         style="cursor: pointer; transition: all 0.2s ease; min-width: 180px;">
+                        <div>
+                            <span class="tennis-badge ${badgeClass}">${slot.time}</span>
+                            <small class="text-muted ms-2">${slot.available_courts}/${slot.total_courts} courts</small>
+                        </div>
+                        <div class="capacity-indicator" style="width: 30px; height: 4px; background: #e9ecef; border-radius: 2px; overflow: hidden;">
+                            <div class="capacity-fill" style="width: ${100 - utilizationPercent}%; height: 100%; 
+                                background: ${slot.available_courts >= slot.total_courts * 0.7 ? '#28a745' : 
+                                          slot.available_courts >= slot.total_courts * 0.3 ? '#ffc107' : '#dc3545'}; 
+                                transition: width 0.3s ease;"></div>
                         </div>
                     </div>
                 `;
-            } else if (this.schedulingMode === 'split_times') {
-                // For split_times, auto-select both available times
-                this.selectedTimes = [...this.availableTimes];
-                cardBody.innerHTML = this.availableTimes.map((time, index) => `
-                    <div class="time-slot d-flex align-items-center justify-content-between selected" 
-                         data-time="${time}" 
-                         data-facility-id="${this.selectedOption?.facilityId || ''}"
-                         style="cursor: default; transition: all 0.2s ease;">
-                        <div>
-                            <span class="tennis-badge tennis-badge-${index === 0 ? 'primary' : 'secondary'}">${time}</span>
-                        </div>
-                        <div class="time-select-indicator">
-                            <i class="fas fa-circle-check" style="display: block; color: var(--tennis-success);"></i>
-                        </div>
-                    </div>
-                `).join('');
-            } else {
-                // For custom mode, show all times as selectable
-                cardBody.innerHTML = this.availableTimes.map(time => `
-                    <div class="time-slot d-flex align-items-center justify-content-between" 
-                         data-time="${time}" 
-                         data-facility-id="${this.selectedOption?.facilityId || ''}"
-                         style="cursor: pointer; transition: all 0.2s ease;">
-                        <div>
-                            <span class="tennis-badge tennis-badge-light">${time}</span>
-                        </div>
-                        <div class="time-select-indicator">
-                            <i class="fas fa-circle-check" style="display: none; color: var(--tennis-success);"></i>
-                        </div>
-                    </div>
-                `).join('');
-                
-                // Add click handlers for custom mode
-                cardBody.querySelectorAll('.time-slot').forEach(slot => {
-                    slot.addEventListener('click', (e) => {
-                        const timeElement = e.target.closest('.time-slot');
-                        const time = timeElement.dataset.time;
-                        this.toggleTimeSelection(time, timeElement);
-                    });
-                });
-            }
+            }).join('');
             
             section.style.display = 'block';
-            this.updateSelectedTimesDisplay();
-            this.updateScheduleButton();
+        } else if (this.availableTimes.length > 0) {
+            // Fallback to basic time display
+            cardBody.innerHTML = this.availableTimes.map(time => 
+                `<span class="tennis-badge tennis-badge-light time-slot" data-time="${time}" data-facility-id="${this.facilityInfoId || ''}">${time}</span>`
+            ).join('');
+            
+            section.style.display = 'block';
         } else {
             section.style.display = 'none';
             return;
         }
+        
+        // Add click handlers to time slots
+        cardBody.querySelectorAll('.time-slot').forEach(slot => {
+            slot.addEventListener('click', (e) => {
+                const timeElement = e.target.closest('.time-slot');
+                const time = timeElement.dataset.time;
+                const facilityId = timeElement.dataset.facilityId;
+                this.toggleTimeSelection(time, timeElement, facilityId);
+            });
+        });
     }
 
     toggleTimeSelection(time, element, facilityId) {
-        const indicator = element.querySelector('.time-select-indicator i');
-        
         if (this.schedulingMode === 'same_time') {
-            // For same_time mode, only allow one time selection
+            // For this mode, only allow one time selection
             document.querySelectorAll('.time-slot').forEach(slot => {
-                slot.classList.remove('selected');
-                const slotIndicator = slot.querySelector('.time-select-indicator i');
-                if (slotIndicator) slotIndicator.style.display = 'none';
-                const badge = slot.querySelector('.tennis-badge');
-                if (badge) {
-                    badge.classList.remove('tennis-badge-success');
-                    badge.classList.add('tennis-badge-light');
-                }
+                slot.classList.remove('selected', 'tennis-badge-success');
+                slot.classList.add('tennis-badge-light');
             });
-            
-            element.classList.add('selected');
-            if (indicator) indicator.style.display = 'block';
-            const badge = element.querySelector('.tennis-badge');
-            if (badge) {
-                badge.classList.remove('tennis-badge-light');
-                badge.classList.add('tennis-badge-success');
-            }
-            
+            element.classList.remove('tennis-badge-light');
+            element.classList.add('selected', 'tennis-badge-success');
             this.selectedTimes = [time];
-            
+            this.selectedFacilityId = facilityId;  // Track the facility for the selected time
         } else if (this.schedulingMode === 'split_times') {
-            // For split times mode, allow exactly 2 time selections
+            // For split times mode, allow exactly 2 time selections from the same facility
             if (this.selectedTimes.includes(time)) {
                 this.selectedTimes = this.selectedTimes.filter(t => t !== time);
-                element.classList.remove('selected');
-                if (indicator) indicator.style.display = 'none';
-                const badge = element.querySelector('.tennis-badge');
-                if (badge) {
-                    badge.classList.remove('tennis-badge-primary', 'tennis-badge-secondary');
-                    badge.classList.add('tennis-badge-light');
+                element.classList.remove('selected', 'split-first', 'split-second', 'tennis-badge-primary', 'tennis-badge-secondary');
+                element.classList.add('tennis-badge-light');
+                // If no times left, clear facility selection
+                if (this.selectedTimes.length === 0) {
+                    this.selectedFacilityId = null;
                 }
             } else if (this.selectedTimes.length < 2) {
-                this.selectedTimes.push(time);
-                element.classList.add('selected');
-                if (indicator) indicator.style.display = 'block';
-                const badge = element.querySelector('.tennis-badge');
-                if (badge) {
-                    badge.classList.remove('tennis-badge-light');
-                    badge.classList.add(this.selectedTimes.length === 1 ? 'tennis-badge-primary' : 'tennis-badge-secondary');
+                // Check if this is from the same facility (or if it's the first selection)
+                if (this.selectedFacilityId === null || this.selectedFacilityId === facilityId) {
+                    this.selectedTimes.push(time);
+                    this.selectedFacilityId = facilityId;
+                    element.classList.remove('tennis-badge-light');
+                    element.classList.add('selected');
+                    // Add styling to distinguish first and second slots
+                    if (this.selectedTimes.length === 1) {
+                        element.classList.add('split-first', 'tennis-badge-primary');
+                    } else {
+                        element.classList.add('split-second', 'tennis-badge-secondary');
+                    }
+                } else {
+                    // Show warning that times must be from same facility
+                    if (window.TennisUI) {
+                        TennisUI.showNotification('For split times mode, both time slots must be from the same facility', 'warning');
+                    }
+                    return;
                 }
             } else {
                 // Already have 2 times selected, replace the first one
                 const firstSelectedTime = this.selectedTimes[0];
                 const firstElement = document.querySelector(`[data-time="${firstSelectedTime}"]`);
                 if (firstElement) {
-                    firstElement.classList.remove('selected');
-                    const firstIndicator = firstElement.querySelector('.time-select-indicator i');
-                    if (firstIndicator) firstIndicator.style.display = 'none';
-                    const firstBadge = firstElement.querySelector('.tennis-badge');
-                    if (firstBadge) {
-                        firstBadge.classList.remove('tennis-badge-primary', 'tennis-badge-secondary');
-                        firstBadge.classList.add('tennis-badge-light');
-                    }
+                    firstElement.classList.remove('selected', 'split-first', 'split-second', 'tennis-badge-primary', 'tennis-badge-secondary');
+                    firstElement.classList.add('tennis-badge-light');
                 }
                 
                 this.selectedTimes = [this.selectedTimes[1], time];
-                element.classList.add('selected');
-                if (indicator) indicator.style.display = 'block';
-                const badge = element.querySelector('.tennis-badge');
-                if (badge) {
-                    badge.classList.remove('tennis-badge-light');
-                    badge.classList.add('tennis-badge-secondary');
-                }
+                element.classList.remove('tennis-badge-light');
+                element.classList.add('selected', 'split-second', 'tennis-badge-secondary');
                 
-                // Update the remaining element to be primary
+                // Update the remaining element to be first
                 const remainingElement = document.querySelector(`[data-time="${this.selectedTimes[0]}"]`);
                 if (remainingElement) {
-                    const remainingBadge = remainingElement.querySelector('.tennis-badge');
-                    if (remainingBadge) {
-                        remainingBadge.classList.remove('tennis-badge-secondary');
-                        remainingBadge.classList.add('tennis-badge-primary');
-                    }
+                    remainingElement.classList.remove('split-second', 'tennis-badge-secondary');
+                    remainingElement.classList.add('split-first', 'tennis-badge-primary');
                 }
             }
-            
         } else {
-            // Custom mode allows multiple selections
+            // Custom mode allows multiple selections from the same facility
             if (this.selectedTimes.includes(time)) {
                 this.selectedTimes = this.selectedTimes.filter(t => t !== time);
-                element.classList.remove('selected');
-                if (indicator) indicator.style.display = 'none';
-                const badge = element.querySelector('.tennis-badge');
-                if (badge) {
-                    badge.classList.remove('tennis-badge-success');
-                    badge.classList.add('tennis-badge-light');
+                element.classList.remove('selected', 'tennis-badge-success');
+                element.classList.add('tennis-badge-light');
+                // If no times left, clear facility selection
+                if (this.selectedTimes.length === 0) {
+                    this.selectedFacilityId = null;
                 }
             } else {
-                this.selectedTimes.push(time);
-                element.classList.add('selected');
-                if (indicator) indicator.style.display = 'block';
-                const badge = element.querySelector('.tennis-badge');
-                if (badge) {
-                    badge.classList.remove('tennis-badge-light');
-                    badge.classList.add('tennis-badge-success');
+                // Check if this is from the same facility (or if it's the first selection)
+                if (this.selectedFacilityId === null || this.selectedFacilityId === facilityId) {
+                    this.selectedTimes.push(time);
+                    this.selectedFacilityId = facilityId;
+                    element.classList.remove('tennis-badge-light');
+                    element.classList.add('selected', 'tennis-badge-success');
+                } else {
+                    // Show warning that times must be from same facility
+                    if (window.TennisUI) {
+                        TennisUI.showNotification('All selected times must be from the same facility', 'warning');
+                    }
+                    return;
                 }
             }
         }
@@ -351,42 +383,20 @@ class ScheduleMatchUI {
             section.style.display = 'block';
         } else {
             cardBody.innerHTML = '<em class="text-tennis-muted">No times selected</em>';
-            section.style.display = this.selectedOption ? 'block' : 'none';
+            section.style.display = this.selectedDate ? 'block' : 'none';
         }
     }
 
     updateModeDescription() {
         const description = document.getElementById('mode-description');
-        if (!description || !this.schedulingMode) return;
+        if (!description) return;
         
         const descriptions = {
-            'same_time': {
-                title: 'All Lines Same Time',
-                desc: 'All lines will play at the same time slot',
-                icon: 'fas fa-clock'
-            },
-            'split_times': {
-                title: 'Split Times',
-                desc: 'Lines will be split between two time slots',
-                icon: 'fas fa-clock-rotate-left'
-            },
-            'custom': {
-                title: 'Custom Times',
-                desc: 'Multiple time slots available for selection',
-                icon: 'fas fa-calendar-alt'
-            }
+            'custom': 'Specify exact times for each line',
+            'same_time': 'All lines play at the same time',
+            'split_times': 'Some lines at one time, remaining lines at another time (same time within each slot)'
         };
-        
-        const mode = descriptions[this.schedulingMode];
-        if (mode) {
-            description.innerHTML = `
-                <div class="d-flex align-items-center mb-2">
-                    <i class="${mode.icon} text-tennis-primary me-2"></i>
-                    <strong class="text-tennis-primary">${mode.title}</strong>
-                </div>
-                <small class="text-tennis-muted">${mode.desc}</small>
-            `;
-        }
+        description.textContent = descriptions[this.schedulingMode];
     }
 
     updateSplitTimesHelper() {
@@ -404,11 +414,17 @@ class ScheduleMatchUI {
         // Validate that the correct number of times are selected for each mode
         switch (this.schedulingMode) {
             case 'same_time':
-                return this.selectedTimes.length === 1; // Auto-selected
+                // This mode requires exactly 1 time
+                return this.selectedTimes.length === 1;
+            
             case 'split_times':
-                return this.selectedTimes.length === 2; // Auto-selected
+                // Split times mode requires exactly 2 times
+                return this.selectedTimes.length === 2;
+            
             case 'custom':
-                return this.selectedTimes.length > 0; // User must select at least one
+                // Custom mode requires exact number of times for lines needed
+                return this.selectedTimes.length === this.linesNeeded;
+            
             default:
                 return false;
         }
@@ -419,10 +435,10 @@ class ScheduleMatchUI {
         const actionButtons = document.getElementById('action-buttons');
         
         if (modeSection) {
-            modeSection.style.display = this.selectedOption ? 'block' : 'none';
+            modeSection.style.display = this.selectedDate ? 'block' : 'none';
         }
         if (actionButtons) {
-            actionButtons.style.display = this.selectedOption ? 'block' : 'none';
+            actionButtons.style.display = this.selectedDate ? 'block' : 'none';
         }
         
         this.updateScheduleButton();
@@ -433,7 +449,7 @@ class ScheduleMatchUI {
         const previewButton = document.getElementById('preview-button');
         if (!previewButton) return;
         
-        const canSchedule = this.selectedOption && this.selectedTimes.length > 0 && this.validateTimeSelection();
+        const canSchedule = this.selectedDate && this.selectedTimes.length > 0 && this.validateTimeSelection();
         
         previewButton.disabled = !canSchedule;
         
@@ -447,26 +463,14 @@ class ScheduleMatchUI {
     }
 
     async showPreview() {
-        if (!this.selectedOption || this.selectedTimes.length === 0) {
+        if (!this.selectedDate || this.selectedTimes.length === 0) {
             if (window.TennisUI) {
-                TennisUI.showNotification('Please select an option and at least one time', 'warning');
+                TennisUI.showNotification('Please select a date and at least one time', 'warning');
             }
             return;
         }
 
         if (!this.validateTimeSelection()) {
-            let message = 'Please select the correct number of times for this mode';
-            if (this.schedulingMode === 'same_time') {
-                message = 'Please select exactly one time slot';
-            } else if (this.schedulingMode === 'split_times') {
-                message = 'Please select exactly two time slots';
-            } else if (this.schedulingMode === 'custom') {
-                message = `Please select exactly ${this.linesNeeded} time slots (one per line)`;
-            }
-            
-            if (window.TennisUI) {
-                TennisUI.showNotification(message, 'warning');
-            }
             return;
         }
 
@@ -485,8 +489,8 @@ class ScheduleMatchUI {
                 },
                 body: JSON.stringify({
                     match_id: this.matchId,
-                    facility_id: this.selectedOption.facilityId,
-                    date: this.selectedOption.date,
+                    facility_id: this.selectedFacilityId || this.facilityInfoId,
+                    date: this.selectedDate,
                     times: this.selectedTimes,
                     scheduling_mode: this.schedulingMode
                 })
@@ -622,6 +626,7 @@ class ScheduleMatchUI {
     }
 
     async confirmSchedule() {
+        // This performs the actual scheduling
         try {
             // Show loading state
             const confirmButton = document.getElementById('confirm-schedule');
@@ -636,7 +641,7 @@ class ScheduleMatchUI {
                 if (modal) modal.hide();
             }
 
-            // Make actual scheduling API call
+            // Make actual scheduling API call (existing endpoint)
             const response = await fetch('/api/schedule/match', {
                 method: 'POST',
                 headers: {
@@ -644,8 +649,8 @@ class ScheduleMatchUI {
                 },
                 body: JSON.stringify({
                     match_id: this.matchId,
-                    facility_id: this.selectedOption.facilityId,
-                    date: this.selectedOption.date,
+                    facility_id: this.selectedFacilityId || this.facilityInfoId,
+                    date: this.selectedDate,
                     times: this.selectedTimes,
                     scheduling_mode: this.schedulingMode
                 })
@@ -657,7 +662,7 @@ class ScheduleMatchUI {
                 if (window.TennisUI) {
                     TennisUI.showNotification('Match scheduled successfully!', 'success');
                 }
-                // Redirect to matches page
+                // Redirect to matches page or refresh
                 setTimeout(() => {
                     window.location.href = '/matches';
                 }, 1500);
@@ -683,7 +688,7 @@ class ScheduleMatchUI {
 
 // Initialize the scheduling UI when the page loads
 document.addEventListener('DOMContentLoaded', function() {
-    if (document.querySelector('.scheduling-option')) {
+    if (document.querySelector('.date-card')) {
         window.scheduleUI = new ScheduleMatchUI();
     }
 });
