@@ -26,6 +26,8 @@ python tennis_cli.py --db-path tennis.db create match --league-id 1 --home-team-
 python tennis_cli.py --db-path tennis.db generate-matches --league-id 1
 """
 
+import cProfile
+import pstats
 import traceback
 import argparse
 import json
@@ -1798,7 +1800,16 @@ Examples:
 def main():
     """Main entry point"""
     cli = SimplifiedTennisCLIWithImport()
-    return cli.run()
+
+    with cProfile.Profile() as profile:
+        cli_results = cli.run()
+
+    results = pstats.Stats(profile)
+    results.sort_stats(pstats.SortKey.TIME)
+    # results.print_stats()
+    results.dump_stats("results.prof")
+
+
 
 
 if __name__ == "__main__":

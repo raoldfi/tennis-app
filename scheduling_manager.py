@@ -73,6 +73,9 @@ class SchedulingManager:
                 if not dates:
                     # If no valid dates after filtering, return empty list
                     return []
+                
+                # Filter prioritized_match_scheduling to only include options with valid dates
+                prioritized_match_scheduling = [option for option in prioritized_match_scheduling if option.date in dates]
 
             # extract the facilities from the match scheduling options
             facilities = [option.facility for option in prioritized_match_scheduling if option.facility]
@@ -81,23 +84,31 @@ class SchedulingManager:
             if not facilities:
                 return []
 
-            # Get availability information for each facility
-            # This will return a dictionary of facility ID to availability info
-            facility_availability_info = {}
-            for facility in facilities:
-                availability = self.db.get_facility_availability(
-                    facility=facility,
-                    dates=dates
-                )
-                facility_availability_info[facility.id] = availability
+            # # Get availability information for each facility
+            # # This will return a dictionary of facility ID to availability info
+            # facility_availability_info = {}
+            # for facility in facilities:
+            #     availability = self.db.get_facility_availability(
+            #         facility=facility,
+            #         dates=dates
+            #     )
+            #     facility_availability_info[facility.id] = availability
 
             scheduling_options: List[MatchScheduling] = []
             courts_needed = match.league.num_lines_per_match if match.league else 1
 
             for option in prioritized_match_scheduling:
-                # get the list for this facility
-                facility_availability_list = facility_availability_info.get(option.facility.id, [])
 
+                # # get the list for this facility
+                # facility_availability_list = facility_availability_info.get(option.facility.id, [])
+
+                # get facility availability for just this facility on this date.  
+                # is this more efficient than doing them all in advance? 
+                facility_availability_list = self.db.get_facility_availability(
+                    facility=option.facility,
+                    dates=[option.date]
+                )
+                
                 # get the facility_info for this date
                 facility_info = next((info for info in facility_availability_list if info.date == option.date), None)
 
@@ -123,6 +134,7 @@ class SchedulingManager:
                             qscore=quality_score
                         )
                         scheduling_options.append(same_time_scheduling)
+                
 
                 # Create split_times options if league allows it and we have enough courts
                 if (hasattr(match.league, 'allow_split_lines') and 
@@ -150,6 +162,10 @@ class SchedulingManager:
                                 qscore=quality_score - 5   # add a small penalty split
                             )
                             scheduling_options.append(split_time_scheduling)
+
+                
+                if len(scheduling_options) >= max_dates:
+                    break
 
             # Sort by quality score (highest first), then by date (earliest first)
             scheduling_options.sort(key=lambda opt: (-opt.qscore, opt.date))
@@ -409,6 +425,7 @@ class SchedulingManager:
                     # Get scheduling options for the match.  
                     scheduling_options = self.get_scheduling_options(
                         match,
+                        max_dates=1,
                         ignore_conflicts=False,  # Do not ignore conflicts for auto-scheduling
                         ignore_league_preferences=False,
                         ignore_team_preferences=False,

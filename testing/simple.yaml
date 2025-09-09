@@ -106,8 +106,9 @@ leagues:
       - "Thursday"
     backup_days:
       - "Wednesday"
-    start_date: "2025-03-01"
-    end_date: "2025-05-01"
+      - "Saturday"
+    start_date: "2025-09-01"
+    end_date: "2025-11-01"
 
 # teams_consolidated.yaml - All teams from division files
 teams:

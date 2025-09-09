@@ -13,7 +13,7 @@ from streamlit import success
 
 from usta import League, Match, Facility, FacilityAvailabilityInfo, TimeSlotAvailability
 from web_database import get_db, close_db
-#from scheduling_options import SchedulingOptions
+# from scheduling_options import SchedulingOptions
 
 # Ensure we have the correct imports
 
@@ -61,24 +61,31 @@ def schedule_match_form(match_id: int):
             )
             return redirect(url_for("view_match", match_id=match_id))
 
-
         # Validate that match has a facility (prefer match facility, fall back to home team facility)
         facility = match.get_facility()
         if not facility and match.home_team:
-            facility = match.home_team.get_primary_facility() if match.home_team.preferred_facilities else None
-        
+            facility = (
+                match.home_team.get_primary_facility()
+                if match.home_team.preferred_facilities
+                else None
+            )
+
         if not facility:
-            flash("No facility available for this match. Please assign a facility to the home team.", "warning")
+            flash(
+                "No facility available for this match. Please assign a facility to the home team.",
+                "warning",
+            )
             return redirect(url_for("matches"))
 
         # Use the new get_scheduling_options method to get comprehensive scheduling data
         try:
             from scheduling_manager import SchedulingManager
+
             scheduling_manager = SchedulingManager(db)
             scheduling_options = scheduling_manager.get_scheduling_options(
                 match=match, max_dates=20
             )
-            
+
             # Check if we have any scheduling options
             if not scheduling_options:
                 available_dates = []
@@ -87,43 +94,51 @@ def schedule_match_form(match_id: int):
                 # Convert MatchScheduling objects to template-compatible format
                 available_dates = []
                 processed_dates = set()  # Track unique date-facility combinations
-                
+
                 for match_scheduling in scheduling_options:
-                    date_str = match_scheduling.date.strftime('%Y-%m-%d')
+                    date_str = match_scheduling.date.strftime("%Y-%m-%d")
                     date_key = (date_str, match_scheduling.facility.id)
-                    
+
                     # Skip if we already processed this date-facility combination
                     if date_key in processed_dates:
                         continue
                     processed_dates.add(date_key)
-                    
+
                     # Get existing matches for this date
                     try:
-                        existing_matches = get_existing_matches_on_date(db, match_scheduling.facility, date_str)
+                        existing_matches = get_existing_matches_on_date(
+                            db, match_scheduling.facility, date_str
+                        )
                     except Exception as e:
                         print(f"Error getting existing matches for {date_str}: {e}")
                         existing_matches = []
-                    
+
                     # Create date option entry with proper formatting
                     date_option = {
-                        'date': date_str,
-                        'date_formatted': match_scheduling.date.strftime('%A, %B %d, %Y'),
-                        'day_of_week': match_scheduling.date.strftime('%A'),
-                        'facility_id': match_scheduling.facility.id,
-                        'facility_name': match_scheduling.facility.name,
-                        'priority': 1,  # Default priority
-                        'priority_label': get_priority_label(1),
-                        'available_times': list(set(match_scheduling.scheduled_times)),  # Get unique times
-                        'existing_matches': existing_matches,
-                        'qscore': match_scheduling.qscore
+                        "date": date_str,
+                        "date_formatted": match_scheduling.date.strftime(
+                            "%A, %B %d, %Y"
+                        ),
+                        "day_of_week": match_scheduling.date.strftime("%A"),
+                        "facility_id": match_scheduling.facility.id,
+                        "facility_name": match_scheduling.facility.name,
+                        "priority": 1,  # Default priority
+                        "priority_label": get_priority_label(1),
+                        "available_times": list(
+                            set(match_scheduling.scheduled_times)
+                        ),  # Get unique times
+                        "existing_matches": existing_matches,
+                        "qscore": match_scheduling.qscore,
                     }
                     available_dates.append(date_option)
-                
+
                 # Sort by qscore (highest first), then by date
-                available_dates.sort(key=lambda x: (-x['qscore'], x['date']))
-                
-                print(f"Found {len(available_dates)} scheduling options from SchedulingManager")
-            
+                available_dates.sort(key=lambda x: (-x["qscore"], x["date"]))
+
+                print(
+                    f"Found {len(available_dates)} scheduling options from SchedulingManager"
+                )
+
         except Exception as e:
             print(f"Error getting scheduling options: {e}")
             available_dates = []
@@ -132,20 +147,22 @@ def schedule_match_form(match_id: int):
         match_info = {
             "id": match.id,
             "home_team": match.home_team.name if match.home_team else "Unknown",
-            "visitor_team": match.visitor_team.name if match.visitor_team else "Unknown", 
+            "visitor_team": (
+                match.visitor_team.name if match.visitor_team else "Unknown"
+            ),
             "round": match.round,
             "num_rounds": match.num_rounds,
             "league": match.league.name if match.league else "Unknown League",
-            "lines_needed": match.league.num_lines_per_match if match.league else 3
+            "lines_needed": match.league.num_lines_per_match if match.league else 3,
         }
-        
+
         # Prepare facility_info for template (use the facility we determined earlier)
         facility_info = None
         if facility:
             facility_info = {
                 "id": facility.id,
                 "name": facility.name,
-                "location": facility.location
+                "location": facility.location,
             }
 
         # Render the scheduling form with available dates
