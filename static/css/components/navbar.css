@@ -1,7 +1,7 @@
 /* Tennis Navbar Component */
 
 .tennis-navbar {
-  background: linear-gradient(135deg, var(--tennis-primary) 0%, var(--tennis-primary-dark) 100%);
+  background: var(--tennis-navbar-color);
   padding: var(--spacing-md) 0;
   box-shadow: var(--shadow-md);
   position: sticky;
@@ -88,7 +88,7 @@
 }
 
 .tennis-nav-link:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.9);
   color: var(--tennis-secondary);
   text-decoration: none;
   transform: translateY(-1px);

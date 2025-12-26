@@ -1,19 +1,23 @@
 /* Color Variables */
 :root {
-    /* Primary Tennis Brand Colors */
-    --tennis-primary: #3b7a57;          /* Main tennis court green */
-    --tennis-primary-light: #3b7a576a;  /* Light green with transparency */
-    --tennis-primary-dark: #214732;     /* Dark green */
+
+    /* Navbar Color */
+    --tennis-navbar-color: var(--tennis-secondary);
+
+    /* Primary Tennis Brand Colors - USTA Colorado */
+    --tennis-primary: #2b6cb0;          /* USTA Colorado primary blue */
+    --tennis-primary-light: #2b6cb080;  /* Light USTA Colorado blue with transparency */
+    --tennis-primary-dark: #215387;     /* USTA Colorado darker blue */
     
-    --tennis-secondary: #fef65b;        /* Tennis ball yellow */
-    --tennis-secondary-light: #fef65b7d;/* Light yellow with transparency */
-    --tennis-secondary-dark: #aca63d;   /* Dark yellow */
+    --tennis-secondary: #9cbeb7;        /* Sage green-blue accent */
+    --tennis-secondary-light: #a8dc9f; /* Light sage green */
+    --tennis-secondary-dark: #244534;   /* Dark sage green */
     
     /* Neutral Colors */
     --tennis-white: #ffffff;
-    --tennis-gray: #d3d3d3;
-    --tennis-gray-light: #f0f0f0;
-    --tennis-gray-dark: #515151;
+    --tennis-gray: #718096;             /* USTA Colorado light gray */
+    --tennis-gray-light: #edf2f7;       /* USTA Colorado very light gray */
+    --tennis-gray-dark: #2d3748;        /* USTA Colorado charcoal */
     
     /* Semantic Colors */
     --tennis-success: #28a745;          /* Green for success states */
@@ -24,7 +28,7 @@
     /* Text Colors */
     --tennis-text-primary: var(--tennis-primary-dark);
     --tennis-text-secondary: var(--tennis-gray-dark);
-    --tennis-text-muted: #6c757d;
+    --tennis-text-muted: #4a5568;
 
     /* Font Variables */
     --font-basic: 'Arial', sans-serif;
@@ -59,6 +63,6 @@
     --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
     --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
-    --shadow-focus: 0 0 0 3px rgba(59, 122, 87, 0.5);
+    --shadow-focus: 0 0 0 3px rgba(43, 108, 176, 0.5);
 
 }
