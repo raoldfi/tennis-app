@@ -269,33 +269,42 @@ class YAMLImportExportMixin:
         """Import leagues from YAML data"""
         from usta_league import League
         from datetime import date
-        
+
+        # Define all valid League fields
+        VALID_LEAGUE_FIELDS = {
+            'id', 'name', 'year', 'section', 'region', 'age_group', 'division',
+            'num_lines_per_match', 'num_matches', 'allow_split_lines',
+            'preferred_days', 'backup_days', 'start_date', 'end_date'
+        }
+
         for i, record in enumerate(leagues_data):
             stats['leagues']['processed'] += 1
-            
+
             try:
                 self._validate_required_fields(record, ['id', 'name', 'year', 'section', 'region', 'age_group', 'division'], 'league', i)
-                
+
                 # Check if exists
                 if skip_existing and self.get_league(record['id']):
                     stats['leagues']['skipped'] += 1
                     continue
-                
+
+                # Extract only valid fields and ignore unknown ones
+                league_data = {k: v for k, v in record.items() if k in VALID_LEAGUE_FIELDS}
+
                 # Convert date strings to date objects if present
-                record_copy = record.copy()
-                if 'start_date' in record_copy and record_copy['start_date'] and isinstance(record_copy['start_date'], str):
-                    record_copy['start_date'] = date.fromisoformat(record_copy['start_date'])
-                if 'end_date' in record_copy and record_copy['end_date'] and isinstance(record_copy['end_date'], str):
-                    record_copy['end_date'] = date.fromisoformat(record_copy['end_date'])
-                
-                league = League(**record_copy)
-                
+                if 'start_date' in league_data and league_data['start_date'] and isinstance(league_data['start_date'], str):
+                    league_data['start_date'] = date.fromisoformat(league_data['start_date'])
+                if 'end_date' in league_data and league_data['end_date'] and isinstance(league_data['end_date'], str):
+                    league_data['end_date'] = date.fromisoformat(league_data['end_date'])
+
+                league = League(**league_data)
+
                 if self.add_league(league):
                     stats['leagues']['imported'] += 1
                     logger.debug(f"Imported league: {league.name}")
                 else:
                     raise RuntimeError("Failed to add to database")
-                    
+
             except Exception as e:
                 error_msg = f"League record {i} (ID: {record.get('id', 'Unknown')}): {str(e)}"
                 stats['leagues']['errors'].append(error_msg)
@@ -332,23 +341,26 @@ class YAMLImportExportMixin:
     def _import_teams(self, teams_data: List[Dict], stats: Dict, skip_existing: bool) -> None:
         """Import teams from YAML data"""
         from usta_team import Team
-        
+
+        # Define all valid Team fields (excluding object references that need resolution)
+        VALID_TEAM_FIELDS = {'id', 'name', 'captain', 'preferred_days'}
+
         for i, record in enumerate(teams_data):
             stats['teams']['processed'] += 1
-            
+
             try:
                 self._validate_required_fields(record, ['id', 'name', 'league_id', 'preferred_facility_ids'], 'team', i)
-                
+
                 # Check if exists
                 if skip_existing and self.get_team(record['id']):
                     stats['teams']['skipped'] += 1
                     continue
-                
+
                 # Resolve references
                 league = self.get_league(record['league_id'])
                 if not league:
                     raise ValueError(f"League ID {record['league_id']} not found")
-                
+
                 # Resolve all preferred facilities
                 preferred_facilities = []
                 for facility_id in record['preferred_facility_ids']:
@@ -356,24 +368,20 @@ class YAMLImportExportMixin:
                     if not facility:
                         raise ValueError(f"Preferred facility ID {facility_id} not found")
                     preferred_facilities.append(facility)
-                
-                # Create team with object references
-                team_data = record.copy()
-                team_data.update({
-                    'league': league,
-                    'preferred_facilities': preferred_facilities
-                })
-                team_data.pop('league_id')
-                team_data.pop('preferred_facility_ids')
-                
+
+                # Extract only valid fields and ignore unknown ones
+                team_data = {k: v for k, v in record.items() if k in VALID_TEAM_FIELDS}
+                team_data['league'] = league
+                team_data['preferred_facilities'] = preferred_facilities
+
                 team = Team(**team_data)
-                
+
                 if self.add_team(team):
                     stats['teams']['imported'] += 1
                     logger.debug(f"Imported team: {team.name}")
                 else:
                     raise RuntimeError("Failed to add to database")
-                    
+
             except Exception as e:
                 error_msg = f"Team record {i} (ID: {record.get('id', 'Unknown')}): {str(e)}"
                 stats['teams']['errors'].append(error_msg)
@@ -381,58 +389,73 @@ class YAMLImportExportMixin:
     
     def _import_matches(self, matches_data: List[Dict], stats: Dict, skip_existing: bool) -> None:
         """Import matches from YAML data"""
-        from usta_match import Match
-        
+        from usta_match import Match, MatchScheduling
+        from datetime import date
+
+        # Define all valid Match fields (excluding object references that need resolution)
+        VALID_MATCH_FIELDS = {'id', 'round', 'num_rounds', 'score', 'qscore'}
+
         for i, record in enumerate(matches_data):
             stats['matches']['processed'] += 1
-            
+
             try:
                 self._validate_required_fields(record, ['id', 'league_id', 'home_team_id', 'visitor_team_id'], 'match', i)
-                
+
                 # Check if exists
                 if skip_existing and self.get_match(record['id']):
                     stats['matches']['skipped'] += 1
                     continue
-                
+
                 # Resolve references
                 league = self.get_league(record['league_id'])
                 if not league:
                     raise ValueError(f"League ID {record['league_id']} not found")
-                
+
                 home_team = self.get_team(record['home_team_id'])
                 if not home_team:
                     raise ValueError(f"Home team ID {record['home_team_id']} not found")
-                
+
                 visitor_team = self.get_team(record['visitor_team_id'])
                 if not visitor_team:
                     raise ValueError(f"Visitor team ID {record['visitor_team_id']} not found")
-                
-                facility = None
-                if record.get('facility_id'):
-                    facility = self.get_facility(record['facility_id'])
-                    # Don't fail if facility not found - just log warning
-                    if not facility:
-                        logger.warning(f"Facility ID {record['facility_id']} not found for match {record['id']}")
-                
-                # Create match with object references
-                match_data = {
-                    'id': record['id'],
-                    'league': league,
-                    'home_team': home_team,
-                    'visitor_team': visitor_team,
-                    'facility': facility,
-                    'date': record.get('date'),
-                    'scheduled_times': record.get('scheduled_times', [])
-                }
-                
+
+                # Extract only valid fields and ignore unknown ones
+                match_data = {k: v for k, v in record.items() if k in VALID_MATCH_FIELDS}
+                match_data['league'] = league
+                match_data['home_team'] = home_team
+                match_data['visitor_team'] = visitor_team
+
+                # Handle scheduling data if present
+                scheduling = None
+                if record.get('facility_id') or record.get('date'):
+                    facility = None
+                    if record.get('facility_id'):
+                        facility = self.get_facility(record['facility_id'])
+                        if not facility:
+                            logger.warning(f"Facility ID {record['facility_id']} not found for match {record['id']}")
+
+                    # Only create MatchScheduling if we have both facility and date
+                    if facility and record.get('date'):
+                        match_date = record['date']
+                        if isinstance(match_date, str):
+                            match_date = date.fromisoformat(match_date)
+
+                        scheduling = MatchScheduling(
+                            facility=facility,
+                            date=match_date,
+                            scheduled_times=record.get('scheduled_times', [])
+                        )
+
+                match_data['scheduling'] = scheduling
+
                 match = Match(**match_data)
-                
+
                 if self.add_match(match):
                     stats['matches']['imported'] += 1
                     logger.debug(f"Imported match: {match.id}")
                 else:
                     raise RuntimeError("Failed to add to database")
-                    
+
             except Exception as e:
                 error_msg = f"Match record {i} (ID: {record.get('id', 'Unknown')}): {str(e)}"
                 stats['matches']['errors'].append(error_msg)

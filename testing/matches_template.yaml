@@ -1,0 +1,190 @@
+# MATCHES YAML TEMPLATE
+# ======================
+# This file demonstrates how to import matches into the tennis scheduling application.
+#
+# REQUIRED FIELDS:
+#   - id: Unique match identifier (integer)
+#   - league_id: Reference to league (must exist in database)
+#   - home_team_id: Reference to home team (must exist in database)
+#   - visitor_team_id: Reference to visitor team (must exist in database)
+#
+# OPTIONAL FIELDS:
+#   - round: Match round number (integer, default from league)
+#   - num_rounds: Total rounds in league (float, default from league)
+#   - score: Match score (integer, default: 0)
+#   - qscore: Quality score for scheduling (integer, default: 0)
+#   - facility_id: Facility where match is scheduled (must exist in database)
+#   - date: Match date in ISO format YYYY-MM-DD (requires facility_id)
+#   - scheduled_times: List of start times in HH:MM format (requires facility_id and date)
+#
+# NOTES:
+#   - Leagues, facilities, and teams must be imported BEFORE matches
+#   - If facility_id and date are provided, a MatchScheduling object is created
+#   - scheduled_times should match the number of lines per match in the league
+#   - Any unknown fields in the YAML will be silently ignored
+#
+# IMPORT COMMANDS:
+#   # Preview import (dry-run, no changes)
+#   python simple_cli.py --db-path tennis.db load matches_template.yaml
+#
+#   # Actually import the matches
+#   python simple_cli.py --db-path tennis.db load matches_template.yaml --execute
+#
+#   # Validate YAML format only
+#   python simple_cli.py --db-path tennis.db load matches_template.yaml --validate-only
+
+matches:
+  # ============================================================
+  # EXAMPLE 1: Minimal unscheduled match (only required fields)
+  # ============================================================
+  - id: 1001
+    league_id: 201
+    home_team_id: 301
+    visitor_team_id: 302
+
+  # ============================================================
+  # EXAMPLE 2: Unscheduled match with round information
+  # ============================================================
+  - id: 1002
+    league_id: 201
+    home_team_id: 303
+    visitor_team_id: 304
+    round: 1
+    num_rounds: 10
+
+  # ============================================================
+  # EXAMPLE 3: Fully scheduled match with all fields
+  # ============================================================
+  - id: 1003
+    league_id: 201
+    home_team_id: 301
+    visitor_team_id: 303
+    round: 2
+    num_rounds: 10
+    facility_id: 501
+    date: "2025-09-15"
+    scheduled_times:
+      - "09:00"
+      - "09:00"
+      - "09:00"
+      - "09:00"
+      - "09:00"
+    score: 0
+    qscore: 100
+
+  # ============================================================
+  # EXAMPLE 4: Scheduled match with split times (different start times)
+  # ============================================================
+  - id: 1004
+    league_id: 201
+    home_team_id: 302
+    visitor_team_id: 304
+    round: 3
+    facility_id: 501
+    date: "2025-09-22"
+    scheduled_times:
+      - "09:00"
+      - "09:00"
+      - "10:00"  # This line starts an hour later
+      - "10:00"
+      - "10:00"
+
+  # ============================================================
+  # EXAMPLE 5: Match scheduled at a different facility
+  # ============================================================
+  - id: 1005
+    league_id: 201
+    home_team_id: 301
+    visitor_team_id: 304
+    round: 4
+    facility_id: 502  # Different facility
+    date: "2025-09-29"
+    scheduled_times:
+      - "14:00"
+      - "14:00"
+      - "14:00"
+      - "14:00"
+      - "14:00"
+
+  # ============================================================
+  # EXAMPLE 6: Multiple unscheduled matches for round-robin
+  # ============================================================
+  - id: 1006
+    league_id: 201
+    home_team_id: 302
+    visitor_team_id: 303
+    round: 5
+
+  - id: 1007
+    league_id: 201
+    home_team_id: 304
+    visitor_team_id: 301
+    round: 5
+
+  # ============================================================
+  # EXAMPLE 7: Matches from different leagues
+  # ============================================================
+  - id: 2001
+    league_id: 202  # Different league
+    home_team_id: 401
+    visitor_team_id: 402
+    round: 1
+
+  - id: 2002
+    league_id: 202
+    home_team_id: 403
+    visitor_team_id: 404
+    round: 1
+    facility_id: 503
+    date: "2025-10-01"
+    scheduled_times:
+      - "18:00"
+      - "18:00"
+      - "18:00"
+      - "18:00"
+      - "18:00"
+
+  # ============================================================
+  # EXAMPLE 8: Match with quality score from scheduling algorithm
+  # ============================================================
+  - id: 1008
+    league_id: 201
+    home_team_id: 303
+    visitor_team_id: 302
+    round: 6
+    facility_id: 501
+    date: "2025-10-06"
+    scheduled_times:
+      - "10:00"
+      - "10:00"
+      - "10:00"
+      - "10:00"
+      - "10:00"
+    qscore: 85  # High quality score indicates good scheduling fit
+
+  # ============================================================
+  # EXAMPLE 9: Weekend match with earlier start times
+  # ============================================================
+  - id: 1009
+    league_id: 201
+    home_team_id: 304
+    visitor_team_id: 302
+    round: 7
+    facility_id: 501
+    date: "2025-10-11"  # Saturday
+    scheduled_times:
+      - "08:00"
+      - "08:00"
+      - "08:00"
+      - "08:00"
+      - "08:00"
+
+  # ============================================================
+  # EXAMPLE 10: Unscheduled playoff match
+  # ============================================================
+  - id: 1100
+    league_id: 201
+    home_team_id: 301
+    visitor_team_id: 302
+    round: 11  # Playoff round
+    num_rounds: 11

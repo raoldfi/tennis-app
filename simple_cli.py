@@ -114,13 +114,30 @@ Examples:
         # Load command - DRY-RUN BY DEFAULT
         load_parser = subparsers.add_parser("load", help="Load data from YAML file (DRY-RUN by default)")
         load_parser.add_argument("file_path", help="Path to YAML file")
-        load_parser.add_argument("--execute", action="store_true", 
+        load_parser.add_argument("--execute", action="store_true",
                                 help="ACTUALLY load data (default is dry-run)")
-        load_parser.add_argument("--clear-existing", action="store_true", 
+        load_parser.add_argument("--clear-existing", action="store_true",
                                 help="Clear existing data before loading (use with caution)")
-        load_parser.add_argument("--validate-only", action="store_true", 
+        load_parser.add_argument("--validate-only", action="store_true",
                                 help="Only validate file format without preview")
-        
+
+        # Export command
+        export_parser = subparsers.add_parser("export", help="Export data to YAML or Excel file")
+        export_parser.add_argument("file_path", help="Path to output file (.yaml, .yml, or .xlsx)")
+        export_parser.add_argument("--format",
+                                  choices=['yaml', 'excel', 'auto'],
+                                  default='auto',
+                                  help="Export format (default: auto-detect from file extension)")
+        export_parser.add_argument("--components",
+                                  nargs='+',
+                                  choices=['leagues', 'facilities', 'teams', 'matches', 'all'],
+                                  default=['all'],
+                                  help="Components to export (default: all)")
+        export_parser.add_argument("--league-id", type=int,
+                                  help="Filter to specific league (for teams and matches)")
+        export_parser.add_argument("--include-metadata", action="store_true",
+                                  help="Include metadata in export (YAML only)")
+
         # Create command - DRY-RUN BY DEFAULT
         create_parser = subparsers.add_parser("create", help="Create new entities (DRY-RUN by default)")
         create_parser.add_argument("entity", choices=["match", "league", "team", "facility"], 
@@ -249,6 +266,8 @@ Examples:
                 return self.handle_list(args, db)
             elif args.command == "load":
                 return self.handle_load(args, db)
+            elif args.command == "export":
+                return self.handle_export(args, db)
             elif args.command == "create":
                 return self.handle_create(args, db)
             elif args.command == "generate-matches":
@@ -392,7 +411,62 @@ Examples:
                 if args.verbose:
                     traceback.print_exc()
                 return 1
-    
+
+    def handle_export(self, args, db):
+        """Handle data export to YAML or Excel"""
+        try:
+            from tennis_export import TennisExporter
+
+            # Determine components to export
+            components = args.components
+            if 'all' in components:
+                components = ['leagues', 'facilities', 'teams', 'matches']
+
+            print(f"📤 EXPORTING DATA")
+            print(f"   Output file: {args.file_path}")
+            print(f"   Components: {', '.join(components)}")
+            if args.league_id:
+                print(f"   Filtered by league ID: {args.league_id}")
+            print("-" * 60)
+
+            # Create exporter and perform export
+            exporter = TennisExporter(db)
+            stats = exporter.export(
+                file_path=args.file_path,
+                format=args.format,
+                components=components,
+                league_id=args.league_id,
+                include_metadata=args.include_metadata
+            )
+
+            # Display results
+            print(f"\n✅ Export completed successfully!")
+            print(f"   Format: {stats['format'].upper()}")
+            print(f"   Leagues: {stats.get('leagues', 0)}")
+            print(f"   Facilities: {stats.get('facilities', 0)}")
+            print(f"   Teams: {stats.get('teams', 0)}")
+            print(f"   Matches: {stats.get('matches', 0)}")
+            print(f"   Total: {stats.get('total', stats.get('exported', 0))} records")
+            print(f"   Duration: {stats.get('duration_seconds', 0):.2f} seconds")
+
+            if stats['format'] == 'excel' and stats.get('sheets'):
+                print(f"   Excel sheets: {', '.join(stats['sheets'])}")
+
+            print(f"\n   File saved: {args.file_path}")
+            return 0
+
+        except ImportError as e:
+            print(f"❌ Import error: {e}")
+            if 'pandas' in str(e):
+                print("   To enable Excel export, install required packages:")
+                print("   pip install pandas openpyxl")
+            return 1
+        except Exception as e:
+            print(f"❌ Export failed: {e}")
+            if args.verbose:
+                traceback.print_exc()
+            return 1
+
     def handle_create(self, args, db):
         """Handle entity creation with dry-run by default"""
         try:
@@ -1887,29 +1961,57 @@ matches:
 """
 
 print("""
-USAGE EXAMPLES WITH IMPORT:
+USAGE EXAMPLES WITH IMPORT AND EXPORT:
+
+# ========== IMPORT EXAMPLES ==========
 
 # Load facilities (dry-run by default)
-python tennis_cli.py --db-path tennis.db load facilities.yaml
+python simple_cli.py --db-path tennis.db load facilities.yaml
 
 # Actually load facilities
-python tennis_cli.py --db-path tennis.db load facilities.yaml --execute
+python simple_cli.py --db-path tennis.db load facilities.yaml --execute
 
 # Validate YAML file format only
-python tennis_cli.py --db-path tennis.db load complete_setup.yaml --validate-only
+python simple_cli.py --db-path tennis.db load complete_setup.yaml --validate-only
+
+# ========== EXPORT EXAMPLES ==========
+
+# Export everything to YAML (auto-detects format from extension)
+python simple_cli.py --db-path tennis.db export database_backup.yaml
+
+# Export everything to Excel
+python simple_cli.py --db-path tennis.db export database_backup.xlsx
+
+# Export only leagues and teams to YAML
+python simple_cli.py --db-path tennis.db export leagues_teams.yaml --components leagues teams
+
+# Export matches for a specific league to Excel
+python simple_cli.py --db-path tennis.db export league_1_matches.xlsx --components matches --league-id 1
+
+# Export all data for a specific league to YAML
+python simple_cli.py --db-path tennis.db export league_1_complete.yaml --components all --league-id 1
+
+# Export to YAML with metadata
+python simple_cli.py --db-path tennis.db export export.yaml --include-metadata
+
+# ========== CREATE EXAMPLES ==========
 
 # Create individual entities (dry-run by default)
-python tennis_cli.py --db-path tennis.db create league --name "Test League" --year 2025 --section "USTA_PNW" --region "Seattle" --age-group "18+" --division "3.0"
+python simple_cli.py --db-path tennis.db create league --name "Test League" --year 2025 --section "USTA_PNW" --region "Seattle" --age-group "18+" --division "3.0"
 
 # Actually create the league
-python tennis_cli.py --db-path tennis.db create league --name "Test League" --year 2025 --section "USTA_PNW" --region "Seattle" --age-group "18+" --division "3.0" --execute
+python simple_cli.py --db-path tennis.db create league --name "Test League" --year 2025 --section "USTA_PNW" --region "Seattle" --age-group "18+" --division "3.0" --execute
+
+# ========== MATCH GENERATION ==========
 
 # Generate matches (dry-run by default)
-python tennis_cli.py --db-path tennis.db generate-matches --league-id 1
+python simple_cli.py --db-path tennis.db generate-matches --league-id 1
 
 # Actually generate matches
-python tennis_cli.py --db-path tennis.db generate-matches --league-id 1 --execute
+python simple_cli.py --db-path tennis.db generate-matches --league-id 1 --execute
+
+# ========== TESTING ==========
 
 # Test import functionality
-python tennis_cli.py --db-path tennis.db test --import-test
+python simple_cli.py --db-path tennis.db test --import-test
 """)
