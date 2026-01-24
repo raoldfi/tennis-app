@@ -1,0 +1,520 @@
+# 2026 Adult 18 & Over League - Team Configuration
+# Generated from 2026_Adult_18___Over_League_Schedule.xlsx
+# Total teams: 68
+# Note: Only Santa Fe and Los Alamos teams (EG, FL, SFTSC, LA) have preferred_days
+
+teams:
+
+  # 2.5 Women Teams
+  - id: 7591119086
+    name: "18 & Over 2.5W Dolan - JC"
+    league_id: 301
+    preferred_facility_ids: [2018015015]
+    captain: "Dolan"
+    preferred_days: []
+
+  - id: 7591119088
+    name: "18 & Over 2.5W Harris - Tanoan"
+    league_id: 301
+    preferred_facility_ids: [2018017728]
+    captain: "Harris"
+    preferred_days: []
+
+  - id: 7591119087
+    name: "18 & Over 2.5W Morck - Lobo Club"
+    league_id: 301
+    preferred_facility_ids: [2018001121]
+    captain: "Morck"
+    preferred_days: []
+
+  - id: 7591119090
+    name: "18 & Over 2.5W Schick - TCA"
+    league_id: 301
+    preferred_facility_ids: [2018001517]
+    captain: "Schick"
+    preferred_days: []
+
+  - id: 7591119089
+    name: "18 & Over 2.5W White - Tanoan"
+    league_id: 301
+    preferred_facility_ids: [2018017728]
+    captain: "White"
+    preferred_days: []
+
+
+  # 3.0 Men Teams
+  - id: 7591118803
+    name: "18 & Over 3.0M Galvis - TCA"
+    league_id: 302
+    preferred_facility_ids: [2018001517]
+    captain: "Galvis"
+    preferred_days: []
+
+  - id: 7591118799
+    name: "18 & Over 3.0M Ginocchio - AP"
+    league_id: 302
+    preferred_facility_ids: [2018011059]
+    captain: "Ginocchio"
+    preferred_days: []
+
+  - id: 7591118801
+    name: "18 & Over 3.0M Hasse - HP"
+    league_id: 302
+    preferred_facility_ids: [2018017729]
+    captain: "Hasse"
+    preferred_days: []
+
+  - id: 7591118802
+    name: "18 & Over 3.0M Murphy - Tanoan"
+    league_id: 302
+    preferred_facility_ids: [2018017728]
+    captain: "Murphy"
+    preferred_days: []
+
+  - id: 7591118804
+    name: "18 & Over 3.0M TBD - NDB"
+    league_id: 302
+    preferred_facility_ids: [2018014448]
+    captain: "TBD"
+    preferred_days: []
+
+
+  # 3.0 Women Teams
+  - id: 7591119097
+    name: "18 & Over 3.0W Alter - HP"
+    league_id: 303
+    preferred_facility_ids: [2018017729]
+    captain: "Alter"
+    preferred_days: []
+
+  - id: 7591119102
+    name: "18 & Over 3.0W Anaya - TCA"
+    league_id: 303
+    preferred_facility_ids: [2018001517]
+    captain: "Anaya"
+    preferred_days: []
+
+  - id: 7591119100
+    name: "18 & Over 3.0W Bailey-Perea - Tanoan"
+    league_id: 303
+    preferred_facility_ids: [2018017728]
+    captain: "Bailey-Perea"
+    preferred_days: []
+
+  - id: 7591119094
+    name: "18 & Over 3.0W Calvini - ACC"
+    league_id: 303
+    preferred_facility_ids: [2018004377]
+    captain: "Calvini"
+    preferred_days: []
+
+  - id: 7591119098
+    name: "18 & Over 3.0W Dunbar - HP"
+    league_id: 303
+    preferred_facility_ids: [2018017729]
+    captain: "Dunbar"
+    preferred_days: []
+
+  - id: 7591119095
+    name: "18 & Over 3.0W Minns - AP"
+    league_id: 303
+    preferred_facility_ids: [2018011059]
+    captain: "Minns"
+    preferred_days: []
+
+  - id: 7591119099
+    name: "18 & Over 3.0W Morck - JC"
+    league_id: 303
+    preferred_facility_ids: [2018015015]
+    captain: "Morck"
+    preferred_days: []
+
+  - id: 7591119104
+    name: "18 & Over 3.0W Mosher - VR"
+    league_id: 303
+    preferred_facility_ids: [2018017563]
+    captain: "Mosher"
+    preferred_days: []
+
+  - id: 7591119103
+    name: "18 & Over 3.0W Schloss - TCA"
+    league_id: 303
+    preferred_facility_ids: [2018001517]
+    captain: "Schloss"
+    preferred_days: []
+
+  - id: 7591119101
+    name: "18 & Over 3.0W Svet - Tanoan"
+    league_id: 303
+    preferred_facility_ids: [2018017728]
+    captain: "Svet"
+    preferred_days: []
+
+  - id: 7591119096
+    name: "18 & Over 3.0W TBD - FL"
+    league_id: 303
+    preferred_facility_ids: [700036506]
+    captain: "TBD"
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+
+  - id: 7591121862
+    name: "18 & Over 3.0W TBD - SFTSC"
+    league_id: 303
+    preferred_facility_ids: [2018016525]
+    captain: "TBD"
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+
+
+  # 3.5 Men Teams
+  - id: 7591118824
+    name: "18 & Over 3.5M Andrus - FL"
+    league_id: 304
+    preferred_facility_ids: [700036506]
+    captain: "Andrus"
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+
+  - id: 7591118827
+    name: "18 & Over 3.5M Briggs - JC"
+    league_id: 304
+    preferred_facility_ids: [2018015015]
+    captain: "Briggs"
+    preferred_days: []
+
+  - id: 7591118832
+    name: "18 & Over 3.5M Galvis - TCA"
+    league_id: 304
+    preferred_facility_ids: [2018001517]
+    captain: "Galvis"
+    preferred_days: []
+
+  - id: 7591118825
+    name: "18 & Over 3.5M Gee - HP"
+    league_id: 304
+    preferred_facility_ids: [2018017729]
+    captain: "Gee"
+    preferred_days: []
+
+  - id: 7591118830
+    name: "18 & Over 3.5M Kim - NDB"
+    league_id: 304
+    preferred_facility_ids: [2018014448]
+    captain: "Kim"
+    preferred_days: []
+
+  - id: 7591118833
+    name: "18 & Over 3.5M King - TCA"
+    league_id: 304
+    preferred_facility_ids: [2018001517]
+    captain: "King"
+    preferred_days: []
+
+  - id: 7591118829
+    name: "18 & Over 3.5M Kurennoy - LA"
+    league_id: 304
+    preferred_facility_ids: [2019000041]
+    captain: "Kurennoy"
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+
+  - id: 7591118828
+    name: "18 & Over 3.5M McDermott - JC"
+    league_id: 304
+    preferred_facility_ids: [2018015015]
+    captain: "McDermott"
+    preferred_days: []
+
+  - id: 7591118826
+    name: "18 & Over 3.5M Nguyen - JC"
+    league_id: 304
+    preferred_facility_ids: [2018015015]
+    captain: "Nguyen"
+    preferred_days: []
+
+  - id: 7591118834
+    name: "18 & Over 3.5M Romero - VR"
+    league_id: 304
+    preferred_facility_ids: [2018017563]
+    captain: "Romero"
+    preferred_days: []
+
+  - id: 7591118831
+    name: "18 & Over 3.5M Winckler - Tanoan"
+    league_id: 304
+    preferred_facility_ids: [2018017728]
+    captain: "Winckler"
+    preferred_days: []
+
+
+  # 3.5 Women Teams
+  - id: 7591119113
+    name: "Adult 18 & Over 3.5W Brock - HP"
+    league_id: 305
+    preferred_facility_ids: [2018017729]
+    captain: "Brock"
+    preferred_days: []
+
+  - id: 7591119119
+    name: "Adult 18 & Over 3.5W Fotieo - Tanoan"
+    league_id: 305
+    preferred_facility_ids: [2018017728]
+    captain: "Fotieo"
+    preferred_days: []
+
+  - id: 7591119118
+    name: "Adult 18 & Over 3.5W Hager - Tanoan"
+    league_id: 305
+    preferred_facility_ids: [2018017728]
+    captain: "Hager"
+    preferred_days: []
+
+  - id: 7591119120
+    name: "Adult 18 & Over 3.5W Luehring - Tanoan"
+    league_id: 305
+    preferred_facility_ids: [2018017728]
+    captain: "Luehring"
+    preferred_days: []
+
+  - id: 7591119122
+    name: "Adult 18 & Over 3.5W Lynn - TCA"
+    league_id: 305
+    preferred_facility_ids: [2018001517]
+    captain: "Lynn"
+    preferred_days: []
+
+  - id: 7591119117
+    name: "Adult 18 & Over 3.5W Murphy - Tanoan"
+    league_id: 305
+    preferred_facility_ids: [2018017728]
+    captain: "Murphy"
+    preferred_days: []
+
+  - id: 7591119121
+    name: "Adult 18 & Over 3.5W Musarra - TCA"
+    league_id: 305
+    preferred_facility_ids: [2018001517]
+    captain: "Musarra"
+    preferred_days: []
+
+  - id: 7591119112
+    name: "Adult 18 & Over 3.5W Rippere - FL"
+    league_id: 305
+    preferred_facility_ids: [700036506]
+    captain: "Rippere"
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+
+  - id: 7591119114
+    name: "Adult 18 & Over 3.5W Romero - JC"
+    league_id: 305
+    preferred_facility_ids: [2018015015]
+    captain: "Romero"
+    preferred_days: []
+
+  - id: 7591119115
+    name: "Adult 18 & Over 3.5W Stone - SFTSC"
+    league_id: 305
+    preferred_facility_ids: [2018016525]
+    captain: "Stone"
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+
+  - id: 7591119116
+    name: "Adult 18 & Over 3.5W Woolcott - SV"
+    league_id: 305
+    preferred_facility_ids: [2018011276,2018017563]
+    captain: "Woolcott"
+    preferred_days: []
+
+
+  # 4.0 Men Teams
+  - id: 7591118846
+    name: "18 & Over 4.0M Cunningham - LA"
+    league_id: 306
+    preferred_facility_ids: [2019000041]
+    captain: "Cunningham"
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+
+  - id: 7591118841
+    name: "18 & Over 4.0M Grayson - FL"
+    league_id: 306
+    preferred_facility_ids: [700036506]
+    captain: "Grayson"
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+
+  - id: 7591118842
+    name: "18 & Over 4.0M Howell - JC"
+    league_id: 306
+    preferred_facility_ids: [2018015015]
+    captain: "Howell"
+    preferred_days: []
+
+  - id: 7591118848
+    name: "18 & Over 4.0M King - TCA"
+    league_id: 306
+    preferred_facility_ids: [2018001517]
+    captain: "King"
+    preferred_days: []
+
+  - id: 7591118845
+    name: "18 & Over 4.0M Kunzler - JC"
+    league_id: 306
+    preferred_facility_ids: [2018015015]
+    captain: "Kunzler"
+    preferred_days: []
+
+  - id: 7591118849
+    name: "18 & Over 4.0M Lopez - VR"
+    league_id: 306
+    preferred_facility_ids: [2018017563]
+    captain: "Lopez"
+    preferred_days: []
+
+  - id: 7591118840
+    name: "18 & Over 4.0M Martin - EG"
+    league_id: 306
+    preferred_facility_ids: [2018014412]
+    captain: "Martin"
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+
+  - id: 7591118843
+    name: "18 & Over 4.0M Nguyen - JC"
+    league_id: 306
+    preferred_facility_ids: [2018015015]
+    captain: "Nguyen"
+    preferred_days: []
+
+  - id: 7591118844
+    name: "18 & Over 4.0M Salmon - JC"
+    league_id: 306
+    preferred_facility_ids: [2018015015]
+    captain: "Salmon"
+    preferred_days: []
+
+  - id: 7591118847
+    name: "18 & Over 4.0M Schloss - TCA"
+    league_id: 306
+    preferred_facility_ids: [2018001517]
+    captain: "Schloss"
+    preferred_days: []
+
+
+  # 4.0 Women Teams
+  - id: 7591119126
+    name: "Adult 18 & Over 4.0W - Fate"
+    league_id: 307
+    preferred_facility_ids: [2018015015]
+    captain: "Fate"
+    preferred_days: []
+
+  - id: 7591119129
+    name: "Adult 18 & Over 4.0W Brunacini-Jones - Tanoan"
+    league_id: 307
+    preferred_facility_ids: [2018017728]
+    captain: "Brunacini-Jones"
+    preferred_days: []
+
+  - id: 7591119128
+    name: "Adult 18 & Over 4.0W Casias - JC"
+    league_id: 307
+    preferred_facility_ids: [2018015015]
+    captain: "Casias"
+    preferred_days: []
+
+  - id: 7591119125
+    name: "Adult 18 & Over 4.0W James - AA"
+    league_id: 307
+    preferred_facility_ids: [2018012636]
+    captain: "James"
+    preferred_days: []
+
+  - id: 7591119127
+    name: "Adult 18 & Over 4.0W Spindler - JC"
+    league_id: 307
+    preferred_facility_ids: [2018015015]
+    captain: "Spindler"
+    preferred_days: []
+
+  - id: 7591119124
+    name: "Adult 18 & Over 4.0W TBD - FL"
+    league_id: 307
+    preferred_facility_ids: [700036506]
+    captain: "TBD"
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+
+  - id: 7591119130
+    name: "Adult 18 & Over 4.0W Wommack - TCA"
+    league_id: 307
+    preferred_facility_ids: [2018001517]
+    captain: "Wommack"
+    preferred_days: []
+
+
+  # 4.5 Men Teams
+  - id: 7591118853
+    name: "18 & Over 4.5M Camacho - JC"
+    league_id: 308
+    preferred_facility_ids: [2018015015]
+    captain: "Camacho"
+    preferred_days: []
+
+  - id: 7591118854
+    name: "18 & Over 4.5M Contos - TCA"
+    league_id: 308
+    preferred_facility_ids: [2018001517]
+    captain: "Contos"
+    preferred_days: []
+
+  - id: 7591118851
+    name: "18 & Over 4.5M Hood - JC"
+    league_id: 308
+    preferred_facility_ids: [2018015015]
+    captain: "Hood"
+    preferred_days: []
+
+  - id: 7591118852
+    name: "18 & Over 4.5M Pitcher - Tanoan"
+    league_id: 308
+    preferred_facility_ids: [2018017728]
+    captain: "Pitcher"
+    preferred_days: []
+
+
+  # 4.5 Women Teams
+  - id: 7591119142
+    name: "Adult 18 & Over 4.5W Fate - JC"
+    league_id: 309
+    preferred_facility_ids: [2018015015]
+    captain: "Fate"
+    preferred_days: []
+
+  - id: 7591119143
+    name: "Adult 18 & Over 4.5W Lowe - Lobo Club"
+    league_id: 309
+    preferred_facility_ids: [2018001121]
+    captain: "Lowe"
+    preferred_days: []
+
+  - id: 7591119141
+    name: "Adult 18 & Over 4.5W Romero - JC"
+    league_id: 309
+    preferred_facility_ids: [2018015015]
+    captain: "Romero"
+    preferred_days: []
+

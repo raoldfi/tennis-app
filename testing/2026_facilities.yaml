@@ -1,0 +1,609 @@
+# 2026 Adult 18 & Over League - Facility Configuration
+# Generated from 2026_Court_Availability_-_By_Facility.xlsx
+# Note: Each match requires 5 courts
+
+facilities:
+  # JC - Jerry Cline Tennis Center
+  # "JC can host three matches on any weekend starting at 8:00am with 2 hour intervals"
+  # "Prefer to only have two matches at any one time" = 10 courts available per slot
+  # "Ten courts at 10:00am, 12:00pm and 2:00pm" on special dates confirms 10 total
+  # Weeknights: "Maximum of two matches each night" = 10 courts
+  - id: 2018015015
+    name: "Jerry Cline Tennis Center"
+    short_name: "JC"
+    location: "Jerry Cline Tennis Center, Albuquerque, NM"
+    total_courts: 18
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:30"
+            available_courts: 10
+      Tuesday:
+        start_times:
+          - time: "18:30"
+            available_courts: 10
+      Wednesday:
+        start_times:
+          - time: "18:30"
+            available_courts: 10
+      Thursday:
+        start_times:
+          - time: "18:30"
+            available_courts: 10
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "08:00"
+            available_courts: 15
+          - time: "10:00"
+            available_courts: 15
+          - time: "12:00"
+            available_courts: 15
+      Sunday:
+        start_times:
+          - time: "08:00"
+            available_courts: 15
+          - time: "10:00"
+            available_courts: 15
+          - time: "12:00"
+            available_courts: 15
+    unavailable_dates:
+      - "2026-03-06"
+      - "2026-03-07"
+      - "2026-03-13"
+      - "2026-03-14"
+      - "2026-04-10"
+      - "2026-04-11"
+      - "2026-04-17"
+      - "2026-04-18"
+      - "2026-04-24"
+      - "2026-04-25"
+
+  # NDB - North Domingo Baca Multigenerational Center
+  # "NDB can host two matches on any weekend starting at 10:00am with 2 hour intervals"
+  # "Prefer to only have one match at any one time" = 5 courts per slot
+  # Weeknights: "Only have one matches each night" = 5 courts
+  - id: 2018014448
+    name: "North Domingo Baca Multigenerational Center"
+    short_name: "NDB"
+    location: "North Domingo Baca Multigenerational Center, Albuquerque, NM"
+    total_courts: 6
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:30"
+            available_courts: 5
+      Tuesday:
+        start_times:
+          - time: "18:30"
+            available_courts: 5
+      Wednesday:
+        start_times:
+          - time: "18:30"
+            available_courts: 5
+      Thursday:
+        start_times:
+          - time: "18:30"
+            available_courts: 5
+      Friday:
+        start_times:
+          - time: "18:30"
+            available_courts: 5
+      Saturday:
+        start_times:
+          - time: "10:00"
+            available_courts: 5
+          - time: "12:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "10:00"
+            available_courts: 5
+          - time: "12:00"
+            available_courts: 5
+    unavailable_dates: []
+
+  # SV - Sierra Vista West Tennis Complex
+  # "SV can host two matches on any weekend starting at 8:00am with 2 hour intervals"
+  # "Prefer to only have one match at any one time" = 5 courts per slot
+  # No weeknight availability mentioned
+  - id: 2018011276
+    name: "Sierra Vista West Tennis Complex"
+    short_name: "SV"
+    location: "Sierra Vista West Tennis Complex, Albuquerque, NM"
+    total_courts: 10
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "08:00"
+            available_courts: 5
+          - time: "10:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "08:00"
+            available_courts: 5
+          - time: "10:00"
+            available_courts: 5
+    unavailable_dates:
+      - "2026-02-28"
+
+  # VR - Ventana Ranch Park
+  # "VR can host two matches on any weekend starting at 10:00am with 2 hour intervals"
+  # "Prefer to only have one match at any one time" = 5 courts per slot
+  # Weeknights: "Prefer to only have one matches each night" = 5 courts
+  - id: 2018017563
+    name: "Ventana Ranch Park"
+    short_name: "VR"
+    location: "Ventana Ranch Park, Albuquerque, NM"
+    total_courts: 12
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:30"
+            available_courts: 5
+      Tuesday:
+        start_times:
+          - time: "18:30"
+            available_courts: 5
+      Wednesday:
+        start_times:
+          - time: "18:30"
+            available_courts: 5
+      Thursday:
+        start_times:
+          - time: "18:30"
+            available_courts: 5
+      Friday:
+        start_times:
+          - time: "18:30"
+            available_courts: 5
+      Saturday:
+        start_times:
+          - time: "10:00"
+            available_courts: 5
+          - time: "12:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "10:00"
+            available_courts: 5
+          - time: "12:00"
+            available_courts: 5
+    unavailable_dates: []
+
+  # TCA - Tennis Club of Albuquerque
+  # "TCA can host one match at 1:00pm, 3:00pm and 5:00pm" = 5 courts per slot
+  # Weeknights: "Maximum of one match each night" = 5 courts
+  # Note: Can have match on Tue or Thu, but not both in same week
+  - id: 2018001517
+    name: "Tennis Club of Albuquerque"
+    short_name: "TCA"
+    location: "Tennis Club of Albuquerque, Albuquerque, NM"
+    total_courts: 5
+    notes: "Can have match on Tue or Thu, but not both in same week. 3rd Friday of every month excepted."
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 11
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 5
+    unavailable_dates:
+      - "2026-02-14"
+      - "2026-02-20"
+      - "2026-03-20"
+      - "2026-04-17"
+      - "2026-05-15"
+
+  # Tanoan - Tanoan Country Club
+  # "Tanoan can host one match at 1:00pm, 3:00pm and 5:00pm" = 5 courts per slot
+  # Weeknights: "Maximum of one match each night" = 5 courts
+  # Note: Can have match on Tue or Thu, but not both in same week
+  - id: 2018017728
+    name: "Tanoan Country Club"
+    short_name: "Tanoan"
+    location: "Tanoan Country Club, Albuquerque, NM"
+    total_courts: 12
+    notes: "Can have match on Tue or Thu, but not both in same week. 2nd Friday of every month excepted. May schedule Sundays at 11:00am as needed."
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 1
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "11:00"
+            available_courts: 5
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 5
+    unavailable_dates:
+      - "2026-04-17"
+      - "2026-05-22"
+      - "2026-05-23"
+      - "2026-05-24"
+      - "2026-05-25"
+      - "2026-02-13"
+      - "2026-03-13"
+      - "2026-04-10"
+      - "2026-05-08"
+
+
+  # HP - Highpoint Sports and Wellness
+  # "HP can host one match each on Saturday/Sunday" = 5 courts per slot
+  # Weeknights: "HP may host one match at 6:00pm Monday-Friday" = 5 courts
+  - id: 2018017729
+    name: "Highpoint Sports and Wellness"
+    short_name: "HP"
+    location: "Highpoint Sports and Wellness, Albuquerque, NM"
+    total_courts: 13
+    notes: "Start times in priority order: 13:00, 15:00, 11:00, 17:00"
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Friday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Saturday:
+        start_times:
+          - time: "11:00"
+            available_courts: 1
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 1
+      Sunday:
+        start_times:
+          - time: "11:00"
+            available_courts: 1
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+          - time: "17:00"
+            available_courts: 1
+    unavailable_dates:
+      - "2026-03-27"
+      - "2026-03-28"
+      - "2026-03-29"
+      - "2026-06-26"
+      - "2026-06-27"
+      - "2026-06-28"
+
+  # Lobo Club - UNM Lobo Tennis Club
+  # "Lobo can host one match each on Saturday/Sunday" = 5 courts per slot
+  # Weeknights: "may host one match at 6:00pm Monday-Friday" = 5 courts
+  - id: 2018001121
+    name: "UNM Lobo Tennis Club"
+    short_name: "Lobo Club"
+    location: "UNM Lobo Tennis Club, Albuquerque, NM"
+    total_courts: 7
+    notes: "Start times in priority order: 10:00, 12:00"
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Friday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Saturday:
+        start_times:
+          - time: "10:00"
+            available_courts: 5
+          - time: "12:00"
+            available_courts: 1
+      Sunday:
+        start_times:
+          - time: "10:00"
+            available_courts: 5
+          - time: "12:00"
+            available_courts: 1
+    unavailable_dates: []
+
+  # AA - Albuquerque Academy Tennis Courts
+  # "Saturdays and Sundays at 12:00pm" = 1 match = 5 courts per slot
+  - id: 2018012636
+    name: "Albuquerque Academy Tennis Courts"
+    short_name: "AA"
+    location: "Albuquerque Academy Tennis Courts, Albuquerque, NM"
+    total_courts: 14
+    notes: "Sundays preferred"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "12:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "12:00"
+            available_courts: 5
+    unavailable_dates: []
+
+  # ACC - Albuquerque Country Club
+  # "Saturdays and Sundays at 12:00pm" = 1 match = 5 courts per slot
+  - id: 2018004377
+    name: "Albuquerque Country Club"
+    short_name: "ACC"
+    location: "Albuquerque Country Club, Albuquerque, NM"
+    total_courts: 5
+    notes: "Sundays preferred"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "12:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "12:00"
+            available_courts: 5
+    unavailable_dates: []
+
+  # AP - Alto Park
+  # "Saturdays and Sundays at 12:00pm and 2:00pm" = 1 match per slot = 5 courts
+  - id: 2018011059
+    name: "Alto Park"
+    short_name: "AP"
+    location: "Alto Park, Albuquerque, NM"
+    total_courts: 6
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "12:00"
+            available_courts: 5
+          - time: "14:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "12:00"
+            available_courts: 5
+          - time: "14:00"
+            available_courts: 5
+    unavailable_dates: []
+
+  # EG - El Gancho Fitness Swim and Racquet Club
+  # "Saturdays and Sundays at 1:00pm" = 1 match = 5 courts per slot
+  - id: 2018014412
+    name: "El Gancho Fitness Swim and Racquet Club"
+    short_name: "EG"
+    location: "El Gancho Fitness Swim and Racquet Club, Santa Fe, NM"
+    total_courts: 7
+    notes: "Sundays preferred"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "13:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "13:00"
+            available_courts: 5
+    unavailable_dates: []
+
+  # FL - Forked Lightning Racquet Club
+  # "FL can host one match each on Saturday/Sunday" = 5 courts per slot
+  - id: 700036506
+    name: "Forked Lightning Racquet Club"
+    short_name: "FL"
+    location: "Forked Lightning Racquet Club, Santa Fe, NM"
+    total_courts: 12
+    notes: "Start times in priority order: 13:00, 15:00"
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "13:00"
+            available_courts: 5
+          - time: "15:00"
+            available_courts: 5
+    unavailable_dates:
+      - "2026-02-28"
+      - "2026-03-01"
+      - "2026-04-25"
+      - "2026-04-26"
+
+  # SFTSC - Santa Fe Tennis and Swim Club
+  # "Saturdays and Sundays at 2:00pm and 4:00pm" = 1 match per slot = 5 courts
+  - id: 2018016525
+    name: "Santa Fe Tennis and Swim Club"
+    short_name: "SFTSC"
+    location: "Santa Fe Tennis and Swim Club, Santa Fe, NM"
+    total_courts: 6
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "14:00"
+            available_courts: 5
+          - time: "16:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "14:00"
+            available_courts: 5
+          - time: "16:00"
+            available_courts: 5
+    unavailable_dates: []
+
+  # LA - Los Alamos Tennis
+  # "Saturdays and Sundays at 2:00pm and 4:00pm" = 1 match per slot = 5 courts
+  - id: 2019000041
+    name: "Los Alamos Tennis"
+    short_name: "LA"
+    location: "Los Alamos, NM"
+    total_courts: 5
+    schedule:
+      Monday:
+        start_times: []
+      Tuesday:
+        start_times: []
+      Wednesday:
+        start_times: []
+      Thursday:
+        start_times: []
+      Friday:
+        start_times: []
+      Saturday:
+        start_times:
+          - time: "14:00"
+            available_courts: 5
+          - time: "16:00"
+            available_courts: 5
+      Sunday:
+        start_times:
+          - time: "14:00"
+            available_courts: 5
+          - time: "16:00"
+            available_courts: 5
+    unavailable_dates: []

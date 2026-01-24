@@ -1,0 +1,51 @@
+facilities:
+  # VR - Great availability with high concurrency on weekends
+  - id: 8
+    name: "Ventana Ranch Tennis Center"
+    short_name: "VR"
+    location: "Ventana Ranch Tennis Center, Albuquerque, NM"
+    schedule:
+      Monday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Tuesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Wednesday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Thursday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Friday:
+        start_times:
+          - time: "18:00"
+            available_courts: 5
+      Saturday:
+        start_times:
+          - time: "12:00"
+            available_courts: 10
+          - time: "14:00"
+            available_courts: 10
+          - time: "16:00"
+            available_courts: 10
+      Sunday:
+        start_times:
+          - time: "12:00"
+            available_courts: 10
+          - time: "14:00"
+            available_courts: 10
+          - time: "16:00"
+            available_courts: 10
+    unavailable_dates:
+      - "2025-04-25"
+      - "2025-05-02"
+      - "2025-05-03"
+      - "2025-10-17"
+      - "2025-10-18"
+      - "2025-10-19"
+

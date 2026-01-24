@@ -1,0 +1,2873 @@
+# 2026 Adult 18 & Over League - Match Configuration
+# Generated from 2026_Adult_18___Over_League_Schedule.xlsx
+# Total matches: 407
+# Note: All matches are unscheduled (no facility_id, date, or scheduled_times)
+
+matches:
+
+  # 2.5 Women Matches
+  - id: 1011726857
+    league_id: 301
+    home_team_id: 7591119090
+    visitor_team_id: 7591119087
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726858
+    league_id: 301
+    home_team_id: 7591119088
+    visitor_team_id: 7591119089
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726860
+    league_id: 301
+    home_team_id: 7591119086
+    visitor_team_id: 7591119088
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726861
+    league_id: 301
+    home_team_id: 7591119089
+    visitor_team_id: 7591119090
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726863
+    league_id: 301
+    home_team_id: 7591119087
+    visitor_team_id: 7591119089
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726864
+    league_id: 301
+    home_team_id: 7591119090
+    visitor_team_id: 7591119086
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726866
+    league_id: 301
+    home_team_id: 7591119088
+    visitor_team_id: 7591119090
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726867
+    league_id: 301
+    home_team_id: 7591119086
+    visitor_team_id: 7591119087
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726869
+    league_id: 301
+    home_team_id: 7591119089
+    visitor_team_id: 7591119086
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726870
+    league_id: 301
+    home_team_id: 7591119087
+    visitor_team_id: 7591119088
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726872
+    league_id: 301
+    home_team_id: 7591119087
+    visitor_team_id: 7591119090
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726873
+    league_id: 301
+    home_team_id: 7591119089
+    visitor_team_id: 7591119088
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726875
+    league_id: 301
+    home_team_id: 7591119088
+    visitor_team_id: 7591119086
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726876
+    league_id: 301
+    home_team_id: 7591119090
+    visitor_team_id: 7591119089
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726878
+    league_id: 301
+    home_team_id: 7591119089
+    visitor_team_id: 7591119087
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726879
+    league_id: 301
+    home_team_id: 7591119086
+    visitor_team_id: 7591119090
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726881
+    league_id: 301
+    home_team_id: 7591119090
+    visitor_team_id: 7591119088
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726882
+    league_id: 301
+    home_team_id: 7591119087
+    visitor_team_id: 7591119086
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726884
+    league_id: 301
+    home_team_id: 7591119086
+    visitor_team_id: 7591119089
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726885
+    league_id: 301
+    home_team_id: 7591119088
+    visitor_team_id: 7591119087
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726887
+    league_id: 301
+    home_team_id: 7591119090
+    visitor_team_id: 7591119087
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726888
+    league_id: 301
+    home_team_id: 7591119088
+    visitor_team_id: 7591119089
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726890
+    league_id: 301
+    home_team_id: 7591119086
+    visitor_team_id: 7591119088
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726891
+    league_id: 301
+    home_team_id: 7591119089
+    visitor_team_id: 7591119090
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726893
+    league_id: 301
+    home_team_id: 7591119087
+    visitor_team_id: 7591119089
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726894
+    league_id: 301
+    home_team_id: 7591119090
+    visitor_team_id: 7591119086
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726896
+    league_id: 301
+    home_team_id: 7591119088
+    visitor_team_id: 7591119090
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726897
+    league_id: 301
+    home_team_id: 7591119086
+    visitor_team_id: 7591119087
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726899
+    league_id: 301
+    home_team_id: 7591119089
+    visitor_team_id: 7591119086
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726900
+    league_id: 301
+    home_team_id: 7591119087
+    visitor_team_id: 7591119088
+    round: 3
+    num_rounds: 3
+
+
+  # 3.0 Men Matches
+  - id: 1011726902
+    league_id: 302
+    home_team_id: 7591118804
+    visitor_team_id: 7591118801
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726903
+    league_id: 302
+    home_team_id: 7591118802
+    visitor_team_id: 7591118803
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726905
+    league_id: 302
+    home_team_id: 7591118799
+    visitor_team_id: 7591118802
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726906
+    league_id: 302
+    home_team_id: 7591118803
+    visitor_team_id: 7591118804
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726908
+    league_id: 302
+    home_team_id: 7591118801
+    visitor_team_id: 7591118803
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726909
+    league_id: 302
+    home_team_id: 7591118804
+    visitor_team_id: 7591118799
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726911
+    league_id: 302
+    home_team_id: 7591118802
+    visitor_team_id: 7591118804
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726912
+    league_id: 302
+    home_team_id: 7591118799
+    visitor_team_id: 7591118801
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726914
+    league_id: 302
+    home_team_id: 7591118803
+    visitor_team_id: 7591118799
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726915
+    league_id: 302
+    home_team_id: 7591118801
+    visitor_team_id: 7591118802
+    round: 1
+    num_rounds: 3
+
+  - id: 1011726917
+    league_id: 302
+    home_team_id: 7591118801
+    visitor_team_id: 7591118804
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726918
+    league_id: 302
+    home_team_id: 7591118803
+    visitor_team_id: 7591118802
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726920
+    league_id: 302
+    home_team_id: 7591118802
+    visitor_team_id: 7591118799
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726921
+    league_id: 302
+    home_team_id: 7591118804
+    visitor_team_id: 7591118803
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726923
+    league_id: 302
+    home_team_id: 7591118803
+    visitor_team_id: 7591118801
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726924
+    league_id: 302
+    home_team_id: 7591118799
+    visitor_team_id: 7591118804
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726926
+    league_id: 302
+    home_team_id: 7591118804
+    visitor_team_id: 7591118802
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726927
+    league_id: 302
+    home_team_id: 7591118801
+    visitor_team_id: 7591118799
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726929
+    league_id: 302
+    home_team_id: 7591118799
+    visitor_team_id: 7591118803
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726930
+    league_id: 302
+    home_team_id: 7591118802
+    visitor_team_id: 7591118801
+    round: 2
+    num_rounds: 3
+
+  - id: 1011726932
+    league_id: 302
+    home_team_id: 7591118804
+    visitor_team_id: 7591118801
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726933
+    league_id: 302
+    home_team_id: 7591118802
+    visitor_team_id: 7591118803
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726935
+    league_id: 302
+    home_team_id: 7591118799
+    visitor_team_id: 7591118802
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726936
+    league_id: 302
+    home_team_id: 7591118803
+    visitor_team_id: 7591118804
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726938
+    league_id: 302
+    home_team_id: 7591118801
+    visitor_team_id: 7591118803
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726939
+    league_id: 302
+    home_team_id: 7591118804
+    visitor_team_id: 7591118799
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726941
+    league_id: 302
+    home_team_id: 7591118802
+    visitor_team_id: 7591118804
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726942
+    league_id: 302
+    home_team_id: 7591118799
+    visitor_team_id: 7591118801
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726944
+    league_id: 302
+    home_team_id: 7591118803
+    visitor_team_id: 7591118799
+    round: 3
+    num_rounds: 3
+
+  - id: 1011726945
+    league_id: 302
+    home_team_id: 7591118801
+    visitor_team_id: 7591118802
+    round: 3
+    num_rounds: 3
+
+
+  # 3.0 Women Matches
+  - id: 1011727012
+    league_id: 303
+    home_team_id: 7591119094
+    visitor_team_id: 7591119095
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727013
+    league_id: 303
+    home_team_id: 7591121862
+    visitor_team_id: 7591119096
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727014
+    league_id: 303
+    home_team_id: 7591119097
+    visitor_team_id: 7591119104
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727015
+    league_id: 303
+    home_team_id: 7591119103
+    visitor_team_id: 7591119098
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727016
+    league_id: 303
+    home_team_id: 7591119099
+    visitor_team_id: 7591119102
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727017
+    league_id: 303
+    home_team_id: 7591119101
+    visitor_team_id: 7591119100
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727018
+    league_id: 303
+    home_team_id: 7591119096
+    visitor_team_id: 7591119094
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727019
+    league_id: 303
+    home_team_id: 7591119095
+    visitor_team_id: 7591119097
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727020
+    league_id: 303
+    home_team_id: 7591119098
+    visitor_team_id: 7591121862
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727021
+    league_id: 303
+    home_team_id: 7591119104
+    visitor_team_id: 7591119099
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727022
+    league_id: 303
+    home_team_id: 7591119100
+    visitor_team_id: 7591119103
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727023
+    league_id: 303
+    home_team_id: 7591119102
+    visitor_team_id: 7591119101
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727024
+    league_id: 303
+    home_team_id: 7591119094
+    visitor_team_id: 7591119097
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727025
+    league_id: 303
+    home_team_id: 7591119096
+    visitor_team_id: 7591119098
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727026
+    league_id: 303
+    home_team_id: 7591119099
+    visitor_team_id: 7591119095
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727027
+    league_id: 303
+    home_team_id: 7591121862
+    visitor_team_id: 7591119100
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727028
+    league_id: 303
+    home_team_id: 7591119101
+    visitor_team_id: 7591119104
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727029
+    league_id: 303
+    home_team_id: 7591119103
+    visitor_team_id: 7591119102
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727030
+    league_id: 303
+    home_team_id: 7591119098
+    visitor_team_id: 7591119094
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727031
+    league_id: 303
+    home_team_id: 7591119097
+    visitor_team_id: 7591119099
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727032
+    league_id: 303
+    home_team_id: 7591119100
+    visitor_team_id: 7591119096
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727033
+    league_id: 303
+    home_team_id: 7591119095
+    visitor_team_id: 7591119101
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727034
+    league_id: 303
+    home_team_id: 7591119102
+    visitor_team_id: 7591121862
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727035
+    league_id: 303
+    home_team_id: 7591119104
+    visitor_team_id: 7591119103
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727036
+    league_id: 303
+    home_team_id: 7591119094
+    visitor_team_id: 7591119099
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727037
+    league_id: 303
+    home_team_id: 7591119098
+    visitor_team_id: 7591119100
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727038
+    league_id: 303
+    home_team_id: 7591119101
+    visitor_team_id: 7591119097
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727039
+    league_id: 303
+    home_team_id: 7591119096
+    visitor_team_id: 7591119102
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727040
+    league_id: 303
+    home_team_id: 7591119103
+    visitor_team_id: 7591119095
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727041
+    league_id: 303
+    home_team_id: 7591121862
+    visitor_team_id: 7591119104
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727042
+    league_id: 303
+    home_team_id: 7591119100
+    visitor_team_id: 7591119094
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727043
+    league_id: 303
+    home_team_id: 7591119099
+    visitor_team_id: 7591119101
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727044
+    league_id: 303
+    home_team_id: 7591119102
+    visitor_team_id: 7591119098
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727045
+    league_id: 303
+    home_team_id: 7591119097
+    visitor_team_id: 7591119103
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727046
+    league_id: 303
+    home_team_id: 7591119104
+    visitor_team_id: 7591119096
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727047
+    league_id: 303
+    home_team_id: 7591119095
+    visitor_team_id: 7591121862
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727048
+    league_id: 303
+    home_team_id: 7591119094
+    visitor_team_id: 7591119101
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727049
+    league_id: 303
+    home_team_id: 7591119100
+    visitor_team_id: 7591119102
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727050
+    league_id: 303
+    home_team_id: 7591119103
+    visitor_team_id: 7591119099
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727051
+    league_id: 303
+    home_team_id: 7591119098
+    visitor_team_id: 7591119104
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727052
+    league_id: 303
+    home_team_id: 7591121862
+    visitor_team_id: 7591119097
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727053
+    league_id: 303
+    home_team_id: 7591119096
+    visitor_team_id: 7591119095
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727054
+    league_id: 303
+    home_team_id: 7591119102
+    visitor_team_id: 7591119094
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727055
+    league_id: 303
+    home_team_id: 7591119101
+    visitor_team_id: 7591119103
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727056
+    league_id: 303
+    home_team_id: 7591119104
+    visitor_team_id: 7591119100
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727057
+    league_id: 303
+    home_team_id: 7591119099
+    visitor_team_id: 7591121862
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727058
+    league_id: 303
+    home_team_id: 7591119095
+    visitor_team_id: 7591119098
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727059
+    league_id: 303
+    home_team_id: 7591119097
+    visitor_team_id: 7591119096
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727060
+    league_id: 303
+    home_team_id: 7591119094
+    visitor_team_id: 7591119103
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727061
+    league_id: 303
+    home_team_id: 7591119102
+    visitor_team_id: 7591119104
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727062
+    league_id: 303
+    home_team_id: 7591121862
+    visitor_team_id: 7591119101
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727063
+    league_id: 303
+    home_team_id: 7591119100
+    visitor_team_id: 7591119095
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727064
+    league_id: 303
+    home_team_id: 7591119096
+    visitor_team_id: 7591119099
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727065
+    league_id: 303
+    home_team_id: 7591119098
+    visitor_team_id: 7591119097
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727066
+    league_id: 303
+    home_team_id: 7591119104
+    visitor_team_id: 7591119094
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727067
+    league_id: 303
+    home_team_id: 7591119103
+    visitor_team_id: 7591121862
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727068
+    league_id: 303
+    home_team_id: 7591119095
+    visitor_team_id: 7591119102
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727069
+    league_id: 303
+    home_team_id: 7591119101
+    visitor_team_id: 7591119096
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727070
+    league_id: 303
+    home_team_id: 7591119097
+    visitor_team_id: 7591119100
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727071
+    league_id: 303
+    home_team_id: 7591119099
+    visitor_team_id: 7591119098
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727072
+    league_id: 303
+    home_team_id: 7591119094
+    visitor_team_id: 7591121862
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727073
+    league_id: 303
+    home_team_id: 7591119104
+    visitor_team_id: 7591119095
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727074
+    league_id: 303
+    home_team_id: 7591119096
+    visitor_team_id: 7591119103
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727075
+    league_id: 303
+    home_team_id: 7591119102
+    visitor_team_id: 7591119097
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727076
+    league_id: 303
+    home_team_id: 7591119098
+    visitor_team_id: 7591119101
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727077
+    league_id: 303
+    home_team_id: 7591119100
+    visitor_team_id: 7591119099
+    round: 1
+    num_rounds: 1
+
+
+  # 3.5 Men Matches
+  - id: 1011727079
+    league_id: 304
+    home_team_id: 7591118834
+    visitor_team_id: 7591118825
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727080
+    league_id: 304
+    home_team_id: 7591118826
+    visitor_team_id: 7591118833
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727081
+    league_id: 304
+    home_team_id: 7591118832
+    visitor_team_id: 7591118827
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727082
+    league_id: 304
+    home_team_id: 7591118828
+    visitor_team_id: 7591118831
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727083
+    league_id: 304
+    home_team_id: 7591118830
+    visitor_team_id: 7591118829
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727085
+    league_id: 304
+    home_team_id: 7591118824
+    visitor_team_id: 7591118826
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727086
+    league_id: 304
+    home_team_id: 7591118827
+    visitor_team_id: 7591118834
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727087
+    league_id: 304
+    home_team_id: 7591118833
+    visitor_team_id: 7591118828
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727088
+    league_id: 304
+    home_team_id: 7591118829
+    visitor_team_id: 7591118832
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727089
+    league_id: 304
+    home_team_id: 7591118831
+    visitor_team_id: 7591118830
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727091
+    league_id: 304
+    home_team_id: 7591118825
+    visitor_team_id: 7591118827
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727092
+    league_id: 304
+    home_team_id: 7591118828
+    visitor_team_id: 7591118824
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727093
+    league_id: 304
+    home_team_id: 7591118834
+    visitor_team_id: 7591118829
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727094
+    league_id: 304
+    home_team_id: 7591118830
+    visitor_team_id: 7591118833
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727095
+    league_id: 304
+    home_team_id: 7591118832
+    visitor_team_id: 7591118831
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727097
+    league_id: 304
+    home_team_id: 7591118826
+    visitor_team_id: 7591118828
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727098
+    league_id: 304
+    home_team_id: 7591118829
+    visitor_team_id: 7591118825
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727099
+    league_id: 304
+    home_team_id: 7591118824
+    visitor_team_id: 7591118830
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727100
+    league_id: 304
+    home_team_id: 7591118831
+    visitor_team_id: 7591118834
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727101
+    league_id: 304
+    home_team_id: 7591118833
+    visitor_team_id: 7591118832
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727103
+    league_id: 304
+    home_team_id: 7591118827
+    visitor_team_id: 7591118829
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727104
+    league_id: 304
+    home_team_id: 7591118830
+    visitor_team_id: 7591118826
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727105
+    league_id: 304
+    home_team_id: 7591118825
+    visitor_team_id: 7591118831
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727106
+    league_id: 304
+    home_team_id: 7591118832
+    visitor_team_id: 7591118824
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727107
+    league_id: 304
+    home_team_id: 7591118834
+    visitor_team_id: 7591118833
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727109
+    league_id: 304
+    home_team_id: 7591118828
+    visitor_team_id: 7591118830
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727110
+    league_id: 304
+    home_team_id: 7591118831
+    visitor_team_id: 7591118827
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727111
+    league_id: 304
+    home_team_id: 7591118826
+    visitor_team_id: 7591118832
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727112
+    league_id: 304
+    home_team_id: 7591118833
+    visitor_team_id: 7591118825
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727113
+    league_id: 304
+    home_team_id: 7591118824
+    visitor_team_id: 7591118834
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727115
+    league_id: 304
+    home_team_id: 7591118829
+    visitor_team_id: 7591118831
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727116
+    league_id: 304
+    home_team_id: 7591118832
+    visitor_team_id: 7591118828
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727117
+    league_id: 304
+    home_team_id: 7591118827
+    visitor_team_id: 7591118833
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727118
+    league_id: 304
+    home_team_id: 7591118834
+    visitor_team_id: 7591118826
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727119
+    league_id: 304
+    home_team_id: 7591118825
+    visitor_team_id: 7591118824
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727121
+    league_id: 304
+    home_team_id: 7591118830
+    visitor_team_id: 7591118832
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727122
+    league_id: 304
+    home_team_id: 7591118833
+    visitor_team_id: 7591118829
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727123
+    league_id: 304
+    home_team_id: 7591118828
+    visitor_team_id: 7591118834
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727124
+    league_id: 304
+    home_team_id: 7591118824
+    visitor_team_id: 7591118827
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727125
+    league_id: 304
+    home_team_id: 7591118826
+    visitor_team_id: 7591118825
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727127
+    league_id: 304
+    home_team_id: 7591118831
+    visitor_team_id: 7591118833
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727128
+    league_id: 304
+    home_team_id: 7591118834
+    visitor_team_id: 7591118830
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727129
+    league_id: 304
+    home_team_id: 7591118829
+    visitor_team_id: 7591118824
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727130
+    league_id: 304
+    home_team_id: 7591118825
+    visitor_team_id: 7591118828
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727131
+    league_id: 304
+    home_team_id: 7591118827
+    visitor_team_id: 7591118826
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727133
+    league_id: 304
+    home_team_id: 7591118832
+    visitor_team_id: 7591118834
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727134
+    league_id: 304
+    home_team_id: 7591118824
+    visitor_team_id: 7591118831
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727135
+    league_id: 304
+    home_team_id: 7591118830
+    visitor_team_id: 7591118825
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727136
+    league_id: 304
+    home_team_id: 7591118826
+    visitor_team_id: 7591118829
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727137
+    league_id: 304
+    home_team_id: 7591118828
+    visitor_team_id: 7591118827
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727139
+    league_id: 304
+    home_team_id: 7591118833
+    visitor_team_id: 7591118824
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727140
+    league_id: 304
+    home_team_id: 7591118825
+    visitor_team_id: 7591118832
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727141
+    league_id: 304
+    home_team_id: 7591118831
+    visitor_team_id: 7591118826
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727142
+    league_id: 304
+    home_team_id: 7591118827
+    visitor_team_id: 7591118830
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727143
+    league_id: 304
+    home_team_id: 7591118829
+    visitor_team_id: 7591118828
+    round: 1
+    num_rounds: 1
+
+
+  # 3.5 Women Matches
+  - id: 1011727490
+    league_id: 305
+    home_team_id: 7591119122
+    visitor_team_id: 7591119113
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727491
+    league_id: 305
+    home_team_id: 7591119114
+    visitor_team_id: 7591119121
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727492
+    league_id: 305
+    home_team_id: 7591119120
+    visitor_team_id: 7591119115
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727493
+    league_id: 305
+    home_team_id: 7591119116
+    visitor_team_id: 7591119119
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727494
+    league_id: 305
+    home_team_id: 7591119118
+    visitor_team_id: 7591119117
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727496
+    league_id: 305
+    home_team_id: 7591119112
+    visitor_team_id: 7591119114
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727497
+    league_id: 305
+    home_team_id: 7591119115
+    visitor_team_id: 7591119122
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727498
+    league_id: 305
+    home_team_id: 7591119121
+    visitor_team_id: 7591119116
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727499
+    league_id: 305
+    home_team_id: 7591119117
+    visitor_team_id: 7591119120
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727500
+    league_id: 305
+    home_team_id: 7591119119
+    visitor_team_id: 7591119118
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727502
+    league_id: 305
+    home_team_id: 7591119113
+    visitor_team_id: 7591119115
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727503
+    league_id: 305
+    home_team_id: 7591119116
+    visitor_team_id: 7591119112
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727504
+    league_id: 305
+    home_team_id: 7591119122
+    visitor_team_id: 7591119117
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727505
+    league_id: 305
+    home_team_id: 7591119118
+    visitor_team_id: 7591119121
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727506
+    league_id: 305
+    home_team_id: 7591119120
+    visitor_team_id: 7591119119
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727508
+    league_id: 305
+    home_team_id: 7591119114
+    visitor_team_id: 7591119116
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727509
+    league_id: 305
+    home_team_id: 7591119117
+    visitor_team_id: 7591119113
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727510
+    league_id: 305
+    home_team_id: 7591119112
+    visitor_team_id: 7591119118
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727511
+    league_id: 305
+    home_team_id: 7591119119
+    visitor_team_id: 7591119122
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727512
+    league_id: 305
+    home_team_id: 7591119121
+    visitor_team_id: 7591119120
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727514
+    league_id: 305
+    home_team_id: 7591119115
+    visitor_team_id: 7591119117
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727515
+    league_id: 305
+    home_team_id: 7591119118
+    visitor_team_id: 7591119114
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727516
+    league_id: 305
+    home_team_id: 7591119113
+    visitor_team_id: 7591119119
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727517
+    league_id: 305
+    home_team_id: 7591119120
+    visitor_team_id: 7591119112
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727518
+    league_id: 305
+    home_team_id: 7591119122
+    visitor_team_id: 7591119121
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727520
+    league_id: 305
+    home_team_id: 7591119116
+    visitor_team_id: 7591119118
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727521
+    league_id: 305
+    home_team_id: 7591119119
+    visitor_team_id: 7591119115
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727522
+    league_id: 305
+    home_team_id: 7591119114
+    visitor_team_id: 7591119120
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727523
+    league_id: 305
+    home_team_id: 7591119121
+    visitor_team_id: 7591119113
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727524
+    league_id: 305
+    home_team_id: 7591119112
+    visitor_team_id: 7591119122
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727526
+    league_id: 305
+    home_team_id: 7591119117
+    visitor_team_id: 7591119119
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727527
+    league_id: 305
+    home_team_id: 7591119120
+    visitor_team_id: 7591119116
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727528
+    league_id: 305
+    home_team_id: 7591119115
+    visitor_team_id: 7591119121
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727529
+    league_id: 305
+    home_team_id: 7591119122
+    visitor_team_id: 7591119114
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727530
+    league_id: 305
+    home_team_id: 7591119113
+    visitor_team_id: 7591119112
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727532
+    league_id: 305
+    home_team_id: 7591119118
+    visitor_team_id: 7591119120
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727533
+    league_id: 305
+    home_team_id: 7591119121
+    visitor_team_id: 7591119117
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727534
+    league_id: 305
+    home_team_id: 7591119116
+    visitor_team_id: 7591119122
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727535
+    league_id: 305
+    home_team_id: 7591119112
+    visitor_team_id: 7591119115
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727536
+    league_id: 305
+    home_team_id: 7591119114
+    visitor_team_id: 7591119113
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727538
+    league_id: 305
+    home_team_id: 7591119119
+    visitor_team_id: 7591119121
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727539
+    league_id: 305
+    home_team_id: 7591119122
+    visitor_team_id: 7591119118
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727540
+    league_id: 305
+    home_team_id: 7591119117
+    visitor_team_id: 7591119112
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727541
+    league_id: 305
+    home_team_id: 7591119113
+    visitor_team_id: 7591119116
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727542
+    league_id: 305
+    home_team_id: 7591119115
+    visitor_team_id: 7591119114
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727544
+    league_id: 305
+    home_team_id: 7591119120
+    visitor_team_id: 7591119122
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727545
+    league_id: 305
+    home_team_id: 7591119112
+    visitor_team_id: 7591119119
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727546
+    league_id: 305
+    home_team_id: 7591119118
+    visitor_team_id: 7591119113
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727547
+    league_id: 305
+    home_team_id: 7591119114
+    visitor_team_id: 7591119117
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727548
+    league_id: 305
+    home_team_id: 7591119116
+    visitor_team_id: 7591119115
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727550
+    league_id: 305
+    home_team_id: 7591119121
+    visitor_team_id: 7591119112
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727551
+    league_id: 305
+    home_team_id: 7591119113
+    visitor_team_id: 7591119120
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727552
+    league_id: 305
+    home_team_id: 7591119119
+    visitor_team_id: 7591119114
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727553
+    league_id: 305
+    home_team_id: 7591119115
+    visitor_team_id: 7591119118
+    round: 1
+    num_rounds: 1
+
+  - id: 1011727554
+    league_id: 305
+    home_team_id: 7591119117
+    visitor_team_id: 7591119116
+    round: 1
+    num_rounds: 1
+
+
+  # 4.0 Men Matches
+  - id: 1011727555
+    league_id: 306
+    home_team_id: 7591118840
+    visitor_team_id: 7591118841
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727556
+    league_id: 306
+    home_team_id: 7591118849
+    visitor_team_id: 7591118842
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727557
+    league_id: 306
+    home_team_id: 7591118843
+    visitor_team_id: 7591118848
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727558
+    league_id: 306
+    home_team_id: 7591118847
+    visitor_team_id: 7591118844
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727559
+    league_id: 306
+    home_team_id: 7591118845
+    visitor_team_id: 7591118846
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727560
+    league_id: 306
+    home_team_id: 7591118842
+    visitor_team_id: 7591118840
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727561
+    league_id: 306
+    home_team_id: 7591118841
+    visitor_team_id: 7591118843
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727562
+    league_id: 306
+    home_team_id: 7591118844
+    visitor_team_id: 7591118849
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727563
+    league_id: 306
+    home_team_id: 7591118848
+    visitor_team_id: 7591118845
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727564
+    league_id: 306
+    home_team_id: 7591118846
+    visitor_team_id: 7591118847
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727565
+    league_id: 306
+    home_team_id: 7591118840
+    visitor_team_id: 7591118843
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727566
+    league_id: 306
+    home_team_id: 7591118842
+    visitor_team_id: 7591118844
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727567
+    league_id: 306
+    home_team_id: 7591118845
+    visitor_team_id: 7591118841
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727568
+    league_id: 306
+    home_team_id: 7591118849
+    visitor_team_id: 7591118846
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727569
+    league_id: 306
+    home_team_id: 7591118847
+    visitor_team_id: 7591118848
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727570
+    league_id: 306
+    home_team_id: 7591118844
+    visitor_team_id: 7591118840
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727571
+    league_id: 306
+    home_team_id: 7591118843
+    visitor_team_id: 7591118845
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727572
+    league_id: 306
+    home_team_id: 7591118846
+    visitor_team_id: 7591118842
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727573
+    league_id: 306
+    home_team_id: 7591118841
+    visitor_team_id: 7591118847
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727574
+    league_id: 306
+    home_team_id: 7591118848
+    visitor_team_id: 7591118849
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727575
+    league_id: 306
+    home_team_id: 7591118840
+    visitor_team_id: 7591118845
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727576
+    league_id: 306
+    home_team_id: 7591118844
+    visitor_team_id: 7591118846
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727577
+    league_id: 306
+    home_team_id: 7591118847
+    visitor_team_id: 7591118843
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727578
+    league_id: 306
+    home_team_id: 7591118842
+    visitor_team_id: 7591118848
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727579
+    league_id: 306
+    home_team_id: 7591118849
+    visitor_team_id: 7591118841
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727580
+    league_id: 306
+    home_team_id: 7591118846
+    visitor_team_id: 7591118840
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727581
+    league_id: 306
+    home_team_id: 7591118845
+    visitor_team_id: 7591118847
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727582
+    league_id: 306
+    home_team_id: 7591118848
+    visitor_team_id: 7591118844
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727583
+    league_id: 306
+    home_team_id: 7591118843
+    visitor_team_id: 7591118849
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727584
+    league_id: 306
+    home_team_id: 7591118841
+    visitor_team_id: 7591118842
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727585
+    league_id: 306
+    home_team_id: 7591118840
+    visitor_team_id: 7591118847
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727586
+    league_id: 306
+    home_team_id: 7591118846
+    visitor_team_id: 7591118848
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727587
+    league_id: 306
+    home_team_id: 7591118849
+    visitor_team_id: 7591118845
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727588
+    league_id: 306
+    home_team_id: 7591118844
+    visitor_team_id: 7591118841
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727589
+    league_id: 306
+    home_team_id: 7591118842
+    visitor_team_id: 7591118843
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727590
+    league_id: 306
+    home_team_id: 7591118848
+    visitor_team_id: 7591118840
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727591
+    league_id: 306
+    home_team_id: 7591118847
+    visitor_team_id: 7591118849
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727592
+    league_id: 306
+    home_team_id: 7591118841
+    visitor_team_id: 7591118846
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727593
+    league_id: 306
+    home_team_id: 7591118845
+    visitor_team_id: 7591118842
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727594
+    league_id: 306
+    home_team_id: 7591118843
+    visitor_team_id: 7591118844
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727595
+    league_id: 306
+    home_team_id: 7591118840
+    visitor_team_id: 7591118849
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727596
+    league_id: 306
+    home_team_id: 7591118848
+    visitor_team_id: 7591118841
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727597
+    league_id: 306
+    home_team_id: 7591118842
+    visitor_team_id: 7591118847
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727598
+    league_id: 306
+    home_team_id: 7591118846
+    visitor_team_id: 7591118843
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727599
+    league_id: 306
+    home_team_id: 7591118844
+    visitor_team_id: 7591118845
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727600
+    league_id: 306
+    home_team_id: 7591118841
+    visitor_team_id: 7591118840
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727601
+    league_id: 306
+    home_team_id: 7591118842
+    visitor_team_id: 7591118849
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727602
+    league_id: 306
+    home_team_id: 7591118848
+    visitor_team_id: 7591118843
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727603
+    league_id: 306
+    home_team_id: 7591118844
+    visitor_team_id: 7591118847
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727604
+    league_id: 306
+    home_team_id: 7591118846
+    visitor_team_id: 7591118845
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727605
+    league_id: 306
+    home_team_id: 7591118840
+    visitor_team_id: 7591118842
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727606
+    league_id: 306
+    home_team_id: 7591118843
+    visitor_team_id: 7591118841
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727607
+    league_id: 306
+    home_team_id: 7591118849
+    visitor_team_id: 7591118844
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727608
+    league_id: 306
+    home_team_id: 7591118845
+    visitor_team_id: 7591118848
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727609
+    league_id: 306
+    home_team_id: 7591118847
+    visitor_team_id: 7591118846
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727610
+    league_id: 306
+    home_team_id: 7591118843
+    visitor_team_id: 7591118840
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727611
+    league_id: 306
+    home_team_id: 7591118844
+    visitor_team_id: 7591118842
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727612
+    league_id: 306
+    home_team_id: 7591118841
+    visitor_team_id: 7591118845
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727613
+    league_id: 306
+    home_team_id: 7591118846
+    visitor_team_id: 7591118849
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727614
+    league_id: 306
+    home_team_id: 7591118848
+    visitor_team_id: 7591118847
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727615
+    league_id: 306
+    home_team_id: 7591118840
+    visitor_team_id: 7591118844
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727616
+    league_id: 306
+    home_team_id: 7591118845
+    visitor_team_id: 7591118843
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727617
+    league_id: 306
+    home_team_id: 7591118842
+    visitor_team_id: 7591118846
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727618
+    league_id: 306
+    home_team_id: 7591118847
+    visitor_team_id: 7591118841
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727619
+    league_id: 306
+    home_team_id: 7591118849
+    visitor_team_id: 7591118848
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727620
+    league_id: 306
+    home_team_id: 7591118845
+    visitor_team_id: 7591118840
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727621
+    league_id: 306
+    home_team_id: 7591118846
+    visitor_team_id: 7591118844
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727622
+    league_id: 306
+    home_team_id: 7591118843
+    visitor_team_id: 7591118847
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727623
+    league_id: 306
+    home_team_id: 7591118848
+    visitor_team_id: 7591118842
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727624
+    league_id: 306
+    home_team_id: 7591118841
+    visitor_team_id: 7591118849
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727625
+    league_id: 306
+    home_team_id: 7591118840
+    visitor_team_id: 7591118846
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727626
+    league_id: 306
+    home_team_id: 7591118847
+    visitor_team_id: 7591118845
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727627
+    league_id: 306
+    home_team_id: 7591118844
+    visitor_team_id: 7591118848
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727628
+    league_id: 306
+    home_team_id: 7591118849
+    visitor_team_id: 7591118843
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727629
+    league_id: 306
+    home_team_id: 7591118842
+    visitor_team_id: 7591118841
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727630
+    league_id: 306
+    home_team_id: 7591118847
+    visitor_team_id: 7591118840
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727631
+    league_id: 306
+    home_team_id: 7591118848
+    visitor_team_id: 7591118846
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727632
+    league_id: 306
+    home_team_id: 7591118845
+    visitor_team_id: 7591118849
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727633
+    league_id: 306
+    home_team_id: 7591118841
+    visitor_team_id: 7591118844
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727634
+    league_id: 306
+    home_team_id: 7591118843
+    visitor_team_id: 7591118842
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727635
+    league_id: 306
+    home_team_id: 7591118840
+    visitor_team_id: 7591118848
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727636
+    league_id: 306
+    home_team_id: 7591118849
+    visitor_team_id: 7591118847
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727637
+    league_id: 306
+    home_team_id: 7591118846
+    visitor_team_id: 7591118841
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727638
+    league_id: 306
+    home_team_id: 7591118842
+    visitor_team_id: 7591118845
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727639
+    league_id: 306
+    home_team_id: 7591118844
+    visitor_team_id: 7591118843
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727640
+    league_id: 306
+    home_team_id: 7591118849
+    visitor_team_id: 7591118840
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727641
+    league_id: 306
+    home_team_id: 7591118841
+    visitor_team_id: 7591118848
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727642
+    league_id: 306
+    home_team_id: 7591118847
+    visitor_team_id: 7591118842
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727643
+    league_id: 306
+    home_team_id: 7591118843
+    visitor_team_id: 7591118846
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727644
+    league_id: 306
+    home_team_id: 7591118845
+    visitor_team_id: 7591118844
+    round: 2
+    num_rounds: 2
+
+
+  # 4.0 Women Matches
+  - id: 1011727434
+    league_id: 307
+    home_team_id: 7591119130
+    visitor_team_id: 7591119125
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727435
+    league_id: 307
+    home_team_id: 7591119126
+    visitor_team_id: 7591119129
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727436
+    league_id: 307
+    home_team_id: 7591119128
+    visitor_team_id: 7591119127
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727438
+    league_id: 307
+    home_team_id: 7591119124
+    visitor_team_id: 7591119126
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727439
+    league_id: 307
+    home_team_id: 7591119127
+    visitor_team_id: 7591119130
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727440
+    league_id: 307
+    home_team_id: 7591119129
+    visitor_team_id: 7591119128
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727442
+    league_id: 307
+    home_team_id: 7591119125
+    visitor_team_id: 7591119127
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727443
+    league_id: 307
+    home_team_id: 7591119128
+    visitor_team_id: 7591119124
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727444
+    league_id: 307
+    home_team_id: 7591119130
+    visitor_team_id: 7591119129
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727446
+    league_id: 307
+    home_team_id: 7591119126
+    visitor_team_id: 7591119128
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727447
+    league_id: 307
+    home_team_id: 7591119129
+    visitor_team_id: 7591119125
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727448
+    league_id: 307
+    home_team_id: 7591119124
+    visitor_team_id: 7591119130
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727450
+    league_id: 307
+    home_team_id: 7591119127
+    visitor_team_id: 7591119129
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727451
+    league_id: 307
+    home_team_id: 7591119130
+    visitor_team_id: 7591119126
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727452
+    league_id: 307
+    home_team_id: 7591119125
+    visitor_team_id: 7591119124
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727454
+    league_id: 307
+    home_team_id: 7591119128
+    visitor_team_id: 7591119130
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727455
+    league_id: 307
+    home_team_id: 7591119124
+    visitor_team_id: 7591119127
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727456
+    league_id: 307
+    home_team_id: 7591119126
+    visitor_team_id: 7591119125
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727458
+    league_id: 307
+    home_team_id: 7591119129
+    visitor_team_id: 7591119124
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727459
+    league_id: 307
+    home_team_id: 7591119125
+    visitor_team_id: 7591119128
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727460
+    league_id: 307
+    home_team_id: 7591119127
+    visitor_team_id: 7591119126
+    round: 1
+    num_rounds: 2
+
+  - id: 1011727462
+    league_id: 307
+    home_team_id: 7591119125
+    visitor_team_id: 7591119130
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727463
+    league_id: 307
+    home_team_id: 7591119129
+    visitor_team_id: 7591119126
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727464
+    league_id: 307
+    home_team_id: 7591119127
+    visitor_team_id: 7591119128
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727466
+    league_id: 307
+    home_team_id: 7591119126
+    visitor_team_id: 7591119124
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727467
+    league_id: 307
+    home_team_id: 7591119130
+    visitor_team_id: 7591119127
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727468
+    league_id: 307
+    home_team_id: 7591119128
+    visitor_team_id: 7591119129
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727470
+    league_id: 307
+    home_team_id: 7591119127
+    visitor_team_id: 7591119125
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727471
+    league_id: 307
+    home_team_id: 7591119124
+    visitor_team_id: 7591119128
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727472
+    league_id: 307
+    home_team_id: 7591119129
+    visitor_team_id: 7591119130
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727474
+    league_id: 307
+    home_team_id: 7591119128
+    visitor_team_id: 7591119126
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727475
+    league_id: 307
+    home_team_id: 7591119125
+    visitor_team_id: 7591119129
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727476
+    league_id: 307
+    home_team_id: 7591119130
+    visitor_team_id: 7591119124
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727478
+    league_id: 307
+    home_team_id: 7591119129
+    visitor_team_id: 7591119127
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727479
+    league_id: 307
+    home_team_id: 7591119126
+    visitor_team_id: 7591119130
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727480
+    league_id: 307
+    home_team_id: 7591119124
+    visitor_team_id: 7591119125
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727482
+    league_id: 307
+    home_team_id: 7591119130
+    visitor_team_id: 7591119128
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727483
+    league_id: 307
+    home_team_id: 7591119127
+    visitor_team_id: 7591119124
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727484
+    league_id: 307
+    home_team_id: 7591119125
+    visitor_team_id: 7591119126
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727486
+    league_id: 307
+    home_team_id: 7591119124
+    visitor_team_id: 7591119129
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727487
+    league_id: 307
+    home_team_id: 7591119128
+    visitor_team_id: 7591119125
+    round: 2
+    num_rounds: 2
+
+  - id: 1011727488
+    league_id: 307
+    home_team_id: 7591119126
+    visitor_team_id: 7591119127
+    round: 2
+    num_rounds: 2
+
+
+  # 4.5 Men Matches
+  - id: 1011727206
+    league_id: 308
+    home_team_id: 7591118851
+    visitor_team_id: 7591118852
+    round: 1
+    num_rounds: 4
+
+  - id: 1011727207
+    league_id: 308
+    home_team_id: 7591118854
+    visitor_team_id: 7591118853
+    round: 1
+    num_rounds: 4
+
+  - id: 1011727208
+    league_id: 308
+    home_team_id: 7591118853
+    visitor_team_id: 7591118851
+    round: 1
+    num_rounds: 4
+
+  - id: 1011727209
+    league_id: 308
+    home_team_id: 7591118852
+    visitor_team_id: 7591118854
+    round: 1
+    num_rounds: 4
+
+  - id: 1011727210
+    league_id: 308
+    home_team_id: 7591118851
+    visitor_team_id: 7591118854
+    round: 1
+    num_rounds: 4
+
+  - id: 1011727211
+    league_id: 308
+    home_team_id: 7591118853
+    visitor_team_id: 7591118852
+    round: 1
+    num_rounds: 4
+
+  - id: 1011727212
+    league_id: 308
+    home_team_id: 7591118852
+    visitor_team_id: 7591118851
+    round: 2
+    num_rounds: 4
+
+  - id: 1011727213
+    league_id: 308
+    home_team_id: 7591118853
+    visitor_team_id: 7591118854
+    round: 2
+    num_rounds: 4
+
+  - id: 1011727214
+    league_id: 308
+    home_team_id: 7591118851
+    visitor_team_id: 7591118853
+    round: 2
+    num_rounds: 4
+
+  - id: 1011727215
+    league_id: 308
+    home_team_id: 7591118854
+    visitor_team_id: 7591118852
+    round: 2
+    num_rounds: 4
+
+  - id: 1011727216
+    league_id: 308
+    home_team_id: 7591118854
+    visitor_team_id: 7591118851
+    round: 2
+    num_rounds: 4
+
+  - id: 1011727217
+    league_id: 308
+    home_team_id: 7591118852
+    visitor_team_id: 7591118853
+    round: 2
+    num_rounds: 4
+
+  - id: 1011727218
+    league_id: 308
+    home_team_id: 7591118851
+    visitor_team_id: 7591118852
+    round: 3
+    num_rounds: 4
+
+  - id: 1011727219
+    league_id: 308
+    home_team_id: 7591118854
+    visitor_team_id: 7591118853
+    round: 3
+    num_rounds: 4
+
+  - id: 1011727220
+    league_id: 308
+    home_team_id: 7591118853
+    visitor_team_id: 7591118851
+    round: 3
+    num_rounds: 4
+
+  - id: 1011727221
+    league_id: 308
+    home_team_id: 7591118852
+    visitor_team_id: 7591118854
+    round: 3
+    num_rounds: 4
+
+  - id: 1011727222
+    league_id: 308
+    home_team_id: 7591118851
+    visitor_team_id: 7591118854
+    round: 3
+    num_rounds: 4
+
+  - id: 1011727223
+    league_id: 308
+    home_team_id: 7591118853
+    visitor_team_id: 7591118852
+    round: 3
+    num_rounds: 4
+
+  - id: 1011727224
+    league_id: 308
+    home_team_id: 7591118852
+    visitor_team_id: 7591118851
+    round: 4
+    num_rounds: 4
+
+  - id: 1011727225
+    league_id: 308
+    home_team_id: 7591118853
+    visitor_team_id: 7591118854
+    round: 4
+    num_rounds: 4
+
+  - id: 1011727226
+    league_id: 308
+    home_team_id: 7591118851
+    visitor_team_id: 7591118853
+    round: 4
+    num_rounds: 4
+
+  - id: 1011727227
+    league_id: 308
+    home_team_id: 7591118854
+    visitor_team_id: 7591118852
+    round: 4
+    num_rounds: 4
+
+  - id: 1011727228
+    league_id: 308
+    home_team_id: 7591118854
+    visitor_team_id: 7591118851
+    round: 4
+    num_rounds: 4
+
+  - id: 1011727229
+    league_id: 308
+    home_team_id: 7591118852
+    visitor_team_id: 7591118853
+    round: 4
+    num_rounds: 4
+
+
+  # 4.5 Women Matches
+  - id: 1011727267
+    league_id: 309
+    home_team_id: 7591119143
+    visitor_team_id: 7591119142
+    round: 1
+    num_rounds: 5
+
+  - id: 1011727269
+    league_id: 309
+    home_team_id: 7591119141
+    visitor_team_id: 7591119143
+    round: 1
+    num_rounds: 5
+
+  - id: 1011727271
+    league_id: 309
+    home_team_id: 7591119142
+    visitor_team_id: 7591119141
+    round: 1
+    num_rounds: 5
+
+  - id: 1011727273
+    league_id: 309
+    home_team_id: 7591119142
+    visitor_team_id: 7591119143
+    round: 2
+    num_rounds: 5
+
+  - id: 1011727275
+    league_id: 309
+    home_team_id: 7591119143
+    visitor_team_id: 7591119141
+    round: 2
+    num_rounds: 5
+
+  - id: 1011727277
+    league_id: 309
+    home_team_id: 7591119141
+    visitor_team_id: 7591119142
+    round: 2
+    num_rounds: 5
+
+  - id: 1011727279
+    league_id: 309
+    home_team_id: 7591119143
+    visitor_team_id: 7591119142
+    round: 3
+    num_rounds: 5
+
+  - id: 1011727281
+    league_id: 309
+    home_team_id: 7591119141
+    visitor_team_id: 7591119143
+    round: 3
+    num_rounds: 5
+
+  - id: 1011727283
+    league_id: 309
+    home_team_id: 7591119142
+    visitor_team_id: 7591119141
+    round: 3
+    num_rounds: 5
+
+  - id: 1011727285
+    league_id: 309
+    home_team_id: 7591119142
+    visitor_team_id: 7591119143
+    round: 4
+    num_rounds: 5
+
+  - id: 1011727287
+    league_id: 309
+    home_team_id: 7591119143
+    visitor_team_id: 7591119141
+    round: 4
+    num_rounds: 5
+
+  - id: 1011727289
+    league_id: 309
+    home_team_id: 7591119141
+    visitor_team_id: 7591119142
+    round: 4
+    num_rounds: 5
+
+  - id: 1011727291
+    league_id: 309
+    home_team_id: 7591119143
+    visitor_team_id: 7591119142
+    round: 5
+    num_rounds: 5
+
+  - id: 1011727293
+    league_id: 309
+    home_team_id: 7591119141
+    visitor_team_id: 7591119143
+    round: 5
+    num_rounds: 5
+
+  - id: 1011727295
+    league_id: 309
+    home_team_id: 7591119142
+    visitor_team_id: 7591119141
+    round: 5
+    num_rounds: 5
+

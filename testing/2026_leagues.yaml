@@ -1,0 +1,211 @@
+# 2026 Adult 18 & Over League Configuration
+# Generated from 2026_Adult_18___Over_League_Schedule.xlsx
+# Season: February 22, 2026 - June 21, 2026
+
+leagues:
+  # 2.5 Women - 5 teams, 12 matches per team, 30 total league matches
+  - id: 301
+    name: "2026 Adult 18+ 2.5 Women"
+    year: 2026
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "2.5 Women"
+    num_lines_per_match: 5
+    num_teams: 5
+    num_matches: 12
+    total_league_matches: 30
+    round_robins: 3
+    allow_split_lines: false
+    preferred_days:
+      - "Tuesday"
+      - "Saturday"
+    backup_days:
+      - "Sunday"
+      - "Thursday"
+    start_date: "2026-02-28"
+    end_date: "2026-05-03"
+
+  # 3.0 Men - 5 teams, 12 matches per team, 30 total league matches
+  - id: 302
+    name: "2026 Adult 18+ 3.0 Men"
+    year: 2026
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "3.0 Men"
+    num_lines_per_match: 5
+    num_teams: 5
+    num_matches: 12
+    total_league_matches: 30
+    round_robins: 3
+    allow_split_lines: false
+    preferred_days:
+      - "Thursday"
+      - "Sunday"
+    backup_days:
+      - "Saturday"
+      - "Monday"
+    start_date: "2026-02-28"
+    end_date: "2026-05-03"
+
+  # 3.0 Women - 12 teams, 11 matches per team, 66 total league matches
+  - id: 303
+    name: "2026 Adult 18+ 3.0 Women"
+    year: 2026
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "3.0 Women"
+    num_lines_per_match: 5
+    num_teams: 12
+    num_matches: 11
+    total_league_matches: 66
+    round_robins: 1
+    allow_split_lines: false
+    preferred_days:
+      - "Thursday"
+      - "Sunday"
+    backup_days:
+      - "Saturday"
+      - "Monday"
+    start_date: "2026-02-28"
+    end_date: "2026-05-03"
+
+  # 3.5 Men - 11 teams, 10 matches per team, 55 total league matches
+  - id: 304
+    name: "2026 Adult 18+ 3.5 Men"
+    year: 2026
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "3.5 Men"
+    num_lines_per_match: 5
+    num_teams: 11
+    num_matches: 10
+    total_league_matches: 55
+    round_robins: 1
+    allow_split_lines: false
+    preferred_days:
+      - "Tuesday"
+      - "Saturday"
+    backup_days:
+      - "Sunday"
+      - "Thursday"
+    start_date: "2026-02-28"
+    end_date: "2026-05-03"
+
+  # 3.5 Women - 11 teams, 10 matches per team, 55 total league matches
+  - id: 305
+    name: "2026 Adult 18+ 3.5 Women"
+    year: 2026
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "3.5 Women"
+    num_lines_per_match: 5
+    num_teams: 11
+    num_matches: 10
+    total_league_matches: 55
+    round_robins: 1
+    allow_split_lines: false
+    preferred_days:
+      - "Tuesday"
+      - "Saturday"
+    backup_days:
+      - "Sunday"
+      - "Thursday"
+    start_date: "2026-02-28"
+    end_date: "2026-05-03"
+
+  # 4.0 Men - 10 teams, 18 matches per team, 90 total league matches
+  - id: 306
+    name: "2026 Adult 18+ 4.0 Men"
+    year: 2026
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "4.0 Men"
+    num_lines_per_match: 5
+    num_teams: 10
+    num_matches: 18
+    total_league_matches: 90
+    round_robins: 2
+    allow_split_lines: false
+    preferred_days:
+      - "Thursday"
+      - "Sunday"
+    backup_days:
+      - "Saturday"
+      - "Monday"
+    start_date: "2026-02-28"
+    end_date: "2026-05-03"
+
+  # 4.0 Women - 7 teams, 12 matches per team, 42 total league matches
+  - id: 307
+    name: "2026 Adult 18+ 4.0 Women"
+    year: 2026
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "4.0 Women"
+    num_lines_per_match: 5
+    num_teams: 7
+    num_matches: 12
+    total_league_matches: 42
+    round_robins: 2
+    allow_split_lines: false
+    preferred_days:
+      - "Thursday"
+      - "Sunday"
+    backup_days:
+      - "Saturday"
+      - "Monday"
+    start_date: "2026-02-28"
+    end_date: "2026-05-03"
+
+  # 4.5 Men - 4 teams, 12 matches per team, 24 total league matches
+  - id: 308
+    name: "2026 Adult 18+ 4.5 Men"
+    year: 2026
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "4.5 Men"
+    num_lines_per_match: 5
+    num_teams: 4
+    num_matches: 12
+    total_league_matches: 24
+    round_robins: 4
+    allow_split_lines: false
+    preferred_days:
+      - "Tuesday"
+      - "Saturday"
+    backup_days:
+      - "Sunday"
+      - "Thursday"
+    start_date: "2026-02-28"
+    end_date: "2026-05-03"
+
+  # 4.5 Women - 3 teams, 10 matches per team, 15 total league matches
+  - id: 309
+    name: "2026 Adult 18+ 4.5 Women"
+    year: 2026
+    section: "Southwest"
+    region: "Northern New Mexico"
+    age_group: "18 & Over"
+    division: "4.5 Women"
+    num_lines_per_match: 5
+    num_teams: 3
+    num_matches: 10
+    total_league_matches: 15
+    round_robins: 5
+    allow_split_lines: false
+    preferred_days:
+      - "Wednesday"
+      - "Saturday"
+    backup_days:
+      - "Sunday"
+      - "Friday"
+    start_date: "2026-02-28"
+    end_date: "2026-05-03"

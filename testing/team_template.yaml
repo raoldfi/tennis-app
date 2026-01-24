@@ -1,0 +1,13 @@
+
+# teams_consolidated.yaml - All teams from division files
+teams:
+  # 4.5 Women Teams
+  - id: 2001
+    name: "NNM 4.5W Babbitt - EG"
+    league_id: 201
+    preferred_facility_ids: [18]
+    captain: "Babbitt"
+    preferred_days:
+      - "Saturday"
+      - "Sunday"
+  
